@@ -449,6 +449,10 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                             match result with
                             | Bool c -> Bool { c with WhenTrue = c.WhenTrue @ inner }, s
                             | Ref id -> result, update s id (fun o -> { o with Guard = o.Guard @ inner })
+                            // A predicate that returned true on this path: the conditions are what made it true.
+                            // (False results keep nothing: the other paths say when it is false.)
+                            | Const(:? int64 as n) when n <> 0L && m.ReturnType = "System.Boolean" ->
+                                Bool { WhenTrue = inner; WhenFalse = []; Uncertain = false }, s
                             | other -> other, s)
 
                 finish scoped
