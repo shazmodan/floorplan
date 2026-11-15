@@ -98,7 +98,7 @@ type Limits =
 
 let defaultLimits =
     { Steps = 2_000_000
-      Depth = 48
+      Depth = 96
       ThreadsPerCall = 64
       VisitsPerInstruction = 10
       OutcomesPerCall = 4 }
@@ -116,11 +116,18 @@ let private elementTypeName (fieldType: string) =
 
 /// Two predicates that cannot both hold.
 let private conflicts (a: Predicate) (b: Predicate) =
-    a.Operator = PredicateOperator.Equals
-    && b.Operator = PredicateOperator.Equals
-    && a.Part = b.Part
+    let startsWith (x: string) (prefix: string) = x.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+
+    a.Part = b.Part
     && a.Index = b.Index
-    && not (String.Equals(a.Value, b.Value, StringComparison.OrdinalIgnoreCase))
+    && match a.Operator, b.Operator with
+       | PredicateOperator.Equals, PredicateOperator.Equals -> not (String.Equals(a.Value, b.Value, StringComparison.OrdinalIgnoreCase))
+       // A value cannot start with two prefixes neither of which extends the other, nor equal a value that
+       // lacks a prefix it starts with.
+       | PredicateOperator.StartsWith, PredicateOperator.StartsWith -> not (startsWith a.Value b.Value || startsWith b.Value a.Value)
+       | PredicateOperator.Equals, PredicateOperator.StartsWith -> not (startsWith a.Value b.Value)
+       | PredicateOperator.StartsWith, PredicateOperator.Equals -> not (startsWith b.Value a.Value)
+       | _ -> false
 
 let private addPredicates (state: PathState) (ps: Predicate list) : PathState option =
     if ps.IsEmpty then
@@ -153,7 +160,7 @@ let private captureGroups (pattern: string) =
     n
 
 let private isPipelineType (typeKey: string) =
-    [ "Microsoft.AspNetCore.Builder."; "Microsoft.AspNetCore.Routing."; "Microsoft.AspNetCore.Http." ]
+    [ "Microsoft.AspNetCore.Builder."; "Microsoft.AspNetCore.Hosting."; "Microsoft.AspNetCore.Routing."; "Microsoft.AspNetCore.Http." ]
     |> List.exists typeKey.StartsWith
 
 type private Thread =
@@ -176,6 +183,8 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
     let hardCap = limits.Steps * 4
     // Steps may not pass the deadline; static initialization runs under a tighter one.
     let mutable deadline = limits.Steps
+    // The value a modelled call writes through its last (out) argument, picked up by the calling instruction.
+    let mutable outValue: SVal option = None
     // Static fields being initialized: their initializer stops once the field is stored.
     let initializing = HashSet<string>()
     // Debugging only: the methods being interpreted, innermost last.
@@ -260,12 +269,29 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
           Value = value
           Location = None }
 
+    /// The predicate "request data `op` value", for tags that say which part of the request they are. The rest of
+    /// a path after a known prefix compares as the whole path with the prefix put back.
+    let predicateOn (tags: Tags) (op: PredicateOperator) (value: string) : Predicate option =
+        match tags |> Seq.tryPick (function PathAfter p -> Some p | _ -> None) with
+        | Some prefix ->
+            match op with
+            | PredicateOperator.Equals
+            | PredicateOperator.StartsWith -> Some(predicate (RequestPart.Path, None) op (prefix + value))
+            | PredicateOperator.Matches when value.StartsWith "^" ->
+                Some(predicate (RequestPart.Path, None) op ("^" + Text.RegularExpressions.Regex.Escape prefix + value.Substring 1))
+            | _ -> None
+        | None -> describe tags |> Option.map (fun subject -> predicate subject op value)
+
     /// A comparison of request data with a constant, as a condition.
     let compare (a: SVal) (b: SVal) (op: PredicateOperator) : SVal option =
         match a, b with
         | Req tags, Const(:? string as s)
         | Const(:? string as s), Req tags ->
-            describe tags |> Option.map (fun subject -> Bool { WhenTrue = [ predicate subject op s ]; WhenFalse = []; Uncertain = false })
+            match predicateOn tags op s with
+            | Some p -> Some(Bool { WhenTrue = [ p ]; WhenFalse = []; Uncertain = false })
+            // A comparison with request data that cannot be stated: the path is uncertain.
+            | None when tags |> Seq.exists (function PathAfter _ -> true | _ -> false) -> Some(Bool { WhenTrue = []; WhenFalse = []; Uncertain = true })
+            | None -> None
         | Const x, Const y when op = PredicateOperator.Equals -> Some(Const(box (if x.Equals y then 1L else 0L)))
         | (Unknown | Null), Const(:? string)
         | Const(:? string), (Unknown | Null) -> Some(Bool { WhenTrue = []; WhenFalse = []; Uncertain = true })
@@ -637,18 +663,28 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
             | None -> false
 
         // A dictionary entry's field name. F# boxes value-type keys in a StructBox, which holds the key itself.
-        let entryKey (s: PathState) (key: SVal) =
-            let key =
-                match key with
-                | Ref id ->
-                    match s.Heap.TryFind id with
-                    | Some o when o.Type.FullName.Contains "StructBox" && o.Fields.Count = 1 -> Seq.head o.Fields.Values
-                    | _ -> key
-                | _ -> key
-
+        // Tuples compare by their parts; other objects by identity (union cases without fields are single
+        // instances). A key that cannot be read finds nothing, so nothing is invented.
+        let rec keyText (s: PathState) (key: SVal) (level: int) : string option =
             match key with
-            | Const c -> Some("<entry:" + c.GetType().Name + ":" + string c + ">")
+            | Const c -> Some(c.GetType().Name + ":" + string c)
+            | Null -> Some "null"
+            | Ref id when level < 4 ->
+                match s.Heap.TryFind id with
+                | Some o when o.Type.FullName.Contains "StructBox" && o.Fields.Count = 1 -> keyText s (Seq.head o.Fields.Values) (level + 1)
+                | Some o when o.Type.FullName.StartsWith "System.Tuple" || o.Type.FullName.StartsWith "System.ValueTuple" ->
+                    let parts = List.init 8 (fun i -> o.Fields.TryFind $"arg{i}") |> List.choose (fun x -> x) |> List.map (fun v -> keyText s v (level + 1))
+
+                    if parts |> List.forall Option.isSome then
+                        Some("(" + (parts |> List.map Option.get |> String.concat ",") + ")")
+                    else
+                        None
+                | Some _ -> Some("#" + string id)
+                | None -> None
             | _ -> None
+
+        let entryKey (s: PathState) (key: SVal) =
+            keyText s key 0 |> Option.map (fun k -> "<entry:" + k + ">")
 
         match matcher.Source m with
         | Some rule ->
@@ -684,12 +720,73 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 | "EndsWith" -> PredicateOperator.EndsWith
                 | _ -> PredicateOperator.Contains
 
+            // What the path is already known to be can decide the test: a path that starts with "/api/orders"
+            // contains "/api" and starts with "/api".
+            let decided =
+                match operands[0], operands[1] with
+                | Req t, Const(:? string as v) when t.Contains(Part RequestPart.Path) && not (t |> Seq.exists (function PathAfter _ -> true | _ -> false)) ->
+                    state.Predicates
+                    |> List.tryPick (fun p ->
+                        if p.Part <> RequestPart.Path then None
+                        else
+                            match p.Operator, op with
+                            | PredicateOperator.Equals, PredicateOperator.StartsWith -> Some(p.Value.StartsWith(v, StringComparison.Ordinal))
+                            | PredicateOperator.Equals, PredicateOperator.EndsWith -> Some(p.Value.EndsWith(v, StringComparison.Ordinal))
+                            | PredicateOperator.Equals, PredicateOperator.Contains -> Some(p.Value.Contains(v, StringComparison.Ordinal))
+                            | PredicateOperator.StartsWith, PredicateOperator.StartsWith when p.Value.StartsWith(v, StringComparison.Ordinal) -> Some true
+                            | PredicateOperator.StartsWith, PredicateOperator.Contains when p.Value.Contains(v, StringComparison.Ordinal) -> Some true
+                            | _ -> None)
+                | _ -> None
+
+            match decided with
+            | Some b -> one (Const(box (if b then 1L else 0L)))
+            | None ->
+
             match compare operands[0] operands[1] op with
             | Some v -> one v
             | None -> one Unknown
         elif m.Type.FullName = "Microsoft.AspNetCore.Http.PathString" && m.Name = "StartsWithSegments" && operands.Length >= 2 then
             match compare operands[0] operands[1] PredicateOperator.StartsWith with
             | Some v -> one v
+            | None -> one Unknown
+        elif m.Name = "get_Items" && m.Type.FullName = "Microsoft.AspNetCore.Http.HttpContext" && tags.Contains HttpContext then
+            // Per-request storage: one dictionary per path, empty when the request arrives.
+            match state.Statics.TryFind "<request:Items>" with
+            | Some v -> one v
+            | None ->
+                let d, s = allocate state { Assembly = "System.Runtime"; FullName = "System.Collections.Generic.Dictionary`2" } None
+                [ Ref d, { s with Statics = s.Statics.Add("<request:Items>", Ref d) } ]
+        elif m.Name = "ToString" && m.ParameterCount = 0 && (match receiver with Some(Const(:? string)) -> true | _ -> false) then
+            one receiver.Value
+        elif (m.Type.FullName = "System.String" && m.Name = "Substring"
+              || m.Type.FullName = "Microsoft.FSharp.Core.Operators/OperatorIntrinsics" && m.Name = "GetStringSlice")
+             && (match operands with Req t :: _ -> t.Contains(Part RequestPart.Path) || t |> Seq.exists (function PathAfter _ -> true | _ -> false) | _ -> false) then
+            // The path from some index on: when the request is known to start with a prefix of exactly that
+            // length, the rest of the path after it. Otherwise nothing is known about it.
+            let tagsOf = match operands with Req t :: _ -> t | _ -> Set.empty
+
+            let start =
+                match m.Name, operands with
+                | "Substring", [ _; Const(:? int64 as n) ]
+                // Substring(n, length - n): the length of request data is not known, so the rest is meant.
+                | "Substring", [ _; Const(:? int64 as n); Unknown ] -> Some(int n)
+                | "GetStringSlice", [ _; Ref o; Null ] ->
+                    // An F# slice s.[n..]: the start is an option.
+                    state.Heap.TryFind o |> Option.bind (fun x -> x.Fields.Values |> Seq.tryPick (function Const(:? int64 as n) -> Some(int n) | _ -> None))
+                | _ -> None
+
+            let known =
+                match tagsOf |> Seq.tryPick (function PathAfter p -> Some p | _ -> None) with
+                | Some p -> state.Predicates |> List.choose (fun x -> if x.Part = RequestPart.Path && x.Operator = PredicateOperator.StartsWith && x.Value.StartsWith p then Some x.Value else None)
+                | None -> state.Predicates |> List.choose (fun x -> if x.Part = RequestPart.Path && x.Operator = PredicateOperator.StartsWith then Some x.Value else None)
+
+            let offset = match tagsOf |> Seq.tryPick (function PathAfter p -> Some p | _ -> None) with Some p -> p.Length | None -> 0
+
+            match start with
+            | Some n ->
+                match known |> List.tryFind (fun prefix -> prefix.Length = offset + n) with
+                | Some prefix -> one (Req(Set.singleton (PathAfter prefix)))
+                | None -> one Unknown
             | None -> one Unknown
         elif m.Name = "GetType" && m.Type.FullName = "System.Object" && (match receiver with Some(Ref id) -> state.Heap.ContainsKey id | _ -> false) then
             // Reflection over an object the run created: its type, methods and parameters as declared.
@@ -878,9 +975,9 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
             match input, pattern with
             | Req t, Const(:? string as p) ->
-                match describe t with
-                | Some subject ->
-                    let cond = Bool { WhenTrue = [ predicate subject PredicateOperator.Matches p ]; WhenFalse = []; Uncertain = false }
+                match predicateOn t PredicateOperator.Matches p with
+                | Some matches ->
+                    let cond = Bool { WhenTrue = [ matches ]; WhenFalse = []; Uncertain = false }
 
                     if m.Name = "IsMatch" then
                         one cond
@@ -1164,8 +1261,38 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
             | Some items -> one (Const(box (int64 items.Length)))
             | None -> one Unknown
         | Some(Ref id), ("set_Item" | "Add" | "TryAdd") when m.ParameterCount = 2 && isDictionary id ->
+            // Each entry is also kept as a key-value pair, in insertion order, for enumeration.
             match entryKey state (arg 0) with
-            | Some k -> [ (if m.Name = "TryAdd" then Const(box 1L) else Unknown), update state id (fun o -> { o with Fields = o.Fields.Add(k, arg 1) }) ]
+            | Some k when m.Name = "TryAdd" && state.Heap[id].Fields.ContainsKey k -> one (Const(box 0L))
+            | Some k ->
+                let o = state.Heap[id]
+
+                let index =
+                    match o.Fields.TryFind("<index>" + k) with
+                    | Some(Const(:? int64 as n)) -> int n
+                    | _ -> o.Elements.Count
+
+                let kv, s = allocate state { Assembly = "System.Runtime"; FullName = "System.Collections.Generic.KeyValuePair`2" } None
+                let s = update s kv (fun x -> { x with Fields = x.Fields.Add("arg0", arg 0).Add("arg1", arg 1) })
+
+                let s =
+                    update s id (fun o ->
+                        { o with
+                            Fields = o.Fields.Add(k, arg 1).Add("<index>" + k, Const(box (int64 index)))
+                            Elements = o.Elements.Add(index, Ref kv) })
+
+                [ (if m.Name = "TryAdd" then Const(box 1L) else Unknown), s ]
+            | None -> one Unknown
+        | Some(Ref id), "TryGetValue" when m.ParameterCount = 2 && isDictionary id ->
+            match entryKey state (arg 0) with
+            | Some k ->
+                match state.Heap[id].Fields.TryFind k with
+                | Some v ->
+                    outValue <- Some v
+                    one (Const(box 1L))
+                | None ->
+                    outValue <- Some Null
+                    one (Const(box 0L))
             | None -> one Unknown
         | Some(Ref id), ("get_Item" | "ContainsKey") when m.ParameterCount = 1 && isDictionary id ->
             match entryKey state (arg 0) with
@@ -1280,6 +1407,8 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
             if created < (if phase = RequestPhase then limits.ThreadsPerCall * 4 else limits.ThreadsPerCall) then
                 created <- created + 1
                 threads.Push t
+            elif debug then
+                trace (sprintf "    thread dropped in %s" me.Display)
 
         let jump (t: Thread) (offset: int) =
             match indexOf.TryGetValue offset with
@@ -1412,7 +1541,25 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
                         let push (v: SVal) (rest: SVal list) = { next with Stack = v :: rest }
 
-                        let continueWith (results: (SVal * PathState) list) (rest: SVal list) (returnsValue: bool) =
+                        let continueFrom (next: Thread) (results: (SVal * PathState) list) (rest: SVal list) (returnsValue: bool) =
+                            // Outcomes that agree on everything routing depends on are one outcome: the result (an
+                            // object by its type and guard), the predicates, and the user code reached last.
+                            let results =
+                                if phase = RequestPhase then
+                                    results
+                                    |> List.distinctBy (fun (v, s) ->
+                                        let value =
+                                            match v with
+                                            | Ref id ->
+                                                match s.Heap.TryFind id with
+                                                | Some o -> box (o.Type.FullName, o.Guard)
+                                                | None -> box id
+                                            | other -> box other
+
+                                        value, s.Predicates, s.Uncertain, s.LastUserObject)
+                                else
+                                    results
+
                             match results |> List.truncate (if phase = RequestPhase then limits.OutcomesPerCall * 4 else limits.OutcomesPerCall) with
                             | [] -> running <- false
                             | (v, s) :: others ->
@@ -1420,6 +1567,8 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                                     fork { next with Stack = (if returnsValue then v2 :: rest else rest); State = s2 }
 
                                 t <- { next with Stack = (if returnsValue then v :: rest else rest); State = s }
+
+                        let continueWith results rest returnsValue = continueFrom next results rest returnsValue
 
                         match ins.Op with
                         | Nop -> t <- next
@@ -1843,7 +1992,13 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
                             currentUserSite <- savedUserSite
 
-                            continueWith results rest declared.ReturnsValue
+                            // An out argument passed as the address of a local: the modelled call's value lands there.
+                            let written = outValue
+                            outValue <- None
+
+                            match written, (if t.Pc > 0 then Some instrs[t.Pc - 1].Op else None) with
+                            | Some v, Some(LdLocA n) -> continueFrom { next with Locals = next.Locals.Add(n, v) } results rest declared.ReturnsValue
+                            | _ -> continueWith results rest declared.ReturnsValue
                         | LdToken -> t <- push Unknown t.Stack
 
         List.ofSeq outcomes

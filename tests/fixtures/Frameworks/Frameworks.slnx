@@ -2,4 +2,5 @@
   <Project Path="Frameworks.Falco/Frameworks.Falco.fsproj" />
   <Project Path="Frameworks.Giraffe/Frameworks.Giraffe.fsproj" />
   <Project Path="Frameworks.Oxpecker/Frameworks.Oxpecker.fsproj" />
+  <Project Path="Frameworks.Saturn/Frameworks.Saturn.fsproj" />
 </Solution>
