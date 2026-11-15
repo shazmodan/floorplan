@@ -34,6 +34,10 @@ let private kind (text: string) context =
     | "source" -> Source
     | "registration" -> Registration
     | "blind-spot" -> BlindSpot
+    | "comparison" -> RuleKind.Comparison
+    | "callback" -> Callback
+    | "metadata" -> Metadata
+    | "constant" -> Constant
     | other -> fail $"{context}: unknown kind \"{other}\"."
 
 let private requestPart (text: string) context =
@@ -86,6 +90,7 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
       RequestPart = str e "requestPart" |> Option.map (fun p -> requestPart p context)
       WhenFirstParameter = str e "whenFirstParameter"
       BlindSpot = str e "blindSpot"
+      ComparesTo = str e "comparesTo"
       Source = source }
 
 /// A catalog document as written, before `extends` is resolved.

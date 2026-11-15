@@ -19,10 +19,7 @@ Conditions in callers are collected up to the root, one route per call path.
 
 ## Known limits
 
-- Routing code inside a dependency (a NuGet package) is not yet followed: request-data tracking runs over user
-  code, and calls into dependencies pass tags through unchanged. Such handlers are reported only if user code
-  reaches them on a branch it decides itself.
-- Handlers invoked as function values stored by a framework (function-combinator routers) have no call edge from
-  the request path; they appear only through forms B or C.
+- Routing code inside a dependency (a NuGet package), including function-combinator routers, is followed by the
+  symbolic interpreter added later; see `docs/framework-routing.md`.
 - Form B tables are recognized when the table lives in a field or module value and is built with constant keys in
   the method that stores it.

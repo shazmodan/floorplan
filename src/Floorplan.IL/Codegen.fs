@@ -30,6 +30,9 @@ type ICodegenRecognizer =
     abstract CollectionAccess: method: MethodRef -> CollectionAccess option
     /// Whether a call compares two strings for equality, as this compiler emits it.
     abstract IsStringEquality: method: MethodRef -> bool
+    /// Runtime-library machinery that never decides routing (generic hashing and comparison, formatting,
+    /// reflection). A symbolic run treats calls into it as returning unknown values instead of interpreting it.
+    abstract IsOpaque: method: MethodRef -> bool
 
 /// Code generation every .NET compiler shares: delegates and async state machines.
 module CommonCodegen =

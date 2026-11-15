@@ -13,6 +13,8 @@
     <Compile Include="EffectAnalysis.fs" />
     <Compile Include="EntryPoints.fs" />
     <Compile Include="RouteRecovery.fs" />
+    <Compile Include="Symbolic.fs" />
+    <Compile Include="FrameworkRouting.fs" />
     <Compile Include="EntryPointAnalysis.fs" />
     <Compile Include="Traces.fs" />
   </ItemGroup>

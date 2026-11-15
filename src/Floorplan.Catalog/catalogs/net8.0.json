@@ -250,7 +250,7 @@
     { "id": "http-in.app-builder-use", "assembly": "Microsoft.AspNetCore.Http.Abstractions", "type": "Microsoft.AspNetCore.Builder.IApplicationBuilder",
       "members": ["Use", "Run"], "includeDerivedTypes": true, "kind": "registration", "category": "http-in", "payload": [{ "argument": 0, "role": "middleware" }] },
     { "id": "http-in.use-middleware", "assembly": "Microsoft.AspNetCore.Http.Abstractions", "type": "Microsoft.AspNetCore.Builder.UseMiddlewareExtensions",
-      "members": ["UseMiddleware"], "kind": "registration", "category": "http-in" },
+      "members": ["UseMiddleware"], "kind": "registration", "category": "http-in", "payload": [{ "argument": 1, "role": "middleware-arguments" }] },
     { "id": "http-in.app-map", "assembly": "Microsoft.AspNetCore.Http.Abstractions", "type": "Microsoft.AspNetCore.Builder.MapExtensions",
       "members": ["Map"], "kind": "registration", "category": "http-in",
       "payload": [{ "argument": 1, "role": "route-prefix" }, { "argument": 2, "role": "branch" }] },
@@ -258,6 +258,52 @@
       "members": ["MapWhen"], "kind": "registration", "category": "http-in", "payload": [{ "argument": 2, "role": "branch" }] },
     { "id": "http-in.server-application", "assembly": "Microsoft.AspNetCore.Hosting.Server.Abstractions", "type": "Microsoft.AspNetCore.Hosting.Server.IServer",
       "members": ["StartAsync"], "includeDerivedTypes": true, "kind": "registration", "category": "http-in", "payload": [{ "argument": 0, "role": "application" }] },
+
+    // Platform comparisons of request data (plan section 6.4, form A).
+    { "id": "http-in.is-get", "assembly": "Microsoft.AspNetCore.Http.Abstractions", "type": "Microsoft.AspNetCore.Http.HttpMethods",
+      "members": ["IsGet"], "kind": "comparison", "requestPart": "method", "comparesTo": "GET" },
+    { "id": "http-in.is-post", "assembly": "Microsoft.AspNetCore.Http.Abstractions", "type": "Microsoft.AspNetCore.Http.HttpMethods",
+      "members": ["IsPost"], "kind": "comparison", "requestPart": "method", "comparesTo": "POST" },
+    { "id": "http-in.is-put", "assembly": "Microsoft.AspNetCore.Http.Abstractions", "type": "Microsoft.AspNetCore.Http.HttpMethods",
+      "members": ["IsPut"], "kind": "comparison", "requestPart": "method", "comparesTo": "PUT" },
+    { "id": "http-in.is-delete", "assembly": "Microsoft.AspNetCore.Http.Abstractions", "type": "Microsoft.AspNetCore.Http.HttpMethods",
+      "members": ["IsDelete"], "kind": "comparison", "requestPart": "method", "comparesTo": "DELETE" },
+    { "id": "http-in.is-patch", "assembly": "Microsoft.AspNetCore.Http.Abstractions", "type": "Microsoft.AspNetCore.Http.HttpMethods",
+      "members": ["IsPatch"], "kind": "comparison", "requestPart": "method", "comparesTo": "PATCH" },
+    { "id": "http-in.is-head", "assembly": "Microsoft.AspNetCore.Http.Abstractions", "type": "Microsoft.AspNetCore.Http.HttpMethods",
+      "members": ["IsHead"], "kind": "comparison", "requestPart": "method", "comparesTo": "HEAD" },
+    { "id": "http-in.is-options", "assembly": "Microsoft.AspNetCore.Http.Abstractions", "type": "Microsoft.AspNetCore.Http.HttpMethods",
+      "members": ["IsOptions"], "kind": "comparison", "requestPart": "method", "comparesTo": "OPTIONS" },
+    { "id": "http-in.is-trace", "assembly": "Microsoft.AspNetCore.Http.Abstractions", "type": "Microsoft.AspNetCore.Http.HttpMethods",
+      "members": ["IsTrace"], "kind": "comparison", "requestPart": "method", "comparesTo": "TRACE" },
+    { "id": "http-in.is-connect", "assembly": "Microsoft.AspNetCore.Http.Abstractions", "type": "Microsoft.AspNetCore.Http.HttpMethods",
+      "members": ["IsConnect"], "kind": "comparison", "requestPart": "method", "comparesTo": "CONNECT" },
+
+    // Platform constants: the method names HttpMethods exposes as static fields.
+    { "id": "http-in.method-get", "type": "Microsoft.AspNetCore.Http.HttpMethods", "members": ["Get"], "kind": "constant", "comparesTo": "GET" },
+    { "id": "http-in.method-head", "type": "Microsoft.AspNetCore.Http.HttpMethods", "members": ["Head"], "kind": "constant", "comparesTo": "HEAD" },
+    { "id": "http-in.method-post", "type": "Microsoft.AspNetCore.Http.HttpMethods", "members": ["Post"], "kind": "constant", "comparesTo": "POST" },
+    { "id": "http-in.method-put", "type": "Microsoft.AspNetCore.Http.HttpMethods", "members": ["Put"], "kind": "constant", "comparesTo": "PUT" },
+    { "id": "http-in.method-patch", "type": "Microsoft.AspNetCore.Http.HttpMethods", "members": ["Patch"], "kind": "constant", "comparesTo": "PATCH" },
+    { "id": "http-in.method-delete", "type": "Microsoft.AspNetCore.Http.HttpMethods", "members": ["Delete"], "kind": "constant", "comparesTo": "DELETE" },
+    { "id": "http-in.method-options", "type": "Microsoft.AspNetCore.Http.HttpMethods", "members": ["Options"], "kind": "constant", "comparesTo": "OPTIONS" },
+    { "id": "http-in.method-trace", "type": "Microsoft.AspNetCore.Http.HttpMethods", "members": ["Trace"], "kind": "constant", "comparesTo": "TRACE" },
+    { "id": "http-in.method-connect", "type": "Microsoft.AspNetCore.Http.HttpMethods", "members": ["Connect"], "kind": "constant", "comparesTo": "CONNECT" },
+
+    // While a request is being routed, nothing has been written to the response yet.
+    { "id": "http-in.response-not-started", "type": "Microsoft.AspNetCore.Http.HttpResponse", "members": ["get_HasStarted"], "kind": "constant", "comparesTo": "false" },
+
+    // Endpoints built directly, as endpoint data sources do (plan section 6.2, "EndpointDataSource").
+    { "id": "http-in.route-endpoint-builder", "assembly": "Microsoft.AspNetCore.Routing", "type": "Microsoft.AspNetCore.Routing.RouteEndpointBuilder",
+      "members": [".ctor"], "kind": "registration", "category": "http-in",
+      "payload": [{ "argument": 0, "role": "handler" }, { "argument": 1, "role": "route-template" }] },
+    { "id": "http-in.route-endpoint", "assembly": "Microsoft.AspNetCore.Routing", "type": "Microsoft.AspNetCore.Routing.RouteEndpoint",
+      "members": [".ctor"], "kind": "registration", "category": "http-in",
+      "payload": [{ "argument": 0, "role": "handler" }, { "argument": 1, "role": "route-template" }] },
+    { "id": "http-in.http-method-metadata", "assembly": "Microsoft.AspNetCore.Routing", "type": "Microsoft.AspNetCore.Routing.HttpMethodMetadata",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "http-methods" }] },
+    { "id": "http-in.endpoint-data-source", "assembly": "Microsoft.AspNetCore.Routing", "type": "Microsoft.AspNetCore.Routing.EndpointDataSource",
+      "members": ["get_Endpoints"], "includeDerivedTypes": true, "kind": "callback", "category": "http-in" },
 
     // ---------------- blind spots (plan risk 7) ----------------
     { "id": "blind-spot.reflection-invoke", "type": "System.Reflection.MethodBase", "members": ["Invoke"], "includeDerivedTypes": true,

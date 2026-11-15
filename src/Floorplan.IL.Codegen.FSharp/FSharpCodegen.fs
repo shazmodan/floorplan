@@ -64,7 +64,8 @@ let isToList (m: MethodRef) =
 let isStringEquality (m: MethodRef) =
     (m.Type.FullName = "System.String" && (m.Name = "Equals" || m.Name = "op_Equality") && m.ParameterCount >= 1)
     || (m.Type.FullName = "Microsoft.FSharp.Core.LanguagePrimitives/HashCompare"
-        && (m.Name = "GenericEqualityIntrinsic" || m.Name = "GenericEqualityERIntrinsic"))
+        && (m.Name = "GenericEqualityIntrinsic" || m.Name = "GenericEqualityERIntrinsic" || m.Name = "GenericEqualityWithComparerIntrinsic"))
+    || (m.Type.FullName = "Microsoft.FSharp.Core.LanguagePrimitives" && m.Name.StartsWith "GenericEquality")
     || (m.Type.FullName = "Microsoft.FSharp.Core.Operators" && m.Name = "op_Equality")
 
 let recognizer =
@@ -99,5 +100,17 @@ let recognizer =
             elif m.Type.FullName = "Microsoft.FSharp.Collections.ListModule" && m.Name = "Tail" then Some Tail
             else None
 
-        member _.IsStringEquality m = isStringEquality m }
+        member _.IsStringEquality m = isStringEquality m
+
+        member _.IsOpaque m =
+            let t = m.Type.FullName
+
+            t.StartsWith "Microsoft.FSharp.Core.LanguagePrimitives"
+            || t.StartsWith "<StartupCode$FSharp-Core>"
+            || t.StartsWith "Microsoft.FSharp.Core.PrintfImpl"
+            || t.StartsWith "Microsoft.FSharp.Core.PrintfModule"
+            || t.StartsWith "Microsoft.FSharp.Reflection"
+            || t.StartsWith "Microsoft.FSharp.Collections.HashIdentity"
+            || t.StartsWith "Microsoft.FSharp.Collections.ComparisonIdentity"
+            || (t = "Microsoft.FSharp.Core.ExtraTopLevelOperators" && m.Name.StartsWith "PrintFormat") }
 

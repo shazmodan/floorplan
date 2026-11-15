@@ -68,3 +68,28 @@ type Matcher(catalog: Catalog, supertypes: TypeRef -> Set<string>) =
 
     member this.BlindSpot(m: MethodRef) =
         this.Match m |> List.tryFind (fun r -> r.Kind = BlindSpot)
+
+    member this.Comparison(m: MethodRef) =
+        this.Match m |> List.tryFind (fun r -> r.Kind = RuleKind.Comparison)
+
+    /// The value of a platform static field, when the catalog knows it.
+    member _.Constant(f: FieldRef) : string option =
+        catalog.Rules
+        |> List.tryFind (fun r -> r.Kind = Constant && r.Type = f.Type.FullName && List.contains f.Name r.Members)
+        |> Option.bind (fun r -> r.ComparesTo)
+
+    /// The value a platform property getter is known to return, e.g. HttpResponse.HasStarted while routing.
+    member _.ConstantGetter(m: MethodRef) : string option =
+        catalog.Rules
+        |> List.tryFind (fun r -> r.Kind = Constant && r.Type = m.Type.FullName && List.contains m.Name r.Members)
+        |> Option.bind (fun r -> r.ComparesTo)
+
+    member this.Metadata(m: MethodRef) =
+        this.Match m |> List.tryFind (fun r -> r.Kind = Metadata)
+
+    /// Callback rules on a type or its base types, for members an object of that type overrides.
+    member _.Callbacks(t: TypeRef) : Rule list =
+        let supers = supertypes t
+
+        catalog.Rules
+        |> List.filter (fun r -> r.Kind = Callback && supers.Contains r.Type)
