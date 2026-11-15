@@ -315,6 +315,40 @@ type Recovery(ctx: AppContext) =
     member _.Flow(m) = flowOf m
     member _.Constant(flow, offset, index) = constant flow offset index
 
+/// A route template from an anchored path pattern made of literal text and capture groups, such as
+/// ^/api/orders/(-?\d+)$ (a format-string route compiled to a regex): each group is a parameter. Anything else is not a template.
+let templateOfPattern (pattern: string) : string option =
+    if pattern.Length < 3 || pattern[0] <> '^' || pattern[pattern.Length - 1] <> '$' then
+        None
+    else
+        let body = pattern.Substring(1, pattern.Length - 2)
+        let text = Text.StringBuilder()
+        let mutable groups = 0
+        let mutable ok = true
+        let mutable i = 0
+
+        while ok && i < body.Length do
+            match body[i] with
+            | '\\' when i + 1 < body.Length && not (Char.IsLetterOrDigit body[i + 1]) ->
+                text.Append(body[i + 1]) |> ignore
+                i <- i + 2
+            | '(' when i + 1 < body.Length && body[i + 1] <> '?' ->
+                // One group, not nested, that cannot run over a segment boundary unseen.
+                match body.IndexOf(')', i) with
+                | close when close > i && not (body.Substring(i + 1, close - i - 1).Contains '(') ->
+                    groups <- groups + 1
+                    text.Append("{param").Append(groups).Append('}') |> ignore
+                    i <- close + 1
+                | _ -> ok <- false
+            | c when "\\.*+?()[]{}|^$".IndexOf c >= 0 -> ok <- false
+            | c ->
+                text.Append c |> ignore
+                i <- i + 1
+
+        if not ok || text.Length = 0 || text[0] <> '/' then None
+        elif groups = 1 then Some(text.ToString().Replace("{param1}", "{param}"))
+        else Some(text.ToString())
+
 /// Turns predicates into a method, a route and a completeness level (plan section 6.6).
 let assemble (predicates: Predicate list) : string option * string option * Completeness =
     let methods =
@@ -329,6 +363,10 @@ let assemble (predicates: Predicate list) : string option * string option * Comp
         predicates
         |> List.tryFind (fun p -> p.Part = RequestPart.Path && p.Operator = PredicateOperator.Equals)
         |> Option.map (fun p -> p.Value)
+        |> Option.orElse (
+            predicates
+            |> List.tryPick (fun p ->
+                if p.Part = RequestPart.Path && p.Operator = PredicateOperator.Matches then templateOfPattern p.Value else None))
 
     let segments =
         predicates

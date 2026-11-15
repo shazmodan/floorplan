@@ -173,6 +173,9 @@ type MethodDef =
       IsFinal: bool
       IsConstructor: bool
       IsCompilerGenerated: bool
+      IsPublic: bool
+      /// Parameter names as declared (empty strings where the metadata has none).
+      ParameterNames: string list
       /// The native library, for a P/Invoke declaration.
       PInvokeModule: string option
       /// Methods this one explicitly overrides (.override), e.g. explicit interface implementations.

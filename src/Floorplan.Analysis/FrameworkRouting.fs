@@ -216,10 +216,25 @@ let analyze (ctx: AppContext) : EntryPoint list =
                 if System.Environment.GetEnvironmentVariable "FLOORPLAN_DEBUG" = "1" then
                     eprintfn "  explore %s route=%A methods=%A handler=%s" rule.Id route methods (match handler with Fn(m, _) -> m.Display | other -> sprintf "%A" other)
 
-                match machine.Explore(handler, state, seed) with
-                | [] ->
+                let hits = machine.Explore(handler, state, seed)
+
+                // A user function found on some path is the handler; library responses on other paths of the same
+                // endpoint (error paths, mostly) add nothing.
+                let hits =
+                    if hits |> List.exists (fun h -> match h.Handler with HandlerMethod _ -> true | _ -> false) then
+                        hits |> List.filter (fun h -> match h.Handler with HandlerMethod _ -> true | _ -> false)
+                    else
+                        hits
+
+                match hits with
+                | [] when route.IsSome ->
                     entry ctx { Handler = HandlerSite site; Predicates = seed } [ RouteForm.PlatformRouting ] steps |> Option.toList
-                | hits -> hits |> List.choose (fun h -> entry ctx h [ RouteForm.PlatformRouting ] steps)
+                | [] -> []
+                | hits ->
+                    hits
+                    // A library response with no route says too little to report.
+                    |> List.filter (fun h -> match h.Handler with HandlerSite _ -> route.IsSome | _ -> true)
+                    |> List.choose (fun h -> entry ctx h [ RouteForm.PlatformRouting ] steps)
             | RequestRoot(rule, handler, state, site) ->
                 let steps = [ step $"{(fst site).Display} registers a request handler with the platform (rule {rule.Id})" site ]
 
