@@ -1,0 +1,19 @@
+{
+  // .NET 9 and .NET 10 additions on top of net8.0 (plan section 4.4). Produced by reviewing the public API
+  // added in the watched namespaces (plan section 8.3).
+  "name": "net10.0",
+  "extends": "net8.0",
+  "add": [
+    // .NET 9: File.AppendAllBytes and File.AppendAllBytesAsync. Replaces the net8.0 rule with an extended member list.
+    { "id": "filesystem-write.file", "assembly": "System.Runtime", "type": "System.IO.File",
+      "members": ["WriteAllText", "WriteAllTextAsync", "WriteAllLines", "WriteAllLinesAsync", "WriteAllBytes", "WriteAllBytesAsync", "AppendAllText", "AppendAllTextAsync", "AppendAllLines", "AppendAllLinesAsync", "AppendAllBytes", "AppendAllBytesAsync", "AppendText", "Create", "CreateText", "Open", "OpenWrite", "Delete", "Copy", "Move", "Replace", "SetAttributes", "SetLastWriteTime*", "SetLastAccessTime*", "SetCreationTime*", "SetUnixFileMode", "Encrypt", "Decrypt", "CreateSymbolicLink"],
+      "kind": "sink", "category": "filesystem-write", "payload": [{ "argument": 0, "role": "path" }] },
+    // .NET 9: version 7 GUIDs embed the current time.
+    { "id": "nondeterminism.guid-v7", "assembly": "System.Runtime", "type": "System.Guid",
+      "members": ["CreateVersion7"], "kind": "sink", "category": "nondeterminism" },
+    // .NET 9: static asset endpoints registered by the platform.
+    { "id": "http-in.map-static-assets", "assembly": "Microsoft.AspNetCore.StaticAssets", "type": "Microsoft.AspNetCore.Builder.StaticAssetsEndpointRouteBuilderExtensions",
+      "members": ["MapStaticAssets"], "kind": "registration", "category": "http-in" }
+  ],
+  "remove": []
+}

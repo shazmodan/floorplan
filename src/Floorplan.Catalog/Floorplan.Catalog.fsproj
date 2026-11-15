@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>The boundary catalog: the data that says which .NET primitives are side-effects, request sources and handler registrations.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="catalogs\*.json" LogicalName="catalogs/%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Catalog.fs" />
+    <Compile Include="CatalogLoader.fs" />
+    <Compile Include="Matcher.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Floorplan.Model\Floorplan.Model.fsproj" />
+    <ProjectReference Include="..\Floorplan.IL\Floorplan.IL.fsproj" />
+  </ItemGroup>
+</Project>
