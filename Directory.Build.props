@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarnOn>3390;$(WarnOn)</WarnOn>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Version>0.1.0</Version>
+    <Authors>Floorplan contributors</Authors>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.fsproj'">
+    <PackageReference Include="FSharp.Core" />
+  </ItemGroup>
+</Project>

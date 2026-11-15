@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="ModelTests.fs" />
+    <Compile Include="ArchitectureTests.fs" />
+    <Compile Include="Main.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Expecto" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Floorplan.Model\Floorplan.Model.fsproj" />
+  </ItemGroup>
+</Project>

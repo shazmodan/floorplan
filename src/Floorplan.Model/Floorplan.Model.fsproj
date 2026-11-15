@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>The Floorplan analysis model: the one document every renderer reads.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Model.fs" />
+    <Compile Include="Json.fs" />
+  </ItemGroup>
+</Project>
