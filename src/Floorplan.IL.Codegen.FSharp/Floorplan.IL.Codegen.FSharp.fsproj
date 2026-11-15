@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Recognizers for F# compiler output: closures, sequence expressions, list and option access, active patterns.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="FSharpCodegen.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Floorplan.IL\Floorplan.IL.fsproj" />
+  </ItemGroup>
+</Project>

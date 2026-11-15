@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Assembly reading behind IAssemblyReader, a language-neutral IL representation, data flow and the call graph.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Types.fs" />
+    <Compile Include="CecilReader.fs" />
+    <Compile Include="AssemblySet.fs" />
+    <Compile Include="DataFlow.fs" />
+    <Compile Include="Codegen.fs" />
+    <Compile Include="CallGraph.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Mono.Cecil" />
+  </ItemGroup>
+</Project>
