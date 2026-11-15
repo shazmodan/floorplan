@@ -8,6 +8,7 @@
     <Compile Include="ArchitectureTests.fs" />
     <Compile Include="Fixtures.fs" />
     <Compile Include="ProjectLoadingTests.fs" />
+    <Compile Include="StructureTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
@@ -16,5 +17,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Floorplan.Model\Floorplan.Model.fsproj" />
     <ProjectReference Include="..\..\src\Floorplan.ProjectLoading\Floorplan.ProjectLoading.fsproj" />
+    <ProjectReference Include="..\..\src\Floorplan.Structure.FSharp\Floorplan.Structure.FSharp.fsproj" />
   </ItemGroup>
 </Project>

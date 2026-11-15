@@ -25,6 +25,8 @@ type LoadedProject =
       ReferencePaths: string list
       /// The built assembly.
       OutputAssembly: string
+      /// The simple name of the built assembly, as other assemblies reference it.
+      AssemblyName: string
       /// The PDB next to the built assembly, if present.
       Pdb: string option
       /// The raw MSBuild evaluation, for structure analyzers that need compiler options.
