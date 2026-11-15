@@ -53,9 +53,32 @@ let routingTests =
                   "Falco"
           }
 
-          test "Giraffe: a route recovered from composed function values" {
-              let giraffe = routes "Frameworks.Giraffe"
-              Expect.contains giraffe ("GET", "/api/orders", "Frameworks.Giraffe.Orders::list", Completeness.Complete) "list"
+          test "Giraffe: routes recovered from composed function values, routef patterns included" {
+              Expect.equal
+                  (routes "Frameworks.Giraffe")
+                  [ "DELETE", "/api/orders", "Frameworks.Giraffe.Orders::removeAll", Completeness.Complete
+                    "GET", "/", "Frameworks.Giraffe.Program (response built by a library function)", Completeness.Complete
+                    "GET", "/api/orders", "Frameworks.Giraffe.Orders::list", Completeness.Complete
+                    "GET", "/api/orders/{param}", "Frameworks.Giraffe.Orders::get", Completeness.Complete
+                    "OPTIONS", "/api/orders", "Frameworks.Giraffe.Orders::options", Completeness.Complete
+                    "PATCH", "/api/orders", "Frameworks.Giraffe.Orders::patchAll", Completeness.Complete
+                    "POST", "/api/orders", "Frameworks.Giraffe.Orders::create", Completeness.Complete
+                    "PUT", "/api/orders/{param}", "Frameworks.Giraffe.Orders::replace", Completeness.Complete ]
+                  "Giraffe"
+          }
+
+          test "Oxpecker: a route tree on endpoint routing, routef templates built by reflection" {
+              Expect.equal
+                  (routes "Frameworks.Oxpecker")
+                  [ "DELETE", "/api/orders/{id}", "Frameworks.Oxpecker.Orders::remove", Completeness.Complete
+                    "GET", "/", "Frameworks.Oxpecker.Program (response built by a library function)", Completeness.Complete
+                    "GET", "/api/orders", "Frameworks.Oxpecker.Orders::list", Completeness.Complete
+                    "GET", "/api/orders/{id}", "Frameworks.Oxpecker.Orders::get", Completeness.Complete
+                    "OPTIONS", "/api/orders", "Frameworks.Oxpecker.Orders::options", Completeness.Complete
+                    "PATCH", "/api/orders/{id}", "Frameworks.Oxpecker.Orders::patch", Completeness.Complete
+                    "POST", "/api/orders", "Frameworks.Oxpecker.Orders::create", Completeness.Complete
+                    "PUT", "/api/orders/{id}", "Frameworks.Oxpecker.Orders::replace", Completeness.Complete ]
+                  "Oxpecker"
           }
 
           test "every handler is reported in every framework, and no route is wrong" {
@@ -78,6 +101,7 @@ let routingTests =
                             yield "PATCH /api/orders"
                             for m in [ "GET"; "PUT"; "DELETE"; "PATCH" ] do
                                 yield $"{m} /api/orders/{{id:int}}"
+                                yield $"{m} /api/orders/{{id}}"
                                 yield $"{m} /api/orders/{{param}}" ]
 
                   for e in m.EntryPoints |> List.filter (fun e -> e.ApplicationId = app && e.Route.IsSome) do

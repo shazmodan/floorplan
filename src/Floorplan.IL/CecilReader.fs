@@ -326,6 +326,8 @@ let private readMethod (asm: string) (m: MethodDefinition) : MethodDef =
         hasAttribute "CompilerGeneratedAttribute" m.CustomAttributes
         || m.Name.Contains '@'
         || m.Name.StartsWith "<"
+      IsPublic = m.IsPublic
+      ParameterNames = m.Parameters |> Seq.map (fun p -> if isNull p.Name then "" else p.Name) |> Seq.toList
       PInvokeModule =
         if m.IsPInvokeImpl && not (isNull m.PInvokeInfo) then
             Some(if isNull m.PInvokeInfo.Module then "" else m.PInvokeInfo.Module.Name)

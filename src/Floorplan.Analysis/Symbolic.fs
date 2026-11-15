@@ -98,7 +98,7 @@ type Limits =
 
 let defaultLimits =
     { Steps = 2_000_000
-      Depth = 36
+      Depth = 48
       ThreadsPerCall = 64
       VisitsPerInstruction = 10
       OutcomesPerCall = 4 }
@@ -137,6 +137,21 @@ let private shortName (name: string) = name.Substring(name.LastIndexOf '.' + 1)
 
 /// Callbacks the platform calls while building the request pipeline take one of these: an application or
 /// endpoint builder, or a request context. Other callbacks (service factories, options) do not route.
+/// How many capture groups a regular expression has: unescaped parentheses not followed by '?'.
+let private captureGroups (pattern: string) =
+    let mutable n = 0
+    let mutable i = 0
+
+    while i < pattern.Length do
+        match pattern[i] with
+        | '\\' -> i <- i + 1
+        | '(' when i + 1 >= pattern.Length || pattern[i + 1] <> '?' -> n <- n + 1
+        | _ -> ()
+
+        i <- i + 1
+
+    n
+
 let private isPipelineType (typeKey: string) =
     [ "Microsoft.AspNetCore.Builder."; "Microsoft.AspNetCore.Routing."; "Microsoft.AspNetCore.Http." ]
     |> List.exists typeKey.StartsWith
@@ -148,12 +163,17 @@ type private Thread =
       Args: Map<int, SVal>
       Visits: Map<int, int>
       State: PathState
-      Constrained: TypeRef option }
+      Constrained: TypeRef option
+      // Set once the thread took a branch it could not decide; until then its loops are deterministic.
+      Forked: bool }
 
 /// The interpreter. One machine per application and phase run.
 type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer list, limits: Limits) =
     let mutable nextId = 0
     let mutable steps = 0
+    // Every step taken, never given back: the run stops for good at the hard cap.
+    let mutable totalSteps = 0
+    let hardCap = limits.Steps * 4
     // Steps may not pass the deadline; static initialization runs under a tighter one.
     let mutable deadline = limits.Steps
     // Static fields being initialized: their initializer stops once the field is stored.
@@ -251,11 +271,15 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
         | Const(:? string), (Unknown | Null) -> Some(Bool { WhenTrue = []; WhenFalse = []; Uncertain = true })
         | _ -> None
 
-    /// Pure functions of System.String evaluated on constants.
+    /// Pure functions of System.String (and Regex.Escape) evaluated on constants.
     let fold (m: MethodRef) (operands: SVal list) : SVal option =
         let consts = operands |> List.map (function Const c -> Some c | Null -> Some null | _ -> None)
 
-        if m.Type.FullName <> "System.String" || consts |> List.exists Option.isNone then
+        if m.Type.FullName = "System.Text.RegularExpressions.Regex" && m.Name = "Escape" then
+            match consts with
+            | [ Some(:? string as text) ] -> Some(Const(System.Text.RegularExpressions.Regex.Escape text))
+            | _ -> None
+        elif m.Type.FullName <> "System.String" || consts |> List.exists Option.isNone then
             None
         else
             let values = consts |> List.map Option.get
@@ -361,13 +385,16 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
     /// Runs a method with arguments; returns the possible results with their states.
     member this.Invoke(phase: Phase, m: MethodRef, args: SVal list, state: PathState, depth: int) : (SVal * PathState) list =
-        if steps >= deadline || depth > limits.Depth then
+        if steps >= deadline || totalSteps >= hardCap || depth > limits.Depth then
             [ Unknown, state ]
         else
             match methodOf m with
             | Some(def, _) when interpretable m && not def.IsAbstract && def.Body.Value.IsSome ->
                 // A library call that runs too long yields an unknown value instead of ending the path.
+                // Its steps are given back to the caller, so that the calls after it still get their turn; the
+                // hard cap on total work keeps the whole run bounded.
                 let saved = deadline
+                let entrySteps = steps
                 let own = set.Origin m.Type.Assembly = Dependency && depth >= 2
 
                 if own then
@@ -376,7 +403,14 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 let finish (results: (SVal * PathState) list) =
                     let exhausted = own && steps >= deadline && saved > deadline
                     deadline <- saved
-                    if results.IsEmpty && exhausted then [ Unknown, state ] else results
+
+                    if exhausted && totalSteps < hardCap then
+                        steps <- min steps (entrySteps + 1_000)
+
+                    // A call none of whose paths returns (they all threw, or were cut off) yields an unknown value:
+                    // in routing code exceptions are the rare path, and ending the caller would hide every
+                    // alternative tried after it.
+                    if results.IsEmpty then [ Unknown, state ] else results
 
                 if debug && (phase = RequestPhase || depth < 4 || debugLevel > 1) then
                     let show (v: SVal) =
@@ -568,6 +602,50 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
         let siteOrUnknown = defaultArg site (m, 0)
 
+        // A response written by library code on a path that reached no user function: the library builds the
+        // response, and the user code that set it up stands in as the handler.
+        if phase = RequestPhase
+           && m.Name.StartsWith "Write"
+           && (m.Type.FullName = "System.IO.Stream" || m.Type.FullName = "System.IO.Pipelines.PipeWriter" || m.Type.FullName.StartsWith "Microsoft.AspNetCore.Http.HttpResponse")
+           && not state.Uncertain
+           && not state.Predicates.IsEmpty
+           && tags.Contains HttpContext then
+            match state.LastUserObject with
+            | Some(siteMethod, offset) ->
+                hits.Add
+                    { Handler = HandlerSite(siteMethod, offset)
+                      Predicates = state.Predicates }
+            | None -> ()
+
+        let heapType (v: SVal option) =
+            match v with
+            | Some(Ref id) -> state.Heap.TryFind id |> Option.map (fun o -> o.Type.FullName)
+            | _ -> None
+
+        let heapObj (v: SVal option) =
+            match v with
+            | Some(Ref id) -> state.Heap[id]
+            | _ -> failwith "not an object"
+
+        let isDictionary (id: int) =
+            match state.Heap.TryFind id with
+            | Some o -> o.Type.FullName.Contains "Dictionary`2" || o.Type.FullName.Contains "DictImpl"
+            | None -> false
+
+        // A dictionary entry's field name. F# boxes value-type keys in a StructBox, which holds the key itself.
+        let entryKey (s: PathState) (key: SVal) =
+            let key =
+                match key with
+                | Ref id ->
+                    match s.Heap.TryFind id with
+                    | Some o when o.Type.FullName.Contains "StructBox" && o.Fields.Count = 1 -> Seq.head o.Fields.Values
+                    | _ -> key
+                | _ -> key
+
+            match key with
+            | Const c -> Some("<entry:" + c.GetType().Name + ":" + string c + ">")
+            | _ -> None
+
         match matcher.Source m with
         | Some rule ->
             let tag =
@@ -609,6 +687,179 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
             match compare operands[0] operands[1] PredicateOperator.StartsWith with
             | Some v -> one v
             | None -> one Unknown
+        elif m.Name = "GetType" && m.Type.FullName = "System.Object" && (match receiver with Some(Ref id) -> state.Heap.ContainsKey id | _ -> false) then
+            // Reflection over an object the run created: its type, methods and parameters as declared.
+            let o = heapObj receiver
+            let t, s = allocate state { Assembly = "System.Runtime"; FullName = "<type>" } None
+            [ Ref t, update s t (fun x -> { x with Fields = x.Fields.Add("<assembly>", Const o.Type.Assembly).Add("<name>", Const o.Type.FullName) }) ]
+        elif m.Name = "GetMethods" && m.ParameterCount = 0 && heapType receiver = Some "<type>" then
+            let o = heapObj receiver
+
+            match o.Fields.TryFind "<assembly>", o.Fields.TryFind "<name>" with
+            | Some(Const(:? string as a)), Some(Const(:? string as n)) ->
+                match set.TryType { Assembly = a; FullName = n } with
+                | Some(def, _) ->
+                    let methods = def.Methods |> List.filter (fun x -> x.IsPublic && not x.IsConstructor)
+
+                    let s, items =
+                        methods
+                        |> List.fold
+                            (fun (s: PathState, acc) x ->
+                                let mi, s2 = allocate s { Assembly = "System.Runtime"; FullName = "<methodinfo>" } None
+                                update s2 mi (fun o -> { o with Fields = o.Fields.Add("<method>", Fn(x.Ref, None)) }), Ref mi :: acc)
+                            (state, [])
+
+                    let arr, s = allocate s { Assembly = "System.Runtime"; FullName = "System.Array" } None
+                    [ Ref arr, update s arr (fun o -> { o with Length = Some items.Length; Elements = items |> List.rev |> List.indexed |> Map.ofList }) ]
+                | None -> one Unknown
+            | _ -> one Unknown
+        elif m.Name = "GetParameters" && heapType receiver = Some "<methodinfo>" then
+            match (heapObj receiver).Fields.TryFind "<method>" with
+            | Some(Fn(mr, _)) ->
+                match set.TryMethod mr with
+                | Some(def, _) ->
+                    let s, items =
+                        def.ParameterNames
+                        |> List.fold
+                            (fun (s: PathState, acc) name ->
+                                let pi, s2 = allocate s { Assembly = "System.Runtime"; FullName = "<parameterinfo>" } None
+                                update s2 pi (fun o -> { o with Fields = o.Fields.Add("<name>", (if name = "" then Null else Const name)) }), Ref pi :: acc)
+                            (state, [])
+
+                    let arr, s = allocate s { Assembly = "System.Runtime"; FullName = "System.Array" } None
+                    [ Ref arr, update s arr (fun o -> { o with Length = Some items.Length; Elements = items |> List.rev |> List.indexed |> Map.ofList }) ]
+                | None -> one Unknown
+            | _ -> one Unknown
+        elif m.Type.FullName = "System.Reflection.MethodInvoker" && m.Name = "Create" then
+            match arg 0 with
+            | Ref id when (state.Heap.TryFind id |> Option.map (fun o -> o.Type.FullName)) = Some "<methodinfo>" ->
+                let inv, s = allocate state { Assembly = "System.Runtime"; FullName = "<invoker>" } None
+                [ Ref inv, update s inv (fun o -> { o with Fields = o.Fields.Add("<method>", state.Heap[id].Fields["<method>"]) }) ]
+            | _ -> one Unknown
+        elif (m.Type.FullName = "System.Reflection.MethodInvoker" || m.Type.FullName = "System.Reflection.MethodBase") && m.Name = "Invoke"
+             && (heapType receiver = Some "<invoker>" || heapType receiver = Some "<methodinfo>") then
+            // A reflected call: the method itself, on the given target, with the arguments passed one by one.
+            match (heapObj receiver).Fields.TryFind "<method>" with
+            | Some(Fn(target, _)) ->
+                let rest = operands |> List.tail
+                let args = if target.HasThis then rest else List.tail rest
+                let args = (args @ List.replicate target.ParameterCount Unknown) |> List.truncate (target.ParameterCount + (if target.HasThis then 1 else 0))
+                this.Dispatch(phase, target, args, state, depth, site)
+            | _ -> one Unknown
+        elif m.Name = "get_Name" && heapType receiver = Some "<parameterinfo>" then
+            one ((heapObj receiver).Fields.TryFind "<name>" |> Option.defaultValue Unknown)
+        elif (m.Type.FullName = "Microsoft.FSharp.Core.PrintfModule" || m.Type.FullName = "Microsoft.FSharp.Core.ExtraTopLevelOperators")
+             && m.Name.StartsWith "PrintFormatToString" then
+            // An interpolated string over constants: each hole (%s%P() and the like) takes the next capture.
+            match arg 0 with
+            | Ref id when state.Heap.ContainsKey id ->
+                let o = state.Heap[id]
+                let format = o.Fields.Values |> Seq.tryPick (function Const(:? string as f) -> Some f | _ -> None)
+
+                let captures =
+                    o.Fields.Values
+                    |> Seq.tryPick (function
+                        | Ref a ->
+                            match state.Heap.TryFind a with
+                            | Some arr when arr.Length.IsSome -> Some(List.init arr.Length.Value (fun i -> arr.Elements.TryFind i |> Option.defaultValue Unknown))
+                            | _ -> None
+                        | _ -> None)
+
+                let text (v: SVal) =
+                    match v with
+                    | Const(:? string as x) -> Some x
+                    | Const(:? int64 as n) -> Some(string n)
+                    | Null -> Some ""
+                    | _ -> None
+
+                let hole = @"%[-+0 #]*\d*(\.\d+)?[a-zA-Z]%P\(\)"
+
+                match format with
+                | Some f ->
+                    let holes = Text.RegularExpressions.Regex.Matches(f, hole)
+                    let values = defaultArg captures [] |> List.map text
+
+                    if holes.Count = 0 && not (f.Replace("%%", "").Contains '%') then
+                        one (Const(f.Replace("%%", "%")))
+                    elif holes.Count > 0 && holes.Count = values.Length && values |> List.forall Option.isSome then
+                        let mutable i = -1
+
+                        let result =
+                            Text.RegularExpressions.Regex.Replace(
+                                f,
+                                hole + "|%%",
+                                fun (x: Text.RegularExpressions.Match) ->
+                                    if x.Value = "%%" then
+                                        "%"
+                                    else
+                                        i <- i + 1
+                                        values[i].Value
+                            )
+
+                        one (Const result)
+                    else
+                        one Unknown
+                | None -> one Unknown
+            | _ -> one Unknown
+        elif m.Type.FullName = "System.Text.RegularExpressions.Regex" && m.Name = "Replace" && m.HasThis && m.ParameterCount = 2 then
+            // A regular expression with a known pattern replacing in a known input: the matches are found here and
+            // each is handed to the evaluator.
+            let field name =
+                match receiver with
+                | Some(Ref id) -> state.Heap.TryFind id |> Option.bind (fun o -> o.Fields.TryFind name)
+                | _ -> None
+
+            match field "arg0", arg 0 with
+            | Some(Const(:? string as pattern)), Const(:? string as input) ->
+                let options =
+                    match field "arg1" with
+                    | Some(Const(:? int64 as n)) -> enum<Text.RegularExpressions.RegexOptions> (int n)
+                    | _ -> Text.RegularExpressions.RegexOptions.None
+
+                let found = Text.RegularExpressions.Regex.Matches(input, pattern, options) |> Seq.toList
+
+                let folded =
+                    found
+                    |> List.fold
+                        (fun (acc: (string list * PathState) option) (x: Text.RegularExpressions.Match) ->
+                            match acc with
+                            | None -> None
+                            | Some(parts, s) ->
+                                let s, groups =
+                                    [ for g in x.Groups -> g ]
+                                    |> List.fold
+                                        (fun (s: PathState, gs) (g: Text.RegularExpressions.Group) ->
+                                            let gid, s2 = allocate s { Assembly = "System.Text.RegularExpressions"; FullName = "System.Text.RegularExpressions.Group" } None
+
+                                            update s2 gid (fun o ->
+                                                { o with Fields = o.Fields.Add("Success", Const(box (if g.Success then 1L else 0L))).Add("<value>", Const g.Value) }),
+                                            Ref gid :: gs)
+                                        (s, [])
+
+                                let mid, s = allocate s { Assembly = "System.Text.RegularExpressions"; FullName = "System.Text.RegularExpressions.Match" } None
+
+                                let s =
+                                    update s mid (fun o ->
+                                        { o with
+                                            Fields = o.Fields.Add("Success", Const(box 1L)).Add("<value>", Const x.Value)
+                                            Elements = groups |> List.rev |> List.indexed |> Map.ofList })
+
+                                match this.CallValue(phase, arg 1, [ Ref mid ], s, depth + 1) with
+                                | (Const(:? string as r), s2) :: _ -> Some(r :: parts, s2)
+                                | _ -> None)
+                        (Some([], state))
+
+                match folded with
+                | Some(replacements, s) ->
+                    let replacements = List.rev replacements |> List.toArray
+                    let mutable i = -1
+
+                    let result =
+                        Text.RegularExpressions.Regex.Replace(input, pattern, (fun (_: Text.RegularExpressions.Match) -> i <- i + 1; replacements[i]), options)
+
+                    [ Const result, s ]
+                | None -> one Unknown
+            | _ -> one Unknown
         elif m.Type.FullName = "System.Text.RegularExpressions.Regex" && (m.Name = "IsMatch" || m.Name = "Match") then
             let input, pattern =
                 if m.HasThis then
@@ -632,13 +883,53 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                     else
                         // A Match object whose Success is the condition.
                         let id, s = allocate state { Assembly = "System.Text.RegularExpressions"; FullName = "System.Text.RegularExpressions.Match" } None
-                        [ Ref id, update s id (fun o -> { o with Fields = o.Fields.Add("Success", cond) }) ]
+                        [ Ref id, update s id (fun o -> { o with Fields = o.Fields.Add("Success", cond).Add("<groups>", Const(box (int64 (captureGroups p)))) }) ]
                 | None -> one Unknown
             | _ -> one Unknown
-        elif m.Type.FullName.StartsWith "System.Text.RegularExpressions.Group" || m.Type.FullName = "System.Text.RegularExpressions.Match" then
+        elif m.Type.FullName.StartsWith "System.Text.RegularExpressions.Group" || m.Type.FullName = "System.Text.RegularExpressions.Match" || m.Type.FullName = "System.Text.RegularExpressions.Capture" then
             match receiver, m.Name with
             | Some(Ref id), "get_Success" ->
                 one (state.Heap.TryFind id |> Option.bind (fun o -> o.Fields.TryFind "Success") |> Option.defaultValue Unknown)
+            | Some(Ref id), "get_Groups" when (state.Heap.TryFind id |> Option.map (fun o -> not o.Elements.IsEmpty)) = Some true ->
+                // A match found on a known input has its groups.
+                let o = state.Heap[id]
+                let c, s = allocate state { Assembly = "System.Text.RegularExpressions"; FullName = "System.Text.RegularExpressions.GroupCollection" } None
+                [ Ref c, update s c (fun x -> { x with Fields = x.Fields.Add("Success", Const(box 1L)); Elements = o.Elements }) ]
+            | Some(Ref id), "get_Value" ->
+                one (state.Heap.TryFind id |> Option.bind (fun o -> o.Fields.TryFind "<value>") |> Option.defaultValue Unknown)
+            | Some(Ref id), "get_Groups" ->
+                // The groups: the whole match, then one per capture group, all there only when the match succeeded.
+                match state.Heap.TryFind id with
+                | Some o ->
+                    let groups = match o.Fields.TryFind "<groups>" with Some(Const(:? int64 as n)) -> int n | _ -> 0
+                    let s, members =
+                        List.replicate (groups + 1) ()
+                        |> List.fold
+                            (fun (s: PathState, acc) _ ->
+                                let g, s2 = allocate s { Assembly = "System.Text.RegularExpressions"; FullName = "System.Text.RegularExpressions.Group" } None
+                                update s2 g (fun x -> { x with Fields = x.Fields.Add("Success", Const(box 1L)) }), Ref g :: acc)
+                            (state, [])
+                    let c, s = allocate s { Assembly = "System.Text.RegularExpressions"; FullName = "System.Text.RegularExpressions.GroupCollection" } None
+                    let fields = match o.Fields.TryFind "Success" with Some v -> o.Fields.Add("Success", v) | None -> o.Fields
+                    [ Ref c, update s c (fun x -> { x with Fields = fields; Elements = members |> List.rev |> List.indexed |> Map.ofList }) ]
+                | None -> one Unknown
+            | Some(Ref id), "get_Count" when m.Type.FullName = "System.Text.RegularExpressions.GroupCollection" ->
+                match state.Heap.TryFind id with
+                | Some o ->
+                    match o.Fields.TryFind "Success" with
+                    | Some(Bool c) ->
+                        [ Const(box (int64 o.Elements.Count)), c.WhenTrue; Const(box 1L), c.WhenFalse ]
+                        |> List.choose (fun (v, ps) -> addPredicates state ps |> Option.map (fun s -> v, s))
+                    | _ -> one (Const(box (int64 o.Elements.Count)))
+                | None -> one Unknown
+            | Some(Ref id), "GetEnumerator" when (typeName state (Ref id) |> Option.map (fun t -> t.FullName)) = Some "System.Text.RegularExpressions.GroupCollection" ->
+                let items = state.Heap[id].Elements
+                let e, s = allocate state { Assembly = "System.Runtime"; FullName = "<enumerator>" } None
+                [ Ref e, update s e (fun o -> { o with Elements = items; Fields = o.Fields.Add("<position>", Const(box 0L)) }) ]
+            | Some(Ref id), "get_Item" when m.Type.FullName = "System.Text.RegularExpressions.GroupCollection" ->
+                match state.Heap.TryFind id, arg 0 with
+                | Some o, Const(:? int64 as i) -> one (o.Elements.TryFind(int i) |> Option.defaultValue Unknown)
+                | _ -> one Unknown
             | _ -> one Unknown
         elif m.Name = "Start" && m.Type.FullName.Contains "MethodBuilder" then
             // An async builder starts its state machine right away.
@@ -807,6 +1098,12 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 | _ -> ()
         | _ -> ()
 
+        // Enumerating something unknown: treated as empty. Forking at every item of an unknown sequence would
+        // double the paths per iteration, and loops over unknown data do not decide routes.
+        match receiver with
+        | Some(Unknown | Null) when (m.Name.EndsWith "MoveNext" || m.Name.EndsWith "MoveNextAsync") -> [ Const(box 0L), state ]
+        | _ ->
+
         // Framework collections hold the objects analyzed code puts in them, and can be enumerated. Explicit
         // interface implementations are named "Namespace.IFace.Member": match on the member alone.
         let shortName = m.Name.Substring(m.Name.LastIndexOf '.' + 1)
@@ -821,6 +1118,10 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                   update state id (fun o ->
                       { o with Elements = items |> List.fold (fun (es: Map<int, SVal>) v -> es.Add(es.Count, v)) o.Elements }) ]
             | None -> one Unknown
+        | Some(Const(:? string as text)), "GetEnumerator" ->
+            // A string enumerates its characters.
+            let e, s = allocate state { Assembly = "System.Runtime"; FullName = "<enumerator>" } None
+            [ Ref e, update s e (fun o -> { o with Elements = text |> Seq.mapi (fun i c -> i, Const(box (int64 c))) |> Map.ofSeq; Fields = o.Fields.Add("<position>", Const(box 0L)) }) ]
         | Some(Ref id), "GetEnumerator" ->
             match this.ElementsOf(state, Ref id) with
             | Some items ->
@@ -858,6 +1159,23 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
             match this.ElementsOf(state, Ref id) with
             | Some items -> one (Const(box (int64 items.Length)))
             | None -> one Unknown
+        | Some(Ref id), ("set_Item" | "Add" | "TryAdd") when m.ParameterCount = 2 && isDictionary id ->
+            match entryKey state (arg 0) with
+            | Some k -> [ (if m.Name = "TryAdd" then Const(box 1L) else Unknown), update state id (fun o -> { o with Fields = o.Fields.Add(k, arg 1) }) ]
+            | None -> one Unknown
+        | Some(Ref id), ("get_Item" | "ContainsKey") when m.ParameterCount = 1 && isDictionary id ->
+            match entryKey state (arg 0) with
+            | Some k ->
+                match state.Heap[id].Fields.TryFind k, m.Name with
+                | Some v, "get_Item" -> one v
+                | found, "ContainsKey" -> one (Const(box (if found.IsSome then 1L else 0L)))
+                | None, _ ->
+                    if debug then trace (sprintf "    dictionary miss %s among %s" k (state.Heap[id].Fields.Keys |> String.concat " "))
+                    one Unknown
+                | _ -> one Unknown
+            | None ->
+                if debug then trace (sprintf "    dictionary key unreadable: %A" (arg 0))
+                one Unknown
         | Some(Ref id), "get_Item" when m.ParameterCount = 1 ->
             match state.Heap.TryFind id, arg 0 with
             | Some o, Const(:? int64 as i) -> one (o.Elements.TryFind(int i) |> Option.defaultValue Unknown)
@@ -951,7 +1269,8 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
               Args = args |> List.indexed |> Map.ofList
               Visits = Map.empty
               State = state
-              Constrained = None }
+              Constrained = None
+              Forked = false }
 
         let fork (t: Thread) =
             if created < (if phase = RequestPhase then limits.ThreadsPerCall * 4 else limits.ThreadsPerCall) then
@@ -1006,6 +1325,7 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 else
                     fork next
             | None ->
+                let t, next = { t with Forked = true }, { next with Forked = true }
                 let c = conditionOf v
                 let whenTaken, whenNot = if takenWhenTrue then c.WhenTrue, c.WhenFalse else c.WhenFalse, c.WhenTrue
 
@@ -1047,12 +1367,13 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
             | Bool c, Const(:? int64 as n) when n = 1L -> Bool c
             | _ -> Unknown
 
-        while threads.Count > 0 && steps < deadline do
+        while threads.Count > 0 && steps < deadline && totalSteps < hardCap do
             let mutable t = threads.Pop()
             let mutable running = true
 
-            while running && steps < deadline do
+            while running && steps < deadline && totalSteps < hardCap do
                 steps <- steps + 1
+                totalSteps <- totalSteps + 1
 
                 if t.Pc >= instrs.Length then
                     running <- false
@@ -1070,7 +1391,10 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                         eprintfn "    [%s] %04x %A  stack: %s" me.Name ins.Offset ins.Op (t.Stack |> List.truncate 3 |> List.map show |> String.concat " | ")
 
                     // Registration loops run over known collections and end; request paths fork, so they get less.
-                    let visitLimit = if phase = Registration then limits.VisitsPerInstruction * 6 else limits.VisitsPerInstruction
+                    // A thread that decided every branch itself runs a loop with a known end, such as one over a constant.
+                    let visitLimit =
+                        if phase = Registration || not t.Forked then limits.VisitsPerInstruction * 6
+                        else limits.VisitsPerInstruction
 
                     if visits > visitLimit then
                         running <- false
@@ -1264,6 +1588,18 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                                     | Some _ -> Null
                                     | None -> Unknown
                                 | Null -> Null
+                                // Constants are strings and integers: only their own types and interfaces match.
+                                | Const(:? string) as c ->
+                                    let stringTypes =
+                                        Set.ofList [ "System.String"; "System.Object"; "System.Collections.IEnumerable"; "System.Collections.Generic.IEnumerable`1";
+                                              "System.IComparable"; "System.IComparable`1"; "System.IConvertible"; "System.IEquatable`1"; "System.ICloneable" ]
+
+                                    if stringTypes.Contains ty.FullName then c else Null
+                                | Const _ as c ->
+                                    let numberTypes =
+                                        Set.ofList [ "System.Int32"; "System.Int64"; "System.Object"; "System.ValueType"; "System.IComparable"; "System.IConvertible"; "System.IFormattable" ]
+
+                                    if numberTypes.Contains ty.FullName then c else Null
                                 | other -> other
 
                             t <- push result rest
@@ -1399,9 +1735,31 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                         | Other(name, pops, pushes) ->
                             let v, rest = pop pops
 
+                            // Integer arithmetic on constants: state machines compute their dispatch with it.
+                            let arithmetic (op: string) (a: int64) (b: int64) : int64 option =
+                                match op with
+                                | "Add" | "Add_Ovf" | "Add_Ovf_Un" -> Some(a + b)
+                                | "Sub" | "Sub_Ovf" | "Sub_Ovf_Un" -> Some(a - b)
+                                | "Mul" | "Mul_Ovf" | "Mul_Ovf_Un" -> Some(a * b)
+                                | "Div" | "Div_Un" when b <> 0L -> Some(a / b)
+                                | "Rem" | "Rem_Un" when b <> 0L -> Some(a % b)
+                                | "And" -> Some(a &&& b)
+                                | "Or" -> Some(a ||| b)
+                                | "Xor" -> Some(a ^^^ b)
+                                | "Shl" -> Some(a <<< int b)
+                                | "Shr" | "Shr_Un" -> Some(a >>> int b)
+                                | _ -> None
+
                             let result =
-                                if name.StartsWith "Conv" then (match v with [ x ] -> x | _ -> Unknown)
-                                else Unknown
+                                match name, v with
+                                | n, [ x ] when n.StartsWith "Conv" -> x
+                                | "Neg", [ Const(:? int64 as a) ] -> Const(box (-a))
+                                | "Not", [ Const(:? int64 as a) ] -> Const(box (~~~a))
+                                | op, [ Const(:? int64 as a); Const(:? int64 as b) ] ->
+                                    match arithmetic op a b with
+                                    | Some r -> Const(box r)
+                                    | None -> Unknown
+                                | _ -> Unknown
 
                             t <- { next with Stack = (List.replicate pushes result) @ rest }
                         | NewObj ctor ->
@@ -1472,7 +1830,12 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                                     let args = operands.Tail
                                     let all = if m.HasThis then (defaultArg fnTarget Unknown) :: args else args
                                     this.Dispatch(phase, m, all, t.State, depth, Some(me, ins.Offset))
-                                | Choice1Of2 m -> this.Dispatch(phase, m, operands, t.State, depth, Some(me, ins.Offset))
+                                | Choice1Of2 m ->
+                                    // A character's text: the constant alone cannot tell a char from an integer.
+                                    match t.Constrained, m.Name, operands with
+                                    | Some ty, "ToString", [ Const(:? int64 as c) ] when ty.FullName = "System.Char" ->
+                                        [ Const(box (string (char c))), t.State ]
+                                    | _ -> this.Dispatch(phase, m, operands, t.State, depth, Some(me, ins.Offset))
 
                             currentUserSite <- savedUserSite
 
@@ -1553,6 +1916,7 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
     member this.Explore(root: SVal, state: PathState, seed: Predicate list) =
         // Every request root gets its own budget.
         steps <- 0
+        totalSteps <- 0
         deadline <- limits.Steps
         let before = hits.Count
         let state = { state with Predicates = seed; LastUserObject = None; Uncertain = false }
@@ -1570,6 +1934,9 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
         // Paths that finished without reaching user code: the user code that built the last function object.
         for (_, s) in results do
+            if debug then
+                trace (sprintf "result: last user object %A, predicates %A, uncertain %b" (s.LastUserObject |> Option.map (fun (m, o) -> m.Display, o)) (s.Predicates |> List.map (fun p -> p.Part, p.Value)) s.Uncertain)
+
             match s.LastUserObject with
             | Some(siteMethod, offset) when not s.Predicates.IsEmpty || not seed.IsEmpty ->
                 hits.Add

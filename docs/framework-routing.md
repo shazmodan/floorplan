@@ -35,20 +35,44 @@ Correctness rules that keep it from guessing:
 
 ## Results on the fixtures
 
+Every fixture declares eight routes over all HTTP methods (`GET /`, `GET`/`POST`/`OPTIONS` on a collection,
+and `GET`/`PUT`/`DELETE`/`PATCH` on an item, or collection-level `DELETE`/`PATCH` in Giraffe's case).
+
 | Framework | Style | Recovered |
 |---|---|---|
-| Falco | Endpoint list turned into a custom `EndpointDataSource` | All four routes complete, including `GET /` answered by a library function |
-| Giraffe | Composed function values run by one middleware | `GET /api/orders` complete; `POST /api/orders` and `routef` handler found, unresolved |
-| Oxpecker | Route tree mapped onto endpoint routing, sub-routes as groups | `GET /` complete; the three handlers under `subRoute` found, unresolved |
+| Falco | Endpoint list turned into a custom `EndpointDataSource` | 8 of 8 complete, `/api/orders/{id:int}` from the route template |
+| Giraffe | Composed function values run by one middleware | 8 of 8 complete; `routef "/api/orders/%i"` gives `/api/orders/{param}` |
+| Oxpecker | Route tree mapped onto endpoint routing, sub-routes as groups | 8 of 8 complete; `routef "/orders/{%i}"` gives `/api/orders/{id}` |
 
-No fixture produces a wrong route. The routing fixtures of Phase 4 are unchanged.
+`GET /` is answered by a library function (`text "home"`) in every fixture and is reported as the user code
+that set it up. No fixture produces a wrong route. The routing fixtures of Phase 4 are unchanged.
+
+What made the `routef` routes work, all without framework knowledge:
+
+- **Loops with a known end.** A thread that has decided every branch itself (no fork on an unknown value) gets
+  the registration phase's loop allowance, so `List.ofSeq` over a 15-character format string finishes
+  instead of being cut off at ten iterations.
+- **Dictionaries.** `set_Item`, `Add`, `TryAdd`, `get_Item` and `ContainsKey` with constant keys, including
+  the `StructBox` F#'s `dict` wraps value-type keys in.
+- **Characters.** `c.ToString()` on a char (a constrained call) gives the character, not its code.
+- **Regular expressions.** A match's group count is 1 + its capture groups when the match succeeds and 1 when
+  it fails, so code that tests `Groups.Count` instead of `Success` still gets the predicate. A regex with a
+  known pattern run with an evaluator over a known input (`Regex.Replace`) is executed for real, and each
+  match is handed to the evaluator with its group values.
+- **Route templates from patterns.** An anchored path pattern made of literal text and capture groups
+  (`^/api/orders/(-?\d+)$`) becomes a route template, one parameter per group.
+- **Interpolated strings** over constants are folded (`$"{a}{b}"`, the `%s%P()` holes of F#).
+- **Reflection over objects the run created:** `GetType`, `GetMethods`, `GetParameters` with declared
+  parameter names, and `MethodInvoker.Create`/`Invoke` dispatching to the reflected method.
+- **Library responses** are recorded where the response body is written, on a path with certain predicates,
+  instead of only when the whole pipeline returns.
 
 ## Known limits
 
-- Path explosion: frameworks that try alternatives one after another (Giraffe's `choose`) fork at every unknown
-  value, and later alternatives can run out of budget before they are reached. Giraffe's `routef` builds a
-  regular expression from the format string at request time, which is expensive to interpret.
-- Oxpecker's nested route groups lose their templates on some paths; the handlers are reported without routes.
+- Path explosion is bounded, not solved: frameworks that try alternatives one after another fork at every
+  unknown value, and an application with many alternatives can still run out of budget before the last ones.
+  The call depth limit is 48, since recursive helpers (one frame per character of a format string) need it.
+- A regex route's parameter names are not recovered; the groups are named `{param}` (or `{param1}`, ...).
 - The symbolic run only starts for applications that reach a platform registration or request source, so plain
   console applications cost nothing.
 - Debugging aids: `FLOORPLAN_DEBUG=1` (or `2`) traces the run; `FLOORPLAN_DEBUG_METHOD=<name>` traces every
