@@ -53,17 +53,17 @@ let routingTests =
                   "Falco"
           }
 
-          test "Giraffe: routes recovered from composed function values, routef patterns included" {
+          test "Giraffe: routes recovered from composed function values, routef patterns named after the handler" {
               Expect.equal
                   (routes "Frameworks.Giraffe")
                   [ "DELETE", "/api/orders", "Frameworks.Giraffe.Orders::removeAll", Completeness.Complete
                     "GET", "/", "Frameworks.Giraffe.Program (response built by a library function)", Completeness.Complete
                     "GET", "/api/orders", "Frameworks.Giraffe.Orders::list", Completeness.Complete
-                    "GET", "/api/orders/{param}", "Frameworks.Giraffe.Orders::get", Completeness.Complete
+                    "GET", "/api/orders/{id}", "Frameworks.Giraffe.Orders::get", Completeness.Complete
                     "OPTIONS", "/api/orders", "Frameworks.Giraffe.Orders::options", Completeness.Complete
                     "PATCH", "/api/orders", "Frameworks.Giraffe.Orders::patchAll", Completeness.Complete
                     "POST", "/api/orders", "Frameworks.Giraffe.Orders::create", Completeness.Complete
-                    "PUT", "/api/orders/{param}", "Frameworks.Giraffe.Orders::replace", Completeness.Complete ]
+                    "PUT", "/api/orders/{id}", "Frameworks.Giraffe.Orders::replace", Completeness.Complete ]
                   "Giraffe"
           }
 
@@ -101,8 +101,7 @@ let routingTests =
                             yield "PATCH /api/orders"
                             for m in [ "GET"; "PUT"; "DELETE"; "PATCH" ] do
                                 yield $"{m} /api/orders/{{id:int}}"
-                                yield $"{m} /api/orders/{{id}}"
-                                yield $"{m} /api/orders/{{param}}" ]
+                                yield $"{m} /api/orders/{{id}}" ]
 
                   for e in m.EntryPoints |> List.filter (fun e -> e.ApplicationId = app && e.Route.IsSome) do
                       let httpMethod = defaultArg e.HttpMethod "?"

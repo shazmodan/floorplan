@@ -41,7 +41,7 @@ and `GET`/`PUT`/`DELETE`/`PATCH` on an item, or collection-level `DELETE`/`PATCH
 | Framework | Style | Recovered |
 |---|---|---|
 | Falco | Endpoint list turned into a custom `EndpointDataSource` | 8 of 8 complete, `/api/orders/{id:int}` from the route template |
-| Giraffe | Composed function values run by one middleware | 8 of 8 complete; `routef "/api/orders/%i"` gives `/api/orders/{param}` |
+| Giraffe | Composed function values run by one middleware | 8 of 8 complete; `routef "/api/orders/%i"` gives `/api/orders/{id}` |
 | Oxpecker | Route tree mapped onto endpoint routing, sub-routes as groups | 8 of 8 complete; `routef "/orders/{%i}"` gives `/api/orders/{id}` |
 
 `GET /` is answered by a library function (`text "home"`) in every fixture and is reported as the user code
@@ -60,7 +60,9 @@ What made the `routef` routes work, all without framework knowledge:
   known pattern run with an evaluator over a known input (`Regex.Replace`) is executed for real, and each
   match is handed to the evaluator with its group values.
 - **Route templates from patterns.** An anchored path pattern made of literal text and capture groups
-  (`^/api/orders/(-?\d+)$`) becomes a route template, one parameter per group.
+  (`^/api/orders/(-?\d+)$`) becomes a route template, one parameter per group. The groups are named after the
+  handler's parameters that are not part of the request pipeline (`get (id: int) : HttpHandler` gives `{id}`),
+  when there are exactly as many of them as groups.
 - **Interpolated strings** over constants are folded (`$"{a}{b}"`, the `%s%P()` holes of F#).
 - **Reflection over objects the run created:** `GetType`, `GetMethods`, `GetParameters` with declared
   parameter names, and `MethodInvoker.Create`/`Invoke` dispatching to the reflected method.
@@ -72,7 +74,8 @@ What made the `routef` routes work, all without framework knowledge:
 - Path explosion is bounded, not solved: frameworks that try alternatives one after another fork at every
   unknown value, and an application with many alternatives can still run out of budget before the last ones.
   The call depth limit is 48, since recursive helpers (one frame per character of a format string) need it.
-- A regex route's parameter names are not recovered; the groups are named `{param}` (or `{param1}`, ...).
+- A regex route whose handler takes its values some other way (one tuple, or more parameters than groups) keeps
+  the placeholder names `{param}` (or `{param1}`, ...).
 - The symbolic run only starts for applications that reach a platform registration or request source, so plain
   console applications cost nothing.
 - Debugging aids: `FLOORPLAN_DEBUG=1` (or `2`) traces the run; `FLOORPLAN_DEBUG_METHOD=<name>` traces every
