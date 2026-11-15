@@ -15,6 +15,8 @@
     <Compile Include="CliTests.fs" />
     <Compile Include="ILTests.fs" />
     <Compile Include="CatalogTests.fs" />
+    <Compile Include="Golden.fs" />
+    <Compile Include="ExitPointTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
@@ -29,5 +31,6 @@
     <ProjectReference Include="..\..\src\Floorplan.Cli\Floorplan.Cli.fsproj" />
     <ProjectReference Include="..\..\src\Floorplan.IL.Codegen.FSharp\Floorplan.IL.Codegen.FSharp.fsproj" />
     <ProjectReference Include="..\..\src\Floorplan.Catalog\Floorplan.Catalog.fsproj" />
+    <ProjectReference Include="..\..\src\Floorplan.Analysis\Floorplan.Analysis.fsproj" />
   </ItemGroup>
 </Project>

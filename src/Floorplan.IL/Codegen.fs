@@ -11,10 +11,20 @@ type ICodegenRecognizer =
     abstract FunctionObjectTargets: set: AssemblySet * constructed: TypeDef -> MethodRef list
     /// Virtual invokes of function objects, which are resolved through construction sites only.
     abstract IsFunctionInvoke: method: MethodRef -> bool
+    /// For a call that builds a string from a format literal, the index of the argument holding the literal.
+    abstract FormatArgument: method: MethodRef -> int option
+    /// A format literal rendered as a template, with each hole shown as {…}.
+    abstract FormatTemplate: format: string -> string
 
 /// Code generation every .NET compiler shares: delegates and async state machines.
 module CommonCodegen =
     let asyncStateMachine = "System.Runtime.CompilerServices.IAsyncStateMachine"
+
+    /// Enumerators: constructing one implies it will be enumerated, so construction links to MoveNext.
+    let enumeratorInterfaces =
+        set [ "System.Collections.IEnumerator"; "System.Collections.Generic.IAsyncEnumerator`1" ]
+
+    let enumeratorMethods = set [ "MoveNext"; "MoveNextAsync"; "GetEnumerator"; "GetAsyncEnumerator" ]
 
     /// Delegate invocation is resolved through ldftn sites, never virtually.
     let isDelegateInvoke (set: AssemblySet) (m: MethodRef) =

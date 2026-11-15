@@ -1,0 +1,26 @@
+database | Effects.App:Effects.Database | Effects.Database::sqlite | System.Data.Common.DbConnection::Open | via - | - | Effects/Effects.App/Database.fs:9
+database | Effects.App:Effects.Database | Effects.Database::sqlite | System.Data.Common.DbCommand::ExecuteNonQuery | via - | - | Effects/Effects.App/Database.fs:12
+database | Effects.App:Effects.Database | Effects.Database::postgres | System.Data.Common.DbConnection::Open | via - | - | Effects/Effects.App/Database.fs:16
+database | Effects.App:Effects.Database | Effects.Database::postgres | System.Data.Common.DbCommand::ExecuteScalar | via - | - | Effects/Effects.App/Database.fs:18
+http-out | Effects.App:Effects.Direct | Effects.Direct::fetch | System.Net.Http.HttpClient::GetStringAsync | via - | literal:https://api.example.org/status | Effects/Effects.App/Direct.fs:11
+filesystem-read | Effects.App:Effects.Direct | Effects.Direct::readConfig | System.IO.File::ReadAllText | via - | literal:config.json | Effects/Effects.App/Direct.fs:13
+filesystem-write | Effects.App:Effects.Direct | Effects.Direct::writeReport | System.IO.File::WriteAllText | via - | literal:report.txt | Effects/Effects.App/Direct.fs:15
+process | Effects.App:Effects.Direct | Effects.Direct::runGit | System.Diagnostics.Process::Start | via - | literal:git | Effects/Effects.App/Direct.fs:17
+nondeterminism | Effects.App:Effects.Hidden | Effects.Hidden::now | System.DateTime::get_Now | via - | - | Effects/Effects.App/Hidden.fs:7
+environment | Effects.App:Effects.Hidden | Effects.Hidden::home | System.Environment::GetEnvironmentVariable | via - | literal:HOME | Effects/Effects.App/Hidden.fs:9
+native | Effects.App:Effects.Hidden | Effects.Hidden::pid | Effects.Hidden::GetCurrentProcessId | via - | - | Effects/Effects.App/Hidden.fs:14
+filesystem-write | Effects.App:Effects.HigherOrder | Effects.HigherOrder/saveAll@12::Invoke | System.IO.File::AppendAllText | via - | literal:items.txt | Effects/Effects.App/HigherOrder.fs:12
+filesystem-write | Effects.App:Effects.HigherOrder | Effects.HigherOrder/FileStore::Effects.HigherOrder.IStore.Save | System.IO.File::WriteAllText | via - | literal:store.txt | Effects/Effects.App/HigherOrder.fs:19
+http-out | Effects.App:Effects.HigherOrder | Effects.HigherOrder/fetchAsync@28::Invoke | System.Net.Http.HttpClient::GetStringAsync | via - | literal:https://api.example.org/async | Effects/Effects.App/HigherOrder.fs:27
+filesystem-read | Effects.App:Effects.HigherOrder | Effects.HigherOrder/readTask@32::MoveNext | System.IO.File::ReadAllTextAsync | via - | literal:task.txt | Effects/Effects.App/HigherOrder.fs:33
+http-out | Effects.App:Effects.Payloads | Effects.Payloads::user | System.Net.Http.HttpClient::GetStringAsync | via - | template:https://api.example.org/users/{…} | Effects/Effects.App/Payloads.fs:13
+http-out | Effects.App:Effects.Payloads | Effects.Payloads::order | System.Net.Http.HttpClient::GetStringAsync | via - | template:https://api.example.org/orders/{…} | Effects/Effects.App/Payloads.fs:16
+filesystem-read | Effects.App:Effects.Payloads | Effects.Payloads::file | System.IO.File::ReadAllText | via - | template:data/{…} | Effects/Effects.App/Payloads.fs:18
+filesystem-read | Effects.App:Effects.Payloads | Effects.Payloads::anything | System.IO.File::ReadAllText | via - | dynamic:- | Effects/Effects.App/Payloads.fs:20
+database | Effects.App:Effects.Wrapped | Effects.Wrapped::queryNames | System.Data.IDbConnection::Open | via Dapper | - | Effects/Effects.App/Wrapped.fs:10
+nondeterminism | Effects.App:Effects.Wrapped | Effects.Wrapped::queryNames | System.Guid::NewGuid | via Dapper | - | Effects/Effects.App/Wrapped.fs:10
+http-out | Effects.App:Effects.Wrapped | Effects.Wrapped::fetchUsers | System.Net.Http.HttpClient::SendAsync | via Flurl.Http | - | Effects/Effects.App/Wrapped.fs:13
+nondeterminism | Effects.App:Effects.Wrapped | Effects.Wrapped::fetchUsers | System.DateTime::get_UtcNow | via Flurl.Http | - | Effects/Effects.App/Wrapped.fs:13
+-- diagnostics
+blind-spot.reflection | Effects.Hidden::plugin calls System.Type::GetType (reflection). What happens behind it is not analyzed.
+blind-spot.reflection | Effects.Hidden::plugin calls System.Activator::CreateInstance (reflection). What happens behind it is not analyzed.

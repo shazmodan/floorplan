@@ -10,6 +10,7 @@ let private fsharpCore = "FSharp.Core"
 let functionObjectBases =
     set
         [ "Microsoft.FSharp.Core.FSharpFunc`2"
+          "Microsoft.FSharp.Core.FSharpTypeFunc"
           "Microsoft.FSharp.Core.OptimizedClosures/FSharpFunc`3"
           "Microsoft.FSharp.Core.OptimizedClosures/FSharpFunc`4"
           "Microsoft.FSharp.Core.OptimizedClosures/FSharpFunc`5"
@@ -19,12 +20,22 @@ let functionObjectBases =
 
 /// Invoking a function value: resolved only through the construction site of the closure.
 let isFunctionInvoke (m: MethodRef) =
-    (m.Type.FullName = "Microsoft.FSharp.Core.FSharpFunc`2"
-     || m.Type.FullName.StartsWith "Microsoft.FSharp.Core.OptimizedClosures/FSharpFunc`")
-    && (m.Name = "Invoke" || m.Name = "InvokeFast")
+    ((m.Type.FullName = "Microsoft.FSharp.Core.FSharpFunc`2"
+      || m.Type.FullName.StartsWith "Microsoft.FSharp.Core.OptimizedClosures/FSharpFunc`")
+     && (m.Name = "Invoke" || m.Name = "InvokeFast"))
+    // Generic function values (type functions) are specialized, then invoked.
+    || (m.Type.FullName = "Microsoft.FSharp.Core.FSharpTypeFunc" && m.Name = "Specialize")
 
 let isFunctionObject (set: AssemblySet) (t: TypeDef) =
     set.BaseChain t.Ref |> List.exists (fun b -> functionObjectBases.Contains b.FullName)
+
+/// The format string of an F# interpolated or printf-style string, with each hole shown as {…}.
+let formatTemplate (format: string) =
+    System.Text.RegularExpressions.Regex.Replace(format, @"%(P\(\)|[-+0 #]*\d*(\.\d+)?[a-zA-Z])", "{…}").Replace("%%", "%")
+
+/// Builders of formatted strings: `new PrintfFormat<...>(format, ...)`.
+let isPrintfFormatConstructor (m: MethodRef) =
+    m.Name = ".ctor" && m.Type.FullName.StartsWith "Microsoft.FSharp.Core.PrintfFormat`"
 
 let recognizer =
     { new ICodegenRecognizer with
@@ -41,7 +52,12 @@ let recognizer =
             else
                 []
 
-        member _.IsFunctionInvoke m = isFunctionInvoke m }
+        member _.IsFunctionInvoke m = isFunctionInvoke m
+
+        member _.FormatArgument m =
+            if isPrintfFormatConstructor m then Some 0 else None
+
+        member _.FormatTemplate format = formatTemplate format }
 
 // ---- Recognizers for values in F# compiler output, used by request-data tracking and route recovery ----
 
@@ -73,10 +89,3 @@ let isStringEquality (m: MethodRef) =
         && (m.Name = "GenericEqualityIntrinsic" || m.Name = "GenericEqualityERIntrinsic"))
     || (m.Type.FullName = "Microsoft.FSharp.Core.Operators" && m.Name = "op_Equality")
 
-/// The format string of an F# interpolated or printf-style string, with each hole shown as {…}.
-let formatTemplate (format: string) =
-    System.Text.RegularExpressions.Regex.Replace(format, @"%(P\(\)|[-+0 #]*\d*(\.\d+)?[a-zA-Z])", "{…}").Replace("%%", "%")
-
-/// Builders of formatted strings: `new PrintfFormat<...>(format, ...)`.
-let isPrintfFormatConstructor (m: MethodRef) =
-    m.Name = ".ctor" && m.Type.FullName.StartsWith "Microsoft.FSharp.Core.PrintfFormat`"

@@ -19,5 +19,8 @@ let shop = lazy (loadOrFail LoadOptions.defaults "Shop/Shop.slnx")
 let shopWithTests =
     lazy (loadOrFail { LoadOptions.defaults with IncludeTests = true; Build = false } "Shop/Shop.slnx")
 
+/// The Effects fixture: every effect category, called directly, through wrapper libraries and higher-order code.
+let effects = lazy (loadOrFail LoadOptions.defaults "Effects/Effects.slnx")
+
 let project (solution: LoadedSolution) (name: string) =
     solution.Projects |> List.find (fun p -> p.Name = name)

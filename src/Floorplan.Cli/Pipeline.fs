@@ -8,6 +8,8 @@ open Floorplan.Model
 open Floorplan.ProjectLoading
 open Floorplan.Structure
 open Floorplan.Structure.FSharp
+open Floorplan.IL.Codegen.FSharp
+open Floorplan.Analysis
 open Floorplan.Layout
 open Floorplan.Rendering
 open Floorplan.Cli.Options
@@ -46,11 +48,52 @@ let private failureDiagnostic (f: LoadFailure) =
       ProjectId = None
       Location = None }
 
+/// Where a project's dependencies are found: its output folder first (implementation assemblies), then the
+/// compile-time references (reference packs for the shared frameworks).
+let private searchPaths (p: LoadedProject) =
+    let outputDir = Path.GetDirectoryName p.OutputAssembly
+
+    let local =
+        if Directory.Exists outputDir then
+            Directory.GetFiles(outputDir, "*.dll") |> Array.sort |> Array.toList
+        else
+            []
+
+    local @ p.ReferencePaths
+
+let analysisInput (solution: LoadedSolution) (index: SolutionIndex) (units: CodeUnit list) (catalogs: string list) =
+    { Projects =
+        solution.Projects
+        |> List.map (fun p ->
+            { ProjectId = p.Id
+              AssemblyPath = p.OutputAssembly
+              TargetFramework = p.TargetFramework
+              IsApplication = p.IsApplication
+              SupportLevel = SolutionIndex.supportLevel p index
+              SearchPaths = searchPaths p })
+      Units = units
+      ExtraCatalogs = catalogs }
+
 /// Builds the analysis model for a loaded solution.
-let buildModel (log: string -> unit) (solution: LoadedSolution) : AnalysisModel =
+let buildModel (log: string -> unit) (catalogs: string list) (solution: LoadedSolution) : AnalysisModel =
     log $"Analyzing structure of {solution.Projects.Length} projects"
     let structure, index = StructureAnalysis.analyze [ FSharpStructureAnalyzer.create () ] solution.Projects
-    let projects = solution.Projects |> List.map (toProject index)
+
+    log "Analyzing effects"
+    let input = analysisInput solution index structure.Units catalogs
+    use program = new EffectAnalysis.Program(input, [ FSharpCodegen.recognizer ])
+    let effects = EffectAnalysis.exitPoints program input
+
+    let projects =
+        solution.Projects
+        |> List.map (toProject index)
+        |> List.map (fun p ->
+            match effects.Catalogs.TryFind p.Id with
+            | Some c ->
+                { p with
+                    CatalogUsed = Some c.Catalog.Name
+                    CatalogFallback = c.Fallback }
+            | None -> p)
 
     log "Computing layout"
     let layout = SolutionLayout.compute projects structure.Units structure.Dependencies
@@ -59,8 +102,9 @@ let buildModel (log: string -> unit) (solution: LoadedSolution) : AnalysisModel 
         Projects = projects
         Units = structure.Units |> List.sortBy (fun u -> u.Id)
         Dependencies = structure.Dependencies
+        ExitPoints = effects.ExitPoints
         Layout = layout
-        Diagnostics = (solution.Failures |> List.map failureDiagnostic) @ structure.Diagnostics }
+        Diagnostics = (solution.Failures |> List.map failureDiagnostic) @ structure.Diagnostics @ effects.Diagnostics }
 
 let run (log: string -> unit) (options: AnalyzeOptions) : Result<Outcome, string> =
     let loadOptions =
@@ -79,7 +123,7 @@ let run (log: string -> unit) (options: AnalyzeOptions) : Result<Outcome, string
         let reasons = solution.Failures |> List.map (fun f -> $"  {Path.GetFileName f.Path}: {f.Message}") |> String.concat "\n"
         Error $"No project could be analyzed.\n{reasons}"
     | Ok solution ->
-        let model = buildModel log solution
+        let model = buildModel log options.Catalogs solution
 
         let renderer, target =
             match options.Format with
