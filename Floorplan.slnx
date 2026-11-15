@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Floorplan.Model/Floorplan.Model.fsproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Floorplan.Tests/Floorplan.Tests.fsproj" />
+  </Folder>
+</Solution>
