@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>IRenderer and the website renderer. The site's assets are embedded in the assembly.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="site\index.html" LogicalName="site/index.html" />
+    <EmbeddedResource Include="site\app.css" LogicalName="site/app.css" />
+    <EmbeddedResource Include="site\app.js" LogicalName="site/app.js" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Renderer.fs" />
+    <Compile Include="JsonRenderer.fs" />
+    <Compile Include="WebsiteRenderer.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Floorplan.Model\Floorplan.Model.fsproj" />
+  </ItemGroup>
+</Project>
