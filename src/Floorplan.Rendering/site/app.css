@@ -164,6 +164,9 @@ code, .mono { font-family: var(--mono); font-size: 12.5px; }
 .tag.complete { color: var(--ok); }
 .tag.partial { color: var(--warn); }
 .tag.unresolved { color: var(--muted); }
+.tag.confidence-high { color: var(--ok); }
+.tag.confidence-medium { color: var(--warn); }
+.tag.confidence-low { color: var(--muted); }
 
 .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
 .toolbar input[type="search"] { min-width: 220px; }

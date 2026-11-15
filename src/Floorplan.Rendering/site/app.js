@@ -76,7 +76,12 @@
     "filesystem-read": "File read", "filesystem-write": "File write", "process": "Process",
     "native": "Native", "environment": "Environment", "nondeterminism": "Nondeterminism"
   };
-  var HIDDEN_BY_DEFAULT = { "environment": true, "nondeterminism": true };
+  // Presentation defaults come from the model (--show changes them).
+  var HIDDEN_BY_DEFAULT = {};
+  ((D.presentation && D.presentation.hiddenCategories) || ["environment", "nondeterminism"]).forEach(function (c) { HIDDEN_BY_DEFAULT[c] = true; });
+  var HIDDEN_CONFIDENCE = {};
+  ((D.presentation && D.presentation.hiddenConfidence) || ["low"]).forEach(function (c) { HIDDEN_CONFIDENCE[c] = true; });
+  function visibleExit(x) { return !HIDDEN_BY_DEFAULT[x.category] && !HIDDEN_CONFIDENCE[x.confidence]; }
   var LANGUAGE_LABEL = { fsharp: "F#", csharp: "C#", other: "Other" };
 
   // ---------- Indexes ----------
@@ -106,7 +111,7 @@
     { id: "projects", label: "Projects" },
     { id: "units", label: unitWord.many },
     { id: "entry-points", label: "Entry points", count: function () { return D.entryPoints.length; } },
-    { id: "exit-points", label: "Exit points", count: function () { return D.exitPoints.filter(function (x) { return !HIDDEN_BY_DEFAULT[x.category]; }).length; } },
+    { id: "exit-points", label: "Exit points", count: function () { return D.exitPoints.filter(visibleExit).length; } },
     { id: "diagnostics", label: "Diagnostics", count: function () { return D.diagnostics.filter(function (d) { return d.severity !== "info"; }).length; } }
   ];
 
@@ -173,7 +178,7 @@
     }
 
     function card(n, label, href) { return el(href ? "a" : "div", { class: "card", href: href }, el("div", { class: "n" }, String(n)), el("div", { class: "l" }, label)); }
-    var visibleExits = D.exitPoints.filter(function (x) { return !HIDDEN_BY_DEFAULT[x.category]; });
+    var visibleExits = D.exitPoints.filter(visibleExit);
     append(page, el("div", { class: "cards" },
       card(D.projects.length, "Projects", "#/projects"),
       card(apps.length, "Applications", "#/projects"),
@@ -389,7 +394,7 @@
         if (!u || collapsedState[u.projectId]) return;
         var label = ids.map(function (i) { return (units[i] || {}).displayName || i; }).join(" ⇄ ");
         var entries = ids.reduce(function (a, i) { return a + (entryByUnit[i] || []).length; }, 0);
-        var exits = ids.reduce(function (a, i) { return a + (exitByUnit[i] || []).filter(function (x) { return !HIDDEN_BY_DEFAULT[x.category]; }).length; }, 0);
+        var exits = ids.reduce(function (a, i) { return a + (exitByUnit[i] || []).filter(visibleExit).length; }, 0);
         var badge = (entries ? "→" + entries : "") + (entries && exits ? " " : "") + (exits ? exits + "→" : "");
         var select = function () { selectUnit(ids[0]); };
         var node = svg("g", { class: "g-node" + (n.members.length ? " group" : ""), tabindex: "0", role: "button",
@@ -585,7 +590,7 @@
 
   function summarizeCategories(exits) {
     var counts = {};
-    exits.forEach(function (x) { if (!HIDDEN_BY_DEFAULT[x.category]) counts[x.category] = (counts[x.category] || 0) + 1; });
+    exits.forEach(function (x) { if (visibleExit(x)) counts[x.category] = (counts[x.category] || 0) + 1; });
     var keys = Object.keys(counts).sort();
     if (!keys.length) return el("span", { class: "muted" }, "—");
     return keys.map(function (k) { return el("span", { class: "tag", style: "margin-right:4px" }, (CATEGORY_LABEL[k] || k) + " " + counts[k]); });
@@ -634,7 +639,7 @@
   function exitTable(list, withProject) {
     if (!list.length) return el("p", { class: "muted" }, "None found.");
     return el("div", { class: "table-wrap" }, el("table", null,
-      el("thead", null, el("tr", null, el("th", null, "Category"), withProject ? el("th", null, "Project") : null, el("th", null, unitWord.one), el("th", null, "Payload"), el("th", null, "Via"), el("th", null, "Location"), el("th", null, ""))),
+      el("thead", null, el("tr", null, el("th", null, "Category"), withProject ? el("th", null, "Project") : null, el("th", null, unitWord.one), el("th", null, "Payload"), el("th", null, "Via"), el("th", null, "Confidence"), el("th", null, "Location"), el("th", null, ""))),
       el("tbody", null, list.map(function (x) {
         var u = units[x.unit] || {};
         return el("tr", null,
@@ -643,6 +648,7 @@
           el("td", null, unitLink(x.unit), el("div", { class: "muted mono" }, shortMember(x.member))),
           el("td", { class: "mono" }, x.payload ? (x.payload.value !== null ? x.payload.value : el("span", { class: "muted" }, x.payload.kind)) : el("span", { class: "muted" }, "—")),
           el("td", null, x.viaAssembly || el("span", { class: "muted" }, "direct")),
+          el("td", null, el("span", { class: "tag confidence-" + x.confidence, title: "How directly the effect was established; long paths through dependencies are low" }, x.confidence)),
           el("td", { class: "mono" }, loc(x.location)),
           el("td", null, el("a", { href: "#/evidence/exit:" + enc(x.id) }, "Evidence")));
       }))));
@@ -654,23 +660,31 @@
     D.exitPoints.forEach(function (x) { present[x.category] = true; });
     var cats = Object.keys(CATEGORY_LABEL).filter(function (c) { return present[c]; }).map(function (c) { return { id: c, label: CATEGORY_LABEL[c] }; });
     var state = { q: "", on: {} };
+    var lowCount = D.exitPoints.filter(function (x) { return HIDDEN_CONFIDENCE[x.confidence]; }).length;
+    var options = cats.slice();
+    if (lowCount) options.push({ id: "__low", label: "Low confidence (" + lowCount + ")" });
     var host = el("div");
     function draw() {
       var anyCat = cats.some(function (c) { return state.on[c.id]; });
       var list = D.exitPoints.filter(function (x) {
         var catOk = anyCat ? state.on[x.category] : !HIDDEN_BY_DEFAULT[x.category];
+        var confOk = state.on.__low || !HIDDEN_CONFIDENCE[x.confidence];
         var u = units[x.unit] || {};
-        return catOk && matches(state.q, [x.category, unitName(x.unit), x.member, x.primitive, x.viaAssembly, x.payload && x.payload.value, projectName(u.projectId)]);
+        return catOk && confOk && matches(state.q, [x.category, unitName(x.unit), x.member, x.primitive, x.viaAssembly, x.payload && x.payload.value, projectName(u.projectId)]);
       });
       host.textContent = "";
+      var hiddenCats = Object.keys(HIDDEN_BY_DEFAULT).map(function (c) { return CATEGORY_LABEL[c] || c; });
       var hidden = D.exitPoints.filter(function (x) { return HIDDEN_BY_DEFAULT[x.category]; }).length;
-      host.appendChild(el("p", { class: "muted" }, plural(list.length, "exit point") + " shown." + (!anyCat && hidden ? " " + hidden + " environment and nondeterminism results are hidden; select those categories to see them." : "")));
+      var notes = [];
+      if (!anyCat && hidden) notes.push(hidden + " results in " + hiddenCats.join(" and ") + " are hidden; select those categories to see them.");
+      if (!state.on.__low && lowCount) notes.push(lowCount + " low-confidence results (long paths through dependencies) are hidden.");
+      host.appendChild(el("p", { class: "muted" }, plural(list.length, "exit point") + " shown. " + notes.join(" ")));
       host.appendChild(exitTable(list, true));
     }
     append(page, [
       el("h1", null, "Exit points"),
       el("p", { class: "sub" }, "Calls from user code that reach a side-effect primitive of .NET, directly or through a dependency."),
-      filterBar(state, cats, draw), host
+      filterBar(state, options, draw), host
     ]);
     draw();
     main.appendChild(page);

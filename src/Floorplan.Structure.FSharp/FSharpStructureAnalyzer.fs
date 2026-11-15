@@ -113,7 +113,32 @@ module FSharpStructureAnalyzer =
           Dependencies = edges
           Diagnostics = errors }
 
-    let create () =
+    /// What a project's structure depends on: its sources, compiler options, referenced assemblies, and which
+    /// assemblies belong to which project of the solution.
+    let private cacheKey (index: SolutionIndex) (project: LoadedProject) =
+        let options = projectOptions project
+
+        let references =
+            options.OtherOptions
+            |> Array.choose (fun o -> if o.StartsWith "-r:" then Some(o.Substring 3) else None)
+            |> Array.map (fun r ->
+                let info = FileInfo r
+                if info.Exists then $"{r}|{info.Length}|{info.LastWriteTimeUtc.Ticks}" else r)
+
+        Caching.hash
+            [ yield "structure-v1"
+              yield typeof<StructureResult>.Assembly.GetName().Version.ToString()
+              yield project.Id
+              yield project.Path
+              for f in options.SourceFiles do
+                  yield f
+                  yield (if File.Exists f then Caching.fileHash f else "")
+              yield! options.OtherOptions |> Array.filter (fun o -> not (o.StartsWith "-r:"))
+              yield! references
+              for p in index.Projects do
+                  yield $"{p.AssemblyName}={p.Id}:{SolutionIndex.supportLevel p index}" ]
+
+    let create (store: Caching.Store) =
         let checker = FSharpChecker.Create(projectCacheSize = 4)
 
         { new IStructureAnalyzer with
@@ -123,7 +148,18 @@ module FSharpStructureAnalyzer =
                 projects
                 |> List.map (fun p ->
                     try
-                        analyzeProject checker index p
+                        let key = cacheKey index p
+
+                        match store.TryRead<StructureResult>("structure", key) with
+                        | Some cached -> cached
+                        | None ->
+                            let result = analyzeProject checker index p
+
+                            // Results with type-check errors may change once the code is fixed: not cached.
+                            if result.Diagnostics.IsEmpty then
+                                store.Write("structure", key, result)
+
+                            result
                     with e ->
                         { StructureResult.empty with
                             Diagnostics =

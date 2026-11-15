@@ -7,7 +7,7 @@ open Floorplan.Cli
 
 /// The full model of a fixture, built by the CLI pipeline without rendering.
 let private modelOf (solution: Lazy<Floorplan.ProjectLoading.LoadedSolution>) =
-    lazy (Pipeline.buildModel ignore [] (solution.Force()))
+    lazy (Pipeline.buildModel ignore Floorplan.Model.Caching.Store.Disabled [] [] (solution.Force()))
 
 let effectsModel = modelOf Fixtures.effects
 let shopModel = modelOf Fixtures.shop

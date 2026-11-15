@@ -8,7 +8,7 @@ open Floorplan.Structure.FSharp
 let shopStructure =
     lazy
         (let solution = Fixtures.shop.Force()
-         StructureAnalysis.analyze [ FSharpStructureAnalyzer.create () ] solution.Projects |> fst)
+         StructureAnalysis.analyze [ FSharpStructureAnalyzer.create Floorplan.Model.Caching.Store.Disabled ] solution.Projects |> fst)
 
 let private hasEdge (from: string) (target: string) (result: StructureResult) =
     result.Dependencies |> List.exists (fun d -> d.FromUnit = from && d.ToUnit = target)

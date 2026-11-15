@@ -157,6 +157,14 @@ type Payload =
       Kind: PayloadKind
       Value: string option }
 
+/// How directly an exit point was established (plan risk 2): a direct call to a primitive is high; a long path
+/// through a dependency, especially through virtual calls, is low.
+[<RequireQualifiedAccess>]
+type Confidence =
+    | High
+    | Medium
+    | Low
+
 type ExitPoint =
     { Id: string
       Category: EffectCategory
@@ -171,6 +179,7 @@ type ExitPoint =
       Payload: Payload option
       /// The dependency assembly the call went through, if any.
       ViaAssembly: string option
+      Confidence: Confidence
       Evidence: Evidence }
 
 type Trace =
@@ -224,6 +233,13 @@ type Diagnostic =
 
 type SolutionInfo = { Name: string; Path: string }
 
+/// Defaults for how renderers present the results; they never change the results themselves.
+type Presentation =
+    { /// Categories hidden unless the viewer asks for them (plan section 4.2; --show removes some).
+      HiddenCategories: EffectCategory list
+      /// Exit points at or below this confidence are hidden by default.
+      HiddenConfidence: Confidence list }
+
 type AnalysisModel =
     { SchemaVersion: int
       ToolVersion: string
@@ -236,6 +252,7 @@ type AnalysisModel =
       ExitPoints: ExitPoint list
       Traces: Trace list
       Layout: Layout
+      Presentation: Presentation
       Diagnostics: Diagnostic list }
 
 module AnalysisModel =
@@ -265,6 +282,9 @@ module AnalysisModel =
           ExitPoints = []
           Traces = []
           Layout = emptyLayout
+          Presentation =
+            { HiddenCategories = [ EffectCategory.Environment; EffectCategory.Nondeterminism ]
+              HiddenConfidence = [ Confidence.Low ] }
           Diagnostics = [] }
 
 module EffectCategory =

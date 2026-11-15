@@ -28,7 +28,8 @@ type CallEdge =
       Target: MethodRef
       Kind: EdgeKind }
 
-type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list) =
+/// `stopAt` names assemblies whose method bodies are not explored (their summaries come from a cache).
+type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: string -> bool) =
     let callees = Dictionary<string, ResizeArray<CallEdge>>()
     let reachable = HashSet<string>()
     let methodsByKey = Dictionary<string, MethodRef>()
@@ -78,7 +79,7 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list) =
         if not (list |> Seq.exists (fun e -> e.Offset = edge.Offset && e.Target.Key = edge.Target.Key)) then
             list.Add edge
 
-        if analyzable edge.Target && reachable.Add edge.Target.Key then
+        if analyzable edge.Target && not (stopAt edge.Target.Type.Assembly) && reachable.Add edge.Target.Key then
             methodsByKey[edge.Target.Key] <- edge.Target
             work.Enqueue edge.Target
 
@@ -272,3 +273,5 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list) =
     member _.Instantiated = instantiated |> Seq.toList
 
     member _.Set = set
+
+    new(set: AssemblySet, recognizers: ICodegenRecognizer list) = CallGraph(set, recognizers, fun _ -> false)
