@@ -84,6 +84,23 @@ let private entry (ctx: AppContext) (hit: Hit) (forms: RouteForm list) (steps: E
         let predicates = hit.Predicates |> List.distinct
         let httpMethod, route, completeness = RouteRecovery.assemble predicates
 
+        // Values taken from the path are passed to the handler: its parameters name them. Parameters of the
+        // request pipeline itself (the context, the next function) are not route values.
+        let route =
+            match hit.Handler, route with
+            | HandlerMethod m, Some r ->
+                match set.TryMethod m with
+                | Some(def, _) when def.ParameterNames.Length = m.ParameterTypes.Length ->
+                    let names =
+                        List.zip m.ParameterTypes def.ParameterNames
+                        |> List.filter (fun (t, _) ->
+                            not (t.Contains "Microsoft.AspNetCore." || t.StartsWith "Microsoft.FSharp.Core.FSharpFunc"))
+                        |> List.map snd
+
+                    Some(RouteRecovery.nameParameters names r)
+                | _ -> route
+            | _ -> route
+
         // No user function handles the request: name the unit whose code built the library handler.
         let handlerName =
             match hit.Handler with

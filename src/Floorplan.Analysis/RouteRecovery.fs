@@ -349,6 +349,26 @@ let templateOfPattern (pattern: string) : string option =
         elif groups = 1 then Some(text.ToString().Replace("{param1}", "{param}"))
         else Some(text.ToString())
 
+/// Names the parameters of a route made from a pattern ({param}, {param1}, ...) after the handler's own
+/// parameters, in order, when there are exactly as many names as placeholders. Otherwise the route is unchanged.
+let nameParameters (names: string list) (route: string) =
+    let placeholders = Text.RegularExpressions.Regex.Matches(route, @"\{param\d*\}")
+
+    if placeholders.Count = 0
+       || placeholders.Count <> names.Length
+       || names |> List.exists (fun n -> String.IsNullOrEmpty n || not (Char.IsLetter n[0]) || n.Contains '@') then
+        route
+    else
+        let mutable i = -1
+
+        Text.RegularExpressions.Regex.Replace(
+            route,
+            @"\{param\d*\}",
+            fun _ ->
+                i <- i + 1
+                "{" + names[i] + "}"
+        )
+
 /// Turns predicates into a method, a route and a completeness level (plan section 6.6).
 let assemble (predicates: Predicate list) : string option * string option * Completeness =
     let methods =
