@@ -2,16 +2,19 @@
 /// nothing else. Nothing here is specific to F#: the graph's nodes are *units*, whose kind says what they are.
 namespace Floorplan.Model
 
+[<RequireQualifiedAccess>]
 type Language =
     | FSharp
     | CSharp
     | OtherLanguage
 
 /// How well Floorplan understands a project. `Limited` projects appear as a single unit.
+[<RequireQualifiedAccess>]
 type SupportLevel =
     | Full
     | Limited
 
+[<RequireQualifiedAccess>]
 type UnitKind =
     | Module
     | Namespace
@@ -61,6 +64,7 @@ type Dependency =
       CrossProject: bool
       SampleLocations: Location list }
 
+[<RequireQualifiedAccess>]
 type EffectCategory =
     | HttpIn
     | HttpOut
@@ -84,6 +88,7 @@ type EvidenceStep =
 type Evidence = { Steps: EvidenceStep list }
 
 /// What part of a request a predicate constrains.
+[<RequireQualifiedAccess>]
 type RequestPart =
     | Method
     | Path
@@ -94,6 +99,7 @@ type RequestPart =
     | Header
     | Body
 
+[<RequireQualifiedAccess>]
 type PredicateOperator =
     | Equals
     | StartsWith
@@ -112,12 +118,14 @@ type Predicate =
       Value: string
       Location: Location option }
 
+[<RequireQualifiedAccess>]
 type Completeness =
     | Complete
     | Partial
     | Unresolved
 
 /// How the route of an entry point was recovered (plan section 6.4).
+[<RequireQualifiedAccess>]
 type RouteForm =
     | ControlFlow
     | TableLookup
@@ -138,6 +146,7 @@ type EntryPoint =
       Forms: RouteForm list
       Evidence: Evidence }
 
+[<RequireQualifiedAccess>]
 type PayloadKind =
     | Literal
     | Template
@@ -199,6 +208,7 @@ type Layout =
       /// The project boxes of UnitGraph; node ids are project ids.
       ProjectBoxes: NodeLayout list }
 
+[<RequireQualifiedAccess>]
 type DiagnosticSeverity =
     | Info
     | Warning
@@ -259,32 +269,32 @@ module AnalysisModel =
 
 module EffectCategory =
     let all =
-        [ HttpIn
-          HttpOut
-          Network
-          Database
-          FilesystemRead
-          FilesystemWrite
-          Process
-          Native
-          Environment
-          Nondeterminism ]
+        [ EffectCategory.HttpIn
+          EffectCategory.HttpOut
+          EffectCategory.Network
+          EffectCategory.Database
+          EffectCategory.FilesystemRead
+          EffectCategory.FilesystemWrite
+          EffectCategory.Process
+          EffectCategory.Native
+          EffectCategory.Environment
+          EffectCategory.Nondeterminism ]
 
     /// The catalog's spelling, e.g. "filesystem-read".
     let name =
         function
-        | HttpIn -> "http-in"
-        | HttpOut -> "http-out"
-        | Network -> "network"
-        | Database -> "database"
-        | FilesystemRead -> "filesystem-read"
-        | FilesystemWrite -> "filesystem-write"
-        | Process -> "process"
-        | Native -> "native"
-        | Environment -> "environment"
-        | Nondeterminism -> "nondeterminism"
+        | EffectCategory.HttpIn -> "http-in"
+        | EffectCategory.HttpOut -> "http-out"
+        | EffectCategory.Network -> "network"
+        | EffectCategory.Database -> "database"
+        | EffectCategory.FilesystemRead -> "filesystem-read"
+        | EffectCategory.FilesystemWrite -> "filesystem-write"
+        | EffectCategory.Process -> "process"
+        | EffectCategory.Native -> "native"
+        | EffectCategory.Environment -> "environment"
+        | EffectCategory.Nondeterminism -> "nondeterminism"
 
     let tryParse (text: string) = all |> List.tryFind (fun c -> name c = text)
 
     /// Categories the website hides unless asked (plan section 4.2).
-    let hiddenByDefault = [ Environment; Nondeterminism ]
+    let hiddenByDefault = [ EffectCategory.Environment; EffectCategory.Nondeterminism ]

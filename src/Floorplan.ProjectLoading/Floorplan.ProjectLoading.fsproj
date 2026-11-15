@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Solution parsing, MSBuild evaluation, build and target-framework detection.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Types.fs" />
+    <Compile Include="Discovery.fs" />
+    <Compile Include="Build.fs" />
+    <Compile Include="SolutionLoader.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Ionide.ProjInfo" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Floorplan.Model\Floorplan.Model.fsproj" />
+  </ItemGroup>
+</Project>

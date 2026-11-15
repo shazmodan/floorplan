@@ -9,8 +9,8 @@ let private sample =
             [ { Id = "p1"
                 Name = "App"
                 Path = "App/App.fsproj"
-                Language = FSharp
-                SupportLevel = Full
+                Language = Language.FSharp
+                SupportLevel = SupportLevel.Full
                 TargetFramework = "net8.0"
                 IsApplication = true
                 IsTestProject = false
@@ -20,7 +20,7 @@ let private sample =
         Units =
             [ { Id = "p1:App.Orders"
                 ProjectId = "p1"
-                Kind = Module
+                Kind = UnitKind.Module
                 Name = "App.Orders"
                 DisplayName = "Orders"
                 Parent = None
@@ -45,7 +45,7 @@ let tests =
           }
 
           test "category names match the catalog spelling" {
-              Expect.equal (EffectCategory.name FilesystemRead) "filesystem-read" "name"
-              Expect.equal (Json.unionName FilesystemRead) "filesystem-read" "json name"
-              Expect.equal (EffectCategory.tryParse "http-out") (Some HttpOut) "parse"
+              Expect.equal (EffectCategory.name EffectCategory.FilesystemRead) "filesystem-read" "name"
+              Expect.equal (Json.unionName EffectCategory.FilesystemRead) "filesystem-read" "json name"
+              Expect.equal (EffectCategory.tryParse "http-out") (Some EffectCategory.HttpOut) "parse"
           } ]

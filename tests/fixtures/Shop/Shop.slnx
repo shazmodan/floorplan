@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="Shop.Core/Shop.Core.fsproj" />
+  <Project Path="Shop.Data/Shop.Data.fsproj" />
+  <Project Path="Shop.Storage/Shop.Storage.csproj" />
+  <Project Path="Shop.Tests/Shop.Tests.fsproj" />
+  <Project Path="Shop.Web/Shop.Web.fsproj" />
+  <Project Path="Shop.Worker/Shop.Worker.fsproj" />
+</Solution>
