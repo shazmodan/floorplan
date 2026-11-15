@@ -9,7 +9,11 @@ let endpoints =
     [ get "/" (Response.ofPlainText "home")
       get "/api/orders" Orders.list
       get "/api/orders/{id:int}" Orders.get
-      post "/api/orders" Orders.create ]
+      post "/api/orders" Orders.create
+      put "/api/orders/{id:int}" Orders.replace
+      delete "/api/orders/{id:int}" Orders.remove
+      patch "/api/orders/{id:int}" Orders.patch
+      options "/api/orders" Orders.options ]
 
 [<EntryPoint>]
 let main args =

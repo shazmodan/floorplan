@@ -108,6 +108,15 @@ type Recovery(ctx: AppContext) =
 
                 match ins.Op with
                 | Call x
+                | CallVirt x when (ctx.Matcher.Comparison x).IsSome ->
+                    // A platform comparison with a known value, e.g. HttpMethods.IsPatch(method).
+                    let rule = (ctx.Matcher.Comparison x).Value
+                    let tags = ctx.Taint.OperandTags m.Ref offset |> List.tryHead |> Option.defaultValue Set.empty
+
+                    match describe tags, rule.RequestPart, rule.ComparesTo with
+                    | Some _, Some part, Some value -> { noCondition with WhenTrue = [ predicate location (part, None) PredicateOperator.Equals value ] }
+                    | _ -> noCondition
+                | Call x
                 | CallVirt x when isEquality x && (flow.OperandsAt offset).Length >= 2 ->
                     { noCondition with WhenTrue = comparison m flow offset 0 1 PredicateOperator.Equals location }
                 | Call x

@@ -11,6 +11,10 @@ let webApp =
         GET >=> route "/api/orders" >=> Orders.list
         GET >=> routef "/api/orders/%i" Orders.get
         POST >=> route "/api/orders" >=> Orders.create
+        PUT >=> routef "/api/orders/%i" Orders.replace
+        DELETE >=> route "/api/orders" >=> Orders.removeAll
+        PATCH >=> route "/api/orders" >=> Orders.patchAll
+        OPTIONS >=> route "/api/orders" >=> Orders.options
     ]
 
 [<EntryPoint>]

@@ -14,3 +14,11 @@ let create: HttpHandler =
     fun ctx ->
         File.AppendAllText("orders.txt", "new")
         Response.ofPlainText "created" ctx
+
+let replace: HttpHandler = fun ctx -> Response.ofPlainText "replaced" ctx
+
+let remove: HttpHandler = fun ctx -> Response.ofPlainText "deleted" ctx
+
+let patch: HttpHandler = fun ctx -> Response.ofPlainText "patched" ctx
+
+let options: HttpHandler = fun ctx -> Response.ofPlainText "GET, POST, PUT, DELETE, PATCH" ctx

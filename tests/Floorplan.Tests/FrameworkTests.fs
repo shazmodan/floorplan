@@ -42,10 +42,14 @@ let routingTests =
           test "Falco: routes from an endpoint data source, with methods from endpoint metadata" {
               Expect.equal
                   (routes "Frameworks.Falco")
-                  [ "GET", "/", "Frameworks.Falco.Program (response built by a library function)", Completeness.Complete
+                  [ "DELETE", "/api/orders/{id:int}", "Frameworks.Falco.Orders::remove", Completeness.Complete
+                    "GET", "/", "Frameworks.Falco.Program (response built by a library function)", Completeness.Complete
                     "GET", "/api/orders", "Frameworks.Falco.Orders::list", Completeness.Complete
                     "GET", "/api/orders/{id:int}", "Frameworks.Falco.Orders::get", Completeness.Complete
-                    "POST", "/api/orders", "Frameworks.Falco.Orders::create", Completeness.Complete ]
+                    "OPTIONS", "/api/orders", "Frameworks.Falco.Orders::options", Completeness.Complete
+                    "PATCH", "/api/orders/{id:int}", "Frameworks.Falco.Orders::patch", Completeness.Complete
+                    "POST", "/api/orders", "Frameworks.Falco.Orders::create", Completeness.Complete
+                    "PUT", "/api/orders/{id:int}", "Frameworks.Falco.Orders::replace", Completeness.Complete ]
                   "Falco"
           }
 
@@ -60,12 +64,21 @@ let routingTests =
               for app in apps do
                   let handlers = m.EntryPoints |> List.filter (fun e -> e.ApplicationId = app) |> List.map (fun e -> e.HandlerMember)
 
-                  for h in [ "list"; "get"; "create" ] do
+                  for h in [ "list"; "get"; "create"; "options" ] do
                       Expect.exists handlers (fun x -> x.EndsWith("Orders::" + h)) $"{app} reports Orders.{h}"
 
                   // The only routes the fixtures define.
                   let allowed =
-                      set [ "GET /"; "GET /api/orders"; "POST /api/orders"; "GET /api/orders/{id:int}"; "GET /api/orders/{param}" ]
+                      set
+                          [ yield "GET /"
+                            yield "GET /api/orders"
+                            yield "POST /api/orders"
+                            yield "OPTIONS /api/orders"
+                            yield "DELETE /api/orders"
+                            yield "PATCH /api/orders"
+                            for m in [ "GET"; "PUT"; "DELETE"; "PATCH" ] do
+                                yield $"{m} /api/orders/{{id:int}}"
+                                yield $"{m} /api/orders/{{param}}" ]
 
                   for e in m.EntryPoints |> List.filter (fun e -> e.ApplicationId = app && e.Route.IsSome) do
                       let httpMethod = defaultArg e.HttpMethod "?"
@@ -73,6 +86,13 @@ let routingTests =
                       Expect.isTrue (allowed.Contains route) $"{app}: unexpected route {route}"
 
                       if e.Route = Some "/api/orders" then
-                          let expected = if e.HttpMethod = Some "POST" then "create" else "list"
+                          let expected =
+                              match e.HttpMethod with
+                              | Some "POST" -> "create"
+                              | Some "OPTIONS" -> "options"
+                              | Some "DELETE" -> "removeAll"
+                              | Some "PATCH" -> "patchAll"
+                              | _ -> "list"
+
                           Expect.stringEnds e.HandlerMember ("Orders::" + expected) $"{app}: {route} handler"
           } ]

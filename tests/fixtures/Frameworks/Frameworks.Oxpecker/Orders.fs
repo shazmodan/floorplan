@@ -11,3 +11,11 @@ let create: EndpointHandler =
     fun ctx ->
         File.AppendAllText("orders.txt", "new")
         ctx.WriteText "created"
+
+let replace (id: int) : EndpointHandler = fun ctx -> ctx.WriteText $"replaced {id}"
+
+let remove (id: int) : EndpointHandler = fun ctx -> ctx.WriteText $"deleted {id}"
+
+let patch (id: int) : EndpointHandler = fun ctx -> ctx.WriteText $"patched {id}"
+
+let options: EndpointHandler = fun ctx -> ctx.WriteText "GET, POST, PUT, DELETE, PATCH"

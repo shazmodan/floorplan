@@ -7,5 +7,9 @@ let route (r: Req) =
     match r with
     | GET [ "api"; "orders" ] -> Orders.list ()
     | POST [ "api"; "orders" ] -> Orders.create ()
+    | OPTIONS [ "api"; "orders" ] -> Orders.options ()
     | GET [ "api"; "orders"; id ] -> Orders.fetch id
+    | PUT [ "api"; "orders"; id ] -> Orders.replace id
+    | DELETE [ "api"; "orders"; id ] -> Orders.remove id
+    | PATCH [ "api"; "orders"; id ] -> Orders.patch id
     | _ -> "404"

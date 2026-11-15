@@ -11,3 +11,11 @@ let create: HttpHandler =
     fun next ctx ->
         File.AppendAllText("orders.txt", "new")
         text "created" next ctx
+
+let replace (id: int) : HttpHandler = fun next ctx -> text $"replaced {id}" next ctx
+
+let removeAll: HttpHandler = fun next ctx -> text "deleted" next ctx
+
+let patchAll: HttpHandler = fun next ctx -> text "patched" next ctx
+
+let options: HttpHandler = fun next ctx -> text "GET, POST, PUT, DELETE, PATCH" next ctx
