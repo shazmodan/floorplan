@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>floorplan</AssemblyName>
+    <RootNamespace>Floorplan.Cli</RootNamespace>
+    <Description>Floorplan: a code visualizer for .NET solutions, F# first. Shows the module graph, the entry points and the exit points of a solution as a static website.</Description>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>floorplan</ToolCommandName>
+    <PackageId>Floorplan</PackageId>
+    <PackageTags>fsharp;dotnet;architecture;visualization;static-analysis</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <!-- Run on the newest installed runtime, so MSBuild evaluation uses the newest SDK (plan section 8.1). -->
+    <RollForward>LatestMajor</RollForward>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Options.fs" />
+    <Compile Include="Pipeline.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Condition="Exists('..\..\README.md')" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Argu" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Floorplan.Model\Floorplan.Model.fsproj" />
+    <ProjectReference Include="..\Floorplan.ProjectLoading\Floorplan.ProjectLoading.fsproj" />
+    <ProjectReference Include="..\Floorplan.Structure\Floorplan.Structure.fsproj" />
+    <ProjectReference Include="..\Floorplan.Structure.FSharp\Floorplan.Structure.FSharp.fsproj" />
+    <ProjectReference Include="..\Floorplan.Layout\Floorplan.Layout.fsproj" />
+    <ProjectReference Include="..\Floorplan.Rendering\Floorplan.Rendering.fsproj" />
+  </ItemGroup>
+</Project>
