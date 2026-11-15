@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Language-neutral effect analysis: exit points, entry points, routes and traces over the call graph.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Input.fs" />
+    <Compile Include="Attribution.fs" />
+    <Compile Include="Values.fs" />
+    <Compile Include="Summaries.fs" />
+    <Compile Include="ExitPoints.fs" />
+    <Compile Include="EffectAnalysis.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Floorplan.Model\Floorplan.Model.fsproj" />
+    <ProjectReference Include="..\Floorplan.IL\Floorplan.IL.fsproj" />
+    <ProjectReference Include="..\Floorplan.Catalog\Floorplan.Catalog.fsproj" />
+    <ProjectReference Include="..\Floorplan.Structure\Floorplan.Structure.fsproj" />
+  </ItemGroup>
+</Project>

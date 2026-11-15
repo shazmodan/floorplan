@@ -12,8 +12,11 @@ type EdgeKind =
     | Virtual
     /// A function object or delegate is created here; its body runs later.
     | Deferred
-    /// An async state machine is started here; MoveNext runs later.
+    /// An async state machine or enumerator is created here; MoveNext runs later.
     | StateMachine
+    /// A type's static constructor, run once before first use. Kept for reachability; effects in it are
+    /// one-time initialization, not behaviour of the call that happens to trigger it.
+    | Initializer
 
 type CallEdge =
     { Caller: MethodRef
@@ -32,7 +35,7 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list) =
     let instantiated = HashSet<TypeRef>()
     // Instantiated types by every type they are assignable to, and virtual call sites by declared type.
     let instantiatedBySuper = Dictionary<string, ResizeArray<TypeRef>>()
-    let pendingBySuper = Dictionary<string, ResizeArray<MethodRef * MethodRef * int>>() // caller, declared, offset
+    let pendingBySuper = Dictionary<string, ResizeArray<MethodRef * MethodRef * int * EdgeKind>>() // caller, declared, offset, kind
 
     let bucket (d: Dictionary<string, ResizeArray<'T>>) (k: string) =
         match d.TryGetValue k with
@@ -82,7 +85,7 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list) =
     let isFunctionInvoke (m: MethodRef) =
         CommonCodegen.isDelegateInvoke set m || recognizers |> List.exists (fun r -> r.IsFunctionInvoke m)
 
-    let resolveVirtual (caller: MethodRef) (declared: MethodRef) (offset: int) (t: TypeRef) =
+    let resolveVirtual (caller: MethodRef) (declared: MethodRef) (offset: int) (kind: EdgeKind) (t: TypeRef) =
         match set.TryType t with
         | Some(def, _) when not def.IsInterface && not def.IsAbstract ->
             match set.Implementation(t, declared) with
@@ -92,7 +95,7 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list) =
                       Offset = offset
                       Declared = declared
                       Target = impl
-                      Kind = Virtual }
+                      Kind = kind }
             | None -> ()
         | _ -> ()
 
@@ -104,13 +107,36 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list) =
             let fromRecognizers =
                 recognizerFor asm.Name |> List.collect (fun r -> r.FunctionObjectTargets(set, def))
 
+            let supertypes = set.Supertypes t
+            let named (names: string -> bool) =
+                def.Methods
+                |> List.filter (fun m -> not m.IsAbstract && names (m.Ref.Name.Split('.') |> Array.last))
+                |> List.map (fun m -> m.Ref)
+
             let stateMachine =
-                if set.IsSubtypeOf(t, CommonCodegen.asyncStateMachine) then
-                    def.Methods |> List.filter (fun m -> m.Ref.Name = "MoveNext" || m.Ref.Name.EndsWith ".MoveNext") |> List.map (fun m -> m.Ref)
+                if supertypes.Contains CommonCodegen.asyncStateMachine then
+                    named (fun n -> n = "MoveNext")
+                elif supertypes |> Set.exists CommonCodegen.enumeratorInterfaces.Contains then
+                    named CommonCodegen.enumeratorMethods.Contains
                 else
                     []
 
             (fromRecognizers |> List.map (fun m -> m, Deferred)) @ (stateMachine |> List.map (fun m -> m, StateMachine))
+
+    /// Using a type's static members, or constructing it, runs its static constructor first.
+
+    let initialize (caller: MethodRef) (offset: int) (t: TypeRef) =
+        if set.Origin t.Assembly <> Framework then
+            match set.TryType t with
+            | Some(def, _) ->
+                for c in def.Methods |> List.filter (fun m -> m.Ref.Name = ".cctor") do
+                    addEdge
+                        { Caller = caller
+                          Offset = offset
+                          Declared = c.Ref
+                          Target = c.Ref
+                          Kind = Initializer }
+            | None -> ()
 
     let instantiate (t: TypeRef) =
         if instantiated.Add t then
@@ -119,8 +145,8 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list) =
 
                 match pendingBySuper.TryGetValue super with
                 | true, sites ->
-                    for (caller, declared, offset) in List.ofSeq sites do
-                        resolveVirtual caller declared offset t
+                    for (caller, declared, offset, kind) in List.ofSeq sites do
+                        resolveVirtual caller declared offset kind t
                 | _ -> ()
 
     let scan (m: MethodRef) =
@@ -157,18 +183,36 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list) =
                               Kind = kind }
 
                     match ins.Op with
-                    | Call target -> direct target Direct
+                    | Call target ->
+                        direct target Direct
+                        if not target.HasThis then initialize m ins.Offset target.Type
+                    | StSFld f
+                    | LdSFldA f -> initialize m ins.Offset f.Type
                     | NewObj ctor ->
                         instantiate ctor.Type
+                        initialize m ins.Offset ctor.Type
                         direct ctor Direct
                         if analyzable ctor then linkDeferred ins.Offset ctor.Type
                     | InitObj t -> if set.Origin t.Assembly <> Framework then linkDeferred ins.Offset t
                     // A cached function object read from a static field, e.g. a capture-free closure instance.
                     | LdSFld f when set.Origin f.Type.Assembly <> Framework && f.FieldType.StartsWith f.Type.FullName ->
                         instantiate f.Type
+                        initialize m ins.Offset f.Type
                         linkDeferred ins.Offset f.Type
+                    | LdSFld f -> initialize m ins.Offset f.Type
                     | LdFtn target
-                    | LdVirtFtn target -> direct target Deferred
+                    | LdVirtFtn target ->
+                        // A delegate bound to a virtual method: resolved like a virtual call, run later.
+                        direct target Deferred
+
+                        if analyzable target then
+                            (bucket pendingBySuper target.Type.FullName).Add((m, target, ins.Offset, Deferred))
+
+                            match instantiatedBySuper.TryGetValue target.Type.FullName with
+                            | true, types ->
+                                for t in List.ofSeq types do
+                                    resolveVirtual m target ins.Offset Deferred t
+                            | _ -> ()
                     | CallVirt declared ->
                         let constrainedTo =
                             if i > 0 then
@@ -194,12 +238,12 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list) =
                                 | Some(d, _) when not d.IsAbstract -> direct declared Direct
                                 | _ -> ()
 
-                                (bucket pendingBySuper declared.Type.FullName).Add((m, declared, ins.Offset))
+                                (bucket pendingBySuper declared.Type.FullName).Add((m, declared, ins.Offset, Virtual))
 
                                 match instantiatedBySuper.TryGetValue declared.Type.FullName with
                                 | true, types ->
                                     for t in List.ofSeq types do
-                                        resolveVirtual m declared ins.Offset t
+                                        resolveVirtual m declared ins.Offset Virtual t
                                 | _ -> ()
                     | _ -> ()
 

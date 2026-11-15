@@ -32,3 +32,4 @@ paket-files/
 # OS
 Thumbs.db
 .DS_Store
+*.actual

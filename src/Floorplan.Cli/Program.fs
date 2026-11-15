@@ -20,7 +20,10 @@ let private analyze (options: AnalyzeOptions) =
 
         if not options.Quiet then
             let units = m.Units |> List.filter (fun u -> u.Kind <> UnitKind.ProjectUnit) |> List.length
-            eprintfn "%d projects, %d units, %d dependencies" m.Projects.Length units m.Dependencies.Length
+            let exits =
+                m.ExitPoints |> List.filter (fun x -> not (EffectCategory.hiddenByDefault |> List.contains x.Category))
+
+            eprintfn "%d projects, %d units, %d dependencies, %d exit points" m.Projects.Length units m.Dependencies.Length exits.Length
 
             for d in m.Diagnostics |> List.filter (fun d -> d.Severity <> DiagnosticSeverity.Info) do
                 eprintfn "%s: %s" (Json.unionName d.Severity) d.Message
