@@ -37,28 +37,6 @@ let formatTemplate (format: string) =
 let isPrintfFormatConstructor (m: MethodRef) =
     m.Name = ".ctor" && m.Type.FullName.StartsWith "Microsoft.FSharp.Core.PrintfFormat`"
 
-let recognizer =
-    { new ICodegenRecognizer with
-        member _.Name = "fsharp"
-
-        member _.AppliesTo assembly =
-            assembly.Name = fsharpCore || assembly.ReferencedAssemblies |> List.contains fsharpCore
-
-        member _.FunctionObjectTargets(set, constructed) =
-            if isFunctionObject set constructed then
-                constructed.Methods
-                |> List.filter (fun m -> not m.IsConstructor && not m.IsStatic && not m.IsAbstract)
-                |> List.map (fun m -> m.Ref)
-            else
-                []
-
-        member _.IsFunctionInvoke m = isFunctionInvoke m
-
-        member _.FormatArgument m =
-            if isPrintfFormatConstructor m then Some 0 else None
-
-        member _.FormatTemplate format = formatTemplate format }
-
 // ---- Recognizers for values in F# compiler output, used by request-data tracking and route recovery ----
 
 /// `list.Head` as emitted by pattern matching.
@@ -88,4 +66,38 @@ let isStringEquality (m: MethodRef) =
     || (m.Type.FullName = "Microsoft.FSharp.Core.LanguagePrimitives/HashCompare"
         && (m.Name = "GenericEqualityIntrinsic" || m.Name = "GenericEqualityERIntrinsic"))
     || (m.Type.FullName = "Microsoft.FSharp.Core.Operators" && m.Name = "op_Equality")
+
+let recognizer =
+    { new ICodegenRecognizer with
+        member _.Name = "fsharp"
+
+        member _.AppliesTo assembly =
+            assembly.Name = fsharpCore || assembly.ReferencedAssemblies |> List.contains fsharpCore
+
+        member _.FunctionObjectTargets(set, constructed) =
+            if isFunctionObject set constructed then
+                constructed.Methods
+                |> List.filter (fun m -> not m.IsConstructor && not m.IsStatic && not m.IsAbstract)
+                |> List.map (fun m -> m.Ref)
+            else
+                []
+
+        member _.IsFunctionInvoke m = isFunctionInvoke m
+
+        member _.FormatArgument m =
+            if isPrintfFormatConstructor m then Some 0 else None
+
+        member _.FormatTemplate format = formatTemplate format
+
+        member _.CollectionAccess m =
+            if isListHead m then Some Head
+            elif isListTail m then Some Tail
+            elif isToList m then Some SameElements
+            elif m.Type.FullName = "Microsoft.FSharp.Collections.FSharpList`1" && m.Name = "get_Length" then Some Count
+            elif (m.Type.FullName = "Microsoft.FSharp.Collections.ListModule" || m.Type.FullName = "Microsoft.FSharp.Collections.ArrayModule" || m.Type.FullName = "Microsoft.FSharp.Collections.SeqModule") && m.Name = "Length" then Some Count
+            elif m.Type.FullName = "Microsoft.FSharp.Collections.ListModule" && m.Name = "Head" then Some Head
+            elif m.Type.FullName = "Microsoft.FSharp.Collections.ListModule" && m.Name = "Tail" then Some Tail
+            else None
+
+        member _.IsStringEquality m = isStringEquality m }
 

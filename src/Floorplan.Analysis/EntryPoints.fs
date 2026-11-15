@@ -368,36 +368,3 @@ let platformEntries (ctx: AppContext) : EntryPoint list =
                             { Steps =
                                 [ step $"{r.Caller.Ref.Display} registers {handler.Display} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint ] } }
         | _ -> None)
-
-let private sortKey (e: EntryPoint) =
-    e.ApplicationId, defaultArg e.Route "~", defaultArg e.HttpMethod "", e.HandlerMember
-
-/// All entry points of all applications.
-let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoint list =
-    input.Projects
-    |> List.filter (fun p -> p.IsApplication)
-    |> List.collect (fun project ->
-        let methods = reachableUserMethods program project
-        let matcher = program.MatcherFor project
-        let taint = Taint.analyze program.Set program.Graph matcher (List.ofSeq methods.Values)
-
-        let ctx =
-            { Project = project
-              Program = program
-              Matcher = matcher
-              Methods = methods
-              Taint = taint }
-
-        let platform = platformEntries ctx
-        let platformHandlers = platform |> List.map (fun e -> e.HandlerMember) |> Set.ofList
-
-        let tracked =
-            trackedHandlers ctx
-            |> List.filter (fun h -> not (platformHandlers.Contains h.Handler.Display))
-            |> List.distinctBy (fun h -> h.Handler.Key)
-            |> List.choose (unresolvedEntry ctx)
-
-        platform @ tracked)
-    |> List.distinctBy (fun e -> e.ApplicationId, e.HandlerMember, e.Route, e.HttpMethod)
-    |> List.sortBy sortKey
-    |> List.mapi (fun i e -> { e with Id = $"entry-{i + 1}" })

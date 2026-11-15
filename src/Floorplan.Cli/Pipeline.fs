@@ -85,7 +85,7 @@ let buildModel (log: string -> unit) (catalogs: string list) (solution: LoadedSo
     let effects = EffectAnalysis.exitPoints program input
 
     log "Finding entry points"
-    let entries = EntryPoints.analyze program input
+    let entries = EntryPointAnalysis.analyze program input
 
     let projects =
         solution.Projects

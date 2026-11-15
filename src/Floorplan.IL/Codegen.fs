@@ -2,6 +2,17 @@
 /// engines only see the neutral answers given here. One recognizer per language, selected per assembly.
 namespace Floorplan.IL
 
+/// What a call does to a sequence, in terms route recovery understands.
+type CollectionAccess =
+    /// The first element.
+    | Head
+    /// The rest after the first element; null when the sequence is empty.
+    | Tail
+    /// The same elements in the same order, in another collection type.
+    | SameElements
+    /// The number of elements.
+    | Count
+
 type ICodegenRecognizer =
     abstract Name: string
     /// Whether this recognizer understands code in the assembly.
@@ -15,6 +26,10 @@ type ICodegenRecognizer =
     abstract FormatArgument: method: MethodRef -> int option
     /// A format literal rendered as a template, with each hole shown as {…}.
     abstract FormatTemplate: format: string -> string
+    /// How a call in this language's emitted code accesses a sequence, if it does.
+    abstract CollectionAccess: method: MethodRef -> CollectionAccess option
+    /// Whether a call compares two strings for equality, as this compiler emits it.
+    abstract IsStringEquality: method: MethodRef -> bool
 
 /// Code generation every .NET compiler shares: delegates and async state machines.
 module CommonCodegen =
