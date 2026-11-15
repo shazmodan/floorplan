@@ -315,6 +315,36 @@ let private readBody (asm: string) (method: MethodDefinition) : Floorplan.IL.Met
 let private hasAttribute (name: string) (attributes: Mono.Collections.Generic.Collection<CustomAttribute>) =
     attributes |> Seq.exists (fun a -> a.AttributeType.Name = name)
 
+let rec private attributeValue (v: obj) : AttributeValue =
+    match v with
+    | :? string as s -> AttributeValue.Text s
+    | :? bool as b -> AttributeValue.Flag b
+    | :? CustomAttributeArgument as a -> attributeValue a.Value
+    | :? (CustomAttributeArgument[]) as items -> AttributeValue.Many(items |> Array.map (fun a -> attributeValue a.Value) |> Array.toList)
+    | null -> AttributeValue.Other
+    | :? int as n -> AttributeValue.Number(int64 n)
+    | :? int64 as n -> AttributeValue.Number n
+    | :? int16 as n -> AttributeValue.Number(int64 n)
+    | :? byte as n -> AttributeValue.Number(int64 n)
+    | :? uint32 as n -> AttributeValue.Number(int64 n)
+    | _ -> AttributeValue.Other
+
+let private readAttributes (asm: string) (attributes: Mono.Collections.Generic.Collection<CustomAttribute>) : AttributeDef list =
+    attributes
+    |> Seq.choose (fun a ->
+        try
+            Some
+                { Type = typeRef asm a.AttributeType
+                  Arguments = a.ConstructorArguments |> Seq.map (fun x -> attributeValue x.Value) |> Seq.toList
+                  Named =
+                    Seq.append a.Properties a.Fields
+                    |> Seq.map (fun n -> n.Name, attributeValue n.Argument.Value)
+                    |> Seq.toList }
+        with _ ->
+            // An attribute whose blob cannot be read (a type in an assembly that is not there) is left out.
+            None)
+    |> Seq.toList
+
 let private readMethod (asm: string) (m: MethodDefinition) : MethodDef =
     { Ref = methodRef asm m
       IsStatic = m.IsStatic
@@ -327,6 +357,8 @@ let private readMethod (asm: string) (m: MethodDefinition) : MethodDef =
         || m.Name.Contains '@'
         || m.Name.StartsWith "<"
       IsPublic = m.IsPublic
+      IsSpecialName = m.IsSpecialName
+      Attributes = readAttributes asm m.CustomAttributes
       ParameterNames = m.Parameters |> Seq.map (fun p -> if isNull p.Name then "" else p.Name) |> Seq.toList
       PInvokeModule =
         if m.IsPInvokeImpl && not (isNull m.PInvokeInfo) then
@@ -357,6 +389,9 @@ let private readType (asm: string) (t: TypeDefinition) : TypeDef =
         hasAttribute "CompilerGeneratedAttribute" t.CustomAttributes
         || t.Name.Contains '@'
         || t.Name.StartsWith "<"
+      IsPublic = t.IsPublic || t.IsNestedPublic
+      IsGeneric = t.HasGenericParameters
+      Attributes = readAttributes asm t.CustomAttributes
       Methods = t.Methods |> Seq.map (readMethod asm) |> Seq.toList
       Literals =
         t.Fields

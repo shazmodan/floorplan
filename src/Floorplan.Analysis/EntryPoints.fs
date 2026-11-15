@@ -368,3 +368,243 @@ let platformEntries (ctx: AppContext) : EntryPoint list =
                             { Steps =
                                 [ step $"{r.Caller.Ref.Display} registers {handler.Display} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint ] } }
         | _ -> None)
+
+// ---- MVC controllers (attribute routing) ----
+
+/// The catalog rules for an attribute, matched as a call of its constructor.
+let private attributeRules (matcher: Matcher) (a: AttributeDef) =
+    let ctor =
+        { Type = a.Type
+          Name = ".ctor"
+          Key = $"[attribute]{a.Type.Assembly}:{a.Type.FullName}::.ctor"
+          LocalKey = ""
+          ParameterTypes = []
+          ReturnType = "System.Void"
+          HasThis = true
+          GenericArity = 0
+          TypeArguments = [] }
+
+    matcher.Match ctor |> List.filter (fun r -> r.Kind = RuleKind.Metadata)
+
+let private hasRole (role: string) (rule: Rule) = rule.Payload |> List.exists (fun p -> p.Role = role)
+
+let private textArgument (rule: Rule) (role: string) (a: AttributeDef) : string option =
+    rule.Payload
+    |> List.tryFind (fun p -> p.Role = role)
+    |> Option.bind (fun p -> List.tryItem p.Argument a.Arguments)
+    |> Option.bind (function AttributeValue.Text t -> Some t | _ -> None)
+
+/// Fills in the [controller] and [action] tokens of an attribute route.
+let private replaceTokens (controller: string) (action: string) (template: string) =
+    template.Replace("[controller]", controller).Replace("[action]", action)
+
+/// Joins a controller's route with an action's, as MVC does: an action route starting with "/" or "~/" stands alone.
+let combineRoutes (controllerRoute: string option) (actionRoute: string option) : string option =
+    match controllerRoute, actionRoute with
+    | _, Some a when a.StartsWith "/" || a.StartsWith "~/" -> Some(PlatformRouting.normalizeRoute [ a.TrimStart('~') ])
+    | Some c, Some a -> Some(PlatformRouting.normalizeRoute [ c; a ])
+    | Some c, None -> Some(PlatformRouting.normalizeRoute [ c ])
+    | None, Some a -> Some(PlatformRouting.normalizeRoute [ a ])
+    | None, None -> None
+
+/// Entry points of the controllers an application maps with MapControllers: one per action and route, with the
+/// methods its attributes name. Controllers are found the way MVC finds them: public, concrete, non-generic classes
+/// named "...Controller" or carrying [Controller] (ControllerBase does, for its subclasses), without
+/// [NonController]; their public instance methods are actions unless marked [NonAction].
+let controllerEntries (ctx: AppContext) : EntryPoint list =
+    let set = ctx.Program.Set
+
+    let mapping =
+        PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
+        |> List.filter (fun r -> hasRole "controllers" r.Rule || hasRole "conventional-controllers" r.Rule)
+
+    if mapping.IsEmpty then
+        []
+    else
+        let registration = mapping |> List.tryFind (fun r -> hasRole "controllers" r.Rule) |> Option.defaultValue mapping.Head
+        let attributeRouting = mapping |> List.exists (fun r -> hasRole "controllers" r.Rule)
+        let registrationPoint = Instruction.pointAt registration.Caller.Body.Value.Value.Instructions registration.Index
+
+        // The application's own assembly and the user assemblies it references: MVC's application parts.
+        let users = ctx.Program.Users |> List.map snd
+        let byName = users |> List.map (fun a -> a.Name, a) |> Map.ofList
+
+        let appAssembly =
+            ctx.Program.Users |> List.tryFind (fun (p, _) -> p.ProjectId = ctx.Project.ProjectId) |> Option.map snd
+
+        let rec closure (seen: Set<string>) (pending: string list) =
+            match pending with
+            | [] -> seen
+            | n :: rest when seen.Contains n -> closure seen rest
+            | n :: rest ->
+                match byName.TryFind n with
+                | Some a -> closure (seen.Add n) (rest @ a.ReferencedAssemblies)
+                | None -> closure seen rest
+
+        let parts =
+            match appAssembly with
+            | Some a -> closure Set.empty [ a.Name ] |> Set.toList |> List.choose byName.TryFind
+            | None -> []
+
+        // Attributes of a type and of its base types, nearest first.
+        let rec inheritedAttributes (t: TypeRef) (depth: int) : AttributeDef list =
+            if depth > 10 then
+                []
+            else
+                match set.TryType t with
+                | Some(d, _) -> d.Attributes @ (match d.BaseType with Some b -> inheritedAttributes b (depth + 1) | None -> [])
+                | None -> []
+
+        let attributesWith (role: string) (attributes: AttributeDef list) =
+            attributes |> List.filter (fun a -> attributeRules ctx.Matcher a |> List.exists (hasRole role))
+
+        let isController (t: TypeDef) =
+            t.IsPublic
+            && not t.IsAbstract
+            && not t.IsInterface
+            && not t.IsValueType
+            && not t.IsGeneric
+            && not t.IsCompilerGenerated
+            && (attributesWith "not-a-controller" (inheritedAttributes t.Ref 0)).IsEmpty
+            && (t.Ref.Name.EndsWith "Controller" || not (attributesWith "controller" (inheritedAttributes t.Ref 0)).IsEmpty)
+
+        let routeTemplates (attributes: AttributeDef list) =
+            attributes
+            |> List.collect (fun a ->
+                attributeRules ctx.Matcher a
+                |> List.filter (fun r -> r.HttpMethod.IsNone && hasRole "route-template" r)
+                |> List.map (fun r -> textArgument r "route-template" a))
+
+        // (methods, template) for each HTTP method attribute of an action.
+        let verbs (attributes: AttributeDef list) =
+            attributes
+            |> List.collect (fun a ->
+                attributeRules ctx.Matcher a
+                |> List.choose (fun r ->
+                    match r.HttpMethod with
+                    | Some m -> Some([ m ], textArgument r "route-template" a)
+                    | None when hasRole "http-methods" r ->
+                        let spec = r.Payload |> List.find (fun p -> p.Role = "http-methods")
+
+                        let methods =
+                            match List.tryItem spec.Argument a.Arguments with
+                            | Some(AttributeValue.Many items) -> items |> List.choose (function AttributeValue.Text t -> Some(t.ToUpperInvariant()) | _ -> None)
+                            | Some(AttributeValue.Text t) -> [ t.ToUpperInvariant() ]
+                            | _ -> []
+
+                        let template =
+                            a.Named |> List.tryPick (fun (n, v) -> match n, v with "Route", AttributeValue.Text t -> Some t | _ -> None)
+
+                        Some(methods, template)
+                    | None -> None))
+
+        parts
+        |> List.collect (fun assembly -> assembly.Types)
+        |> List.filter isController
+        |> List.collect (fun controller ->
+            let controllerName =
+                let n = controller.Ref.Name
+                if n.EndsWith "Controller" && n.Length > "Controller".Length then n.Substring(0, n.Length - "Controller".Length) else n
+
+            let controllerRoutes = routeTemplates controller.Attributes
+
+            controller.Methods
+            |> List.filter (fun m ->
+                m.IsPublic
+                && not m.IsStatic
+                && not m.IsConstructor
+                && not m.IsAbstract
+                && not m.IsSpecialName
+                && not m.IsCompilerGenerated
+                && (attributesWith "not-an-action" m.Attributes).IsEmpty)
+            |> List.collect (fun action ->
+                let actionName = action.Ref.Name
+                let actionRoutes = routeTemplates action.Attributes
+                let actionVerbs = verbs action.Attributes
+
+                // Every (methods, action template) the attributes declare; no verb attribute means any method.
+                let declared =
+                    match actionVerbs with
+                    | [] -> (if actionRoutes.IsEmpty then [ None ] else actionRoutes) |> List.map (fun t -> [], t)
+                    | vs ->
+                        vs
+                        |> List.collect (fun (ms, t) ->
+                            match t with
+                            | Some _ -> [ ms, t ]
+                            | None -> (if actionRoutes.IsEmpty then [ None ] else actionRoutes) |> List.map (fun r -> ms, r))
+
+                let routed = not controllerRoutes.IsEmpty || not actionRoutes.IsEmpty || actionVerbs |> List.exists (fun (_, t) -> t.IsSome)
+
+                let routes =
+                    declared
+                    |> List.collect (fun (methods, actionTemplate) ->
+                        let fromController = if controllerRoutes.IsEmpty then [ None ] else controllerRoutes
+
+                        fromController
+                        |> List.map (fun c ->
+                            let route =
+                                if attributeRouting && routed then
+                                    combineRoutes (c |> Option.map (replaceTokens controllerName actionName)) (actionTemplate |> Option.map (replaceTokens controllerName actionName))
+                                else
+                                    None
+
+                            methods, route))
+                    |> List.distinct
+                    |> List.collect (fun (methods, route) ->
+                        match methods with
+                        | [] -> [ None, route ]
+                        | ms -> ms |> List.map (fun m -> Some m, route))
+
+                let point = firstPoint set action.Ref
+
+                let projectId =
+                    match set.Origin action.Ref.Type.Assembly with
+                    | User pid -> pid
+                    | _ -> ctx.Project.ProjectId
+
+                match ctx.Program.Attributor.Attribute(projectId, action.Ref, point) with
+                | None -> []
+                | Some unit ->
+                    let location = point |> Option.map Attribution.toLocation
+
+                    routes
+                    |> List.map (fun (httpMethod, route) ->
+                        let methodPredicate =
+                            httpMethod
+                            |> Option.map (fun m ->
+                                { Part = RequestPart.Method
+                                  Operator = PredicateOperator.Equals
+                                  Index = None
+                                  Value = m
+                                  Location = location })
+                            |> Option.toList
+
+                        let routePredicates = route |> Option.map (fun r -> PlatformRouting.templatePredicates r location) |> Option.defaultValue []
+
+                        let completeness =
+                            match httpMethod, route with
+                            | Some _, Some _ -> Completeness.Complete
+                            | None, None -> Completeness.Unresolved
+                            | _ -> Completeness.Partial
+
+                        let how =
+                            match route with
+                            | Some _ -> "its routing attributes"
+                            | None -> "conventional routing, which is not followed"
+
+                        { Id = ""
+                          ApplicationId = ctx.Project.ProjectId
+                          HandlerUnit = unit.Id
+                          HandlerMember = action.Ref.Display
+                          Location = location
+                          Category = EffectCategory.HttpIn
+                          Predicates = methodPredicate @ routePredicates
+                          HttpMethod = httpMethod
+                          Route = route
+                          Completeness = completeness
+                          Forms = [ RouteForm.PlatformRouting ]
+                          Evidence =
+                            { Steps =
+                                [ step $"{registration.Caller.Ref.Display} maps controllers with {registration.Declared.Display} (rule {registration.Rule.Id})" registration.Caller.Ref registrationPoint
+                                  step $"{action.Ref.Display} is an action of controller {controller.Ref.FullName}, routed by {how}" action.Ref point ] } })))
+

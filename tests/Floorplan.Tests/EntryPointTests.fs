@@ -4,6 +4,7 @@ open System.Text
 open Expecto
 open Floorplan.Model
 open Floorplan.Cli
+open Floorplan.Analysis.EntryPoints
 
 let routingModel = lazy (Pipeline.buildModel ignore Floorplan.Model.Caching.Store.Disabled [] [] (Fixtures.routing.Force()))
 
@@ -48,6 +49,33 @@ let tests =
         [ test "golden: Routing fixture" { Golden.check "routing.entry-points.txt" (render (routingModel.Force())) }
 
           test "golden: Shop fixture" { Golden.check "shop.entry-points.txt" (render (ExitPointTests.shopModel.Force())) }
+
+          test "MVC controllers: attribute routes with [controller], verbs, AcceptVerbs, NonAction and NonController" {
+              let c = "Routing.Controllers."
+
+              Expect.equal
+                  (routes (routingModel.Force()) "Routing.Controllers")
+                  [ "DELETE", "/api/Orders/{id:int}", c + "OrdersController::Remove", Completeness.Complete
+                    "GET", "/api/Orders", c + "OrdersController::List", Completeness.Complete
+                    "GET", "/api/Orders/{id:int}", c + "OrdersController::Get", Completeness.Complete
+                    "GET", "/health", c + "HealthController::Check", Completeness.Complete
+                    "GET", "/ping", c + "HealthController::Ping", Completeness.Complete
+                    "HEAD", "/health", c + "HealthController::Check", Completeness.Complete
+                    "OPTIONS", "/api/Orders", c + "OrdersController::Options", Completeness.Complete
+                    "PATCH", "/api/Orders/{id:int}", c + "OrdersController::Patch", Completeness.Complete
+                    "POST", "/api/Orders", c + "OrdersController::Create", Completeness.Complete
+                    "POST", "/ping", c + "HealthController::Ping", Completeness.Complete
+                    "PUT", "/api/Orders/{id:int}", c + "OrdersController::Replace", Completeness.Complete ]
+                  "every action once per method, nothing from [NonAction], properties, [NonController] or plain classes"
+          }
+
+          test "controller routes combine as MVC combines them" {
+              Expect.equal (combineRoutes (Some "api/orders") (Some "{id}")) (Some "/api/orders/{id}") "relative"
+              Expect.equal (combineRoutes (Some "api/orders") (Some "/ping")) (Some "/ping") "absolute"
+              Expect.equal (combineRoutes (Some "api/orders") (Some "~/ping")) (Some "/ping") "application-relative"
+              Expect.equal (combineRoutes (Some "api/orders") None) (Some "/api/orders") "class route only"
+              Expect.equal (combineRoutes None None) None "not attribute routed"
+          }
 
           test "endpoint routing gives complete routes, including groups and method lists" {
               let m = routingModel.Force()

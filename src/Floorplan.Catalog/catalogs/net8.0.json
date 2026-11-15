@@ -305,6 +305,40 @@
     { "id": "http-in.endpoint-data-source", "assembly": "Microsoft.AspNetCore.Routing", "type": "Microsoft.AspNetCore.Routing.EndpointDataSource",
       "members": ["get_Endpoints"], "includeDerivedTypes": true, "kind": "callback", "category": "http-in" },
 
+    // ---------------- MVC controllers: attribute routing ----------------
+    // MapControllers maps the actions of every controller with attribute routes. The attribute rules below are
+    // read from the declarations of controllers and actions, not from calls: the constructor arguments are the
+    // attribute's arguments.
+    { "id": "http-in.map-controllers", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Builder.ControllerEndpointRouteBuilderExtensions",
+      "members": ["MapControllers"], "kind": "registration", "category": "http-in", "payload": [{ "argument": 0, "role": "controllers" }] },
+    { "id": "http-in.map-controller-route", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Builder.ControllerEndpointRouteBuilderExtensions",
+      "members": ["MapControllerRoute", "MapDefaultControllerRoute", "MapAreaControllerRoute"], "kind": "registration", "category": "http-in",
+      "payload": [{ "argument": 0, "role": "conventional-controllers" }] },
+    { "id": "http-in.mvc-controller", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.ControllerAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "controller" }] },
+    { "id": "http-in.mvc-non-controller", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.NonControllerAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "not-a-controller" }] },
+    { "id": "http-in.mvc-non-action", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.NonActionAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "not-an-action" }] },
+    { "id": "http-in.mvc-route", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.RouteAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "route-template" }] },
+    { "id": "http-in.mvc-accept-verbs", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.AcceptVerbsAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "http-methods" }] },
+    { "id": "http-in.mvc-http-get", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.HttpGetAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "httpMethod": "GET", "payload": [{ "argument": 0, "role": "route-template" }] },
+    { "id": "http-in.mvc-http-post", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.HttpPostAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "httpMethod": "POST", "payload": [{ "argument": 0, "role": "route-template" }] },
+    { "id": "http-in.mvc-http-put", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.HttpPutAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "httpMethod": "PUT", "payload": [{ "argument": 0, "role": "route-template" }] },
+    { "id": "http-in.mvc-http-delete", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.HttpDeleteAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "httpMethod": "DELETE", "payload": [{ "argument": 0, "role": "route-template" }] },
+    { "id": "http-in.mvc-http-patch", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.HttpPatchAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "httpMethod": "PATCH", "payload": [{ "argument": 0, "role": "route-template" }] },
+    { "id": "http-in.mvc-http-head", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.HttpHeadAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "httpMethod": "HEAD", "payload": [{ "argument": 0, "role": "route-template" }] },
+    { "id": "http-in.mvc-http-options", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.HttpOptionsAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "httpMethod": "OPTIONS", "payload": [{ "argument": 0, "role": "route-template" }] },
+
     // ---------------- blind spots (plan risk 7) ----------------
     { "id": "blind-spot.reflection-invoke", "type": "System.Reflection.MethodBase", "members": ["Invoke"], "includeDerivedTypes": true,
       "kind": "blind-spot", "blindSpot": "reflection" },

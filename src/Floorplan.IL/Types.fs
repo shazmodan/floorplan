@@ -165,6 +165,21 @@ type MethodBody =
       Handlers: ExceptionHandler list
       LocalTypes: TypeRef list }
 
+/// A constant argument of a custom attribute.
+[<RequireQualifiedAccess>]
+type AttributeValue =
+    | Text of string
+    | Number of int64
+    | Flag of bool
+    | Many of AttributeValue list
+    | Other
+
+/// A custom attribute as declared: its type, constructor arguments and named (property or field) arguments.
+type AttributeDef =
+    { Type: TypeRef
+      Arguments: AttributeValue list
+      Named: (string * AttributeValue) list }
+
 type MethodDef =
     { Ref: MethodRef
       IsStatic: bool
@@ -174,6 +189,8 @@ type MethodDef =
       IsConstructor: bool
       IsCompilerGenerated: bool
       IsPublic: bool
+      IsSpecialName: bool
+      Attributes: AttributeDef list
       /// Parameter names as declared (empty strings where the metadata has none).
       ParameterNames: string list
       /// The native library, for a P/Invoke declaration.
@@ -192,6 +209,9 @@ type TypeDef =
       IsValueType: bool
       DeclaringType: TypeRef option
       IsCompilerGenerated: bool
+      IsPublic: bool
+      IsGeneric: bool
+      Attributes: AttributeDef list
       Methods: MethodDef list
       /// Constant static fields with their values (enum members, literals); integers as int64.
       Literals: (string * obj) list }
