@@ -25,5 +25,8 @@ let effects = lazy (loadOrFail LoadOptions.defaults "Effects/Effects.slnx")
 /// The Routing fixture: one application per inbound primitive and routing style.
 let routing = lazy (loadOrFail LoadOptions.defaults "Routing/Routing.slnx")
 
+/// Real F# web frameworks as a second layer of fixtures (plan section 9): Giraffe, Falco and Oxpecker.
+let frameworks = lazy (loadOrFail LoadOptions.defaults "Frameworks/Frameworks.slnx")
+
 let project (solution: LoadedSolution) (name: string) =
     solution.Projects |> List.find (fun p -> p.Name = name)
