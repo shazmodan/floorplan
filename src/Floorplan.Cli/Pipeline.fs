@@ -84,6 +84,9 @@ let buildModel (log: string -> unit) (catalogs: string list) (solution: LoadedSo
     use program = new EffectAnalysis.Program(input, [ FSharpCodegen.recognizer ])
     let effects = EffectAnalysis.exitPoints program input
 
+    log "Finding entry points"
+    let entries = EntryPoints.analyze program input
+
     let projects =
         solution.Projects
         |> List.map (toProject index)
@@ -102,6 +105,7 @@ let buildModel (log: string -> unit) (catalogs: string list) (solution: LoadedSo
         Projects = projects
         Units = structure.Units |> List.sortBy (fun u -> u.Id)
         Dependencies = structure.Dependencies
+        EntryPoints = entries
         ExitPoints = effects.ExitPoints
         Layout = layout
         Diagnostics = (solution.Failures |> List.map failureDiagnostic) @ structure.Diagnostics @ effects.Diagnostics }

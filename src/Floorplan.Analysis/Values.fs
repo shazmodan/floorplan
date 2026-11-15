@@ -72,6 +72,7 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                 match ins.Op with
                 | LdStr s -> Text s
                 | LdNull -> Text ""
+                | NewArr _ -> arrayElements depth (Set.singleton (Pushed offset))
                 | Call m
                 | CallVirt m when m.Type.FullName = "System.String" && m.Name = "Concat" ->
                     match operands with

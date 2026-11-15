@@ -22,5 +22,8 @@ let shopWithTests =
 /// The Effects fixture: every effect category, called directly, through wrapper libraries and higher-order code.
 let effects = lazy (loadOrFail LoadOptions.defaults "Effects/Effects.slnx")
 
+/// The Routing fixture: one application per inbound primitive and routing style.
+let routing = lazy (loadOrFail LoadOptions.defaults "Routing/Routing.slnx")
+
 let project (solution: LoadedSolution) (name: string) =
     solution.Projects |> List.find (fun p -> p.Name = name)

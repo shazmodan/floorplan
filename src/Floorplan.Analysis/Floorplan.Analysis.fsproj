@@ -8,7 +8,10 @@
     <Compile Include="Values.fs" />
     <Compile Include="Summaries.fs" />
     <Compile Include="ExitPoints.fs" />
+    <Compile Include="Taint.fs" />
+    <Compile Include="PlatformRouting.fs" />
     <Compile Include="EffectAnalysis.fs" />
+    <Compile Include="EntryPoints.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Floorplan.Model\Floorplan.Model.fsproj" />
