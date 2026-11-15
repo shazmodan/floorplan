@@ -61,7 +61,8 @@ let compute (projects: Project list) (units: CodeUnit list) (dependencies: Depen
     let boxSize (projectId: string) =
         let g = inner[projectId]
         let p = projects |> List.find (fun p -> p.Id = projectId)
-        let contentWidth = max g.Width (labelWidth p.Name)
+        // Room for the name and the collapse toggle in the header.
+        let contentWidth = max g.Width (labelWidth p.Name + 24.0)
         contentWidth + 2.0 * boxPadding, g.Height + boxHeader + 2.0 * boxPadding
 
     // Pass 2: the boxes, connected by project references and by cross-project unit dependencies.

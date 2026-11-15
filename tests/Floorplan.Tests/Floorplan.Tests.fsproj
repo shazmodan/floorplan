@@ -10,6 +10,8 @@
     <Compile Include="ProjectLoadingTests.fs" />
     <Compile Include="StructureTests.fs" />
     <Compile Include="LayoutTests.fs" />
+    <Compile Include="Browser.fs" />
+    <Compile Include="RenderingTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
@@ -20,5 +22,6 @@
     <ProjectReference Include="..\..\src\Floorplan.ProjectLoading\Floorplan.ProjectLoading.fsproj" />
     <ProjectReference Include="..\..\src\Floorplan.Structure.FSharp\Floorplan.Structure.FSharp.fsproj" />
     <ProjectReference Include="..\..\src\Floorplan.Layout\Floorplan.Layout.fsproj" />
+    <ProjectReference Include="..\..\src\Floorplan.Rendering\Floorplan.Rendering.fsproj" />
   </ItemGroup>
 </Project>
