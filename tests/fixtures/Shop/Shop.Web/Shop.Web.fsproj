@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Handlers.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Shop.Core\Shop.Core.fsproj" />
+    <ProjectReference Include="..\Shop.Data\Shop.Data.fsproj" />
+  </ItemGroup>
+</Project>

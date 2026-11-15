@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Util.fs" />
+    <Compile Include="Repository.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Shop.Core\Shop.Core.fsproj" />
+    <ProjectReference Include="..\Shop.Storage\Shop.Storage.csproj" />
+  </ItemGroup>
+</Project>

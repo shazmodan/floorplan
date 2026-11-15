@@ -6,6 +6,8 @@
   <ItemGroup>
     <Compile Include="ModelTests.fs" />
     <Compile Include="ArchitectureTests.fs" />
+    <Compile Include="Fixtures.fs" />
+    <Compile Include="ProjectLoadingTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
@@ -13,5 +15,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Floorplan.Model\Floorplan.Model.fsproj" />
+    <ProjectReference Include="..\..\src\Floorplan.ProjectLoading\Floorplan.ProjectLoading.fsproj" />
   </ItemGroup>
 </Project>
