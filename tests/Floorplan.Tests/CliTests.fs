@@ -66,6 +66,7 @@ let tests =
                       Path = Some(Fixtures.path "Shop/Shop.slnx")
                       Output = out
                       Build = false
+                      Cache = false
                       Quiet = true }
 
               match Pipeline.run ignore options with

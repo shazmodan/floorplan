@@ -57,6 +57,27 @@ type Witness =
       Edge: CallEdge
       Hit: SinkHit }
 
+/// One call on the way from a dependency method to a primitive, as kept in evidence and in the cache.
+type PathStep =
+    { Caller: string
+      CallerAssembly: string
+      Declared: string
+      Virtual: bool }
+
+/// A rule a dependency method can reach, with the shortest path to it.
+type DependencyEffect =
+    { RuleId: string
+      Category: EffectCategory
+      Primitive: string
+      PrimitiveAssembly: string
+      Steps: PathStep list }
+
+let toStep (e: CallEdge) =
+    { Caller = e.Caller.Display
+      CallerAssembly = e.Caller.Type.Assembly
+      Declared = e.Declared.Display
+      Virtual = e.Kind = Virtual }
+
 type Summaries(graph: CallGraph, matcher: Matcher, isSummarized: MethodRef -> bool) =
     let set = graph.Set
     let best = Dictionary<string, Dictionary<string, Witness>>()
@@ -130,3 +151,13 @@ type Summaries(graph: CallGraph, matcher: Matcher, isSummarized: MethodRef -> bo
                 | _ -> List.rev acc
 
         walk m [] 0
+
+    /// Every rule the method can reach, each with its shortest path as steps.
+    member this.Effects(m: MethodRef) : DependencyEffect list =
+        this.Reaches m
+        |> List.map (fun w ->
+            { RuleId = w.Hit.Rule.Id
+              Category = w.Hit.Category
+              Primitive = w.Hit.Primitive.Display
+              PrimitiveAssembly = w.Hit.Primitive.Type.Assembly
+              Steps = this.Path(m, w.Hit.Rule.Id) |> List.map toStep })

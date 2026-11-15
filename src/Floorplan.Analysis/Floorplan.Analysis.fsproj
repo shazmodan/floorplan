@@ -14,6 +14,7 @@
     <Compile Include="EntryPoints.fs" />
     <Compile Include="RouteRecovery.fs" />
     <Compile Include="EntryPointAnalysis.fs" />
+    <Compile Include="Traces.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Floorplan.Model\Floorplan.Model.fsproj" />

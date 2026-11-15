@@ -22,6 +22,7 @@ type AnalyzeArgs =
     | Catalog of file: string
     | Show of categories: string
     | No_Build
+    | No_Cache
     | Quiet
 
     interface IArgParserTemplate with
@@ -39,6 +40,7 @@ type AnalyzeArgs =
             | Catalog _ -> "additional boundary catalog rules (JSON)."
             | Show _ -> "show categories hidden by default (comma-separated, e.g. environment,nondeterminism)."
             | No_Build -> "do not build; analyze the assemblies already built."
+            | No_Cache -> "do not read or write the analysis cache (FLOORPLAN_CACHE, default in local app data)."
             | Quiet -> "print only errors."
 
 type Command =
@@ -64,6 +66,7 @@ type AnalyzeOptions =
       Catalogs: string list
       Show: EffectCategory list
       Build: bool
+      Cache: bool
       Quiet: bool }
 
 let private splitList (values: string list) =
@@ -94,6 +97,7 @@ let toOptions (args: ParseResults<AnalyzeArgs>) : Result<AnalyzeOptions, string>
               Catalogs = args.GetResults Catalog
               Show = categories |> List.choose snd
               Build = not (args.Contains No_Build)
+              Cache = not (args.Contains No_Cache)
               Quiet = args.Contains Quiet }
 
 let defaults =
@@ -109,4 +113,5 @@ let defaults =
       Catalogs = []
       Show = []
       Build = true
+      Cache = true
       Quiet = false }

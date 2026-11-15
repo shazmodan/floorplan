@@ -14,7 +14,8 @@ type ProjectContext =
       Set: AssemblySet
       Graph: CallGraph
       Matcher: Matcher
-      Summaries: Summaries
+      /// Rules a dependency method reaches, from the call graph or the summary cache.
+      Effects: MethodRef -> DependencyEffect list
       Attributor: Attribution.Attributor
       Recognizers: ICodegenRecognizer list }
 
@@ -30,6 +31,15 @@ let private step (description: string) (m: MethodRef) (point: SourcePoint option
       Location = point |> Option.map Attribution.toLocation }
 
 let private categoryName (c: EffectCategory) = EffectCategory.name c
+
+/// Confidence from the evidence path through a dependency: each call is one step, each virtual call one more,
+/// because virtual dispatch is where a static call graph over-approximates.
+let confidenceOf (path: PathStep list) =
+    let score = path.Length + (path |> List.filter (fun e -> e.Virtual) |> List.length)
+
+    if score <= 4 then Confidence.High
+    elif score <= 12 then Confidence.Medium
+    else Confidence.Low
 
 /// The call sites of a method body, with the edges the call graph resolved for each.
 let private callSites (ctx: ProjectContext) (m: MethodDef) (body: MethodBody) =
@@ -79,7 +89,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
 
                     let unit = lazy (ctx.Attributor.Attribute(projectId, m.Ref, point))
 
-                    let add (category: EffectCategory) (ruleId: string) (primitive: MethodRef) (via: string option) (payload: Payload option) (steps: EvidenceStep list) =
+                    let add (category: EffectCategory) (ruleId: string) (primitive: string) (via: string option) (payload: Payload option) (confidence: Confidence) (steps: EvidenceStep list) =
                         if seen.Add((ins.Offset, category)) then
                             match unit.Value with
                             | Some u ->
@@ -93,9 +103,10 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                           Member = m.Ref.Display
                                           Location = location
                                           RuleId = ruleId
-                                          Primitive = primitive.Display
+                                          Primitive = primitive
                                           Payload = payload
                                           ViaAssembly = via
+                                          Confidence = confidence
                                           Evidence = { Steps = steps } }
                                       SortKey =
                                         (u.Id,
@@ -140,29 +151,36 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                             add
                                 hit.Category
                                 hit.Rule.Id
-                                hit.Primitive
+                                hit.Primitive.Display
                                 None
                                 payload
+                                Confidence.High
                                 [ step $"{m.Ref.Display} calls {hit.Primitive.Display}" m.Ref point
                                   step $"{hit.Primitive.Display} is a {categoryName hit.Category} primitive (rule {hit.Rule.Id})" hit.Primitive None ]
                         | None ->
                             match ctx.Set.Origin edge.Target.Type.Assembly with
                             | Dependency ->
                                 // Through a dependency: one exit point per category it can reach, the shortest path each.
-                                ctx.Summaries.Reaches edge.Target
-                                |> List.groupBy (fun w -> w.Hit.Category)
-                                |> List.iter (fun (category, ws) ->
-                                    let w = ws |> List.minBy (fun w -> w.Distance, w.Hit.Rule.Id)
-                                    let path = ctx.Summaries.Path(edge.Target, w.Hit.Rule.Id)
+                                ctx.Effects edge.Target
+                                |> List.groupBy (fun d -> d.Category)
+                                |> List.iter (fun (category, ds) ->
+                                    let d = ds |> List.minBy (fun d -> d.Steps.Length, d.RuleId)
 
                                     let steps =
                                         [ step $"{m.Ref.Display} calls {edge.Target.Display}" m.Ref point
                                           yield!
-                                              path
-                                              |> List.map (fun e -> step $"{e.Caller.Display} calls {e.Declared.Display}" e.Caller None)
-                                          step $"{w.Hit.Primitive.Display} is a {categoryName category} primitive (rule {w.Hit.Rule.Id})" w.Hit.Primitive None ]
+                                              d.Steps
+                                              |> List.map (fun s ->
+                                                  { Description = $"{s.Caller} calls {s.Declared}"
+                                                    Member = s.Caller
+                                                    Assembly = s.CallerAssembly
+                                                    Location = None })
+                                          { Description = $"{d.Primitive} is a {categoryName category} primitive (rule {d.RuleId})"
+                                            Member = d.Primitive
+                                            Assembly = d.PrimitiveAssembly
+                                            Location = None } ]
 
-                                    add category w.Hit.Rule.Id w.Hit.Primitive (Some edge.Target.Type.Assembly) None steps)
+                                    add category d.RuleId d.Primitive (Some edge.Target.Type.Assembly) None (confidenceOf d.Steps) steps)
                             | _ -> ()
 
     List.ofSeq found, List.ofSeq diagnostics

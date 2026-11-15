@@ -5,7 +5,7 @@ open Expecto
 open Floorplan.Model
 open Floorplan.Cli
 
-let routingModel = lazy (Pipeline.buildModel ignore [] (Fixtures.routing.Force()))
+let routingModel = lazy (Pipeline.buildModel ignore Floorplan.Model.Caching.Store.Disabled [] [] (Fixtures.routing.Force()))
 
 let render (model: AnalysisModel) =
     let b = StringBuilder()

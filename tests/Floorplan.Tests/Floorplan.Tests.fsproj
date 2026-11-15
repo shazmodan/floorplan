@@ -18,6 +18,7 @@
     <Compile Include="Golden.fs" />
     <Compile Include="ExitPointTests.fs" />
     <Compile Include="EntryPointTests.fs" />
+    <Compile Include="NoiseAndTraceTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>

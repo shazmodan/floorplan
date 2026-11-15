@@ -75,17 +75,23 @@ let analysisInput (solution: LoadedSolution) (index: SolutionIndex) (units: Code
       ExtraCatalogs = catalogs }
 
 /// Builds the analysis model for a loaded solution.
-let buildModel (log: string -> unit) (catalogs: string list) (solution: LoadedSolution) : AnalysisModel =
+let buildModel (log: string -> unit) (store: Caching.Store) (catalogs: string list) (show: EffectCategory list) (solution: LoadedSolution) : AnalysisModel =
     log $"Analyzing structure of {solution.Projects.Length} projects"
-    let structure, index = StructureAnalysis.analyze [ FSharpStructureAnalyzer.create () ] solution.Projects
+    let structure, index = StructureAnalysis.analyze [ FSharpStructureAnalyzer.create store ] solution.Projects
 
     log "Analyzing effects"
     let input = analysisInput solution index structure.Units catalogs
-    use program = new EffectAnalysis.Program(input, [ FSharpCodegen.recognizer ])
+    use program = new EffectAnalysis.Program(input, [ FSharpCodegen.recognizer ], store)
+
+    if not program.CachedAssemblies.IsEmpty then
+        log $"Using cached summaries for {program.CachedAssemblies.Length} dependencies"
+
     let effects = EffectAnalysis.exitPoints program input
+    program.SaveCache()
 
     log "Finding entry points"
     let entries = EntryPointAnalysis.analyze program input
+    let traces = Traces.compute program entries effects.ExitPoints
 
     let projects =
         solution.Projects
@@ -106,8 +112,14 @@ let buildModel (log: string -> unit) (catalogs: string list) (solution: LoadedSo
         Units = structure.Units |> List.sortBy (fun u -> u.Id)
         Dependencies = structure.Dependencies
         EntryPoints = entries
+        Traces = traces
         ExitPoints = effects.ExitPoints
         Layout = layout
+        Presentation =
+            { HiddenCategories =
+                [ EffectCategory.Environment; EffectCategory.Nondeterminism ]
+                |> List.filter (fun c -> not (List.contains c show))
+              HiddenConfidence = [ Confidence.Low ] }
         Diagnostics = (solution.Failures |> List.map failureDiagnostic) @ structure.Diagnostics @ effects.Diagnostics }
 
 let run (log: string -> unit) (options: AnalyzeOptions) : Result<Outcome, string> =
@@ -127,7 +139,8 @@ let run (log: string -> unit) (options: AnalyzeOptions) : Result<Outcome, string
         let reasons = solution.Failures |> List.map (fun f -> $"  {Path.GetFileName f.Path}: {f.Message}") |> String.concat "\n"
         Error $"No project could be analyzed.\n{reasons}"
     | Ok solution ->
-        let model = buildModel log options.Catalogs solution
+        let store = if options.Cache then Caching.Store(Some(Caching.defaultDirectory ())) else Caching.Store.Disabled
+        let model = buildModel log store options.Catalogs options.Show solution
 
         let renderer, target =
             match options.Format with

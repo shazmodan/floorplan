@@ -7,9 +7,11 @@ open Floorplan.Cli.Options
 
 /// Exit codes: 0 success, 1 analysis failed or some projects could not be analyzed, 2 usage error.
 let private analyze (options: AnalyzeOptions) =
+    let clock = Diagnostics.Stopwatch.StartNew()
+
     let log message =
         if not options.Quiet then
-            eprintfn "%s" message
+            eprintfn "[%5.1fs] %s" clock.Elapsed.TotalSeconds message
 
     match Pipeline.run log options with
     | Error message ->
@@ -21,7 +23,10 @@ let private analyze (options: AnalyzeOptions) =
         if not options.Quiet then
             let units = m.Units |> List.filter (fun u -> u.Kind <> UnitKind.ProjectUnit) |> List.length
             let exits =
-                m.ExitPoints |> List.filter (fun x -> not (EffectCategory.hiddenByDefault |> List.contains x.Category))
+                m.ExitPoints
+                |> List.filter (fun x ->
+                    not (m.Presentation.HiddenCategories |> List.contains x.Category)
+                    && not (m.Presentation.HiddenConfidence |> List.contains x.Confidence))
 
             eprintfn
                 "%d projects, %d units, %d dependencies, %d entry points, %d exit points"
