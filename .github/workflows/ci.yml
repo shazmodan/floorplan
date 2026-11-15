@@ -12,12 +12,42 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      DOTNET_NOLOGO: "1"
+      FLOORPLAN_CACHE: ${{ github.workspace }}/.floorplan-cache
     steps:
       - uses: actions/checkout@v4
+
+      # Fixtures target net8.0 and net10.0; the tool runs on the newest runtime.
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             8.0.x
             10.0.x
-      - run: dotnet build Floorplan.slnx -c Release
-      - run: dotnet run --project tests/Floorplan.Tests -c Release --no-build -- --summary
+
+      - name: Build
+        run: dotnet build Floorplan.slnx -c Release
+
+      # Includes golden files, the architecture rules (sections 3.5 and 9) and, where a Chromium browser is
+      # installed, the website smoke tests.
+      - name: Test
+        run: dotnet run --project tests/Floorplan.Tests -c Release --no-build -- --summary
+
+      - name: Pack the dotnet tool
+        run: dotnet pack src/Floorplan.Cli -c Release -o artifacts/nupkg
+
+      - name: Install and run the packed tool
+        shell: bash
+        run: |
+          dotnet tool install Floorplan --tool-path artifacts/tool --add-source artifacts/nupkg --version 0.1.0
+          artifacts/tool/floorplan --version
+          artifacts/tool/floorplan analyze tests/fixtures/Routing/Routing.slnx --no-cache -o artifacts/site
+          test -f artifacts/site/index.html
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: floorplan-tool
+          path: |
+            artifacts/nupkg/*.nupkg
+            artifacts/site
