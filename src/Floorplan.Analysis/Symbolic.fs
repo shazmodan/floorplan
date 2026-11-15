@@ -647,6 +647,13 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                       Predicates = state.Predicates }
             | None -> ()
 
+        // A number's ToString argument that keeps the default text: no format, "G" or "D", or only a culture.
+        let defaultNumberFormat (first: SVal) (firstType: string) =
+            match first with
+            | Null -> true
+            | Const(:? string as f) -> f = "" || f = "G" || f = "D"
+            | _ -> firstType = "System.IFormatProvider"
+
         let heapType (v: SVal option) =
             match v with
             | Some(Ref id) -> state.Heap.TryFind id |> Option.map (fun o -> o.Type.FullName)
@@ -758,6 +765,14 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 [ Ref d, { s with Statics = s.Statics.Add("<request:Items>", Ref d) } ]
         elif m.Name = "ToString" && m.ParameterCount = 0 && (match receiver with Some(Const(:? string)) -> true | _ -> false) then
             one receiver.Value
+        elif m.Name = "ToString"
+             && List.contains m.Type.FullName [ "System.Int32"; "System.Int64"; "System.Int16"; "System.Byte"; "System.UInt32"; "System.UInt64"; "System.UInt16"; "System.SByte" ]
+             && (match receiver with Some(Const(:? int64)) -> true | _ -> false)
+             // No format, or the default one (newer F# compilers lower interpolated holes to ToString(null, culture)).
+             && (m.ParameterCount = 0 || defaultNumberFormat (arg 0) m.ParameterTypes.Head) then
+            match receiver with
+            | Some(Const(:? int64 as n)) -> one (Const(string n))
+            | _ -> one Unknown
         elif (m.Type.FullName = "System.String" && m.Name = "Substring"
               || m.Type.FullName = "Microsoft.FSharp.Core.Operators/OperatorIntrinsics" && m.Name = "GetStringSlice")
              && (match operands with Req t :: _ -> t.Contains(Part RequestPart.Path) || t |> Seq.exists (function PathAfter _ -> true | _ -> false) | _ -> false) then
