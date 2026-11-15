@@ -26,7 +26,8 @@ Correctness rules that keep it from guessing:
 
 - Conditions checked inside a call are scoped to it. They travel with the call's result (a boolean's true side,
   or a guard on a returned object such as an active pattern's `Some`), not with the path, so an alternative
-  that was tried and left does not leak its conditions into the next one.
+  that was tried and left does not leak its conditions into the next one. A `bool` function that returns a
+  constant `true` after narrowing the request returns those conditions as its true side.
 - A comparison of a value the analysis cannot read with a constant makes the path uncertain when its true side
   is taken; handlers reached on uncertain paths get no route.
 - Method names come only from constants or from the strings a sequence actually produces when enumerated.
@@ -78,5 +79,7 @@ What made the `routef` routes work, all without framework knowledge:
   the placeholder names `{param}` (or `{param1}`, ...).
 - The symbolic run only starts for applications that reach a platform registration or request source, so plain
   console applications cost nothing.
+- The models are tested one at a time in `tests/Floorplan.Tests/SymbolicTests.fs`, over the functions of
+  `SymbolicSamples.fs` compiled into the test assembly.
 - Debugging aids: `FLOORPLAN_DEBUG=1` (or `2`) traces the run; `FLOORPLAN_DEBUG_METHOD=<name>` traces every
   instruction of matching methods.

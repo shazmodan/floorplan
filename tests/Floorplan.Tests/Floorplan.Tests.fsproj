@@ -20,6 +20,8 @@
     <Compile Include="EntryPointTests.fs" />
     <Compile Include="NoiseAndTraceTests.fs" />
     <Compile Include="FrameworkTests.fs" />
+    <Compile Include="SymbolicSamples.fs" />
+    <Compile Include="SymbolicTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
