@@ -110,6 +110,25 @@ let tests =
               Expect.equal extended.Name "net8.0+inhouse" "name"
           }
 
+          test "draft catalogs resolve against the built-in catalogs they extend" {
+              let drafts = Path.Combine(ArchitectureTests.repoRoot, "src", "Floorplan.Catalog", "drafts")
+
+              for file in Directory.GetFiles(drafts, "*.json") do
+                  let catalog = CatalogLoader.resolveFile file
+                  Expect.exists catalog.Rules (fun r -> r.Id = "http-out.httpclient") $"{file} inherits the base rules"
+
+              let net11 = CatalogLoader.resolveFile (Path.Combine(drafts, "net11.0.json"))
+              let m = Matcher(net11, supertypes)
+              Expect.isSome (m.Sink(methodRef "System.Diagnostics.Process" "RunAsync" [ "System.String" ])) "Process.RunAsync"
+              Expect.isSome (m.Sink(methodRef "System.Net.Dns" "ResolveMx" [ "System.String" ])) "Dns.ResolveMx"
+          }
+
+          test "zip archives on disk are file effects" {
+              let m = Matcher(CatalogLoader.loadBuiltIn "net8.0", supertypes)
+              let sink = m.Sink(methodRef "System.IO.Compression.ZipFile" "ExtractToDirectory" [ "System.String"; "System.String" ])
+              Expect.equal (sink |> Option.bind (fun r -> r.Category)) (Some EffectCategory.FilesystemWrite) "extract"
+          }
+
           test "rejects malformed catalogs with a clear message" {
               let bad = """{ "name": "bad", "rules": [ { "id": "x", "type": "T", "members": ["M"], "kind": "sink" } ] }"""
 

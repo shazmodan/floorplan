@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <Description>Catalog maintenance (plan section 8.3): lists public API added or removed between two .NET versions in the watched namespaces, and which catalog rules cover it.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="ApiSurface.fs" />
+    <Compile Include="Packs.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Mono.Cecil" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Floorplan.IL\Floorplan.IL.fsproj" />
+    <ProjectReference Include="..\..\src\Floorplan.Catalog\Floorplan.Catalog.fsproj" />
+  </ItemGroup>
+</Project>
