@@ -9,7 +9,6 @@
     <PackageId>Floorplan</PackageId>
     <PackageTags>fsharp;dotnet;architecture;visualization;static-analysis</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <!-- Run on the newest installed runtime, so MSBuild evaluation uses the newest SDK (plan section 8.1). -->
     <RollForward>LatestMajor</RollForward>
   </PropertyGroup>
