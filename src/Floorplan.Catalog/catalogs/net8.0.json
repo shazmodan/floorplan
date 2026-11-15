@@ -118,6 +118,14 @@
       "members": ["CreateFromFile", "OpenExisting"], "kind": "sink", "category": "filesystem-read", "payload": [{ "argument": 0, "role": "path" }] },
     { "id": "filesystem-write.temp-file", "assembly": "System.Runtime", "type": "System.IO.Path",
       "members": ["GetTempFileName"], "kind": "sink", "category": "filesystem-write" },
+    // Found by CatalogDiff while reviewing .NET 11: zip archives on disk were not covered.
+    { "id": "filesystem-write.zipfile", "assembly": "System.IO.Compression.ZipFile", "type": "System.IO.Compression.ZipFile",
+      "members": ["CreateFromDirectory*", "ExtractToDirectory*", "Open"], "kind": "sink", "category": "filesystem-write",
+      "payload": [{ "argument": 0, "role": "path" }] },
+    { "id": "filesystem-read.zipfile", "assembly": "System.IO.Compression.ZipFile", "type": "System.IO.Compression.ZipFile",
+      "members": ["OpenRead"], "kind": "sink", "category": "filesystem-read", "payload": [{ "argument": 0, "role": "path" }] },
+    { "id": "filesystem-write.zipfile-extensions", "assembly": "System.IO.Compression.ZipFile", "type": "System.IO.Compression.ZipFileExtensions",
+      "members": ["CreateEntryFromFile*", "ExtractToDirectory*", "ExtractToFile*"], "kind": "sink", "category": "filesystem-write" },
     { "id": "filesystem-read.watcher", "assembly": "System.IO.FileSystem.Watcher", "type": "System.IO.FileSystemWatcher",
       "members": ["set_EnableRaisingEvents", "WaitForChanged"], "kind": "sink", "category": "filesystem-read" },
 

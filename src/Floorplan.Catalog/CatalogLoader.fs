@@ -175,6 +175,13 @@ let rec resolve (lookup: string -> CatalogDocument option) (doc: CatalogDocument
 let private builtInDocument (name: string) =
     embedded name |> Option.map (parse name)
 
+/// A catalog file resolved against the built-in catalogs it extends, e.g. a draft for the next .NET version.
+let resolveFile (path: string) : Catalog =
+    if not (File.Exists path) then
+        fail $"Catalog file not found: {path}"
+
+    resolve builtInDocument (parse (Path.GetFileNameWithoutExtension path) (File.ReadAllText path)) 0
+
 let loadBuiltIn (name: string) : Catalog =
     match builtInDocument name with
     | Some doc -> resolve builtInDocument doc 0

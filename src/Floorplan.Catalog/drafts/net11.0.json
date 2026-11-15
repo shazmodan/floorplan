@@ -1,0 +1,29 @@
+{
+  // DRAFT delta catalog for .NET 11, written by the yearly procedure (docs/updating-catalogs.md) from
+  // docs/catalog-diffs/net10.0-net11.0.md (Microsoft.NETCore.App.Ref and Microsoft.AspNetCore.App.Ref 11.0.0).
+  // Not shipped until reviewed: move it to ../catalogs/ to make it built in.
+  "name": "net11.0",
+  "extends": "net10.0",
+  "add": [
+    // New one-call process APIs.
+    { "id": "process.run", "assembly": "System.Diagnostics.Process", "type": "System.Diagnostics.Process",
+      "members": ["Run", "RunAsync", "RunAndCaptureText", "RunAndCaptureTextAsync", "StartAndForget"],
+      "kind": "sink", "category": "process", "payload": [{ "argument": 0, "role": "command" }] },
+    // Replaces the net8.0 rule: adds exit-status waits, signals, output reads and TryGetProcessById.
+    { "id": "process.control", "assembly": "System.Diagnostics.Process", "type": "System.Diagnostics.Process",
+      "members": ["Kill", "GetProcesses", "GetProcessById", "TryGetProcessById", "GetProcessesByName", "GetCurrentProcess", "WaitForExit", "WaitForExitAsync", "WaitForExitStatus", "WaitForExitStatusAsync", "TryWaitForExitStatus", "Signal", "ReadAllText", "ReadAllTextAsync", "ReadAllLines", "ReadAllLinesAsync", "ReadAllBytes", "ReadAllBytesAsync"],
+      "kind": "sink", "category": "process" },
+    // Replaces the net8.0 rule: DNS record queries (ResolveAddresses, ResolveMx, ResolveTxt, ...).
+    { "id": "network.dns", "assembly": "System.Net.NameResolution", "type": "System.Net.Dns",
+      "members": ["GetHostEntry", "GetHostEntryAsync", "GetHostAddresses", "GetHostAddressesAsync", "Resolve*", "GetHostByName", "BeginGetHost*"],
+      "kind": "sink", "category": "network", "payload": [{ "argument": 0, "role": "host" }] },
+    { "id": "network.dns-resolver", "assembly": "System.Net.NameResolution", "type": "System.Net.DnsResolver",
+      "members": ["Resolve*"], "kind": "sink", "category": "network", "payload": [{ "argument": 0, "role": "host" }] },
+    // Hard links.
+    { "id": "filesystem-write.hard-link", "assembly": "System.Runtime", "type": "System.IO.File",
+      "members": ["CreateHardLink"], "kind": "sink", "category": "filesystem-write", "payload": [{ "argument": 0, "role": "path" }] },
+    { "id": "filesystem-write.fileinfo-hard-link", "assembly": "System.Runtime", "type": "System.IO.FileInfo",
+      "members": ["CreateAsHardLink"], "kind": "sink", "category": "filesystem-write" }
+  ],
+  "remove": []
+}
