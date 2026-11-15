@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Graph layout, computed once in the core so every renderer draws the same picture.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Layered.fs" />
+    <Compile Include="SolutionLayout.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Floorplan.Model\Floorplan.Model.fsproj" />
+  </ItemGroup>
+</Project>
