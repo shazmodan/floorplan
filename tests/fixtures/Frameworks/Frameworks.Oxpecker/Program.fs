@@ -10,6 +10,10 @@ let endpoints =
       subRoute "/api" [
           GET [ route "/orders" Orders.list; routef "/orders/{%i}" Orders.get ]
           POST [ route "/orders" Orders.create ]
+          PUT [ routef "/orders/{%i}" Orders.replace ]
+          DELETE [ routef "/orders/{%i}" Orders.remove ]
+          PATCH [ routef "/orders/{%i}" Orders.patch ]
+          OPTIONS [ route "/orders" Orders.options ]
       ] ]
 
 [<EntryPoint>]

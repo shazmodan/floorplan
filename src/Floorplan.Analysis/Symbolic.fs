@@ -1069,7 +1069,10 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
                         eprintfn "    [%s] %04x %A  stack: %s" me.Name ins.Offset ins.Op (t.Stack |> List.truncate 3 |> List.map show |> String.concat " | ")
 
-                    if visits > limits.VisitsPerInstruction then
+                    // Registration loops run over known collections and end; request paths fork, so they get less.
+                    let visitLimit = if phase = Registration then limits.VisitsPerInstruction * 6 else limits.VisitsPerInstruction
+
+                    if visits > visitLimit then
                         running <- false
                     else
                         t <- { t with Visits = t.Visits.Add(t.Pc, visits + 1) }

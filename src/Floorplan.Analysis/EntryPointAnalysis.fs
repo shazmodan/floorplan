@@ -125,11 +125,17 @@ let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoin
         let symbolic =
             FrameworkRouting.analyze ctx
             |> List.filter (fun e -> not (e.Predicates.IsEmpty && routers.Contains e.HandlerMember))
+            // Several symbolic paths to one handler: keep the most specific ones.
+            |> List.groupBy (fun e -> e.HandlerMember)
+            |> List.collect (fun (_, es) -> prune es)
+
+        // A symbolic entry with no conditions adds nothing for a handler other analyses already report.
+        let reported = (platform @ tables @ tracked) |> List.map (fun e -> e.HandlerMember) |> Set.ofList
+
+        let symbolic =
+            symbolic |> List.filter (fun e -> not (e.Predicates.IsEmpty && reported.Contains e.HandlerMember))
 
         platform @ tables @ tracked @ symbolic)
     |> List.distinctBy (fun e -> e.ApplicationId, e.HandlerMember, e.Route, e.HttpMethod)
-    // A handler with a recovered route does not also need an entry without one.
-    |> List.groupBy (fun e -> e.ApplicationId, e.HandlerMember)
-    |> List.collect (fun (_, es) -> prune es)
     |> List.sortBy sortKey
     |> List.mapi (fun i e -> { e with Id = $"entry-{i + 1}" })

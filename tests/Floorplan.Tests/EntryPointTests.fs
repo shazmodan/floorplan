@@ -59,10 +59,14 @@ let tests =
 
               Expect.equal
                   routes
-                  [ "GET", "/api/orders", Completeness.Complete
+                  [ "DELETE", "/api/orders/{id:int}", Completeness.Complete
+                    "GET", "/api/orders", Completeness.Complete
                     "GET", "/api/orders/{id:int}", Completeness.Complete
                     "GET,HEAD", "/health", Completeness.Complete
-                    "POST", "/v2/orders", Completeness.Complete ]
+                    "OPTIONS", "/api/orders", Completeness.Complete
+                    "PATCH", "/api/orders/{id:int}", Completeness.Complete
+                    "POST", "/v2/orders", Completeness.Complete
+                    "PUT", "/api/orders/{id:int}", Completeness.Complete ]
                   "routes"
 
               let getOrder = entries m "Routing.Endpoints" |> List.find (fun e -> e.HandlerMember.EndsWith "getOrder")
@@ -81,9 +85,14 @@ let tests =
               Expect.equal
                   (routes m "Routing.Middleware")
                   [ "-", "-", "Routing.Middleware.NotFound::handle", Completeness.Unresolved
+                    "-", "/orders/*", "Routing.Middleware.NotFound::handle", Completeness.Partial
+                    "DELETE", "/orders/{param}", "Routing.Middleware.Orders::remove", Completeness.Complete
                     "GET", "/health", "Routing.Middleware.Health::check", Completeness.Complete
                     "GET", "/orders/{param}", "Routing.Middleware.Orders::show", Completeness.Complete
-                    "POST", "/orders/*", "Routing.Middleware.Orders::create", Completeness.Partial ]
+                    "OPTIONS", "/orders", "Routing.Middleware.Orders::options", Completeness.Complete
+                    "PATCH", "/orders/{param}", "Routing.Middleware.Orders::patch", Completeness.Complete
+                    "POST", "/orders/*", "Routing.Middleware.Orders::create", Completeness.Partial
+                    "PUT", "/orders/{param}", "Routing.Middleware.Orders::replace", Completeness.Complete ]
                   "routes"
 
               let create = entries m "Routing.Middleware" |> List.find (fun e -> e.HandlerMember.EndsWith "create")
@@ -95,9 +104,13 @@ let tests =
 
               Expect.equal
                   (routes m "Routing.Listener")
-                  [ "GET", "/api/orders", "Routing.Listener.Orders::list", Completeness.Complete
+                  [ "DELETE", "/api/orders/{param}", "Routing.Listener.Orders::remove", Completeness.Complete
+                    "GET", "/api/orders", "Routing.Listener.Orders::list", Completeness.Complete
                     "GET", "/api/orders/{param}", "Routing.Listener.Orders::fetch", Completeness.Complete
-                    "POST", "/api/orders", "Routing.Listener.Orders::create", Completeness.Complete ]
+                    "OPTIONS", "/api/orders", "Routing.Listener.Orders::options", Completeness.Complete
+                    "PATCH", "/api/orders/{param}", "Routing.Listener.Orders::patch", Completeness.Complete
+                    "POST", "/api/orders", "Routing.Listener.Orders::create", Completeness.Complete
+                    "PUT", "/api/orders/{param}", "Routing.Listener.Orders::replace", Completeness.Complete ]
                   "routes"
           }
 
