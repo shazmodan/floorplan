@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Routing.Endpoints/Routing.Endpoints.fsproj" />
+  <Project Path="Routing.Listener/Routing.Listener.fsproj" />
+  <Project Path="Routing.Middleware/Routing.Middleware.fsproj" />
+  <Project Path="Routing.Socket/Routing.Socket.fsproj" />
+</Solution>

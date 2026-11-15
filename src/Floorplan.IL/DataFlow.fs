@@ -95,7 +95,8 @@ let private join (a: State) (b: State) =
 /// argument of a call first).
 type Flow =
     { Operands: IReadOnlyDictionary<int, Values list>
-      /// For each instruction offset that stores to a local, the local index.
+      /// For each ldloca, the values the local held when its address was taken (structs are read this way).
+      AddressValues: IReadOnlyDictionary<int, Values>
       Body: MethodBody }
 
     member f.OperandsAt(offset: int) =
@@ -113,6 +114,7 @@ let analyze (returnsValue: bool) (argumentCount: int) (body: MethodBody) : Flow 
     instrs |> Array.iteri (fun i ins -> indexOf[ins.Offset] <- i)
 
     let operands = Dictionary<int, Values list>()
+    let addressValues = Dictionary<int, Values>()
 
     let initialArgs =
         [ 0 .. argumentCount - 1 ] |> List.map (fun i -> i, Set.singleton (Argument i)) |> Map.ofList
@@ -192,9 +194,16 @@ let analyze (returnsValue: bool) (argumentCount: int) (body: MethodBody) : Flow 
                 | StLoc n ->
                     { state with Stack = rest; Locals = state.Locals.Add(n, (match popped with v :: _ -> v | [] -> Set.empty)) }
                 | LdLocA n ->
-                    // After the address escapes, the local holds whatever the callee wrote.
+                    // Reads through the address see the current value; a callee may also write through it.
+                    let current = state.Locals.TryFind n |> Option.defaultValue Set.empty
+
+                    addressValues[ins.Offset] <-
+                        match addressValues.TryGetValue ins.Offset with
+                        | true, existing -> Set.union existing current
+                        | _ -> current
+
                     let address = Set.singleton (LocalAddress(n, ins.Offset))
-                    { state with Stack = address :: rest; Locals = state.Locals.Add(n, address) }
+                    { state with Stack = address :: rest; Locals = state.Locals.Add(n, Set.union current address) }
                 | Dup ->
                     let v = match popped with v :: _ -> v | [] -> Set.empty
                     { state with Stack = v :: v :: rest }
@@ -231,6 +240,7 @@ let analyze (returnsValue: bool) (argumentCount: int) (body: MethodBody) : Flow 
                     go <- false
 
     { Operands = operands :> IReadOnlyDictionary<int, Values list>
+      AddressValues = addressValues :> IReadOnlyDictionary<int, Values>
       Body = body }
 
 /// Data flow for a method definition, or None without a body.
