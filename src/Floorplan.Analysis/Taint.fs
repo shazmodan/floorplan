@@ -17,6 +17,14 @@ type Tag =
     | HttpContext
     /// An inbound network connection with no HTTP parsing the analysis can see.
     | Connection
+    /// The request path split into its segments (an array or a list).
+    | Segments
+    /// One segment of the path, by 0-based index.
+    | Segment of int
+    /// The segments from this index on (what is left after skipping that many).
+    | SegmentsFrom of int
+    /// The number of path segments.
+    | SegmentCount
 
 type Tags = Set<Tag>
 
@@ -42,8 +50,69 @@ let private tagOf (rule: Rule) : Tag =
     | None, Some EffectCategory.Network -> Connection
     | None, _ -> HttpContext
 
+let private constInt (flow: Flow) (values: Values) =
+    match Set.toList values with
+    | [ Pushed o ] ->
+        match flow.InstructionAt o with
+        | Some { Op = LdcI4 n } -> Some n
+        | _ -> None
+    | _ -> None
+
+/// What a call outside user code does to the tags of its operands: list and array access move between
+/// segment tags; anything else keeps every tag (plan section 6.3: tags survive transformations).
+let transfer (recognizers: ICodegenRecognizer list) (flow: Flow) (m: MethodRef) (operands: Values list) (tagsOf: Values -> Tags) : Tags =
+    let all = operands |> List.fold (fun acc vs -> Set.union acc (tagsOf vs)) Set.empty
+
+    let access =
+        match recognizers |> List.tryPick (fun r -> r.CollectionAccess m) with
+        | Some a -> Some a
+        | None ->
+            match m.Type.FullName, m.Name with
+            | "System.Linq.Enumerable", ("ToList" | "ToArray") -> Some SameElements
+            | "System.Linq.Enumerable", ("Count" | "LongCount") when m.ParameterCount = 1 -> Some Count
+            | ("System.Collections.Generic.List`1" | "System.Collections.Generic.IList`1" | "System.Collections.Generic.ICollection`1" | "System.Collections.Generic.IReadOnlyCollection`1"), "get_Count" -> Some Count
+            | "System.Array", "get_Length" -> Some Count
+            | _ -> None
+
+    let receiver = match operands with first :: _ -> tagsOf first | [] -> Set.empty
+
+    let mapped =
+        match access with
+        | Some Head ->
+            receiver
+            |> Set.toList
+            |> List.choose (function
+                | Segments -> Some(Segment 0)
+                | SegmentsFrom n -> Some(Segment n)
+                | _ -> None)
+        | Some Tail ->
+            receiver
+            |> Set.toList
+            |> List.choose (function
+                | Segments -> Some(SegmentsFrom 1)
+                | SegmentsFrom n -> Some(SegmentsFrom(n + 1))
+                | _ -> None)
+        | Some Count ->
+            if receiver.Contains Segments || receiver.Contains(SegmentsFrom 0) then [ SegmentCount ] else []
+        | Some SameElements -> []
+        | None ->
+            match m.Type.FullName, m.Name with
+            | "System.String", "Split" when receiver.Contains(Part RequestPart.Path) -> [ Segments ]
+            | ("System.Collections.Generic.List`1" | "System.Collections.Generic.IList`1" | "System.Collections.Generic.IReadOnlyList`1"), "get_Item"
+            | "System.Linq.Enumerable", "ElementAt" when receiver.Contains Segments ->
+                match List.tryItem 1 operands |> Option.bind (constInt flow) with
+                | Some i -> [ Segment i ]
+                | None -> []
+            | _ -> []
+
+    match access with
+    | Some Head
+    | Some Tail
+    | Some Count -> Set.ofList mapped |> Set.union (all |> Set.filter (function Part _ | HttpContext | Connection -> true | _ -> false))
+    | _ -> Set.union all (Set.ofList mapped)
+
 /// Runs the analysis over the given user methods.
-let analyze (set: AssemblySet) (graph: CallGraph) (matcher: Matcher) (methods: MethodDef list) : TaintResult =
+let analyze (set: AssemblySet) (graph: CallGraph) (matcher: Matcher) (recognizers: ICodegenRecognizer list) (methods: MethodDef list) : TaintResult =
     let byKey = methods |> List.map (fun m -> m.Ref.Key, m) |> dict
     let flows = Dictionary<string, Flow option>()
 
@@ -84,6 +153,9 @@ let analyze (set: AssemblySet) (graph: CallGraph) (matcher: Matcher) (methods: M
                 addTo callers e.Target.Key m.Ref.Key
         | None -> ()
 
+    // Results of tag queries, valid while the facts above do not change: cleared whenever they might.
+    let memo = Dictionary<struct (string * int), Tags>()
+
     let work = Queue<string>()
     let queued = HashSet<string>()
 
@@ -116,6 +188,18 @@ let analyze (set: AssemblySet) (graph: CallGraph) (matcher: Matcher) (methods: M
         | Pushed offset -> resultTags m flow depth offset
 
     and resultTags (m: MethodDef) (flow: Flow) (depth: int) (offset: int) : Tags =
+        let key = struct (m.Ref.Key, offset)
+
+        match memo.TryGetValue key with
+        | true, t -> t
+        | _ ->
+            // Placeholder breaks cycles through merges; the real value replaces it.
+            memo[key] <- Set.empty
+            let t = computeResultTags m flow depth offset
+            memo[key] <- t
+            t
+
+    and computeResultTags (m: MethodDef) (flow: Flow) (depth: int) (offset: int) : Tags =
         if depth > 40 then
             Set.empty
         else
@@ -127,6 +211,18 @@ let analyze (set: AssemblySet) (graph: CallGraph) (matcher: Matcher) (methods: M
 
                 match ins.Op with
                 | LdArgA n -> oneTags m flow (depth + 1) (Argument n)
+                | LdElem ->
+                    match flow.OperandsAt offset with
+                    | [ array; index ] ->
+                        let arrayTags = valueTags m flow (depth + 1) array
+
+                        match constInt flow index with
+                        | Some i when arrayTags.Contains Segments -> Set.add (Segment i) (arrayTags |> Set.filter (function Part _ -> true | _ -> false))
+                        | _ -> Set.union arrayTags (valueTags m flow (depth + 1) index)
+                    | _ -> operandTags ()
+                | LdLen ->
+                    let arrayTags = operandTags ()
+                    if arrayTags.Contains Segments then Set.singleton SegmentCount else arrayTags
                 | LdStr _
                 | LdcI4 _
                 | LdcI8 _
@@ -151,8 +247,8 @@ let analyze (set: AssemblySet) (graph: CallGraph) (matcher: Matcher) (methods: M
                         let userTargets = targets |> List.filter (fun t -> byKey.ContainsKey t.Key)
 
                         if userTargets.IsEmpty then
-                            // Outside user code: tags survive the call.
-                            operandTags ()
+                            // Outside user code: tags survive the call, moved by list and array access.
+                            transfer recognizers flow declared (flow.OperandsAt offset) (valueTags m flow (depth + 1))
                         else
                             match ins.Op with
                             | NewObj _ -> operandTags ()
@@ -167,6 +263,8 @@ let analyze (set: AssemblySet) (graph: CallGraph) (matcher: Matcher) (methods: M
                 | _ -> operandTags ()
 
     let processMethod (m: MethodDef) =
+        memo.Clear()
+
         match flowOf m with
         | None -> ()
         | Some flow ->
@@ -263,6 +361,8 @@ let analyze (set: AssemblySet) (graph: CallGraph) (matcher: Matcher) (methods: M
         let key = work.Dequeue()
         queued.Remove key |> ignore
         processMethod byKey[key]
+
+    memo.Clear()
 
     let operandTagsOf (m: MethodRef) (offset: int) =
         match byKey.TryGetValue m.Key with

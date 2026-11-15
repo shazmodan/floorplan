@@ -43,6 +43,12 @@ let rec handlerOf (set: AssemblySet) (flow: Flow) (values: Values) : MethodRef o
                 | Some(def, _) ->
                     def.Methods |> List.tryFind (fun m -> m.Ref.Name = "Invoke" && not m.IsAbstract) |> Option.map (fun m -> m.Ref)
                 | None -> None
+        | Some { Op = LdSFld f } ->
+            // A cached function object: its Invoke runs.
+            match set.TryType f.Type with
+            | Some(def, _) ->
+                def.Methods |> List.tryFind (fun m -> m.Ref.Name = "Invoke" && not m.IsAbstract) |> Option.map (fun m -> m.Ref)
+            | None -> None
         | Some { Op = (CastClass _ | Box _) } ->
             match flow.OperandsAt offset with
             | [ inner ] -> handlerOf set flow inner

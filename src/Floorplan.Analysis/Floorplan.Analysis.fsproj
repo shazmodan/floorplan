@@ -12,6 +12,8 @@
     <Compile Include="PlatformRouting.fs" />
     <Compile Include="EffectAnalysis.fs" />
     <Compile Include="EntryPoints.fs" />
+    <Compile Include="RouteRecovery.fs" />
+    <Compile Include="EntryPointAnalysis.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Floorplan.Model\Floorplan.Model.fsproj" />

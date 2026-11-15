@@ -1,6 +1,8 @@
 <Solution>
+  <Project Path="Routing.Dynamic/Routing.Dynamic.fsproj" />
   <Project Path="Routing.Endpoints/Routing.Endpoints.fsproj" />
   <Project Path="Routing.Listener/Routing.Listener.fsproj" />
   <Project Path="Routing.Middleware/Routing.Middleware.fsproj" />
   <Project Path="Routing.Socket/Routing.Socket.fsproj" />
+  <Project Path="Routing.Table/Routing.Table.fsproj" />
 </Solution>

@@ -32,6 +32,11 @@ let render (model: AnalysisModel) =
 let private entries (model: AnalysisModel) (app: string) =
     model.EntryPoints |> List.filter (fun e -> e.ApplicationId = app)
 
+let private routes (model: AnalysisModel) (app: string) =
+    entries model app
+    |> List.map (fun e -> defaultArg e.HttpMethod "-", defaultArg e.Route "-", e.HandlerMember, e.Completeness)
+    |> List.sort
+
 let private handlers (model: AnalysisModel) (app: string) =
     entries model app |> List.map (fun e -> e.HandlerMember) |> List.sort
 
@@ -70,25 +75,53 @@ let tests =
                   "route parameter"
           }
 
-          test "hand-written middleware routing: every branch handler is found" {
+          test "form A, control flow: conditions combined across && and helper calls" {
               let m = routingModel.Force()
 
               Expect.equal
-                  (handlers m "Routing.Middleware")
-                  [ "Routing.Middleware.Health::check"
-                    "Routing.Middleware.NotFound::handle"
-                    "Routing.Middleware.Orders::create"
-                    "Routing.Middleware.Orders::show" ]
-                  "handlers"
+                  (routes m "Routing.Middleware")
+                  [ "-", "-", "Routing.Middleware.NotFound::handle", Completeness.Unresolved
+                    "GET", "/health", "Routing.Middleware.Health::check", Completeness.Complete
+                    "GET", "/orders/{param}", "Routing.Middleware.Orders::show", Completeness.Complete
+                    "POST", "/orders/*", "Routing.Middleware.Orders::create", Completeness.Partial ]
+                  "routes"
+
+              let create = entries m "Routing.Middleware" |> List.find (fun e -> e.HandlerMember.EndsWith "create")
+              Expect.equal create.Forms [ RouteForm.ControlFlow ] "form A"
           }
 
-          test "list patterns and active patterns: handlers, not the router or the patterns" {
+          test "form A, list patterns and active patterns: the illustration of plan section 6.5" {
               let m = routingModel.Force()
 
               Expect.equal
-                  (handlers m "Routing.Listener")
-                  [ "Routing.Listener.Orders::create"; "Routing.Listener.Orders::fetch"; "Routing.Listener.Orders::list" ]
-                  "handlers"
+                  (routes m "Routing.Listener")
+                  [ "GET", "/api/orders", "Routing.Listener.Orders::list", Completeness.Complete
+                    "GET", "/api/orders/{param}", "Routing.Listener.Orders::fetch", Completeness.Complete
+                    "POST", "/api/orders", "Routing.Listener.Orders::create", Completeness.Complete ]
+                  "routes"
+          }
+
+          test "form B, table lookup: dictionary and map entries" {
+              let m = routingModel.Force()
+
+              Expect.equal
+                  (routes m "Routing.Table")
+                  [ "-", "/health", "Routing.Table.Handlers::health", Completeness.Partial
+                    "-", "/orders", "Routing.Table.Handlers::orders", Completeness.Partial
+                    "-", "/users", "Routing.Table.Handlers::users", Completeness.Partial ]
+                  "routes"
+
+              Expect.isTrue (entries m "Routing.Table" |> List.forall (fun e -> e.Forms = [ RouteForm.TableLookup ])) "form B"
+          }
+
+          test "negative cases: routes from configuration and run-time regexes get no route" {
+              let m = routingModel.Force()
+              let dynamic = entries m "Routing.Dynamic"
+              Expect.equal (handlers m "Routing.Dynamic") [ "Routing.Dynamic.Admin::run"; "Routing.Dynamic.Reports::run" ] "handlers found"
+
+              for e in dynamic do
+                  Expect.equal e.Completeness Completeness.Unresolved $"{e.HandlerMember} unresolved"
+                  Expect.isNone e.Route $"{e.HandlerMember} has no route"
           }
 
           test "a raw socket gives an unresolved network entry point" {
