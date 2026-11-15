@@ -2,6 +2,8 @@
   <Folder Name="/src/">
     <Project Path="src/Floorplan.Model/Floorplan.Model.fsproj" />
     <Project Path="src/Floorplan.ProjectLoading/Floorplan.ProjectLoading.fsproj" />
+    <Project Path="src/Floorplan.Structure.FSharp/Floorplan.Structure.FSharp.fsproj" />
+    <Project Path="src/Floorplan.Structure/Floorplan.Structure.fsproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Floorplan.Tests/Floorplan.Tests.fsproj" />

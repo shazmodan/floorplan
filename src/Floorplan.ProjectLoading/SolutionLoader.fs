@@ -83,6 +83,7 @@ let private toLoaded (ids: Map<string, string>) (options: ProjectOptions) =
         |> List.choose (fun r -> ids |> Map.tryPick (fun path id -> if samePath path r then Some id else None))
       ReferencePaths = referencePaths options
       OutputAssembly = output
+      AssemblyName = Path.GetFileNameWithoutExtension output
       Pdb = if File.Exists pdb then Some pdb else None
       Options = options }
 

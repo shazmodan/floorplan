@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>F# structure analysis with the F# compiler service: modules and module dependencies.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="ModuleTree.fs" />
+    <Compile Include="SymbolOwner.fs" />
+    <Compile Include="FSharpStructureAnalyzer.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FSharp.Compiler.Service" />
+    <PackageReference Include="Ionide.ProjInfo.FCS" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Floorplan.Structure\Floorplan.Structure.fsproj" />
+  </ItemGroup>
+</Project>

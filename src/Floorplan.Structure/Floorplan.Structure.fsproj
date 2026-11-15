@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>The language-neutral seam for structure analysis: IStructureAnalyzer and shared types.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Structure.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Floorplan.Model\Floorplan.Model.fsproj" />
+    <ProjectReference Include="..\Floorplan.ProjectLoading\Floorplan.ProjectLoading.fsproj" />
+  </ItemGroup>
+</Project>
