@@ -25,6 +25,9 @@ type Tag =
     | SegmentsFrom of int
     /// The number of path segments.
     | SegmentCount
+    /// The rest of the path after a prefix the request is known to start with (a path with its matched prefix cut
+    /// off). Comparisons with it are comparisons of the whole path with the prefix put back.
+    | PathAfter of prefix: string
 
 type Tags = Set<Tag>
 

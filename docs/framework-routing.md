@@ -44,6 +44,7 @@ and `GET`/`PUT`/`DELETE`/`PATCH` on an item, or collection-level `DELETE`/`PATCH
 | Falco | Endpoint list turned into a custom `EndpointDataSource` | 8 of 8 complete, `/api/orders/{id:int}` from the route template |
 | Giraffe | Composed function values run by one middleware | 8 of 8 complete; `routef "/api/orders/%i"` gives `/api/orders/{id}` |
 | Oxpecker | Route tree mapped onto endpoint routing, sub-routes as groups | 8 of 8 complete; `routef "/orders/{%i}"` gives `/api/orders/{id}` |
+| Saturn | Routers as computation expressions on Giraffe, nested with `forward`, run by the generic host | 7 of 8 complete; the OPTIONS route, tried after the whole orders router, is reported unresolved |
 
 `GET /` is answered by a library function (`text "home"`) in every fixture and is reported as the user code
 that set it up. No fixture produces a wrong route. The routing fixtures of Phase 4 are unchanged.
@@ -70,11 +71,34 @@ What made the `routef` routes work, all without framework knowledge:
 - **Library responses** are recorded where the response body is written, on a path with certain predicates,
   instead of only when the whole pipeline returns.
 
+What Saturn added:
+
+- **The generic host.** Delegates taking `Microsoft.AspNetCore.Hosting` types (`ConfigureWebHostDefaults`,
+  `Configure`) are called back during registration, like those taking pipeline types.
+- **Dictionaries with structural keys** (tuples, by their parts; other objects by identity), entries enumerated
+  as key-value pairs in insertion order, and `TryGetValue` writing its out argument into the caller's local.
+- **Per-request storage.** `HttpContext.Items` is one dictionary per path, empty when the request arrives.
+- **The rest of a path.** A substring of the path from the length of a prefix the request is known to start with
+  is the rest of the path after it; comparing it with a constant compares the whole path with the prefix put
+  back (`StartsWith "/orders"` after `/api` is `StartsWith "/api/orders"`, and likewise for equality and
+  anchored patterns). Any other substring of the path is unknown: before this, it kept the path's tag, and a
+  comparison with it could have been reported as a comparison of the whole path.
+- **Decided tests and impossible paths.** A path test the known predicates already decide (a path starting with
+  `/api/orders` contains `/api`) is a constant, and predicates that cannot hold together (two prefixes neither
+  of which extends the other, an exact path without a required prefix) end the path.
+- **Equivalent outcomes** of a call (same result, predicates and last user code) continue as one, so the
+  alternatives of a `choose` do not multiply into each other.
+
 ## Known limits
 
 - Path explosion is bounded, not solved: frameworks that try alternatives one after another fork at every
   unknown value, and an application with many alternatives can still run out of budget before the last ones.
-  The call depth limit is 48, since recursive helpers (one frame per character of a format string) need it.
+  The call depth limit is 96 (nested routers and recursive helpers need it); the interpreter runs on its own
+  thread with a 512 MB stack so that depth cannot overflow the caller's. A call into a dependency gets at most
+  150,000 steps, shared with the calls inside it, so an alternative tried after a large one can be left
+  without budget (Saturn's OPTIONS route).
+- `Substring(n, length)` of the path with an unknown length is taken as the rest of the path from `n`; that is
+  how slices compile, but a slice of a middle piece would be read the same way.
 - A regex route whose handler takes its values some other way (one tuple, or more parameters than groups) keeps
   the placeholder names `{param}` (or `{param1}`, ...).
 - The symbolic run only starts for applications that reach a platform registration or request source, so plain

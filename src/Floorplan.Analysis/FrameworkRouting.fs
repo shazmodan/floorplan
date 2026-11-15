@@ -158,7 +158,7 @@ let private receivesRequests (ctx: AppContext) =
     found
 
 /// Entry points found by running the application symbolically.
-let analyze (ctx: AppContext) : EntryPoint list =
+let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list =
     let set = ctx.Program.Set
 
     let entryPoint =
@@ -282,3 +282,27 @@ let analyze (ctx: AppContext) : EntryPoint list =
                         [ step $"{f.Display} is handed to {(fst site).Display}; no request path to it was recovered" site ])
 
         found @ unreached
+
+/// The interpreter recurses once per interpreted call, through several .NET frames each, so it runs on a thread
+/// with a stack sized for its depth limit rather than on the caller's.
+let analyze (ctx: AppContext) : EntryPoint list =
+    let mutable result = Ok []
+
+    let worker =
+        System.Threading.Thread(
+            (fun () ->
+                result <-
+                    try
+                        Ok(analyzeOnThisThread ctx)
+                    with e ->
+                        Error e),
+            512 * 1024 * 1024
+        )
+
+    worker.Start()
+    worker.Join()
+
+    match result with
+    | Ok entries -> entries
+    | Error e -> raise (System.AggregateException("Symbolic routing analysis failed", e))
+
