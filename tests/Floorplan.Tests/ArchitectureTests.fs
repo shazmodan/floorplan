@@ -24,7 +24,10 @@ let private references (fsproj: string) =
 
     let projects =
         Regex.Matches(text, "ProjectReference Include=\"([^\"]+)\"")
-        |> Seq.map (fun m -> Path.GetFullPath(Path.Combine(Path.GetDirectoryName fsproj, m.Groups[1].Value)))
+        // Project files use backslashes, which are not separators on Linux and macOS.
+        |> Seq.map (fun m ->
+            let relative = m.Groups[1].Value.Replace('\\', Path.DirectorySeparatorChar)
+            Path.GetFullPath(Path.Combine(Path.GetDirectoryName fsproj, relative)))
         |> Seq.toList
 
     let packages =
