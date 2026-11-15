@@ -75,6 +75,7 @@ a single node with limited support; their effects are found and attributed to th
 - [Phase 0 spike findings](docs/phase-0-spike-findings.md)
 - [Exit points reviewed on a real solution](docs/phase-2-review.md)
 - [Route recovery status and limits](docs/phase-4-route-recovery.md)
+- [Routing inside frameworks (Giraffe, Falco, Oxpecker fixtures)](docs/framework-routing.md)
 - [Traces, noise control and caching](docs/phase-5-performance.md)
 - [Updating the catalog for a new .NET version](docs/updating-catalogs.md)
 

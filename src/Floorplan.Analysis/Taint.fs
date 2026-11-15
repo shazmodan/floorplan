@@ -60,8 +60,9 @@ let private constInt (flow: Flow) (values: Values) =
 
 /// What a call outside user code does to the tags of its operands: list and array access move between
 /// segment tags; anything else keeps every tag (plan section 6.3: tags survive transformations).
-let transfer (recognizers: ICodegenRecognizer list) (flow: Flow) (m: MethodRef) (operands: Values list) (tagsOf: Values -> Tags) : Tags =
-    let all = operands |> List.fold (fun acc vs -> Set.union acc (tagsOf vs)) Set.empty
+/// `constants` gives the integer constant at each operand, where known (for indexing).
+let transferValues (recognizers: ICodegenRecognizer list) (m: MethodRef) (operandTags: Tags list) (constants: int option list) : Tags =
+    let all = Set.unionMany operandTags
 
     let access =
         match recognizers |> List.tryPick (fun r -> r.CollectionAccess m) with
@@ -74,7 +75,7 @@ let transfer (recognizers: ICodegenRecognizer list) (flow: Flow) (m: MethodRef) 
             | "System.Array", "get_Length" -> Some Count
             | _ -> None
 
-    let receiver = match operands with first :: _ -> tagsOf first | [] -> Set.empty
+    let receiver = match operandTags with first :: _ -> first | [] -> Set.empty
 
     let mapped =
         match access with
@@ -100,7 +101,7 @@ let transfer (recognizers: ICodegenRecognizer list) (flow: Flow) (m: MethodRef) 
             | "System.String", "Split" when receiver.Contains(Part RequestPart.Path) -> [ Segments ]
             | ("System.Collections.Generic.List`1" | "System.Collections.Generic.IList`1" | "System.Collections.Generic.IReadOnlyList`1"), "get_Item"
             | "System.Linq.Enumerable", "ElementAt" when receiver.Contains Segments ->
-                match List.tryItem 1 operands |> Option.bind (constInt flow) with
+                match List.tryItem 1 constants |> Option.flatten with
                 | Some i -> [ Segment i ]
                 | None -> []
             | _ -> []
@@ -110,6 +111,9 @@ let transfer (recognizers: ICodegenRecognizer list) (flow: Flow) (m: MethodRef) 
     | Some Tail
     | Some Count -> Set.ofList mapped |> Set.union (all |> Set.filter (function Part _ | HttpContext | Connection -> true | _ -> false))
     | _ -> Set.union all (Set.ofList mapped)
+
+let transfer (recognizers: ICodegenRecognizer list) (flow: Flow) (m: MethodRef) (operands: Values list) (tagsOf: Values -> Tags) : Tags =
+    transferValues recognizers m (operands |> List.map tagsOf) (operands |> List.map (constInt flow))
 
 /// Runs the analysis over the given user methods.
 let analyze (set: AssemblySet) (graph: CallGraph) (matcher: Matcher) (recognizers: ICodegenRecognizer list) (methods: MethodDef list) : TaintResult =

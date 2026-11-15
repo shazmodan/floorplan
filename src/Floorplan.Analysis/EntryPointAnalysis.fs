@@ -61,6 +61,22 @@ let private trackedEntries (ctx: AppContext) (recovery: Recovery) (handlers: Fou
             |> List.distinct
             |> List.choose (fun predicates -> entryFor ctx h.Handler e.Category predicates [ RouteForm.ControlFlow ] e.Evidence.Steps))
 
+/// For one handler: entries without any condition are dropped when another has some, and an entry whose
+/// conditions are all contained in another entry's adds nothing.
+let private prune (es: EntryPoint list) =
+    let es =
+        if es |> List.exists (fun e -> e.Route.IsSome || not e.Predicates.IsEmpty) then
+            es |> List.filter (fun e -> e.Route.IsSome || not e.Predicates.IsEmpty)
+        else
+            es
+
+    let shape (e: EntryPoint) =
+        e.Predicates |> List.map (fun p -> p.Part, p.Operator, p.Index, p.Value) |> Set.ofList
+
+    es
+    |> List.filter (fun e ->
+        not (es |> List.exists (fun other -> not (obj.ReferenceEquals(other, e)) && Set.isProperSubset (shape e) (shape other))))
+
 let private sortKey (e: EntryPoint) =
     e.ApplicationId, defaultArg e.Route "~", defaultArg e.HttpMethod "", e.HandlerMember
 
@@ -92,13 +108,28 @@ let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoin
         let known =
             (platform @ tables) |> List.map (fun e -> e.HandlerMember) |> Set.ofList
 
+        let foundHandlers = trackedHandlers ctx
+
         let tracked =
-            trackedHandlers ctx
+            foundHandlers
             |> List.filter (fun h -> not (known.Contains h.Handler.Display))
             |> List.distinctBy (fun h -> h.Handler.Key, h.Caller.Ref.Key, h.CallIndex)
             |> trackedEntries ctx recovery
 
-        platform @ tables @ tracked)
+        // Routing inside dependencies, found by running the application symbolically. A user function the
+        // platform reaches unconditionally that dispatches on request data itself is a router, not a handler:
+        // its handlers come from the analysis above.
+        let routers =
+            foundHandlers |> List.filter (fun h -> not h.Guards.IsEmpty) |> List.map (fun h -> h.Caller.Ref.Display) |> Set.ofList
+
+        let symbolic =
+            FrameworkRouting.analyze ctx
+            |> List.filter (fun e -> not (e.Predicates.IsEmpty && routers.Contains e.HandlerMember))
+
+        platform @ tables @ tracked @ symbolic)
     |> List.distinctBy (fun e -> e.ApplicationId, e.HandlerMember, e.Route, e.HttpMethod)
+    // A handler with a recovered route does not also need an entry without one.
+    |> List.groupBy (fun e -> e.ApplicationId, e.HandlerMember)
+    |> List.collect (fun (_, es) -> prune es)
     |> List.sortBy sortKey
     |> List.mapi (fun i e -> { e with Id = $"entry-{i + 1}" })

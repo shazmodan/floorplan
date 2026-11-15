@@ -13,6 +13,14 @@ type RuleKind =
     | Registration
     /// The analysis cannot see past this call: reflection, run-time code generation, `dynamic` (plan risk 7).
     | BlindSpot
+    /// A platform function that compares request data with a known value, e.g. HttpMethods.IsGet.
+    | Comparison
+    /// The platform calls these members on instances of derived types it is given, e.g. EndpointDataSource.Endpoints.
+    | Callback
+    /// An object that attaches information to an endpoint, e.g. the HTTP methods it accepts.
+    | Metadata
+    /// A static field of the platform with a known value, e.g. HttpMethods.Get = "GET" (ComparesTo holds it).
+    | Constant
 
 /// Which argument of a matched call carries something worth showing: a URL, SQL text, a path, a route template,
 /// a handler. Argument 0 is the first declared parameter; for instance methods `this` is not counted.
@@ -39,6 +47,8 @@ type Rule =
       WhenFirstParameter: string option
       /// For blind spots: what kind of blind spot.
       BlindSpot: string option
+      /// For comparisons: the value the request part is compared with.
+      ComparesTo: string option
       /// The catalog that defined the rule.
       Source: string }
 

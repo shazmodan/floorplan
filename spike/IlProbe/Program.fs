@@ -10,7 +10,7 @@ open Mono.Cecil.Cil
 let main argv =
     let path = argv[0]
     let filter = if argv.Length > 1 then argv[1] else ""
-    let rp = ReaderParameters(ReadSymbols = true)
+    let rp = ReaderParameters(ReadSymbols = System.IO.File.Exists(System.IO.Path.ChangeExtension(path, ".pdb")))
     let m = ModuleDefinition.ReadModule(path, rp)
     let rec allTypes (t: TypeDefinition) = seq { yield t; for n in t.NestedTypes do yield! allTypes n }
     for t in m.Types |> Seq.collect allTypes do
@@ -18,7 +18,7 @@ let main argv =
             if meth.HasBody && (filter = "" || (t.FullName + "::" + meth.Name).Contains filter) then
                 printfn "=== %s::%s" t.FullName meth.Name
                 for i in meth.Body.Instructions do
-                    let sp = meth.DebugInformation.GetSequencePoint i
+                    let sp = if m.HasSymbols then meth.DebugInformation.GetSequencePoint i else null
                     let loc = if isNull sp || sp.IsHidden then "" else sprintf "  // L%d" sp.StartLine
                     printfn "  %O%s" i loc
     if argv.Length > 2 then

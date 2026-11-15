@@ -38,7 +38,10 @@ type MethodRef =
       ParameterTypes: string list
       ReturnType: string
       HasThis: bool
-      GenericArity: int }
+      GenericArity: int
+      /// For a call to a generic method instance, its type arguments (e.g. T of UseMiddleware<T>). Not part of
+      /// the identity.
+      TypeArguments: TypeRef list }
 
     override m.Equals other =
         match other with
@@ -186,7 +189,9 @@ type TypeDef =
       IsValueType: bool
       DeclaringType: TypeRef option
       IsCompilerGenerated: bool
-      Methods: MethodDef list }
+      Methods: MethodDef list
+      /// Constant static fields with their values (enum members, literals); integers as int64.
+      Literals: (string * obj) list }
 
 /// Where an assembly comes from, which decides how deep the analysis goes (plan sections 3.2 and 4.3).
 type AssemblyOrigin =
@@ -206,7 +211,9 @@ type AssemblyDef =
       ReferencedAssemblies: string list
       /// Type full name to the assembly it is forwarded to.
       Forwarders: Map<string, string>
-      HasSymbols: bool }
+      HasSymbols: bool
+      /// The method the runtime starts, for executables.
+      EntryPoint: MethodRef option }
 
 type IAssemblyReader =
     /// Reads metadata. Bodies are read on demand. With symbols, PDB sequence points are attached.

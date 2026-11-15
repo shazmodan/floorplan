@@ -49,6 +49,11 @@ let rec typeKey (t: TypeReference) : string =
     | _ -> t.FullName
 
 let methodRef (fallback: string) (m: MethodReference) : MethodRef =
+    let typeArguments =
+        match m with
+        | :? GenericInstanceMethod as g -> g.GenericArguments |> Seq.map (typeRef fallback) |> Seq.toList
+        | _ -> []
+
     // For a generic method instance, the generic definition; parameters of members of generic types are
     // already in open form in metadata.
     let m = m.GetElementMethod()
@@ -65,7 +70,8 @@ let methodRef (fallback: string) (m: MethodReference) : MethodRef =
       ParameterTypes = parameters
       ReturnType = typeKey m.ReturnType
       HasThis = m.HasThis
-      GenericArity = arity }
+      GenericArity = arity
+      TypeArguments = typeArguments }
 
 let fieldRef (fallback: string) (f: FieldReference) : FieldRef =
     { Type = typeRef fallback f.DeclaringType
@@ -349,7 +355,23 @@ let private readType (asm: string) (t: TypeDefinition) : TypeDef =
         hasAttribute "CompilerGeneratedAttribute" t.CustomAttributes
         || t.Name.Contains '@'
         || t.Name.StartsWith "<"
-      Methods = t.Methods |> Seq.map (readMethod asm) |> Seq.toList }
+      Methods = t.Methods |> Seq.map (readMethod asm) |> Seq.toList
+      Literals =
+        t.Fields
+        |> Seq.filter (fun f -> f.IsStatic && f.HasConstant && not (isNull f.Constant))
+        |> Seq.map (fun f ->
+            let value: obj =
+                match f.Constant with
+                | :? string as s -> box s
+                | :? bool as b -> box (if b then 1L else 0L)
+                | :? char as c -> box (int64 c)
+                | :? float as d -> box d
+                | :? float32 as d -> box (float d)
+                | other ->
+                    try box (Convert.ToInt64 other) with _ -> other
+
+            f.Name, value)
+        |> Seq.toList }
 
 let private targetFramework (a: AssemblyDefinition) =
     a.CustomAttributes
@@ -395,7 +417,8 @@ type CecilAssemblyReader() =
                     | :? AssemblyNameReference as a -> Some(e.FullName, a.Name)
                     | _ -> None)
                 |> Map.ofSeq
-              HasSymbols = md.HasSymbols }
+              HasSymbols = md.HasSymbols
+              EntryPoint = if isNull md.EntryPoint then None else Some(methodRef asm md.EntryPoint) }
 
         member _.Dispose() =
             lock opened (fun () ->

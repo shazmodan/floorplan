@@ -28,6 +28,7 @@ let nativeRule =
       RequestPart = None
       WhenFirstParameter = None
       BlindSpot = None
+      ComparesTo = None
       Source = "built-in" }
 
 /// Whether a call edge is itself an effect.

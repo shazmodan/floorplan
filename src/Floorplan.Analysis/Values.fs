@@ -24,7 +24,7 @@ let private render (s: Symbolic) =
         | _ -> "{…}")
     |> String.concat ""
 
-let private isTransparent (m: MethodRef) =
+let isTransparent (m: MethodRef) =
     // Calls that return their (first) argument's text unchanged, as far as a reader is concerned.
     match m.Type.FullName, m.Name with
     | "System.Uri", ".ctor" -> m.ParameterTypes = [ "System.String" ]
@@ -34,6 +34,7 @@ let private isTransparent (m: MethodRef) =
     | "Microsoft.AspNetCore.Http.PathString", "op_Implicit" -> true
     | "Microsoft.AspNetCore.Http.PathString", ".ctor" -> true
     | "Microsoft.AspNetCore.Http.PathString", "ToString" -> true
+    | "Microsoft.AspNetCore.Http.PathString", "get_Value" -> true
     | _ -> false
 
 /// The constant a parameterless method returns, when its body is nothing but `ldstr; ret` (a module-level
