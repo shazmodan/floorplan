@@ -21,6 +21,10 @@ type ProductsController() =
 
     member _.Details(id: int) = $"product {id}"
 
+    /// Routed under the name [ActionName] gives it, not the method's.
+    [<ActionName("Show")>]
+    member _.Display(id: int) = $"showing {id}"
+
 /// In an area: reached by the area route, not by the default route.
 [<Area("Admin")>]
 type UsersController() =
@@ -30,11 +34,15 @@ type UsersController() =
 
     member _.Edit(id: int) = $"user {id}"
 
-/// A route on a base controller applies to the controllers derived from it.
+/// A route on a base controller applies to the controllers derived from it, and so do its actions.
+[<AbstractClass>]
 [<Route("api/[controller]")>]
 [<ApiController>]
 type ApiControllerBase() =
     inherit ControllerBase()
+
+    [<HttpGet("ping")>]
+    member _.Ping() = "pong"
 
 type InvoicesController() =
     inherit ApiControllerBase()

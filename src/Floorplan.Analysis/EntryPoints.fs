@@ -629,7 +629,24 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                 attributesWith "area" inherited
                 |> List.tryPick (fun a -> attributeRules ctx.Matcher a |> List.tryPick (fun r -> textArgument r "area" a))
 
-            controller.Methods
+            // The controller's methods and those it inherits from base classes in user code, nearest first; a
+            // method the controller overrides or hides is its own.
+            let rec userBases (t: TypeRef option) (depth: int) =
+                match t with
+                | Some b when depth < 10 ->
+                    match set.Origin b.Assembly, set.TryType b with
+                    | User _, Some(d, _) -> d :: userBases d.BaseType (depth + 1)
+                    | _ -> []
+                | _ -> []
+
+            let signature (m: MethodDef) = m.Ref.Name, m.Ref.ParameterTypes
+
+            let methods =
+                (controller :: userBases controller.BaseType 0)
+                |> List.collect (fun t -> t.Methods)
+                |> List.distinctBy signature
+
+            methods
             |> List.filter (fun m ->
                 m.IsPublic
                 && not m.IsStatic
@@ -639,7 +656,11 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                 && not m.IsCompilerGenerated
                 && (attributesWith "not-an-action" m.Attributes).IsEmpty)
             |> List.collect (fun action ->
-                let actionName = action.Ref.Name
+                // [ActionName] renames the action for routing and the [action] token.
+                let actionName =
+                    attributesWith "action-name" action.Attributes
+                    |> List.tryPick (fun a -> attributeRules ctx.Matcher a |> List.tryPick (fun r -> textArgument r "action-name" a))
+                    |> Option.defaultValue action.Ref.Name
                 let actionRoutes = routeTemplates action.Attributes
                 let actionVerbs = verbs action.Attributes
                 let fill = replaceTokens controllerName actionName area
