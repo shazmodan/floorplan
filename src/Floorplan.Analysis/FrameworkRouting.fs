@@ -258,7 +258,7 @@ let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list =
                 let hits = machine.Explore(handler, state, [])
 
                 if System.Environment.GetEnvironmentVariable "FLOORPLAN_DEBUG" = "1" then
-                    eprintfn "  explored root %s: %d hits, %d steps, exhausted %b" rule.Id hits.Length machine.Steps machine.Exhausted
+                    eprintfn "  explored root %s: %d hits, %d steps (%d in all), exhausted %b" rule.Id hits.Length machine.Steps machine.TotalSteps machine.Exhausted
 
                     for h in hits do
                         eprintfn "  hit %A with %A" h.Handler (h.Predicates |> List.map (fun p -> p.Part, p.Value))

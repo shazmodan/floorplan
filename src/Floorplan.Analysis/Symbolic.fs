@@ -411,8 +411,9 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
     /// handed over. Those never reached by a request path are still handlers, with no route recovered.
     member _.HandedOver = handedOver.Values |> List.ofSeq |> List.filter (fun (f, _) -> not (isForwarder f))
     member _.Registered = List.ofSeq registered
-    member _.Exhausted = steps >= limits.Steps
+    member _.Exhausted = steps >= limits.Steps || totalSteps >= hardCap
     member _.Steps = steps
+    member _.TotalSteps = totalSteps
 
     /// Runs a method with arguments; returns the possible results with their states.
     member this.Invoke(phase: Phase, m: MethodRef, args: SVal list, state: PathState, depth: int) : (SVal * PathState) list =
@@ -1608,7 +1609,9 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                                                 | None -> box id
                                             | other -> box other
 
-                                        value, s.Predicates, s.Uncertain, s.LastUserObject)
+                                        // Predicates as a set: the same conditions, met in another order or twice, are
+                                        // the same outcome.
+                                        value, Set.ofList s.Predicates, s.Uncertain, s.LastUserObject)
                                 else
                                     results
 
