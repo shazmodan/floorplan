@@ -369,7 +369,7 @@ let platformEntries (ctx: AppContext) : EntryPoint list =
                                 [ step $"{r.Caller.Ref.Display} registers {handler.Display} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint ] } }
         | _ -> None)
 
-// ---- MVC controllers (attribute routing) ----
+// ---- MVC controllers (attribute and conventional routing) ----
 
 /// The catalog rules for an attribute, matched as a call of its constructor.
 let private attributeRules (matcher: Matcher) (a: AttributeDef) =
@@ -394,9 +394,13 @@ let private textArgument (rule: Rule) (role: string) (a: AttributeDef) : string 
     |> Option.bind (fun p -> List.tryItem p.Argument a.Arguments)
     |> Option.bind (function AttributeValue.Text t -> Some t | _ -> None)
 
-/// Fills in the [controller] and [action] tokens of an attribute route.
-let private replaceTokens (controller: string) (action: string) (template: string) =
-    template.Replace("[controller]", controller).Replace("[action]", action)
+/// Fills in the [controller], [action] and [area] tokens of an attribute route.
+let private replaceTokens (controller: string) (action: string) (area: string option) (template: string) =
+    let t = template.Replace("[controller]", controller).Replace("[action]", action)
+
+    match area with
+    | Some a -> t.Replace("[area]", a)
+    | None -> t
 
 /// Joins a controller's route with an action's, as MVC does: an action route starting with "/" or "~/" stands alone.
 let combineRoutes (controllerRoute: string option) (actionRoute: string option) : string option =
@@ -407,10 +411,98 @@ let combineRoutes (controllerRoute: string option) (actionRoute: string option) 
     | None, Some a -> Some(PlatformRouting.normalizeRoute [ a ])
     | None, None -> None
 
-/// Entry points of the controllers an application maps with MapControllers: one per action and route, with the
-/// methods its attributes name. Controllers are found the way MVC finds them: public, concrete, non-generic classes
-/// named "...Controller" or carrying [Controller] (ControllerBase does, for its subclasses), without
-/// [NonController]; their public instance methods are actions unless marked [NonAction].
+/// A segment of a conventional route pattern: literal text, or a parameter with an optional default
+/// (`{action=Index}`), optional mark (`{id?}`) and constraints (`{id:int}`).
+type PatternSegment =
+    | Literal of string
+    | Parameter of name: string * defaultValue: string option * optional: bool * text: string
+
+let parsePattern (pattern: string) : PatternSegment list =
+    pattern.Trim('/').Split('/', System.StringSplitOptions.RemoveEmptyEntries)
+    |> Array.toList
+    |> List.map (fun s ->
+        if s.StartsWith "{" && s.EndsWith "}" && s.IndexOf('{', 1) < 0 then
+            let inner = s.Substring(1, s.Length - 2)
+            let optional = inner.EndsWith "?"
+            let inner = inner.TrimEnd '?'
+
+            let head, defaultValue =
+                match inner.IndexOf '=' with
+                | -1 -> inner, None
+                | i -> inner.Substring(0, i), Some(inner.Substring(i + 1))
+
+            let name =
+                (match head.IndexOf ':' with
+                 | -1 -> head
+                 | i -> head.Substring(0, i))
+                    .TrimStart('*')
+
+            Parameter(name.ToLowerInvariant(), defaultValue, optional, s)
+        else
+            Literal s)
+
+/// The routes a conventional pattern gives an action: the pattern with the controller, action and area filled in,
+/// and the shorter forms its defaults allow (`{controller=Home}/{action=Index}/{id?}` gives Home.Index `/Home/Index/{id?}`,
+/// `/Home` and `/`). None when the pattern does not reach the action: no controller or action parameter, or an area
+/// that does not match the controller's.
+let conventionalRoutes (pattern: string) (requiredArea: string option) (controller: string) (action: string) (area: string option) =
+    let segments = parsePattern pattern
+    let has name = segments |> List.exists (function Parameter(n, _, _, _) -> n = name | _ -> false)
+
+    let areaMatches =
+        if has "area" then area.IsSome
+        else
+            match requiredArea with
+            | Some a -> area |> Option.exists (fun x -> System.String.Equals(x, a, System.StringComparison.OrdinalIgnoreCase))
+            | None -> area.IsNone
+
+    if not (has "controller" && has "action") || not areaMatches then
+        []
+    else
+        let values =
+            Map.ofList [ yield "controller", controller
+                         yield "action", action
+                         match area with
+                         | Some a -> yield "area", a
+                         | None -> () ]
+
+        let text (s: PatternSegment) =
+            match s with
+            | Literal t -> t
+            | Parameter(n, _, _, t) ->
+                match values.TryFind n with
+                | Some v -> v
+                | None -> t
+
+        // A trailing segment can be left out when it is optional, or has a default equal to the value it takes.
+        let defaulted (s: PatternSegment) =
+            match s with
+            | Parameter(n, Some d, _, _) -> values.TryFind n |> Option.exists (fun v -> System.String.Equals(v, d, System.StringComparison.OrdinalIgnoreCase))
+            | _ -> false
+
+        let droppable (s: PatternSegment) =
+            match s with
+            | Parameter(_, _, true, _) -> true
+            | s -> defaulted s
+
+        let n = segments.Length
+
+        let shorter =
+            [ for k in n - 1 .. -1 .. 0 do
+                  let dropped = segments |> List.skip k
+                  if dropped |> List.forall droppable && dropped |> List.exists defaulted then
+                      yield segments |> List.truncate k ]
+
+        (segments :: shorter)
+        |> List.map (fun ss -> PlatformRouting.normalizeRoute [ "/" + (ss |> List.map text |> String.concat "/") ])
+        |> List.distinct
+
+/// Entry points of the controllers an application maps: one per action and route, with the methods its attributes
+/// name. Controllers are found the way MVC finds them: public, concrete, non-generic classes named "...Controller"
+/// or carrying [Controller] (ControllerBase does, for its subclasses), without [NonController]; their public
+/// instance methods are actions unless marked [NonAction]. Actions with attribute routes (MapControllers) are
+/// reached by those; the others by the conventional routes the application maps (MapControllerRoute,
+/// MapDefaultControllerRoute, MapAreaControllerRoute).
 let controllerEntries (ctx: AppContext) : EntryPoint list =
     let set = ctx.Program.Set
 
@@ -421,9 +513,31 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
     if mapping.IsEmpty then
         []
     else
-        let registration = mapping |> List.tryFind (fun r -> hasRole "controllers" r.Rule) |> Option.defaultValue mapping.Head
-        let attributeRouting = mapping |> List.exists (fun r -> hasRole "controllers" r.Rule)
-        let registrationPoint = Instruction.pointAt registration.Caller.Body.Value.Value.Instructions registration.Index
+        let attributeMapping = mapping |> List.tryFind (fun r -> hasRole "controllers" r.Rule)
+        let attributeRouting = attributeMapping.IsSome
+        let pointOf (r: PlatformRouting.Registration) = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
+
+        let operandText (r: PlatformRouting.Registration) (role: string) =
+            r.Rule.Payload
+            |> List.tryFind (fun p -> p.Role = role)
+            |> Option.bind (fun spec ->
+                let evaluator = Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set)
+
+                match evaluator.Operand(r.Offset, Values.operandIndex r.Declared false spec.Argument) with
+                | Values.Text t -> Some t
+                | _ -> None)
+
+        // Each conventional route: its pattern (None when not a constant), the area it requires, and where it is mapped.
+        let conventional =
+            mapping
+            |> List.filter (fun r -> hasRole "conventional-controllers" r.Rule)
+            |> List.map (fun r ->
+                let pattern =
+                    match operandText r "route-pattern" with
+                    | Some p -> Some p
+                    | None -> if hasRole "route-pattern" r.Rule then None else r.Rule.ComparesTo
+
+                pattern, operandText r "area-name", r)
 
         // The application's own assembly and the user assemblies it references: MVC's application parts.
         let users = ctx.Program.Users |> List.map snd
@@ -506,7 +620,14 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                 let n = controller.Ref.Name
                 if n.EndsWith "Controller" && n.Length > "Controller".Length then n.Substring(0, n.Length - "Controller".Length) else n
 
-            let controllerRoutes = routeTemplates controller.Attributes
+            let inherited = inheritedAttributes controller.Ref 0
+
+            // [Route] is inherited from base controllers; [Area] is taken from the nearest type that has one.
+            let controllerRoutes = routeTemplates inherited
+
+            let area =
+                attributesWith "area" inherited
+                |> List.tryPick (fun a -> attributeRules ctx.Matcher a |> List.tryPick (fun r -> textArgument r "area" a))
 
             controller.Methods
             |> List.filter (fun m ->
@@ -521,39 +642,58 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                 let actionName = action.Ref.Name
                 let actionRoutes = routeTemplates action.Attributes
                 let actionVerbs = verbs action.Attributes
+                let fill = replaceTokens controllerName actionName area
 
-                // Every (methods, action template) the attributes declare; no verb attribute means any method.
-                let declared =
-                    match actionVerbs with
-                    | [] -> (if actionRoutes.IsEmpty then [ None ] else actionRoutes) |> List.map (fun t -> [], t)
-                    | vs ->
-                        vs
-                        |> List.collect (fun (ms, t) ->
-                            match t with
-                            | Some _ -> [ ms, t ]
-                            | None -> (if actionRoutes.IsEmpty then [ None ] else actionRoutes) |> List.map (fun r -> ms, r))
-
+                // An action is attribute routed when it or its controller has a route template.
                 let routed = not controllerRoutes.IsEmpty || not actionRoutes.IsEmpty || actionVerbs |> List.exists (fun (_, t) -> t.IsSome)
 
+                // Methods without a template still restrict a conventionally routed action; none means any method.
+                let methodsOf (ms: string list) =
+                    match ms with
+                    | [] -> [ None ]
+                    | ms -> ms |> List.map Some
+
+                // (method, route, how it was routed, the registration that maps it)
                 let routes =
-                    declared
-                    |> List.collect (fun (methods, actionTemplate) ->
-                        let fromController = if controllerRoutes.IsEmpty then [ None ] else controllerRoutes
+                    if routed && attributeRouting then
+                        // Every (methods, action template) the attributes declare; no verb attribute means any method.
+                        let declared =
+                            match actionVerbs with
+                            | [] -> (if actionRoutes.IsEmpty then [ None ] else actionRoutes) |> List.map (fun t -> [], t)
+                            | vs ->
+                                vs
+                                |> List.collect (fun (ms, t) ->
+                                    match t with
+                                    | Some _ -> [ ms, t ]
+                                    | None -> (if actionRoutes.IsEmpty then [ None ] else actionRoutes) |> List.map (fun r -> ms, r))
 
-                        fromController
-                        |> List.map (fun c ->
-                            let route =
-                                if attributeRouting && routed then
-                                    combineRoutes (c |> Option.map (replaceTokens controllerName actionName)) (actionTemplate |> Option.map (replaceTokens controllerName actionName))
-                                else
-                                    None
+                        declared
+                        |> List.collect (fun (methods, actionTemplate) ->
+                            (if controllerRoutes.IsEmpty then [ None ] else controllerRoutes)
+                            |> List.map (fun c -> methods, combineRoutes (c |> Option.map fill) (actionTemplate |> Option.map fill)))
+                        |> List.distinct
+                        |> List.collect (fun (methods, route) ->
+                            methodsOf methods |> List.map (fun m -> m, route, "its routing attributes", attributeMapping.Value))
+                    elif routed then
+                        // Attribute routes without MapControllers: MVC does not map them.
+                        []
+                    else
+                        let methods = actionVerbs |> List.collect fst |> List.distinct
 
-                            methods, route))
-                    |> List.distinct
-                    |> List.collect (fun (methods, route) ->
-                        match methods with
-                        | [] -> [ None, route ]
-                        | ms -> ms |> List.map (fun m -> Some m, route))
+                        let byConvention =
+                            conventional
+                            |> List.collect (fun (pattern, requiredArea, r) ->
+                                match pattern with
+                                | Some p ->
+                                    conventionalRoutes p requiredArea controllerName actionName area
+                                    |> List.map (fun route -> Some route, $"the conventional route \"{p}\"", r)
+                                | None -> [ None, "a conventional route whose pattern is not a constant", r ])
+                            |> List.distinctBy (fun (route, _, _) -> route)
+
+                        match byConvention, attributeMapping with
+                        | [], Some r -> methodsOf methods |> List.map (fun m -> m, None, "no route: it has no routing attributes and no conventional route reaches it", r)
+                        | [], None -> []
+                        | rs, _ -> rs |> List.collect (fun (route, how, r) -> methodsOf methods |> List.map (fun m -> m, route, how, r))
 
                 let point = firstPoint set action.Ref
 
@@ -568,7 +708,7 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                     let location = point |> Option.map Attribution.toLocation
 
                     routes
-                    |> List.map (fun (httpMethod, route) ->
+                    |> List.map (fun (httpMethod, route, how, registration) ->
                         let methodPredicate =
                             httpMethod
                             |> Option.map (fun m ->
@@ -587,11 +727,6 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                             | None, None -> Completeness.Unresolved
                             | _ -> Completeness.Partial
 
-                        let how =
-                            match route with
-                            | Some _ -> "its routing attributes"
-                            | None -> "conventional routing, which is not followed"
-
                         { Id = ""
                           ApplicationId = ctx.Project.ProjectId
                           HandlerUnit = unit.Id
@@ -605,6 +740,5 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                           Forms = [ RouteForm.PlatformRouting ]
                           Evidence =
                             { Steps =
-                                [ step $"{registration.Caller.Ref.Display} maps controllers with {registration.Declared.Display} (rule {registration.Rule.Id})" registration.Caller.Ref registrationPoint
+                                [ step $"{registration.Caller.Ref.Display} maps controllers with {registration.Declared.Display} (rule {registration.Rule.Id})" registration.Caller.Ref (pointOf registration)
                                   step $"{action.Ref.Display} is an action of controller {controller.Ref.FullName}, routed by {how}" action.Ref point ] } })))
-

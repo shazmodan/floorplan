@@ -63,6 +63,48 @@ let tests =
 
           test "golden: Shop fixture" { Golden.check "shop.entry-points.txt" (render (ExitPointTests.shopModel.Force())) }
 
+          test "MVC controllers: conventional routes, areas, inherited [Route] and the [area] token" {
+              let m = routingModel.Force()
+
+              let routes =
+                  entries m "Routing.Conventional"
+                  |> List.map (fun e ->
+                      defaultArg e.HttpMethod "*",
+                      defaultArg e.Route "-",
+                      e.HandlerMember.Substring(e.HandlerMember.LastIndexOf '.' + 1),
+                      e.Completeness)
+                  |> List.sort
+
+              Expect.equal
+                  routes
+                  [ // Any method: conventional routes do not restrict it, so these are partial.
+                    "*", "/", "HomeController::Index", Completeness.Partial
+                    "*", "/Admin/Users", "UsersController::Index", Completeness.Partial
+                    "*", "/Admin/Users/Edit/{id?}", "UsersController::Edit", Completeness.Partial
+                    "*", "/Admin/Users/Index/{id?}", "UsersController::Index", Completeness.Partial
+                    "*", "/Home", "HomeController::Index", Completeness.Partial
+                    "*", "/Home/About/{id?}", "HomeController::About", Completeness.Partial
+                    "*", "/Home/Index/{id?}", "HomeController::Index", Completeness.Partial
+                    "*", "/Products", "ProductsController::Index", Completeness.Partial
+                    "*", "/Products/Details/{id?}", "ProductsController::Details", Completeness.Partial
+                    "*", "/Products/Index/{id?}", "ProductsController::Index", Completeness.Partial
+                    // Attribute routes: [Route] on a base controller, and [area] filled from [Area].
+                    "GET", "/Reports/Sales", "SalesController::Summary", Completeness.Complete
+                    "GET", "/api/Invoices", "InvoicesController::List", Completeness.Complete
+                    "GET", "/api/Invoices/{id}", "InvoicesController::Get", Completeness.Complete
+                    // [HttpPost] without a template restricts the conventionally routed action.
+                    "POST", "/Home/Contact/{id?}", "HomeController::Contact", Completeness.Complete ]
+                  "routes"
+
+              let combined =
+                  conventionalRoutes "{controller=Home}/{action=Index}/{id?}" None "Home" "Index" None
+
+              Expect.equal combined [ "/Home/Index/{id?}"; "/Home"; "/" ] "defaults give the shorter forms"
+              Expect.isEmpty (conventionalRoutes "{controller=Home}/{action=Index}/{id?}" None "Users" "Index" (Some "Admin")) "an area controller is not reached by a route without an area"
+              Expect.equal (conventionalRoutes "{area:exists}/{controller=Home}/{action=Index}" None "Users" "Index" (Some "Admin")) [ "/Admin/Users/Index"; "/Admin/Users" ] "{area} filled in"
+              Expect.isEmpty (conventionalRoutes "blog/{*article}" None "Blog" "Article" None) "a pattern without controller and action reaches nothing it can name"
+          }
+
           test "MVC controllers: attribute routes with [controller], verbs, AcceptVerbs, NonAction and NonController" {
               let c = "Routing.Controllers."
 
