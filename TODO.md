@@ -11,4 +11,3 @@ Work that is known and not yet done. Remove an item when its branch is merged.
 
 - Publishing the dotnet tool to NuGet.
 - Choosing a license.
-- CI: `actions/checkout@v4` and `actions/setup-dotnet@v4` run on Node 20, which GitHub has deprecated.

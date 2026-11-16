@@ -16,10 +16,10 @@ jobs:
       DOTNET_NOLOGO: "1"
       FLOORPLAN_CACHE: ${{ github.workspace }}/.floorplan-cache
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Fixtures target net8.0 and net10.0; the tool runs on the newest runtime.
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
             8.0.x
@@ -44,7 +44,7 @@ jobs:
           artifacts/tool/floorplan analyze tests/fixtures/Routing/Routing.slnx --no-cache -o artifacts/site
           test -f artifacts/site/index.html
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: matrix.os == 'ubuntu-latest'
         with:
           name: floorplan-tool
