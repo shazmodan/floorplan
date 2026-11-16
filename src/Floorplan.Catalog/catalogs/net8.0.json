@@ -177,6 +177,12 @@
       "kind": "sink", "category": "nondeterminism" },
 
     // ---------------- http-in: inbound primitives (plan section 6.2) ----------------
+    // The objects a request handler is given, from which it reads the request. Not calls: a function handed to a
+    // library is a request handler only if its signature takes or returns one of these, or a source type below.
+    { "id": "http-in.request-context", "assembly": "Microsoft.AspNetCore.Http.Abstractions", "type": "Microsoft.AspNetCore.Http.HttpContext",
+      "members": ["<request-context>"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "request-context" }] },
+    { "id": "http-in.listener-request-context", "assembly": "System.Net.HttpListener", "type": "System.Net.HttpListenerContext",
+      "members": ["<request-context>"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "request-context" }] },
     { "id": "http-in.request-method", "assembly": "Microsoft.AspNetCore.Http.Abstractions", "type": "Microsoft.AspNetCore.Http.HttpRequest",
       "members": ["get_Method"], "includeDerivedTypes": true, "kind": "source", "category": "http-in", "requestPart": "method" },
     { "id": "http-in.request-path", "assembly": "Microsoft.AspNetCore.Http.Abstractions", "type": "Microsoft.AspNetCore.Http.HttpRequest",

@@ -230,8 +230,8 @@
     var pad = 40;
     var root = svg("svg", { role: "img", "aria-label": "Dependency graph" });
     var defs = svg("defs", null,
-      svg("marker", { id: "arrow", viewBox: "0 0 10 10", refX: "10", refY: "5", markerWidth: "7", markerHeight: "7", orient: "auto-start-reverse" }, svg("path", { d: "M0,0 L10,5 L0,10 z" })),
-      svg("marker", { id: "arrow-cross", viewBox: "0 0 10 10", refX: "10", refY: "5", markerWidth: "7", markerHeight: "7", orient: "auto-start-reverse" }, svg("path", { d: "M0,0 L10,5 L0,10 z" })));
+      svg("marker", { id: "arrow", viewBox: "0 0 10 10", refX: "10", refY: "5", markerWidth: "8", markerHeight: "8", markerUnits: "userSpaceOnUse", orient: "auto-start-reverse" }, svg("path", { d: "M0,0 L10,5 L0,10 z" })),
+      svg("marker", { id: "arrow-cross", viewBox: "0 0 10 10", refX: "10", refY: "5", markerWidth: "8", markerHeight: "8", markerUnits: "userSpaceOnUse", orient: "auto-start-reverse" }, svg("path", { d: "M0,0 L10,5 L0,10 z" })));
     var world = svg("g");
     root.appendChild(defs);
     root.appendChild(world);
@@ -285,8 +285,9 @@
       zoomIn: function () { zoom(1 / 1.3, view.x + view.w / 2, view.y + view.h / 2); },
       zoomOut: function () { zoom(1.3, view.x + view.w / 2, view.y + view.h / 2); },
       fit: function () { view.x = full.x; view.y = full.y; view.w = full.w; view.h = full.h; apply(); },
-      focus: function (x, y, w, h) {
-        var m = 60; view.x = x - m; view.y = y - m; view.w = Math.max(w + 2 * m, 300); view.h = Math.max(h + 2 * m, 200); apply();
+      focus: function (x, y, w, h, minW, minH) {
+        var m = 60, vw = Math.max(w + 2 * m, minW || 300), vh = Math.max(h + 2 * m, minH || 200);
+        view.x = x + w / 2 - vw / 2; view.y = y + h / 2 - vh / 2; view.w = vw; view.h = vh; apply();
       }
     };
   }
@@ -342,6 +343,15 @@
   // ---------- Unit graph ----------
   var collapsedState = null;
 
+  function curve(points) {
+    var d = "M" + points[0].x + "," + points[0].y;
+    for (var i = 1; i < points.length; i++) {
+      var a = points[i - 1], b = points[i], dy = (b.y - a.y) / 2;
+      d += Math.abs(b.x - a.x) < 0.5 ? " L" + b.x + "," + b.y : " C" + a.x + "," + (a.y + dy) + " " + b.x + "," + (b.y - dy) + " " + b.x + "," + b.y;
+    }
+    return d;
+  }
+
   function unitGraph(r) {
     var g = D.layout.unitGraph;
     var boxes = D.layout.projectBoxes;
@@ -362,14 +372,32 @@
     var nodeOf = {};
     g.nodes.forEach(function (n) { nodeOf[n.id] = n; n.members.forEach(function (m) { nodeOf[m] = n; }); });
     var boxOf = by(boxes, "id");
+    var detachedBoxes = D.layout.detachedBoxes || [];
+    var detachedOf = by(detachedBoxes, "id");
+    // Units drawn in a project's box of unconnected units.
+    var detachedCount = {};
+    g.nodes.forEach(function (n) {
+      var u = units[n.id], b = u && detachedOf[u.projectId];
+      if (b && n.y >= b.y && n.y <= b.y + b.height) detachedCount[u.projectId] = (detachedCount[u.projectId] || 0) + 1;
+    });
     var edgesLayer = svg("g");
     var boxesLayer = svg("g");
+    var selectionLayer = svg("g");
     var nodesLayer = svg("g");
     canvas.world.appendChild(boxesLayer);
     canvas.world.appendChild(edgesLayer);
+    canvas.world.appendChild(selectionLayer);
     canvas.world.appendChild(nodesLayer);
 
     var nodeEls = {}, boxEls = {}, edgeEls = [];
+    var innerEdge = {};
+    g.edges.forEach(function (e) { innerEdge[e.from + ">" + e.to] = e; });
+    var crossByPair = {};
+    D.dependencies.forEach(function (d) {
+      var a = units[d.fromUnit], b = units[d.toUnit];
+      if (!d.crossProject || !a || !b) return;
+      (crossByPair[a.projectId + ">" + b.projectId] = crossByPair[a.projectId + ">" + b.projectId] || []).push(d);
+    });
 
     function visibleEnd(unitId) {
       var u = units[unitId];
@@ -381,13 +409,20 @@
 
     function drawBoxes() {
       boxesLayer.textContent = "";
-      boxes.forEach(function (b) {
+      if (detachedBoxes.length) {
+        var top = Math.min.apply(null, detachedBoxes.map(function (b) { return b.y; }));
+        var left = Math.min.apply(null, detachedBoxes.map(function (b) { return b.x; }));
+        boxesLayer.appendChild(svg("text", { class: "g-section", x: left, y: top - 14,
+          text: "Not connected: " + unitWord.many.toLowerCase() + " that use no other " + unitWord.one.toLowerCase() + " and are used by none (some are reached only at run time)" }));
+      }
+      boxes.map(function (b) { return [b, false]; }).concat(detachedBoxes.map(function (b) { return [b, true]; })).forEach(function (pair) {
+        var b = pair[0], detached = pair[1];
         var p = projects[b.id] || {};
         var collapsed = !!collapsedState[b.id];
         var h = collapsed ? 30 : b.height;
-        var count = (unitsByProject[b.id] || []).length;
+        var count = detached ? detachedCount[b.id] : (unitsByProject[b.id] || []).length - (detachedCount[b.id] || 0);
         var toggle = function () { collapsedState[b.id] = !collapsedState[b.id]; redraw(); };
-        var grp = svg("g", { class: "g-box" + (p.supportLevel === "limited" ? " limited" : "") + (p.isApplication ? " app" : "") },
+        var grp = svg("g", { class: "g-box" + (detached ? " detached" : "") + (p.supportLevel === "limited" ? " limited" : "") + (p.isApplication ? " app" : "") },
           svg("rect", { class: "frame", x: b.x, y: b.y, width: b.width, height: h, rx: 10 }),
           svg("rect", { class: "header", x: b.x + 1, y: b.y + 1, width: b.width - 2, height: 27, rx: 9 }),
           svg("text", { class: "name", x: b.x + 12, y: b.y + 19, text: nodeText(p.name || b.id, b.width - 40) }),
@@ -396,7 +431,7 @@
             svg("rect", { x: b.x + b.width - 30, y: b.y + 4, width: 22, height: 20, rx: 4, fill: "transparent" }),
             svg("text", { x: b.x + b.width - 19, y: b.y + 19, "text-anchor": "middle", text: collapsed ? "+" : "−" })),
           svg("title", { text: (p.name || b.id) + " — " + (p.targetFramework || "") + ", " + plural(count, kindLabel("module").toLowerCase()) + (p.supportLevel === "limited" ? ", limited support" : "") }));
-        boxEls[b.id] = grp;
+        boxEls[(detached ? "detached:" : "") + b.id] = grp;
         boxesLayer.appendChild(grp);
       });
     }
@@ -436,28 +471,52 @@
     function drawEdges() {
       edgesLayer.textContent = "";
       edgeEls = [];
-      var seen = {};
       D.dependencies.forEach(function (d) {
+        var u = units[d.fromUnit];
+        if (d.crossProject || !u || collapsedState[u.projectId]) return;
+        var e = innerEdge[d.fromUnit + ">" + d.toUnit];
+        if (!e) return;
+        var path = svg("path", { class: "g-edge", d: curve(e.points) },
+          svg("title", { text: unitName(d.fromUnit) + " → " + unitName(d.toUnit) + " (" + plural(d.weight, "use") + ")" }));
+        path.__deps = [d];
+        edgesLayer.appendChild(path);
+        edgeEls.push(path);
+      });
+      (D.layout.projectEdges || []).forEach(function (e) {
+        var deps = crossByPair[e.from + ">" + e.to] || [];
+        if (!deps.length) return;
+        var points = e.points.map(function (p) { return { x: p.x, y: p.y }; });
+        var source = boxOf[e.from];
+        if (source && collapsedState[e.from]) points[0].y = source.y + 30;
+        var path = svg("path", { class: "g-edge between", d: curve(points), style: "stroke-width:" + Math.min(5, 1.5 + Math.log(deps.length) / Math.LN2 * 0.6) },
+          svg("title", { text: projectName(e.from) + " → " + projectName(e.to) + ": " + plural(deps.length, unitWord.one.toLowerCase() + " dependency", unitWord.one.toLowerCase() + " dependencies") + ". Select a " + unitWord.one.toLowerCase() + " to see its own." }));
+        path.__deps = deps;
+        path.__between = true;
+        edgesLayer.appendChild(path);
+        edgeEls.push(path);
+      });
+    }
+
+    // The selected unit's dependencies on other projects, drawn from it to the other end.
+    function drawSelection() {
+      selectionLayer.textContent = "";
+      if (!selected) return;
+      var mine = (depsFrom[selected] || []).concat(depsTo[selected] || []).filter(function (d) { return d.crossProject; });
+      mine.forEach(function (d) {
         var a = visibleEnd(d.fromUnit), b = visibleEnd(d.toUnit);
         if (!a || !b || a.key === b.key) return;
-        var key = a.key + ">" + b.key;
         var down = b.y > a.y;
-        var x1 = a.x + a.width / 2, y1 = down ? a.y + a.height : a.y;
-        var x2 = b.x + b.width / 2, y2 = down ? b.y : b.y + b.height;
-        if (!seen[key]) {
-          seen[key] = svg("line", { class: "g-edge" + (d.crossProject ? " cross" : ""), x1: x1, y1: y1, x2: x2, y2: y2 },
-            svg("title", { text: unitName(d.fromUnit) + " → " + unitName(d.toUnit) + " (" + plural(d.weight, "use") + ")" }));
-          seen[key].__deps = [];
-          edgesLayer.appendChild(seen[key]);
-          edgeEls.push(seen[key]);
-        }
-        seen[key].__deps.push(d);
+        var start = { x: a.x + a.width / 2, y: down ? a.y + a.height : a.y };
+        var end = { x: b.x + b.width / 2, y: down ? b.y : b.y + b.height };
+        selectionLayer.appendChild(svg("path", { class: "g-edge cross " + (d.fromUnit === selected ? "dependency" : "dependent"), d: curve([start, end]) },
+          svg("title", { text: unitName(d.fromUnit) + " → " + unitName(d.toUnit) + " (" + plural(d.weight, "use") + ")" })));
       });
     }
 
     function highlight() {
       var all = [].concat(Object.keys(nodeEls).map(function (k) { return nodeEls[k]; }), edgeEls, Object.keys(boxEls).map(function (k) { return boxEls[k]; }));
       all.forEach(function (x) { x.classList.remove("dim", "dependency", "dependent", "selected"); });
+      drawSelection();
       if (!selected) { side.hidden = true; return; }
       var out = {}, inc = {};
       (depsFrom[selected] || []).forEach(function (d) { out[d.toUnit] = true; });
@@ -475,7 +534,7 @@
       edgeEls.forEach(function (e) {
         var mine = e.__deps.filter(function (d) { return d.fromUnit === selected || d.toUnit === selected; });
         if (!mine.length) e.classList.add("dim");
-        else e.classList.add(mine[0].fromUnit === selected ? "dependency" : "dependent");
+        else if (!e.__between) e.classList.add(mine[0].fromUnit === selected ? "dependency" : "dependent");
       });
       renderSide();
     }
@@ -505,6 +564,16 @@
 
     function redraw() { drawBoxes(); drawEdges(); drawNodes(); highlight(); }
 
+    // Frames a unit with the units it uses and is used by, so that a selection shows its neighbourhood.
+    function focusUnit(id) {
+      var ends = [id].concat((depsFrom[id] || []).map(function (d) { return d.toUnit; }), (depsTo[id] || []).map(function (d) { return d.fromUnit; }));
+      var boxes = ends.map(visibleEnd).filter(Boolean);
+      if (!boxes.length) return;
+      var x1 = Math.min.apply(null, boxes.map(function (b) { return b.x; })), y1 = Math.min.apply(null, boxes.map(function (b) { return b.y; }));
+      var x2 = Math.max.apply(null, boxes.map(function (b) { return b.x + b.width; })), y2 = Math.max.apply(null, boxes.map(function (b) { return b.y + b.height; }));
+      canvas.focus(x1, y1, x2 - x1, y2 - y1, 900, 560);
+    }
+
     canvas.svg.addEventListener("panend", function (e) { if (!e.detail.moved) selectUnit(null); });
 
     var search = el("input", { type: "search", placeholder: "Find " + unitWord.one.toLowerCase() + "…", "aria-label": "Find " + unitWord.one.toLowerCase(),
@@ -516,7 +585,7 @@
         collapsedState[hit.projectId] = false;
         redraw();
         selectUnit(hit.id);
-        var n = nodeOf[hit.id]; if (n) canvas.focus(n.x, n.y, n.width, n.height);
+        focusUnit(hit.id);
         if (nodeEls[hit.id]) nodeEls[hit.id].focus();
       } } });
 
@@ -531,12 +600,12 @@
     host.appendChild(canvas.svg);
     host.appendChild(side);
     host.appendChild(el("div", { class: "legend", "aria-hidden": "true" },
-      el("span", null, el("i"), "within project"), el("span", null, el("i", { class: "cross" }), "across projects"),
+      el("span", null, el("i"), "within project"), el("span", null, el("i", { class: "between" }), "between projects"),
       el("span", null, el("i", { class: "dep" }), "depends on"), el("span", null, el("i", { class: "dnt" }), "used by")));
     main.appendChild(page);
     redraw();
-    if (focusProject && boxOf[focusProject]) { var b = boxOf[focusProject]; canvas.focus(b.x, b.y, b.width, b.height); }
-    if (selected && nodeOf[selected]) { var n = nodeOf[selected]; canvas.focus(n.x, n.y, n.width, n.height); }
+    if (focusProject && (boxOf[focusProject] || detachedOf[focusProject])) { var b = boxOf[focusProject] || detachedOf[focusProject]; canvas.focus(b.x, b.y, b.width, b.height); }
+    if (selected && nodeOf[selected]) focusUnit(selected);
   }
 
   // ---------- Unit detail ----------

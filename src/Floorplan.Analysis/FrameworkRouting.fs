@@ -265,15 +265,29 @@ let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list =
 
                 hits |> List.choose (fun h -> entry ctx h [ RouteForm.ControlFlow ] steps))
 
-        // User functions handed to a library but reached by no request path: handlers with no route.
+        // User functions handed to a library but reached by no request path: handlers with no route. Only those
+        // whose signature carries the request: a library is also handed configuration callbacks (logging, services,
+        // options), which run at startup and handle nothing.
         let reached = found |> List.map (fun e -> e.HandlerMember) |> Set.ofList
+
+        let requestTypes =
+            ctx.Matcher.Catalog.Rules
+            |> List.filter (fun r ->
+                (r.Kind = RuleKind.Source && (r.Category = Some EffectCategory.HttpIn || r.Category = Some EffectCategory.Network))
+                || (r.Kind = RuleKind.Metadata && r.Payload |> List.exists (fun p -> p.Role = "request-context")))
+            |> List.map (fun r -> r.Type)
+            |> List.distinct
+
+        let carriesRequest (f: MethodRef) =
+            f.ReturnType :: f.ParameterTypes
+            |> List.exists (fun t -> requestTypes |> List.exists (fun r -> t.Contains r))
 
         let unreached =
             if found.IsEmpty then
                 []
             else
                 machine.HandedOver
-                |> List.filter (fun (f, _) -> not (reached.Contains f.Display) && not (f.Name.StartsWith "get_"))
+                |> List.filter (fun (f, _) -> not (reached.Contains f.Display) && not (f.Name.StartsWith "get_") && carriesRequest f)
                 |> List.choose (fun (f, site) ->
                     entry
                         ctx

@@ -133,7 +133,9 @@ button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(
 main { flex: 1; min-height: 0; overflow: auto; }
 main:focus { outline: none; }
 
-.page { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+/* Wide enough for the result tables; running text keeps a readable measure. */
+.page { max-width: 1760px; margin: 0 auto; padding: 24px 24px 48px; }
+.page > p, .page > .sub { max-width: 960px; }
 
 h1 { font-size: 22px; margin: 0 0 4px; }
 h2 { font-size: 16px; margin: 28px 0 8px; }
@@ -157,6 +159,8 @@ th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--bor
 th { font-weight: 600; color: var(--muted); font-size: 12px; background: var(--surface-2); position: sticky; top: 0; }
 tr:last-child td { border-bottom: none; }
 td.num { text-align: right; font-variant-numeric: tabular-nums; }
+/* Long member names wrap inside their cell instead of widening the table. */
+td .mono, td code { overflow-wrap: anywhere; }
 code, .mono { font-family: var(--mono); font-size: 12.5px; }
 
 .tag { display: inline-block; font-size: 11.5px; padding: 1px 7px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); white-space: nowrap; }
@@ -204,6 +208,10 @@ ul.plain li { padding: 3px 0; }
 
 .g-edge { stroke: var(--edge); stroke-width: 1.2; fill: none; marker-end: url(#arrow); }
 .g-edge.cross { stroke: var(--edge-cross); stroke-dasharray: 5 3; marker-end: url(#arrow-cross); }
+/* Dependencies between two projects, drawn once between their boxes. */
+.g-edge.between { stroke: var(--edge-cross); opacity: 0.7; marker-end: url(#arrow-cross); }
+.g-section { fill: var(--muted); font-size: 13px; font-weight: 600; }
+.g-box.detached rect.frame { stroke-dasharray: 2 3; }
 .g-edge.dim, .g-node.dim, .g-box.dim { opacity: 0.18; }
 .g-edge.dependency { stroke: var(--dependency); stroke-width: 2; opacity: 1; }
 .g-edge.dependent { stroke: var(--dependent); stroke-width: 2; opacity: 1; }
@@ -214,6 +222,7 @@ ul.plain li { padding: 3px 0; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; }
 .legend i { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--edge); }
 .legend i.cross { border-top: 2px dashed var(--edge-cross); }
+.legend i.between { border-top: 3px solid var(--edge-cross); opacity: 0.7; }
 .legend i.dep { border-color: var(--dependency); }
 .legend i.dnt { border-color: var(--dependent); }
 
