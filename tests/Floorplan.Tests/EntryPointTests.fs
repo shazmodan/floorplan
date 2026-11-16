@@ -215,6 +215,20 @@ let tests =
                   Expect.isNone e.Route $"{e.HandlerMember} has no route"
           }
 
+          test "the site shows lambda handlers as written, not by their compiler-generated class" {
+              match Browser.find () with
+              | None -> skiptest "No Chromium-based browser found; set FLOORPLAN_BROWSER to run browser smoke tests."
+              | Some browser ->
+                  let dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "floorplan-tests", System.Guid.NewGuid().ToString "N")
+                  let index = Floorplan.Rendering.WebsiteRenderer.render (routingModel.Force()) { Path = dir; SingleFile = false }
+                  let page = Browser.dumpDom browser index "#/entry-points"
+
+                  // Routing.Endpoints.Admin registers `fun () -> "daily"` on line 24 of Admin.fs.
+                  Expect.stringContains page "Admin › lambda at line 24" "lambda by module and line"
+                  Expect.isFalse (page.Contains ">Admin/Pipe #1") "no compiler-generated class name shown"
+                  Expect.stringContains page "Api.getOrder" "named functions unchanged"
+          }
+
           test "a raw socket gives an unresolved network entry point" {
               let m = routingModel.Force()
 
