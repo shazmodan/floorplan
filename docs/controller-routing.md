@@ -18,8 +18,9 @@ How MVC's rules are followed:
 - **Controllers** are public, concrete, non-generic classes in the application's assembly or the user assemblies it
   references, named `...Controller` or carrying `[Controller]` (inherited: `ControllerBase` carries it), and
   without `[NonController]`.
-- **Actions** are their public instance methods, except constructors, property accessors and `[NonAction]`
-  methods.
+- **Actions** are their public instance methods, including those inherited from base classes in user code,
+  except constructors, property accessors and `[NonAction]` methods. `[ActionName]` renames an action for
+  routing and for the `[action]` token.
 - **Attribute routes** (with `MapControllers`) combine the controller's `[Route]`, its own or inherited from a
   base controller, with the action's template; an action template starting with `/` or `~/` stands alone.
   `[controller]`, `[action]` and `[area]` are replaced by the controller name (without `Controller`), the method
@@ -43,7 +44,6 @@ Known limits:
   object instead (`MapControllerRoute("blog", "blog/{*article}", new { controller = "Blog", action = "Article" })`),
   reaches nothing the analysis can name: those actions keep no route. Defaults and constraints objects are not
   read, and neither is a pattern that is not a constant.
-- `[ActionName]`, route prefixes from application model conventions (`IApplicationModelConvention`), and
-  controllers registered some other way (an `IApplicationFeatureProvider`, controllers from assemblies outside the
-  solution) are not followed.
-- Actions declared on a base controller class are not listed for the derived controllers.
+- Route prefixes from application model conventions (`IApplicationModelConvention`), and controllers registered
+  some other way (an `IApplicationFeatureProvider`, controllers from assemblies outside the solution) are not
+  followed.

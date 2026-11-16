@@ -334,6 +334,8 @@
       "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "controller" }] },
     { "id": "http-in.mvc-non-controller", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.NonControllerAttribute",
       "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "not-a-controller" }] },
+    { "id": "http-in.mvc-action-name", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.ActionNameAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "action-name" }] },
     { "id": "http-in.mvc-non-action", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.NonActionAttribute",
       "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "not-an-action" }] },
     { "id": "http-in.mvc-route", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.RouteAttribute",

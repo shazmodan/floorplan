@@ -88,9 +88,12 @@ let tests =
                     "*", "/Products", "ProductsController::Index", Completeness.Partial
                     "*", "/Products/Details/{id?}", "ProductsController::Details", Completeness.Partial
                     "*", "/Products/Index/{id?}", "ProductsController::Index", Completeness.Partial
+                    "*", "/Products/Show/{id?}", "ProductsController::Display", Completeness.Partial
                     // Attribute routes: [Route] on a base controller, and [area] filled from [Area].
                     "GET", "/Reports/Sales", "SalesController::Summary", Completeness.Complete
                     "GET", "/api/Invoices", "InvoicesController::List", Completeness.Complete
+                    // An action declared on the base controller, routed for the derived one.
+                    "GET", "/api/Invoices/ping", "ApiControllerBase::Ping", Completeness.Complete
                     "GET", "/api/Invoices/{id}", "InvoicesController::Get", Completeness.Complete
                     // [HttpPost] without a template restricts the conventionally routed action.
                     "POST", "/Home/Contact/{id?}", "HomeController::Contact", Completeness.Complete ]
