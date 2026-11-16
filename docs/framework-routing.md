@@ -46,7 +46,7 @@ and `GET`/`PUT`/`DELETE`/`PATCH` on an item, or collection-level `DELETE`/`PATCH
 | Falco | Endpoint list turned into a custom `EndpointDataSource` | 8 of 8 complete, `/api/orders/{id:int}` from the route template |
 | Giraffe | Composed function values run by one middleware | 8 of 8 complete; `routef "/api/orders/%i"` gives `/api/orders/{id}` |
 | Oxpecker | Route tree mapped onto endpoint routing, sub-routes as groups | 8 of 8 complete; `routef "/orders/{%i}"` gives `/api/orders/{id}` |
-| Saturn | Routers as computation expressions on Giraffe, nested with `forward`, run by the generic host | 7 of 8 complete; the OPTIONS route, tried after the whole orders router, is reported unresolved |
+| Saturn | Routers as computation expressions on Giraffe, nested with `forward`, run by the generic host | 8 of 8 complete, including the OPTIONS route forwarded after the whole orders router |
 
 `GET /` is answered by a library function (`text "home"`) in every fixture and is reported as the user code
 that set it up. No fixture produces a wrong route. The routing fixtures of Phase 4 are unchanged.
@@ -94,8 +94,21 @@ What Saturn added:
   to the handler without being compared is a route parameter, named after the handler's parameter. With these,
   the hand-written router of `Routing.Middleware` moved into a library (`Routing.Delegated`, routing in
   `tests/fixtures/Routing/Dependency`) gives the same routes as in user code; a test checks that.
-- **Equivalent outcomes** of a call (same result, predicates and last user code) continue as one, so the
-  alternatives of a `choose` do not multiply into each other.
+- **Equivalent outcomes** of a call (same result, predicates, last user code and contents of
+  `HttpContext.Items`) continue as one, so the alternatives of a `choose` do not multiply into each other. Two
+  more rules keep a failed alternative from returning several "no match" outcomes: an outcome whose result's
+  guard contradicts itself or the path is dropped, and so is one whose result only adds guard conditions to
+  another's on the same path. Outcomes on different paths are never merged by inclusion: a failed test leaves
+  no predicate, so fewer predicates do not mean a more general path.
+- **Handled requests end their callers.** A call none of whose paths returns yields an unknown value (so that a
+  throw does not hide the alternatives after it), except when its paths ended by reaching a handler: then the
+  request is handled and the calling paths end too, instead of trying every later alternative again.
+- **Tests on unreadable strings.** `StartsWith`, `EndsWith` and `Contains` on a string the run could not read,
+  while a request is routed, make their true side uncertain, so a handler behind them gets no route. Before,
+  such a test forked without a trace, and a handler behind it could get a route that left the test out.
+- **FSharp.Core's own sequences.** Closures nested under `<StartupCode$FSharp-Core>` (the `seq { }` expressions
+  of `Seq.append` and similar) are interpreted; only FSharp.Core's static initialization is skipped. Before,
+  every such sequence enumerated as unknown and forked at each step.
 
 ## Known limits
 
@@ -103,8 +116,8 @@ What Saturn added:
   unknown value, and an application with many alternatives can still run out of budget before the last ones.
   The call depth limit is 96 (nested routers and recursive helpers need it); the interpreter runs on its own
   thread with a 512 MB stack so that depth cannot overflow the caller's. A call into a dependency gets at most
-  150,000 steps, shared with the calls inside it, so an alternative tried after a large one can be left
-  without budget (Saturn's OPTIONS route).
+  150,000 steps, shared with the calls inside it, so an alternative tried after a large one can still be left
+  without budget in a bigger application than the fixtures.
 - `Substring(n, length)` of the path with an unknown length is taken as the rest of the path from `n`; that is
   how slices compile, but a slice of a middle piece would be read the same way.
 - A regex route whose handler takes its values some other way (one tuple, or more parameters than groups) keeps
