@@ -11,12 +11,12 @@
     <Compile Include="StructureTests.fs" />
     <Compile Include="LayoutTests.fs" />
     <Compile Include="Browser.fs" />
-    <Compile Include="RenderingTests.fs" />
     <Compile Include="CliTests.fs" />
     <Compile Include="ILTests.fs" />
     <Compile Include="CatalogTests.fs" />
     <Compile Include="Golden.fs" />
     <Compile Include="ExitPointTests.fs" />
+    <Compile Include="RenderingTests.fs" />
     <Compile Include="EntryPointTests.fs" />
     <Compile Include="NoiseAndTraceTests.fs" />
     <Compile Include="FrameworkTests.fs" />

@@ -251,4 +251,120 @@ let compute (projects: Project list) (units: CodeUnit list) (dependencies: Depen
           Edges = List.concat innerEdges }
       ProjectBoxes = projectBoxes
       ProjectEdges = projectEdges
-      DetachedBoxes = detachedBoxes }
+      DetachedBoxes = detachedBoxes
+      FlowGraph = AnalysisModel.emptyGraph }
+
+// ---- Flow graph ----
+// The units where requests enter and side-effects leave, with what connects them. Node ids say what a node is:
+// "unit:<unit id>", "entries:<unit id>" (a card listing the entry points a unit handles) and
+// "exits:<unit id>|<category>" (a card listing a unit's exit points of one category). A card has a header line and
+// one line per item; past `cardLines` lines its last line says how many more there are.
+
+let cardLines = 8
+let cardHeader = 26.0
+let cardLine = 18.0
+let private cardPadding = 8.0
+let private minimumCardWidth = 160.0
+let private maximumCardWidth = 360.0
+
+/// A unit's node shows its name and, below it, its project's.
+let flowUnitHeight = 44.0
+
+/// The height of a card listing `items` items.
+let cardHeight (items: int) =
+    cardHeader + float (min items cardLines) * cardLine + cardPadding
+
+let private cardWidth (header: string) (lines: string list) =
+    (header :: lines) |> List.map labelWidth |> List.max |> max minimumCardWidth |> min maximumCardWidth
+
+let private routeText (e: EntryPoint) =
+    let methodPart = e.HttpMethod |> Option.map (fun m -> m + " ") |> Option.defaultValue ""
+
+    match e.Route with
+    | Some r -> methodPart + r
+    | None -> methodPart + "(unresolved)"
+
+/// What a line of an exit card says: the payload when it is known, the primitive otherwise.
+let private exitText (x: ExitPoint) =
+    match x.Payload |> Option.bind (fun p -> p.Value) with
+    | Some v -> v
+    | None -> x.Primitive.Substring(x.Primitive.LastIndexOf '.' + 1)
+
+let private visible (presentation: Presentation) (x: ExitPoint) =
+    not (List.contains x.Category presentation.HiddenCategories) && not (List.contains x.Confidence presentation.HiddenConfidence)
+
+/// Lays out the flow graph: entry cards above the units that handle them, the units that lead from those to the
+/// units with exit points (along their dependencies), and exit cards below the units they belong to. Exit points
+/// the presentation hides by default are left out.
+let flow (units: CodeUnit list) (dependencies: Dependency list) (entries: EntryPoint list) (exits: ExitPoint list) (presentation: Presentation) : GraphLayout =
+    let known = units |> List.map (fun u -> u.Id, u) |> Map.ofList
+    let entries = entries |> List.filter (fun e -> known.ContainsKey e.HandlerUnit)
+    let exits = exits |> List.filter (fun x -> known.ContainsKey x.Unit && visible presentation x)
+
+    let deps =
+        dependencies |> List.filter (fun d -> d.FromUnit <> d.ToUnit && known.ContainsKey d.FromUnit && known.ContainsKey d.ToUnit)
+
+    let handlers = entries |> List.map (fun e -> e.HandlerUnit) |> set
+    let exiting = exits |> List.map (fun x -> x.Unit) |> set
+
+    let reach (start: Set<string>) (next: string -> string list) =
+        let rec go (seen: Set<string>) (pending: string list) =
+            match pending with
+            | [] -> seen
+            | u :: rest when seen.Contains u -> go seen rest
+            | u :: rest -> go (seen.Add u) (next u @ rest)
+
+        go Set.empty (Set.toList start)
+
+    let forward = deps |> List.groupBy (fun d -> d.FromUnit) |> List.map (fun (k, ds) -> k, ds |> List.map (fun d -> d.ToUnit)) |> Map.ofList
+    let backward = deps |> List.groupBy (fun d -> d.ToUnit) |> List.map (fun (k, ds) -> k, ds |> List.map (fun d -> d.FromUnit)) |> Map.ofList
+    let get (m: Map<string, string list>) k = m.TryFind k |> Option.defaultValue []
+
+    // A unit between a handler and a unit with exit points, along dependencies.
+    let between = Set.intersect (reach handlers (get forward)) (reach exiting (get backward))
+    let shown = handlers + exiting + between
+
+    let projectName (u: CodeUnit) = u.ProjectId
+
+    let unitNodes =
+        shown
+        |> Set.toList
+        |> List.map (fun id ->
+            let u = known[id]
+
+            { Layered.Node.Id = "unit:" + id
+              Layered.Node.Width = max (labelWidth u.DisplayName) (labelWidth (projectName u) * 0.85)
+              Layered.Node.Height = flowUnitHeight })
+
+    let entryCards =
+        entries
+        |> List.groupBy (fun e -> e.HandlerUnit)
+        |> List.map (fun (unit, es) ->
+            let lines = es |> List.map routeText |> List.distinct
+
+            { Layered.Node.Id = "entries:" + unit
+              Layered.Node.Width = cardWidth $"Entry points · {es.Length}" lines
+              Layered.Node.Height = cardHeight lines.Length })
+
+    let exitGroups = exits |> List.groupBy (fun x -> x.Unit, x.Category)
+
+    let exitCards =
+        exitGroups
+        |> List.map (fun ((unit, category), xs) ->
+            let lines = xs |> List.map exitText |> List.distinct
+
+            { Layered.Node.Id = $"exits:{unit}|{EffectCategory.name category}"
+              Layered.Node.Width = cardWidth $"{EffectCategory.name category} · {xs.Length}" lines
+              Layered.Node.Height = cardHeight lines.Length })
+
+    let edges =
+        [ for c in entryCards do
+              yield Layered.edge c.Id ("unit:" + c.Id.Substring "entries:".Length)
+          for d in deps do
+              if shown.Contains d.FromUnit && shown.Contains d.ToUnit then
+                  yield Layered.edge ("unit:" + d.FromUnit) ("unit:" + d.ToUnit)
+          for ((unit, category), _) in exitGroups do
+              yield Layered.edge ("unit:" + unit) $"exits:{unit}|{EffectCategory.name category}" ]
+        |> List.distinct
+
+    Layered.layout { Layered.defaults with LayerGap = 56.0; NodeGap = 28.0 } (entryCards @ unitNodes @ exitCards) edges

@@ -109,4 +109,20 @@ let tests =
 
                   let projects = Browser.dumpDom browser index "#/projects"
                   Expect.stringContains projects "Shop.Web" "project graph"
+          }
+
+          test "the flow view connects routes and side-effects to their units in a headless browser" {
+              match Browser.find () with
+              | None -> skiptest "No Chromium-based browser found; set FLOORPLAN_BROWSER to run browser smoke tests."
+              | Some browser ->
+                  let model = ExitPointTests.shopModel.Force()
+                  Expect.isNonEmpty model.Layout.FlowGraph.Nodes "the pipeline lays out the flow graph"
+                  let dir = tempDir ()
+                  let index = WebsiteRenderer.render model { Path = dir; SingleFile = false }
+                  let flow = Browser.dumpDom browser index "#/flow"
+                  Expect.stringContains flow "class=\"g-card in\"" "entry cards drawn"
+                  Expect.stringContains flow "class=\"g-card out cat-" "exit cards drawn"
+                  Expect.stringContains flow "flow-unit" "unit nodes drawn"
+                  Expect.stringContains flow "#/evidence/entry:" "routes link to their evidence"
+                  Expect.stringContains flow "aria-current=\"page\">Flow" "Flow in the menu"
           } ]

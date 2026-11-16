@@ -12,10 +12,13 @@ writes a static website to `./floorplan-out` that shows:
 1. **The module graph**: which modules depend on which, grouped by project, with a project graph above it.
    Dependencies between projects are drawn once per pair of projects (select a module to see its own), and
    modules that use no other module and are used by none are set out in their own section below the graph.
-2. **Entry points**: inbound HTTP routes and the module that handles each one, with how complete each route is.
-3. **Exit points**: outbound HTTP, database, file, process and other side-effects, the module each belongs to,
+2. **The flow**: the module graph cut down to where requests enter and side-effects leave. Each module that
+   handles requests carries a card of its routes, each module with side-effects a card per kind (database, file,
+   outbound HTTP...), and the modules between them are drawn with their dependencies.
+3. **Entry points**: inbound HTTP routes and the module that handles each one, with how complete each route is.
+4. **Exit points**: outbound HTTP, database, file, process and other side-effects, the module each belongs to,
    and the dependency it goes through.
-4. **Traces**: the side-effects each entry point can cause.
+5. **Traces**: the side-effects each entry point can cause.
 
 Floorplan knows no web framework. It reads the compiled code of the solution and its dependencies and follows it
 down to the .NET primitives that actually touch the network, the disk or a database. A versioned, data-driven

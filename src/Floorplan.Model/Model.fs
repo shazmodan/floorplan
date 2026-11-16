@@ -220,7 +220,11 @@ type Layout =
       /// Dependencies between units of different projects, drawn once per pair of projects, between their boxes.
       ProjectEdges: EdgeLayout list
       /// Units with no dependency in either direction, below the graph: one box per project; ids are project ids.
-      DetachedBoxes: NodeLayout list }
+      DetachedBoxes: NodeLayout list
+      /// Where requests enter and side-effects leave: the units that handle entry points or have exit points, the
+      /// units between them, and cards listing the entry and exit points. Node ids are "unit:<unit id>",
+      /// "entries:<unit id>" and "exits:<unit id>|<category>".
+      FlowGraph: GraphLayout }
 
 [<RequireQualifiedAccess>]
 type DiagnosticSeverity =
@@ -275,7 +279,8 @@ module AnalysisModel =
           UnitGraph = emptyGraph
           ProjectBoxes = []
           ProjectEdges = []
-          DetachedBoxes = [] }
+          DetachedBoxes = []
+          FlowGraph = emptyGraph }
 
     let empty toolVersion generatedAt solution =
         { SchemaVersion = CurrentSchemaVersion
