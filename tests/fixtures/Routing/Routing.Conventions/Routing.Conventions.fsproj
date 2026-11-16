@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Conventions.fs" />
+    <Compile Include="Controllers.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+</Project>

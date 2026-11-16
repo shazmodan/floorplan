@@ -25,6 +25,12 @@ type ProductsController() =
     [<ActionName("Show")>]
     member _.Display(id: int) = $"showing {id}"
 
+/// Reached by the blog route, whose defaults object names the controller and action, and by the default route.
+type BlogController() =
+    inherit ControllerBase()
+
+    member _.Article(article: string) = $"article {article}"
+
 /// In an area: reached by the area route, not by the default route.
 [<Area("Admin")>]
 type UsersController() =

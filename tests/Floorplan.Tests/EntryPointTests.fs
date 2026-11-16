@@ -82,6 +82,7 @@ let tests =
                     "*", "/Admin/Users", "UsersController::Index", Completeness.Partial
                     "*", "/Admin/Users/Edit/{id?}", "UsersController::Edit", Completeness.Partial
                     "*", "/Admin/Users/Index/{id?}", "UsersController::Index", Completeness.Partial
+                    "*", "/Blog/Article/{id?}", "BlogController::Article", Completeness.Partial
                     "*", "/Home", "HomeController::Index", Completeness.Partial
                     "*", "/Home/About/{id?}", "HomeController::About", Completeness.Partial
                     "*", "/Home/Index/{id?}", "HomeController::Index", Completeness.Partial
@@ -89,6 +90,8 @@ let tests =
                     "*", "/Products/Details/{id?}", "ProductsController::Details", Completeness.Partial
                     "*", "/Products/Index/{id?}", "ProductsController::Index", Completeness.Partial
                     "*", "/Products/Show/{id?}", "ProductsController::Display", Completeness.Partial
+                    // The blog route: its defaults object names the controller and action.
+                    "*", "/blog/{*article}", "BlogController::Article", Completeness.Partial
                     // Attribute routes: [Route] on a base controller, and [area] filled from [Area].
                     "GET", "/Reports/Sales", "SalesController::Summary", Completeness.Complete
                     "GET", "/api/Invoices", "InvoicesController::List", Completeness.Complete
@@ -100,12 +103,20 @@ let tests =
                   "routes"
 
               let combined =
-                  conventionalRoutes "{controller=Home}/{action=Index}/{id?}" None "Home" "Index" None
+                  conventionalRoutes "{controller=Home}/{action=Index}/{id?}" None Map.empty "Home" "Index" None
 
               Expect.equal combined [ "/Home/Index/{id?}"; "/Home"; "/" ] "defaults give the shorter forms"
-              Expect.isEmpty (conventionalRoutes "{controller=Home}/{action=Index}/{id?}" None "Users" "Index" (Some "Admin")) "an area controller is not reached by a route without an area"
-              Expect.equal (conventionalRoutes "{area:exists}/{controller=Home}/{action=Index}" None "Users" "Index" (Some "Admin")) [ "/Admin/Users/Index"; "/Admin/Users" ] "{area} filled in"
-              Expect.isEmpty (conventionalRoutes "blog/{*article}" None "Blog" "Article" None) "a pattern without controller and action reaches nothing it can name"
+              Expect.isEmpty (conventionalRoutes "{controller=Home}/{action=Index}/{id?}" None Map.empty "Users" "Index" (Some "Admin")) "an area controller is not reached by a route without an area"
+              Expect.equal (conventionalRoutes "{area:exists}/{controller=Home}/{action=Index}" None Map.empty "Users" "Index" (Some "Admin")) [ "/Admin/Users/Index"; "/Admin/Users" ] "{area} filled in"
+              Expect.isEmpty (conventionalRoutes "blog/{*article}" None Map.empty "Blog" "Article" None) "a pattern without controller and action, and no defaults, reaches nothing it can name"
+              let blog = Map.ofList [ "controller", "Blog"; "action", "Article" ]
+              Expect.equal (conventionalRoutes "blog/{*article}" None blog "Blog" "Article" None) [ "/blog/{*article}" ] "the defaults object names the action"
+              Expect.isEmpty (conventionalRoutes "blog/{*article}" None blog "Blog" "Index" None) "only the action the defaults name"
+              Expect.isEmpty (conventionalRoutes "blog/{*article}" None blog "Home" "Article" None) "only the controller the defaults name"
+              let home = Map.ofList [ "controller", "Home"; "action", "Index" ]
+              Expect.equal (conventionalRoutes "{controller}/{action}/{id?}" None home "Home" "Index" None) [ "/Home/Index/{id?}"; "/Home"; "/" ] "defaults object values act as parameter defaults"
+              Expect.equal (conventionalRoutes "docs/{action}" None (Map.ofList [ "controller", "Docs"; "area", "Help" ]) "Docs" "Read" (Some "Help")) [ "/docs/Read" ] "an area default requires that area"
+              Expect.isEmpty (conventionalRoutes "docs/{action}" None (Map.ofList [ "controller", "Docs"; "area", "Help" ]) "Docs" "Read" None) "a controller outside the area is not reached"
           }
 
           test "MVC controllers: attribute routes with [controller], verbs, AcceptVerbs, NonAction and NonController" {
@@ -125,6 +136,40 @@ let tests =
                     "POST", "/ping", c + "HealthController::Ping", Completeness.Complete
                     "PUT", "/api/Orders/{id:int}", c + "OrdersController::Replace", Completeness.Complete ]
                   "every action once per method, nothing from [NonAction], properties, [NonController] or plain classes"
+          }
+
+          test "MVC controllers: application model conventions that may change routes leave them partial" {
+              let m = routingModel.Force()
+              let c = "Routing.Conventions."
+
+              Expect.equal
+                  (routes m "Routing.Conventions")
+                  [ // No convention touches it: the application-wide AuditConvention only marks controllers.
+                    "GET", "/api/Customers", c + "CustomersController::List", Completeness.Complete
+                    // [LegacyName] renames the action, so [action] may not be "Find".
+                    "GET", "/api/Customers/Find", c + "CustomersController::Find", Completeness.Partial
+                    // [Versioned] replaces the controller's routes.
+                    "GET", "/api/Reports", c + "ReportsController::Summary", Completeness.Partial ]
+                  "only the routes a convention may change are partial"
+
+              let steps (handler: string) =
+                  entries m "Routing.Conventions"
+                  |> List.filter (fun e -> e.HandlerMember = c + handler)
+                  |> List.collect (fun e -> e.Evidence.Steps |> List.map (fun s -> s.Description))
+
+              Expect.exists (steps "ReportsController::Summary") (fun d -> d.Contains "VersionedAttribute" && d.Contains "AttributeRouteModel") "the controller attribute and how it changes routes"
+              Expect.exists (steps "CustomersController::Find") (fun d -> d.Contains "LegacyNameAttribute" && d.Contains "set_ActionName") "the action attribute and how it changes routes"
+              Expect.isFalse (entries m "Routing.Conventions" |> List.exists (fun e -> e.Evidence.Steps |> List.exists (fun s -> s.Description.Contains "AuditConvention"))) "a convention that changes no routes is not reported"
+
+              Expect.equal
+                  (routes m "Routing.Prefixed")
+                  [ "GET", "/items", "Routing.Prefixed.ItemsController::List", Completeness.Partial ]
+                  "an application-wide prefix convention leaves every route partial"
+
+              Expect.exists
+                  (entries m "Routing.Prefixed" |> List.collect (fun e -> e.Evidence.Steps |> List.map (fun s -> s.Description)))
+                  (fun d -> d.Contains "creates the application model convention Routing.Prefixed.RoutePrefixConvention")
+                  "where the application creates the convention"
           }
 
           test "controller routes combine as MVC combines them" {
