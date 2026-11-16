@@ -86,6 +86,12 @@ What Saturn added:
 - **Decided tests and impossible paths.** A path test the known predicates already decide (a path starting with
   `/api/orders` contains `/api`) is a constant, and predicates that cannot hold together (two prefixes neither
   of which extends the other, an exact path without a required prefix) end the path.
+- **Known request values.** An equality test on a request part whose value the path already fixed (`method =
+  "GET"` earlier, `match method with "GET"` later) is decided the same way.
+- **Path segments.** `segments.Length` compared with a constant gives the segment count, and a segment passed
+  to the handler without being compared is a route parameter, named after the handler's parameter. With these,
+  the hand-written router of `Routing.Middleware` moved into a library (`Routing.Delegated`, routing in
+  `tests/fixtures/Routing/Dependency`) gives the same routes as in user code; a test checks that.
 - **Equivalent outcomes** of a call (same result, predicates and last user code) continue as one, so the
   alternatives of a `choose` do not multiply into each other.
 

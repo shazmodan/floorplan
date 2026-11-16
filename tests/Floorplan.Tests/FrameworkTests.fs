@@ -8,6 +8,9 @@ open Floorplan.Cli
 let frameworksModel =
     lazy (Pipeline.buildModel ignore Caching.Store.Disabled [] [] (Fixtures.frameworks.Force()))
 
+let frameworksModelNet10 =
+    lazy (Pipeline.buildModel ignore Caching.Store.Disabled [] [] (Fixtures.frameworksNet10.Force()))
+
 let apps = [ "Frameworks.Giraffe"; "Frameworks.Falco"; "Frameworks.Oxpecker"; "Frameworks.Saturn" ]
 
 [<Tests>]
@@ -37,6 +40,12 @@ let routingTests =
         "Frameworks: routing inside the framework"
         [ test "golden: framework fixtures" {
               Golden.check "frameworks.entry-points.txt" (EntryPointTests.render (frameworksModel.Force()))
+          }
+
+          test "golden: framework fixtures on net10.0 give the net8.0 results" {
+              let m = frameworksModelNet10.Force()
+              Expect.isTrue (m.Projects |> List.forall (fun p -> p.TargetFramework = "net10.0")) "every project on net10.0"
+              Golden.check "frameworks.entry-points.txt" (EntryPointTests.render m)
           }
 
           test "Falco: routes from an endpoint data source, with methods from endpoint metadata" {

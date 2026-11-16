@@ -8,6 +8,9 @@ open Floorplan.Analysis.EntryPoints
 
 let routingModel = lazy (Pipeline.buildModel ignore Floorplan.Model.Caching.Store.Disabled [] [] (Fixtures.routing.Force()))
 
+let routingModelNet10 =
+    lazy (Pipeline.buildModel ignore Floorplan.Model.Caching.Store.Disabled [] [] (Fixtures.routingNet10.Force()))
+
 let render (model: AnalysisModel) =
     let b = StringBuilder()
 
@@ -51,6 +54,12 @@ let tests =
     <| testList
         "Entry points"
         [ test "golden: Routing fixture" { Golden.check "routing.entry-points.txt" (render (routingModel.Force())) }
+
+          test "golden: Routing fixture on net10.0 gives the net8.0 results" {
+              let m = routingModelNet10.Force()
+              Expect.isTrue (m.Projects |> List.forall (fun p -> p.TargetFramework = "net10.0")) "every project on net10.0"
+              Golden.check "routing.entry-points.txt" (render m)
+          }
 
           test "golden: Shop fixture" { Golden.check "shop.entry-points.txt" (render (ExitPointTests.shopModel.Force())) }
 
@@ -125,6 +134,27 @@ let tests =
                   getOrder.Predicates
                   (fun p -> p.Part = RequestPart.PathSegment && p.Operator = PredicateOperator.Parameter && p.Index = Some 2)
                   "route parameter"
+          }
+
+          test "form A in a dependency: the Middleware router moved into a library gives the same routes" {
+              let m = routingModel.Force()
+
+              // Handler routes by handler name, with parameter names left out: the symbolic run names them.
+              let routes app =
+                  entries m app
+                  |> List.filter (fun e -> not (e.HandlerMember.EndsWith "NotFound::handle"))
+                  |> List.map (fun e ->
+                      e.HandlerMember.Substring(e.HandlerMember.LastIndexOf '.' + 1),
+                      defaultArg e.HttpMethod "-",
+                      System.Text.RegularExpressions.Regex.Replace(defaultArg e.Route "-", @"\{[^}]*\}", "{param}"),
+                      e.Completeness)
+                  |> List.sort
+
+              Expect.isNonEmpty (routes "Routing.Delegated") "routes found through the dependency"
+              Expect.equal (routes "Routing.Delegated") (routes "Routing.Middleware") "same routes as in user code"
+
+              let projects = m.Projects |> List.map (fun p -> p.Id)
+              Expect.isFalse (List.contains "Routing.Library" projects) "the library is a dependency, not a project"
           }
 
           test "form A, control flow: conditions combined across && and helper calls" {

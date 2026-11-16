@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <RoutingLibrary>$(MSBuildThisFileDirectory)../Dependency/Routing.Library/Routing.Library.fsproj</RoutingLibrary>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Handlers.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <!-- The router is referenced as a built assembly, not as a project: it is a dependency, like a package, and not
+       part of the solution under analysis. It is built first. -->
+  <Target Name="BuildRoutingLibrary" BeforeTargets="ResolveAssemblyReferences">
+    <MSBuild Projects="$(RoutingLibrary)" Targets="Restore" Properties="Configuration=$(Configuration);RestoreSeparately=true" />
+    <MSBuild Projects="$(RoutingLibrary)" Targets="Build" Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)">
+      <Output TaskParameter="TargetOutputs" ItemName="RoutingLibraryAssembly" />
+    </MSBuild>
+    <ItemGroup>
+      <Reference Include="@(RoutingLibraryAssembly)" />
+    </ItemGroup>
+  </Target>
+</Project>

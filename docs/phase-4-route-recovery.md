@@ -8,6 +8,7 @@ Date: 2026-11-15. Results: `tests/golden/routing.entry-points.txt`.
 | Routing.Middleware (`&&` conditions, `StartsWith`, `Split` and index) | A | `GET /health`, `GET /orders/{param}` complete; `POST /orders/*` partial; the catch-all unresolved |
 | Routing.Listener (list patterns, active patterns) | A | `GET /api/orders`, `POST /api/orders`, `GET /api/orders/{param}` complete |
 | Routing.Table (Dictionary and Map of handlers) | B | Paths recovered; partial, because nothing constrains the method |
+| Routing.Delegated (the Middleware router in a library outside the solution, handlers passed in a record) | A, in a dependency | Same routes as Routing.Middleware, by the symbolic interpreter |
 | Routing.Dynamic (route from configuration, regex built at run time) | negative | Handlers found, no route: never a wrong one |
 | Routing.Socket (raw TCP) | none | Network entry point, unresolved |
 
