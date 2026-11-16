@@ -411,8 +411,9 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
     /// handed over. Those never reached by a request path are still handlers, with no route recovered.
     member _.HandedOver = handedOver.Values |> List.ofSeq |> List.filter (fun (f, _) -> not (isForwarder f))
     member _.Registered = List.ofSeq registered
-    member _.Exhausted = steps >= limits.Steps
+    member _.Exhausted = steps >= limits.Steps || totalSteps >= hardCap
     member _.Steps = steps
+    member _.TotalSteps = totalSteps
 
     /// Runs a method with arguments; returns the possible results with their states.
     member this.Invoke(phase: Phase, m: MethodRef, args: SVal list, state: PathState, depth: int) : (SVal * PathState) list =
@@ -426,6 +427,7 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 // hard cap on total work keeps the whole run bounded.
                 let saved = deadline
                 let entrySteps = steps
+                let entryHits = hits.Count
                 let own = set.Origin m.Type.Assembly = Dependency && depth >= 2
 
                 if own then
@@ -440,8 +442,13 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
                     // A call none of whose paths returns (they all threw, or were cut off) yields an unknown value:
                     // in routing code exceptions are the rare path, and ending the caller would hide every
-                    // alternative tried after it.
-                    if results.IsEmpty then [ Unknown, state ] else results
+                    // alternative tried after it. Paths that ended because they reached a handler are different:
+                    // the request is handled, so the paths that made this call end with them. Turning them into
+                    // an unknown result would explore every later alternative again, once per handler reached.
+                    if results.IsEmpty then
+                        if phase = RequestPhase && hits.Count > entryHits then [] else [ Unknown, state ]
+                    else
+                        results
 
                 if debug && (phase = RequestPhase || depth < 4 || debugLevel > 1) then
                     let show (v: SVal) =
@@ -757,7 +764,11 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
             match compare operands[0] operands[1] PredicateOperator.Equals with
             | Some v -> one v
             | None -> one Unknown
-        elif m.Type.FullName = "System.String" && (m.Name = "StartsWith" || m.Name = "EndsWith" || m.Name = "Contains") && operands.Length >= 2 && (match operands[0] with Req _ -> true | _ -> false) then
+        // A test of a string the run could not read, while a request is routed, is a test the path cannot state:
+        // its true side is uncertain (compare says so), so that a handler behind it gets no route rather than one
+        // that leaves the test out.
+        elif m.Type.FullName = "System.String" && (m.Name = "StartsWith" || m.Name = "EndsWith" || m.Name = "Contains") && operands.Length >= 2
+             && (match operands[0] with Req _ -> true | Unknown -> phase = RequestPhase | _ -> false) then
             let op =
                 match m.Name with
                 | "StartsWith" -> PredicateOperator.StartsWith
@@ -1593,6 +1604,66 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
                         let push (v: SVal) (rest: SVal list) = { next with Stack = v :: rest }
 
+                        // Of the outcomes of a call, those that cannot happen (their result's guard contradicts
+                        // itself or the path) are dropped, and so is an outcome whose result only adds guard
+                        // conditions to another outcome's on the same path: the less guarded result covers it.
+                        // Without this, an alternative that fails returns one result per condition it checked (a
+                        // "no match" with "method is GET" and one without), and every later alternative runs once
+                        // for each. Outcomes on different paths are kept apart: failed tests leave no predicate, so
+                        // fewer predicates do not mean a more general path.
+                        // What the request's own storage (HttpContext.Items) holds: routing code keeps state there,
+                        // such as how much of the path an enclosing router has consumed.
+                        let requestStorage (s: PathState) =
+                            let show (v: SVal) =
+                                match v with
+                                | Ref id ->
+                                    match s.Heap.TryFind id with
+                                    | Some o -> "ref " + o.Type.FullName
+                                    | None -> "ref"
+                                | other -> sprintf "%A" other
+
+                            match s.Statics.TryFind "<request:Items>" with
+                            | Some(Ref id) ->
+                                match s.Heap.TryFind id with
+                                | Some o ->
+                                    (o.Fields |> Map.toList |> List.map (fun (k, v) -> k, show v)),
+                                    (o.Elements |> Map.toList |> List.map (fun (k, v) -> string k, show v))
+                                | None -> [], []
+                            | _ -> [], []
+
+                        let subsumed (results: (SVal * PathState) list) =
+                            let guardOf (v: SVal, s: PathState) =
+                                match v with
+                                | Ref id ->
+                                    match s.Heap.TryFind id with
+                                    | Some o -> o.Guard
+                                    | None -> []
+                                | _ -> []
+
+                            let shape (v: SVal, s: PathState) =
+                                let value =
+                                    match v with
+                                    | Ref id ->
+                                        match s.Heap.TryFind id with
+                                        | Some o -> box o.Type.FullName
+                                        | None -> box id
+                                    | other -> box other
+
+                                value, Set.ofList s.Predicates, s.Uncertain, s.LastUserObject, requestStorage s
+
+                            let conditions (outcome: SVal * PathState) = Set.ofList (guardOf outcome)
+
+                            let possible (outcome: SVal * PathState) =
+                                let all = (snd outcome).Predicates @ guardOf outcome
+                                not (all |> List.exists (fun a -> all |> List.exists (conflicts a)))
+
+                            let candidates = results |> List.filter possible |> List.map (fun o -> o, shape o, conditions o)
+
+                            candidates
+                            |> List.filter (fun (o, sh, cs) ->
+                                not (candidates |> List.exists (fun (o2, sh2, cs2) -> not (obj.ReferenceEquals(o, o2)) && sh2 = sh && cs2.IsProperSubsetOf cs)))
+                            |> List.map (fun (o, _, _) -> o)
+
                         let continueFrom (next: Thread) (results: (SVal * PathState) list) (rest: SVal list) (returnsValue: bool) =
                             // Outcomes that agree on everything routing depends on are one outcome: the result (an
                             // object by its type and guard), the predicates, and the user code reached last.
@@ -1608,7 +1679,10 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                                                 | None -> box id
                                             | other -> box other
 
-                                        value, s.Predicates, s.Uncertain, s.LastUserObject)
+                                        // Predicates as a set: the same conditions, met in another order or twice, are
+                                        // the same outcome.
+                                        value, Set.ofList s.Predicates, s.Uncertain, s.LastUserObject, requestStorage s)
+                                    |> subsumed
                                 else
                                     results
 

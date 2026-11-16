@@ -93,15 +93,15 @@ let routingTests =
           test "Saturn: nested routers built by computation expressions, forwarded under prefixes" {
               Expect.equal
                   (routes "Frameworks.Saturn")
-                  [ "-", "-", "Frameworks.Saturn.Orders::options", Completeness.Unresolved
-                    "DELETE", "/api/orders/{id}", "Frameworks.Saturn.Orders::remove", Completeness.Complete
+                  [ "DELETE", "/api/orders/{id}", "Frameworks.Saturn.Orders::remove", Completeness.Complete
                     "GET", "/", "Frameworks.Saturn.Program (response built by a library function)", Completeness.Complete
                     "GET", "/api/orders", "Frameworks.Saturn.Orders::list", Completeness.Complete
                     "GET", "/api/orders/{id}", "Frameworks.Saturn.Orders::get", Completeness.Complete
+                    "OPTIONS", "/api/orders", "Frameworks.Saturn.Orders::options", Completeness.Complete
                     "PATCH", "/api/orders/{id}", "Frameworks.Saturn.Orders::patch", Completeness.Complete
                     "POST", "/api/orders", "Frameworks.Saturn.Orders::create", Completeness.Complete
                     "PUT", "/api/orders/{id}", "Frameworks.Saturn.Orders::replace", Completeness.Complete ]
-                  "Saturn (OPTIONS, tried after the whole orders router, runs out of budget: reported unresolved)"
+                  "Saturn (OPTIONS is forwarded after the whole orders router)"
           }
 
           test "every handler is reported in every framework, and no route is wrong" {

@@ -106,7 +106,9 @@ let recognizer =
             let t = m.Type.FullName
 
             t.StartsWith "Microsoft.FSharp.Core.LanguagePrimitives"
-            || t.StartsWith "<StartupCode$FSharp-Core>"
+            // FSharp.Core's static initialization; the closures nested under it (its own seq { } expressions, as
+            // in Seq.append) are ordinary code.
+            || (t.StartsWith "<StartupCode$FSharp-Core>" && not (t.Contains "/"))
             || t.StartsWith "Microsoft.FSharp.Core.PrintfImpl"
             || t.StartsWith "Microsoft.FSharp.Core.PrintfModule"
             || t.StartsWith "Microsoft.FSharp.Reflection"
