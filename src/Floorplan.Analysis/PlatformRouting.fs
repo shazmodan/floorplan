@@ -152,8 +152,14 @@ let registrations (matcher: Matcher) (methods: MethodDef list) : Registration li
                 | _ -> None)
             |> Array.toList)
 
-/// The route prefix contributed by the builder a registration is called on: MapGroup("/api").MapGet(...).
-let rec prefixOf (matcher: Matcher) (evaluator: Values.Evaluator) (flow: Flow) (depth: int) (builder: Values) : string list option =
+/// Whether a builder received as a parameter of this type may be a route group, whose prefix the caller chose.
+let mayBeGroup (parameterType: string) =
+    parameterType.StartsWith "Microsoft.AspNetCore.Routing.RouteGroupBuilder"
+    || parameterType.StartsWith "Microsoft.AspNetCore.Routing.IEndpointRouteBuilder"
+
+/// The route prefix contributed by the builder a registration is called on: MapGroup("/api").MapGet(...). A
+/// builder that is a parameter of the registering method and may be a group has a prefix only its callers know.
+let rec prefixOf (matcher: Matcher) (evaluator: Values.Evaluator) (flow: Flow) (caller: MethodRef) (depth: int) (builder: Values) : string list option =
     if depth > 8 then
         Some []
     else
@@ -170,9 +176,15 @@ let rec prefixOf (matcher: Matcher) (evaluator: Values.Evaluator) (flow: Flow) (
                     match evaluator.Operand(o, index) with
                     | Values.Text prefix ->
                         match operands with
-                        | inner :: _ -> prefixOf matcher evaluator flow (depth + 1) inner |> Option.map (fun p -> p @ [ prefix ])
+                        | inner :: _ -> prefixOf matcher evaluator flow caller (depth + 1) inner |> Option.map (fun p -> p @ [ prefix ])
                         | [] -> Some [ prefix ]
                     | _ -> None
                 | _ -> Some []
+            | _ -> Some []
+        | [ Argument i ] ->
+            let index = if caller.HasThis then i - 1 else i
+
+            match List.tryItem index caller.ParameterTypes with
+            | Some t when mayBeGroup t -> None
             | _ -> Some []
         | _ -> Some []

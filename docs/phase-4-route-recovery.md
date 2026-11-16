@@ -4,7 +4,7 @@ Date: 2026-11-15. Results: `tests/golden/routing.entry-points.txt`.
 
 | Fixture application | Form | Result |
 |---|---|---|
-| Routing.Endpoints (MapGet, MapGroup, MapMethods) | C | All routes complete |
+| Routing.Endpoints (MapGet, MapGroup, MapMethods, nested groups, groups passed to functions, lambdas, `RequireAuthorization`/`WithName` chains, a route built at run time) | C | All 12 constant routes complete; the run-time route partial (method only) |
 | Routing.Middleware (`&&` conditions, `StartsWith`, `Split` and index) | A | `GET /health`, `GET /orders/{param}` complete; `POST /orders/*` partial; the catch-all unresolved |
 | Routing.Listener (list patterns, active patterns) | A | `GET /api/orders`, `POST /api/orders`, `GET /api/orders/{param}` complete |
 | Routing.Table (Dictionary and Map of handlers) | B | Paths recovered; partial, because nothing constrains the method |
@@ -19,6 +19,11 @@ Conditions in callers are collected up to the root, one route per call path.
 
 ## Known limits
 
+- Minimal APIs: a group received as a parameter (`RouteGroupBuilder` or `IEndpointRouteBuilder`) has a prefix
+  only its callers know. The static scan reports such routes without a route; the symbolic interpreter, which runs
+  from `main`, follows the call and gives the full route. In a project with no entry point those routes stay
+  partial. A lambda handler is reported under its compiler-generated name (for example
+  `Admin/Pipe #1 input at line 24@24::Invoke`).
 - Routing code inside a dependency (a NuGet package), including function-combinator routers, is followed by the
   symbolic interpreter added later; see `docs/framework-routing.md`.
 - Form B tables are recognized when the table lives in a field or module value and is built with constant keys in
