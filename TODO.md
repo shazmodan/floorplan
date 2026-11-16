@@ -4,9 +4,9 @@ Work that is known and not yet done. Remove an item when its branch is merged.
 
 ## Analysis
 
-- **MVC conventional routing** (`MapControllerRoute`, `MapDefaultControllerRoute`): actions of controllers
-  without attribute routes are reported without a route. Also not read: areas (`[area]`), route prefixes from
-  application model conventions, and `[Route]` on base controller classes. See `docs/controller-routing.md`.
+- **MVC leftovers**: conventional patterns that take the controller and action from a defaults object,
+  `[ActionName]`, application model conventions, and actions declared on base controller classes. See
+  `docs/controller-routing.md`.
 
 ## Left to the owner
 
