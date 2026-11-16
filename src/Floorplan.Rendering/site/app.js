@@ -103,7 +103,23 @@
     return el("a", { href: "#/unit/" + enc(id), title: u.name }, u.name);
   }
   function projectName(id) { var p = projects[id]; return p ? p.name : id; }
-  function shortMember(m) { if (!m) return ""; var i = m.lastIndexOf("::"); var t = i >= 0 ? m.slice(0, i) : m; return t.split(".").pop().replace(/\+/g, ".") + (i >= 0 ? "." + m.slice(i + 2) : ""); }
+  // A member as people wrote it. The compiler turns a lambda into a class nested in its module, named after the
+  // enclosing binding and the line ("map@24", "Pipe #1 input at line 24@24"), with the body in Invoke (or
+  // MoveNext for a task or async body): shown as "Admin.map › lambda at line 24".
+  function readableMember(m, short) {
+    if (!m) return "";
+    var i = m.lastIndexOf("::");
+    var type = i >= 0 ? m.slice(0, i) : m, method = i >= 0 ? m.slice(i + 2) : "";
+    var owner = function (t) { return short ? t.split(".").pop().replace(/\+/g, ".") : t; };
+    var slash = type.indexOf("/"), last = type.slice(type.lastIndexOf("/") + 1), at = last.match(/@(\d+)(?:-\d+)?$/);
+    if (slash >= 0 && at) {
+      var binding = last.match(/^([A-Za-z_][\w']*)@\d+/);
+      var what = method === "MoveNext" ? "async body" : "lambda";
+      return owner(type.slice(0, slash)) + (binding ? "." + binding[1] : "") + " › " + what + " at line " + at[1];
+    }
+    return owner(type) + (i >= 0 ? (short ? "." : "::") + method : "");
+  }
+  function shortMember(m) { return readableMember(m, true); }
 
   // ---------- Navigation ----------
   var VIEWS = [
@@ -581,7 +597,7 @@
         return el("tr", null,
           withApp ? el("td", null, projectName(e.applicationId)) : null,
           el("td", { class: "mono" }, routeLabel(e)),
-          el("td", null, unitLink(e.handlerUnit), el("div", { class: "muted mono" }, shortMember(e.handlerMember))),
+          el("td", null, unitLink(e.handlerUnit), el("div", { class: "muted mono", title: e.handlerMember }, shortMember(e.handlerMember))),
           el("td", null, el("span", { class: "tag " + e.completeness }, e.completeness), e.forms.length ? el("div", { class: "muted" }, e.forms.join(", ")) : null),
           el("td", null, t && t.exitPointIds.length ? summarizeCategories(t.exitPointIds.map(function (id) { return exitById[id]; }).filter(Boolean)) : el("span", { class: "muted" }, "—")),
           el("td", null, el("a", { href: "#/evidence/entry:" + enc(e.id) }, "Evidence")));
@@ -620,7 +636,7 @@
     function draw() {
       var anyLevel = levels.some(function (l) { return state.on[l.id]; });
       var list = D.entryPoints.filter(function (e) {
-        return (!anyLevel || state.on[e.completeness]) && matches(state.q, [routeLabel(e), unitName(e.handlerUnit), e.handlerMember, projectName(e.applicationId)]);
+        return (!anyLevel || state.on[e.completeness]) && matches(state.q, [routeLabel(e), unitName(e.handlerUnit), e.handlerMember, shortMember(e.handlerMember), projectName(e.applicationId)]);
       });
       host.textContent = "";
       host.appendChild(el("p", { class: "muted" }, plural(list.length, "entry point") + " shown."));
@@ -645,7 +661,7 @@
         return el("tr", null,
           el("td", null, el("span", { class: "tag" }, CATEGORY_LABEL[x.category] || x.category), el("div", { class: "muted mono", title: x.primitive }, shortMember(x.primitive))),
           withProject ? el("td", null, projectName(u.projectId)) : null,
-          el("td", null, unitLink(x.unit), el("div", { class: "muted mono" }, shortMember(x.member))),
+          el("td", null, unitLink(x.unit), el("div", { class: "muted mono", title: x.member }, shortMember(x.member))),
           el("td", { class: "mono" }, x.payload ? (x.payload.value !== null ? x.payload.value : el("span", { class: "muted" }, x.payload.kind)) : el("span", { class: "muted" }, "—")),
           el("td", null, x.viaAssembly || el("span", { class: "muted" }, "direct")),
           el("td", null, el("span", { class: "tag confidence-" + x.confidence, title: "How directly the effect was established; long paths through dependencies are low" }, x.confidence)),
@@ -709,7 +725,7 @@
     }
     append(page, el("h2", null, kind === "entry" ? "How the request reaches the handler" : "Call path from user code to the primitive"));
     append(page, item.evidence.steps.length ? el("ol", null, item.evidence.steps.map(function (s) {
-      return el("li", null, s.description, el("div", { class: "muted mono" }, s.member, s.assembly ? " [" + s.assembly + "]" : "", s.location ? " — " + loc(s.location) : ""));
+      return el("li", null, s.description, el("div", { class: "muted mono", title: s.member }, readableMember(s.member, false), s.assembly ? " [" + s.assembly + "]" : "", s.location ? " — " + loc(s.location) : ""));
     })) : el("p", { class: "muted" }, "No steps recorded."));
     if (kind === "entry") {
       var t = traceByEntry[item.id];
