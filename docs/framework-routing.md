@@ -32,7 +32,9 @@ Correctness rules that keep it from guessing:
   is taken; handlers reached on uncertain paths get no route.
 - Method names come only from constants or from the strings a sequence actually produces when enumerated.
 - Everything is bounded (steps, depth, threads, loop visits); running out loses paths, never invents them.
-  User functions handed to the framework but reached by no recovered path are still reported, unresolved.
+  User functions handed to the framework but reached by no recovered path are still reported, unresolved, if
+  their signature takes or returns a request type (the catalog's request-context and request-source types).
+  Configuration callbacks handed to a library at startup (logging, services, options) are not handlers.
 
 ## Results on the fixtures
 

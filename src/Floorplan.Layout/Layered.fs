@@ -1,4 +1,5 @@
-/// A layered (Sugiyama-style) layout: collapse cycles, rank by longest path, order by barycenter, then place.
+/// A layered (Sugiyama-style) layout: collapse cycles, rank by longest path, split long edges into virtual nodes,
+/// order by barycenter, then place each node near its neighbours.
 /// It never assumes the graph is acyclic (plan section 3.5).
 module Floorplan.Layout.Layered
 
@@ -150,10 +151,43 @@ let layout (settings: Settings) (nodes: Node list) (edges: Edge list) : GraphLay
 
         let layerCount = (rank.Values |> Seq.max) + 1
 
-        let layers =
-            Array.init layerCount (fun l -> groupIds |> List.filter (fun g -> rank[g] = l) |> List.sort |> ResizeArray)
+        // 3. An edge that spans several layers gets a chain of virtual nodes, one per layer it crosses: ordering
+        //    then keeps it clear of the real nodes, and routing passes through the gaps it was given.
+        let layerOf = Dictionary<string, int>(rank)
+        let chains = Dictionary<string * string, string list>()
+        // An ordinal test: culture-aware comparison ignores control characters, so every id would match.
+        let isVirtual (id: string) = id.Length > 0 && id[0] = '\u0001'
 
-        // 3. Order within layers by barycenter, sweeping down then up.
+        let layeredEdges =
+            [ for (a, b) in groupEdges do
+                  let ra, rb = rank[a], rank[b]
+
+                  if rb - ra <= 1 then
+                      yield a, b
+                  else
+                      let chain = [ for l in ra + 1 .. rb - 1 -> $"\u0001{a}\u0001{b}\u0001{l}" ]
+
+                      for v, l in List.zip chain [ ra + 1 .. rb - 1 ] do
+                          layerOf[v] <- l
+
+                      chains[(a, b)] <- chain
+                      yield! List.pairwise (a :: chain @ [ b ]) ]
+
+        let preds =
+            layeredEdges |> List.groupBy snd |> List.map (fun (k, es) -> k, es |> List.map fst) |> dict
+
+        let succs =
+            layeredEdges |> List.groupBy fst |> List.map (fun (k, es) -> k, es |> List.map snd) |> dict
+
+        let virtualWidth = 6.0
+
+        let sizeOf (id: string) =
+            if isVirtual id then virtualWidth, 0.0 else size id
+
+        let layers =
+            Array.init layerCount (fun l -> layerOf.Keys |> Seq.filter (fun g -> layerOf[g] = l) |> Seq.sort |> ResizeArray)
+
+        // 4. Order within layers by barycenter, sweeping down then up, and keep the order with the fewest crossings.
         let position () =
             let p = Dictionary<string, float>()
 
@@ -181,6 +215,29 @@ let layout (settings: Settings) (nodes: Node list) (edges: Edge list) : GraphLay
             layer.Clear()
             layer.AddRange keyed
 
+        let crossings () =
+            let pos = position ()
+            let mutable total = 0
+
+            for l in 0 .. layerCount - 2 do
+                let es =
+                    layers[l]
+                    |> Seq.collect (fun a -> get succs a |> List.map (fun b -> pos[a], pos[b]))
+                    |> Seq.toArray
+
+                for i in 0 .. es.Length - 1 do
+                    for j in i + 1 .. es.Length - 1 do
+                        let (a1, b1), (a2, b2) = es[i], es[j]
+
+                        if (a1 - a2) * (b1 - b2) < 0.0 then
+                            total <- total + 1
+
+            total
+
+        let snapshot () = layers |> Array.map List.ofSeq
+        let mutable best = snapshot ()
+        let mutable fewest = crossings ()
+
         for _ in 1 .. settings.Sweeps do
             for l in 1 .. layerCount - 1 do
                 reorder layers[l] (get preds)
@@ -188,41 +245,155 @@ let layout (settings: Settings) (nodes: Node list) (edges: Edge list) : GraphLay
             for l in layerCount - 2 .. -1 .. 0 do
                 reorder layers[l] (get succs)
 
-        // 4. Place. Layers are centered horizontally; each layer is as tall as its tallest node.
-        let layerWidth (layer: ResizeArray<string>) =
-            (layer |> Seq.sumBy (fun g -> fst (size g)))
-            + settings.NodeGap * float (max 0 (layer.Count - 1))
+            let c = crossings ()
 
-        let width = layers |> Array.map layerWidth |> Array.max
+            if c < fewest then
+                fewest <- c
+                best <- snapshot ()
+
+        for l in 0 .. layerCount - 1 do
+            layers[l].Clear()
+            layers[l].AddRange best[l]
+
+        // 5. Place. Each node sits as close as its order allows to the mean of its neighbours above (sweeping
+        //    down) or below (sweeping up): the closest positions that keep the order and the gaps are found
+        //    exactly, by pooling adjacent violators.
+        let gapBetween (a: string) (b: string) =
+            if isVirtual a || isVirtual b then settings.NodeGap / 2.0 else settings.NodeGap
+
+        let centre = Dictionary<string, float>()
+
+        for layer in layers do
+            let mutable x = 0.0
+
+            for g in layer do
+                let w = fst (sizeOf g)
+                centre[g] <- x + w / 2.0
+                x <- x + w + settings.NodeGap
+
+        let place (layer: ResizeArray<string>) (neighbours: string -> string list) =
+            let n = layer.Count
+
+            if n > 0 then
+                let desired =
+                    layer
+                    |> Seq.map (fun g ->
+                        match neighbours g with
+                        | [] -> centre[g]
+                        | ns -> ns |> List.averageBy (fun x -> centre[x]))
+                    |> Seq.toArray
+
+                // Offsets that keep neighbours apart: x[i] - x[i-1] >= offset[i] - offset[i-1].
+                let offset = Array.zeroCreate n
+
+                for i in 1 .. n - 1 do
+                    let a, b = layer[i - 1], layer[i]
+                    offset[i] <- offset[i - 1] + fst (sizeOf a) / 2.0 + gapBetween a b + fst (sizeOf b) / 2.0
+
+                // Non-decreasing least-squares fit of desired - offset, by pooling adjacent violators.
+                let blocks = Stack<float * float * int>()
+
+                for i in 0 .. n - 1 do
+                    let weight = if isVirtual layer[i] then 0.5 else 1.0
+                    let mutable sum = (desired[i] - offset[i]) * weight
+                    let mutable w = weight
+                    let mutable count = 1
+                    let mutable merging = true
+
+                    while merging && blocks.Count > 0 do
+                        let (s2, w2, c2) = blocks.Peek()
+
+                        if s2 / w2 >= sum / w then
+                            blocks.Pop() |> ignore
+                            sum <- sum + s2
+                            w <- w + w2
+                            count <- count + c2
+                        else
+                            merging <- false
+
+                    blocks.Push((sum, w, count))
+
+                let fitted = Array.zeroCreate n
+                let mutable i = n
+
+                for (s, w, c) in blocks do
+                    for _ in 1..c do
+                        i <- i - 1
+                        fitted[i] <- s / w
+
+                for i in 0 .. n - 1 do
+                    centre[layer[i]] <- fitted[i] + offset[i]
+
+        for _ in 1..6 do
+            for l in 1 .. layerCount - 1 do
+                place layers[l] (get preds)
+
+            for l in layerCount - 2 .. -1 .. 0 do
+                place layers[l] (get succs)
+
+        // Down once more, so that each layer settles under what uses it.
+        for l in 1 .. layerCount - 1 do
+            place layers[l] (get preds)
+
+        let left =
+            layerOf.Keys |> Seq.map (fun g -> centre[g] - fst (sizeOf g) / 2.0) |> Seq.min
+
+        let width =
+            (layerOf.Keys |> Seq.map (fun g -> centre[g] + fst (sizeOf g) / 2.0) |> Seq.max) - left
 
         let layerHeights =
-            layers |> Array.map (fun l -> l |> Seq.map (size >> snd) |> Seq.fold max 0.0)
+            layers |> Array.map (fun l -> l |> Seq.map (sizeOf >> snd) |> Seq.fold max 0.0)
 
-        let placed = Dictionary<string, NodeLayout>()
+        let layerTops = Array.zeroCreate layerCount
         let mutable y = 0.0
 
         for l in 0 .. layerCount - 1 do
-            let mutable x = (width - layerWidth layers[l]) / 2.0
-
-            for g in layers[l] do
-                let w, h = size g
-
-                placed[g] <-
-                    { Id = g
-                      X = x
-                      Y = y + (layerHeights[l] - h) / 2.0
-                      Width = w
-                      Height = h
-                      Layer = l
-                      Members = if members[g].Length > 1 then members[g] else [] }
-
-                x <- x + w + settings.NodeGap
-
+            layerTops[l] <- y
             y <- y + layerHeights[l] + settings.LayerGap
 
         let height = y - settings.LayerGap
+        let cx (g: string) = centre[g] - left
 
-        // 5. Route edges between the original nodes, from the bottom of the source to the top of the target.
+        let placed = Dictionary<string, NodeLayout>()
+
+        for g in groupIds do
+            let l = layerOf[g]
+            let w, h = size g
+
+            placed[g] <-
+                { Id = g
+                  X = cx g - w / 2.0
+                  Y = layerTops[l] + (layerHeights[l] - h) / 2.0
+                  Width = w
+                  Height = h
+                  Layer = l
+                  Members = if members[g].Length > 1 then members[g] else [] }
+
+        // 6. Route edges between the original nodes, from the bottom of the source to the top of the target,
+        //    through the virtual nodes of a long edge. The edges leaving (entering) a node are spread along its
+        //    bottom (top) in the order of where they go next, so that they do not cross where they meet it.
+        let firstHop (a: string, b: string) =
+            match chains.TryGetValue((a, b)) with
+            | true, c -> c.Head
+            | _ -> b
+
+        let lastHop (a: string, b: string) =
+            match chains.TryGetValue((a, b)) with
+            | true, c -> List.last c
+            | _ -> a
+
+        let spread (count: int) (index: int) (node: NodeLayout) =
+            if count <= 1 then
+                node.X + node.Width / 2.0
+            else
+                node.X + node.Width * 0.2 + node.Width * 0.6 * float index / float (count - 1)
+
+        let leaving =
+            groupEdges |> List.groupBy fst |> List.map (fun (a, es) -> a, es |> List.sortBy (fun e -> centre[firstHop e], snd e)) |> dict
+
+        let entering =
+            groupEdges |> List.groupBy snd |> List.map (fun (b, es) -> b, es |> List.sortBy (fun e -> centre[lastHop e], fst e)) |> dict
+
         let routed =
             edges
             |> List.map (fun e -> e, groupOf[e.From], groupOf[e.To])
@@ -230,12 +401,24 @@ let layout (settings: Settings) (nodes: Node list) (edges: Edge list) : GraphLay
             |> List.map (fun (e, a, b) ->
                 let s = placed[a]
                 let t = placed[b]
+                let key = a, b
+                let outs = leaving[a]
+                let ins = entering[b]
+                let x1 = spread outs.Length (outs |> List.findIndex (fun k -> k = key)) s
+                let x2 = spread ins.Length (ins |> List.findIndex (fun k -> k = key)) t
+
+                let through =
+                    match chains.TryGetValue key with
+                    | true, chain ->
+                        chain
+                        |> List.collect (fun v ->
+                            let l = layerOf[v]
+                            [ { X = cx v; Y = layerTops[l] }; { X = cx v; Y = layerTops[l] + layerHeights[l] } ])
+                    | _ -> []
 
                 { From = e.From
                   To = e.To
-                  Points =
-                    [ { X = s.X + s.Width / 2.0; Y = s.Y + s.Height }
-                      { X = t.X + t.Width / 2.0; Y = t.Y } ] })
+                  Points = [ { X = x1; Y = s.Y + s.Height } ] @ through @ [ { X = x2; Y = t.Y } ] })
 
         { Width = width
           Height = height

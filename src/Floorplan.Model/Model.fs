@@ -214,8 +214,13 @@ type Layout =
       ProjectGraph: GraphLayout
       /// Every unit, inside its project's box, in one coordinate space.
       UnitGraph: GraphLayout
-      /// The project boxes of UnitGraph; node ids are project ids.
-      ProjectBoxes: NodeLayout list }
+      /// The project boxes of UnitGraph; node ids are project ids. Projects whose units are all unconnected have
+      /// no box here, only in DetachedBoxes.
+      ProjectBoxes: NodeLayout list
+      /// Dependencies between units of different projects, drawn once per pair of projects, between their boxes.
+      ProjectEdges: EdgeLayout list
+      /// Units with no dependency in either direction, below the graph: one box per project; ids are project ids.
+      DetachedBoxes: NodeLayout list }
 
 [<RequireQualifiedAccess>]
 type DiagnosticSeverity =
@@ -268,7 +273,9 @@ module AnalysisModel =
     let emptyLayout =
         { ProjectGraph = emptyGraph
           UnitGraph = emptyGraph
-          ProjectBoxes = [] }
+          ProjectBoxes = []
+          ProjectEdges = []
+          DetachedBoxes = [] }
 
     let empty toolVersion generatedAt solution =
         { SchemaVersion = CurrentSchemaVersion

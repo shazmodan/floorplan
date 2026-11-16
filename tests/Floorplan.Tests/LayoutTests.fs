@@ -17,6 +17,47 @@ let private noOverlaps (nodes: NodeLayout list) =
               if overlaps a b then
                   yield a.Id, b.Id ]
 
+let private project id references =
+    { Id = id
+      Name = id
+      Path = id
+      Language = Language.FSharp
+      SupportLevel = SupportLevel.Full
+      TargetFramework = "net8.0"
+      IsApplication = false
+      IsTestProject = false
+      CatalogUsed = None
+      CatalogFallback = false
+      ProjectReferences = references }
+
+let private unit projectId name =
+    { Id = projectId + ":" + name
+      ProjectId = projectId
+      Kind = UnitKind.Module
+      Name = name
+      DisplayName = name
+      Parent = None
+      Location = None }
+
+let private uses (a: CodeUnit) (b: CodeUnit) =
+    { FromUnit = a.Id
+      ToUnit = b.Id
+      Weight = 1
+      CrossProject = a.ProjectId <> b.ProjectId
+      SampleLocations = [] }
+
+/// Two crossing-free routes: a chain App -> Orders -> Domain plus App -> Domain, and an unused module per project.
+let private sample () =
+    let app = unit "Web" "App"
+    let orders = unit "Web" "Orders"
+    let domain = unit "Core" "Domain"
+    let unused = [ for i in 1..12 -> unit "Web" $"Plugin{i}" ] @ [ unit "Core" "Reflected"; unit "Tools" "Script" ]
+
+    let projects = [ project "Web" [ "Core" ]; project "Core" []; project "Tools" [] ]
+    let units = [ app; orders; domain ] @ unused
+    let dependencies = [ uses app orders; uses orders domain; uses app domain ]
+    SolutionLayout.compute projects units dependencies, unused
+
 [<Tests>]
 let tests =
     testList
@@ -49,6 +90,72 @@ let tests =
               Expect.equal group.Members [ "b"; "c" ] "b and c collapsed"
               Expect.equal g.Nodes.Length 3 "three nodes drawn"
               Expect.isEmpty (noOverlaps g.Nodes) "no overlaps"
+          }
+
+          test "a long edge is routed through the gap of the layers it crosses, not through their nodes" {
+              // a -> b -> c -> d, and a -> d across two layers, with other nodes on those layers.
+              let g =
+                  Layered.layout
+                      Layered.defaults
+                      [ node "a"; node "b"; node "c"; node "d"; node "x"; node "y" ]
+                      [ edge "a" "b"; edge "b" "c"; edge "c" "d"; edge "a" "d"; edge "a" "x"; edge "x" "y"; edge "y" "d" ]
+
+              let long = g.Edges |> List.find (fun e -> e.From = "a" && e.To = "d")
+              Expect.isGreaterThan long.Points.Length 2 "bends at the layers it crosses"
+
+              // No point of the long edge lies inside a node other than its ends.
+              for p in long.Points do
+                  for n in g.Nodes |> List.filter (fun n -> n.Id <> "a" && n.Id <> "d") do
+                      Expect.isFalse (p.X > n.X && p.X < n.X + n.Width && p.Y > n.Y && p.Y < n.Y + n.Height) $"clear of {n.Id}"
+
+              Expect.isEmpty (noOverlaps g.Nodes) "no overlaps"
+          }
+
+          test "a node sits over what it uses, not packed to the left" {
+              // One parent over a single child, next to a wide layer: the child is centred under its parent.
+              let g =
+                  Layered.layout
+                      Layered.defaults
+                      [ node "top"; node "child"; node "w1"; node "w2"; node "w3"; node "w4" ]
+                      [ edge "top" "child"; edge "w1" "w2"; edge "w1" "w3"; edge "w1" "w4" ]
+
+              let centre id =
+                  let n = g.Nodes |> List.find (fun n -> n.Id = id)
+                  n.X + n.Width / 2.0
+
+              Expect.floatClose Accuracy.medium (centre "child") (centre "top") "child under its parent"
+              Expect.isEmpty (noOverlaps g.Nodes) "no overlaps"
+          }
+
+          test "unconnected units are set out below the graph, by project, in rows" {
+              let layout, unused = sample ()
+              let graphBottom = layout.ProjectBoxes |> List.map (fun b -> b.Y + b.Height) |> List.max
+
+              Expect.equal (layout.ProjectBoxes |> List.map (fun b -> b.Id) |> List.sort) [ "Core"; "Web" ] "graph boxes"
+              Expect.equal (layout.DetachedBoxes |> List.map (fun b -> b.Id)) [ "Web"; "Core"; "Tools" ] "a box per project, in project order"
+
+              for b in layout.DetachedBoxes do
+                  Expect.isGreaterThan b.Y graphBottom $"{b.Id} below the graph"
+
+              for u in unused do
+                  let n = layout.UnitGraph.Nodes |> List.find (fun n -> n.Id = u.Id)
+                  let box = layout.DetachedBoxes |> List.find (fun b -> b.Id = u.ProjectId)
+
+                  Expect.isTrue
+                      (n.X >= box.X && n.Y >= box.Y && n.X + n.Width <= box.X + box.Width + 0.01 && n.Y + n.Height <= box.Y + box.Height + 0.01)
+                      $"{u.Id} inside its box"
+
+              // Twelve unused modules do not make the drawing twelve modules wide.
+              let web = layout.DetachedBoxes |> List.find (fun b -> b.Id = "Web")
+              Expect.isLessThanOrEqual web.Width (max 960.0 layout.UnitGraph.Width) "rows wrap"
+              Expect.isEmpty (noOverlaps (layout.ProjectBoxes @ layout.DetachedBoxes)) "boxes do not overlap"
+              Expect.isEmpty (noOverlaps layout.UnitGraph.Nodes) "nodes do not overlap"
+          }
+
+          test "dependencies between projects are drawn once per pair of projects" {
+              let layout, _ = sample ()
+              Expect.equal (layout.ProjectEdges |> List.map (fun e -> e.From, e.To)) [ "Web", "Core" ] "one edge, Web to Core"
+              Expect.isFalse (layout.UnitGraph.Edges |> List.exists (fun e -> e.From.StartsWith "Web:" && e.To.StartsWith "Core:")) "no unit-level cross edges"
           }
 
           test "is deterministic" {
