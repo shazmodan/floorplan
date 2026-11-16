@@ -135,7 +135,18 @@ let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoin
         let symbolic =
             symbolic |> List.filter (fun e -> not (e.Predicates.IsEmpty && reported.Contains e.HandlerMember))
 
-        platform @ tables @ tracked @ symbolic)
+        let all = platform @ tables @ tracked @ symbolic
+
+        // A registration whose route the static scan could not recover (a group from a caller) adds nothing when
+        // another analysis found the route of the same handler and method.
+        let routed =
+            all |> List.filter (fun e -> e.Route.IsSome) |> List.map (fun e -> e.HandlerMember, e.HttpMethod) |> Set.ofList
+
+        all
+        |> List.filter (fun e ->
+            e.Route.IsSome
+            || e.Forms <> [ RouteForm.PlatformRouting ]
+            || not (routed.Contains(e.HandlerMember, e.HttpMethod))))
     |> List.distinctBy (fun e -> e.ApplicationId, e.HandlerMember, e.Route, e.HttpMethod)
     |> List.sortBy sortKey
     |> List.mapi (fun i e -> { e with Id = $"entry-{i + 1}" })

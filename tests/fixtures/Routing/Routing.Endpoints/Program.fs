@@ -19,5 +19,8 @@ let main args =
 
     app.MapMethods("/health", [| "GET"; "HEAD" |], Func<string>(Api.health)) |> ignore
 
+    Admin.map app
+    Admin.mapDynamic app (Environment.GetEnvironmentVariable "STATUS_PREFIX")
+
     app.Run()
     0

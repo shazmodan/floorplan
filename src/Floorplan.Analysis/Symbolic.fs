@@ -370,9 +370,10 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                                 | NewObj t -> Some t
                                 | _ -> None)
 
-                        // Passing on to user code is still forwarding: the user code it reaches is the handler.
+                        // Passing on to user code is still forwarding: the user code it reaches is the handler. A
+                        // closure that calls nothing (a lambda returning a value) forwards nowhere: it is the handler.
                         let effects = calls |> Array.exists (fun t -> (matcher.Sink t).IsSome)
-                        not effects && calls.Length <= 3
+                        not effects && calls.Length >= 1 && calls.Length <= 3
                     | None -> false
                 | _ -> false
 

@@ -23,8 +23,12 @@ let render (model: AnalysisModel) =
         let httpMethod = defaultArg e.HttpMethod "-"
         let forms = e.Forms |> List.map Json.unionName |> String.concat ","
 
+        // A lambda's class is named by the compiler, and compilers name it differently: keep only its module.
+        let handlerMember =
+            System.Text.RegularExpressions.Regex.Replace(e.HandlerMember, @"/[^/:|]*@[^/:|]*::Invoke$", "/<lambda>")
+
         b.AppendLine(
-            $"{e.ApplicationId} | {Json.unionName e.Category} | {httpMethod} {route} | {Json.unionName e.Completeness} | {e.HandlerUnit} | {e.HandlerMember} | forms [{forms}] | [{predicates}]"
+            $"{e.ApplicationId} | {Json.unionName e.Category} | {httpMethod} {route} | {Json.unionName e.Completeness} | {e.HandlerUnit} | {handlerMember} | forms [{forms}] | [{predicates}]"
         )
         |> ignore
 
@@ -88,14 +92,30 @@ let tests =
               Expect.equal
                   routes
                   [ "DELETE", "/api/orders/{id:int}", Completeness.Complete
+                    // A route template built at run time: the method is known, the route is not.
+                    "GET", "", Completeness.Partial
+                    "GET", "/admin/reports/daily", Completeness.Complete
+                    "GET", "/admin/users", Completeness.Complete
+                    "GET", "/admin/users/{id:int}", Completeness.Complete
                     "GET", "/api/orders", Completeness.Complete
                     "GET", "/api/orders/{id:int}", Completeness.Complete
                     "GET,HEAD", "/health", Completeness.Complete
                     "OPTIONS", "/api/orders", Completeness.Complete
                     "PATCH", "/api/orders/{id:int}", Completeness.Complete
+                    "POST", "/admin/reports/rebuild", Completeness.Complete
                     "POST", "/v2/orders", Completeness.Complete
                     "PUT", "/api/orders/{id:int}", Completeness.Complete ]
                   "routes"
+
+              // A group handed to a function gets its caller's prefix, and only that: no unprefixed /users.
+              let users = entries m "Routing.Endpoints" |> List.filter (fun e -> e.HandlerMember.EndsWith "::listUsers")
+              Expect.equal (users |> List.map (fun e -> e.Route)) [ Some "/admin/users" ] "group from a caller"
+
+              // A lambda is its own handler, not a library response, behind convention calls such as
+              // RequireAuthorization.
+              let rebuild = entries m "Routing.Endpoints" |> List.find (fun e -> e.Route = Some "/admin/reports/rebuild")
+              Expect.stringStarts rebuild.HandlerMember "Routing.Endpoints.Admin/" "lambda handler"
+              Expect.isFalse (rebuild.HandlerMember.Contains "library function") "not a library response"
 
               let getOrder = entries m "Routing.Endpoints" |> List.find (fun e -> e.HandlerMember.EndsWith "getOrder")
               Expect.equal getOrder.HandlerUnit "Routing.Endpoints:Routing.Endpoints.Api" "handler module"

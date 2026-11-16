@@ -315,7 +315,7 @@ let platformEntries (ctx: AppContext) : EntryPoint list =
 
                     let prefix =
                         match operands with
-                        | builder :: _ -> PlatformRouting.prefixOf ctx.Matcher evaluator r.Flow 0 builder
+                        | builder :: _ -> PlatformRouting.prefixOf ctx.Matcher evaluator r.Flow r.Caller.Ref 0 builder
                         | [] -> Some []
 
                     let httpMethod =
