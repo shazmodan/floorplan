@@ -10,6 +10,8 @@ floorplan analyze MyApp.sln
 writes a static website to `./floorplan-out` that shows:
 
 1. **The module graph**: which modules depend on which, grouped by project, with a project graph above it.
+   Dependencies between projects are drawn once per pair of projects (select a module to see its own), and
+   modules that use no other module and are used by none are set out in their own section below the graph.
 2. **Entry points**: inbound HTTP routes and the module that handles each one, with how complete each route is.
 3. **Exit points**: outbound HTTP, database, file, process and other side-effects, the module each belongs to,
    and the dependency it goes through.

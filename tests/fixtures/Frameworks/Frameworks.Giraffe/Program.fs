@@ -4,6 +4,7 @@ module Frameworks.Giraffe.Program
 open Microsoft.AspNetCore.Builder
 open Microsoft.Extensions.DependencyInjection
 open Giraffe
+open Serilog
 
 let webApp =
     choose [
@@ -21,6 +22,13 @@ let webApp =
 let main args =
     let builder = WebApplication.CreateBuilder args
     builder.Services.AddGiraffe() |> ignore
+
+    // A logging library configured with a callback: it runs at startup and handles no request, so it must not be
+    // reported as an entry point.
+    builder.Host.UseSerilog(fun _ (configuration: LoggerConfiguration) ->
+        configuration.MinimumLevel.Information().WriteTo.Console() |> ignore)
+    |> ignore
+
     let app = builder.Build()
     app.UseGiraffe webApp
     app.Run()
