@@ -292,6 +292,10 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
             // A comparison with request data that cannot be stated: the path is uncertain.
             | None when tags |> Seq.exists (function PathAfter _ -> true | _ -> false) -> Some(Bool { WhenTrue = []; WhenFalse = []; Uncertain = true })
             | None -> None
+        // The number of path segments against a constant: `segments.Length = 2`.
+        | Req tags, Const(:? int64 as n)
+        | Const(:? int64 as n), Req tags when tags.Contains SegmentCount && op = PredicateOperator.Equals ->
+            predicateOn tags op (string n) |> Option.map (fun p -> Bool { WhenTrue = [ p ]; WhenFalse = []; Uncertain = false })
         | Const x, Const y when op = PredicateOperator.Equals -> Some(Const(box (if x.Equals y then 1L else 0L)))
         | (Unknown | Null), Const(:? string)
         | Const(:? string), (Unknown | Null) -> Some(Bool { WhenTrue = []; WhenFalse = []; Uncertain = true })
@@ -594,9 +598,21 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 let nl = System.Environment.NewLine
                 eprintfn "  [symbolic] HIT %s %A%s      %s" target.Display (state.Predicates |> List.map (fun p -> p.Part, p.Value)) nl (callStack |> Seq.truncate 25 |> String.concat (nl + "      "))
 
+            // Path segments handed to the handler without being compared are route parameters.
+            let parameters =
+                let compared =
+                    state.Predicates |> List.choose (fun p -> if p.Part = RequestPart.PathSegment then p.Index else None) |> Set.ofList
+
+                operands
+                |> List.collect (function
+                    | Req tags -> tags |> Seq.choose (function Segment i when not (compared.Contains i) -> Some i | _ -> None) |> Seq.toList
+                    | _ -> [])
+                |> List.distinct
+                |> List.map (fun i -> predicate (RequestPart.PathSegment, Some i) PredicateOperator.Parameter "{param}")
+
             hits.Add
                 { Handler = HandlerMethod target
-                  Predicates = if state.Uncertain then [] else state.Predicates }
+                  Predicates = if state.Uncertain then [] else state.Predicates @ parameters }
 
             []
         elif interpretable target && not (recognizers |> List.exists (fun r -> r.IsOpaque target)) then
@@ -718,6 +734,26 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
         | _ ->
 
         if isEqualityMethod m && operands.Length >= 2 then
+            // A request part whose value is already known decides the test: after `method = "GET"`, a later
+            // `match method with "GET"` is true.
+            let known =
+                match operands[0], operands[1] with
+                | Req t, Const(:? string as v)
+                | Const(:? string as v), Req t when not (t |> Seq.exists (function PathAfter _ -> true | _ -> false)) ->
+                    describe t
+                    |> Option.bind (fun (part, index) ->
+                        state.Predicates
+                        |> List.tryPick (fun p ->
+                            if p.Part = part && p.Index = index && p.Operator = PredicateOperator.Equals && not (p.Value.Contains ",") then
+                                Some(p.Value = v)
+                            else
+                                None))
+                | _ -> None
+
+            match known with
+            | Some b -> one (Const(box (if b then 1L else 0L)))
+            | None ->
+
             match compare operands[0] operands[1] PredicateOperator.Equals with
             | Some v -> one v
             | None -> one Unknown

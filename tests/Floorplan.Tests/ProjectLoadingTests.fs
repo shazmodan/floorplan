@@ -37,6 +37,28 @@ let tests =
               Expect.isFalse (get "Shop.Core").IsApplication "library is not"
           }
 
+          test "a preferred framework applies to multi-targeting projects only" {
+              Fixtures.shop.Force() |> ignore
+
+              // Shop mixes net8.0 and net10.0 projects that target one framework each: all of them stay.
+              let shop =
+                  match SolutionLoader.load { LoadOptions.defaults with Framework = Some "net8.0"; Build = false } (Some(Fixtures.path "Shop/Shop.slnx")) with
+                  | Ok s -> s
+                  | Error e -> failwith (SolutionLoader.describe e)
+
+              Expect.isEmpty shop.Failures "no failures"
+              Expect.equal (Fixtures.project shop "Shop.Web").TargetFramework "net10.0" "a net10.0-only project keeps net10.0"
+              Expect.equal (Fixtures.project shop "Shop.Core").TargetFramework "net8.0" "net8.0 library"
+
+              // A project that targets both takes the one asked for, and the first one listed otherwise.
+              let routing = Fixtures.routingNet10.Force()
+              let endpoints = Fixtures.project routing "Routing.Endpoints"
+              Expect.equal endpoints.TargetFrameworks [ "net8.0"; "net10.0" ] "multi-targeting"
+              Expect.equal endpoints.TargetFramework "net10.0" "preferred framework"
+              Expect.stringContains endpoints.OutputAssembly "net10.0" "the net10.0 build"
+              Expect.equal (Fixtures.project (Fixtures.routing.Force()) "Routing.Endpoints").TargetFramework "net8.0" "first by default"
+          }
+
           test "records source files in compile order and project references" {
               let solution = Fixtures.shop.Force()
               let core = Fixtures.project solution "Shop.Core"

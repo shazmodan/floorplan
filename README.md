@@ -87,8 +87,10 @@ dotnet run --project tests/Floorplan.Tests
 dotnet run --project src/Floorplan.Cli -- analyze tests/fixtures/Routing/Routing.slnx
 ```
 
-Requires the .NET 10 SDK; the test fixtures also need the .NET 8 targeting pack. Golden files under
-`tests/golden` change only on purpose: set `FLOORPLAN_UPDATE_GOLDEN=1` to rewrite them.
+Requires the .NET 10 SDK; the test fixtures also need the .NET 8 targeting pack. The fixture applications
+target both net8.0 and net10.0, and the tests check that both give the same golden results (Shop mixes the two
+on purpose; the Oxpecker fixture is net10.0 only, as its package is). Golden files under `tests/golden` change
+only on purpose: set `FLOORPLAN_UPDATE_GOLDEN=1` to rewrite them.
 
 | Folder | Contents |
 |---|---|

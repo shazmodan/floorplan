@@ -135,9 +135,7 @@ let load (options: LoadOptions) (input: string option) : Result<LoadedSolution, 
         match tools with
         | Error e -> Error e
         | Ok tools ->
-            let globalProperties =
-                [ "Configuration", options.Configuration
-                  yield! options.Framework |> Option.map (fun f -> "TargetFramework", f) |> Option.toList ]
+            let globalProperties = [ "Configuration", options.Configuration ]
 
             let loader = WorkspaceLoader.Create(tools, globalProperties)
 
@@ -149,6 +147,35 @@ let load (options: LoadOptions) (input: string option) : Result<LoadedSolution, 
                 |> Seq.filter (fun p -> Discovery.isProject p.ProjectFileName)
                 |> Seq.distinctBy (fun p -> p.ProjectFileName.ToLowerInvariant())
                 |> Seq.toList
+
+            // The preferred framework applies to projects that target it among others; a project that targets
+            // one framework keeps it. Each such project is evaluated again for the framework asked for.
+            let evaluated =
+                match options.Framework with
+                | None -> evaluated
+                | Some framework ->
+                    let switch (p: ProjectOptions) =
+                        let frameworks = p.ProjectSdkInfo.TargetFrameworks
+                        frameworks.Length > 1 && List.contains framework frameworks && p.TargetFramework <> framework
+
+                    let toSwitch = evaluated |> List.filter switch
+
+                    if toSwitch.IsEmpty then
+                        evaluated
+                    else
+                        let framed = WorkspaceLoader.Create(tools, globalProperties @ [ "TargetFramework", framework ])
+
+                        let reloaded =
+                            framed.LoadProjects(toSwitch |> List.map (fun p -> p.ProjectFileName))
+                            |> Seq.filter (fun r -> r.TargetFramework = framework)
+                            |> Seq.map (fun r -> r.ProjectFileName.ToLowerInvariant(), r)
+                            |> Map.ofSeq
+
+                        evaluated
+                        |> List.map (fun p ->
+                            match reloaded.TryFind(p.ProjectFileName.ToLowerInvariant()) with
+                            | Some r when switch p -> r
+                            | _ -> p)
 
             if evaluated.IsEmpty then
                 let detail =

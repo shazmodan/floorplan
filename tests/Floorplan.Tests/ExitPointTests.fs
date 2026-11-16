@@ -10,6 +10,7 @@ let private modelOf (solution: Lazy<Floorplan.ProjectLoading.LoadedSolution>) =
     lazy (Pipeline.buildModel ignore Floorplan.Model.Caching.Store.Disabled [] [] (solution.Force()))
 
 let effectsModel = modelOf Fixtures.effects
+let effectsModelNet10 = modelOf Fixtures.effectsNet10
 let shopModel = modelOf Fixtures.shop
 
 let private exits (model: AnalysisModel) = model.ExitPoints
@@ -54,6 +55,12 @@ let tests =
     <| testList
         "Exit points"
         [ test "golden: Effects fixture" { Golden.check "effects.exit-points.txt" (render (effectsModel.Force())) }
+
+          test "golden: Effects fixture on net10.0 gives the net8.0 results" {
+              let m = effectsModelNet10.Force()
+              Expect.isTrue (m.Projects |> List.forall (fun p -> p.TargetFramework = "net10.0")) "every project on net10.0"
+              Golden.check "effects.exit-points.txt" (render m)
+          }
 
           test "golden: Shop fixture" { Golden.check "shop.exit-points.txt" (render (shopModel.Force())) }
 
