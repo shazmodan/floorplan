@@ -9,9 +9,9 @@ open Floorplan.IL.DataFlow
 type Symbolic =
     | Text of string
     | Hole
-    /// The incoming value of argument `index` of the method (0 is `this`). Unknown in the method itself, so shown
-    /// as a hole; a caller can fill it in (docs/library-payloads-plan.md).
-    | Param of index: int
+    /// The incoming value of argument `index` of the method (0 is `this`), then a property or field path into it.
+    /// Unknown in the method itself, so shown as a hole; a caller can fill it in (docs/library-payloads-plan.md).
+    | Param of index: int * members: string list
     /// A sequence of parts, concatenated.
     | Parts of Symbolic list
 
@@ -45,7 +45,7 @@ module Origin =
         flatten s
         |> List.map (function
             | Text t -> Literal t
-            | Param i -> FromParameter(i, [])
+            | Param(i, members) -> FromParameter(i, members)
             | _ -> Unknown)
 
 /// The platform type C# (10 and later) builds interpolated strings with.
@@ -80,7 +80,20 @@ let constantReturn (set: AssemblySet) (m: MethodRef) : string option =
             | None -> None
         | None -> None
 
-type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: MethodRef -> string option) =
+/// The property a field holds: compiler-generated backing fields are named after their property (C#
+/// `<Name>k__BackingField`, F# `Name@`).
+let memberOfField (name: string) =
+    if name.StartsWith "<" && name.Contains ">k__BackingField" then name.Substring(1, name.IndexOf '>' - 1)
+    elif name.EndsWith "@" && name.Length > 1 then name.TrimEnd '@'
+    else name
+
+/// The property an instance getter reads.
+let private getterName (m: MethodRef) =
+    if m.HasThis && m.ParameterCount = 0 && m.ReturnsValue && m.Name.StartsWith "get_" then Some(m.Name.Substring 4) else None
+
+/// `produced m name`: member `name` of the object method `m` produces (a constructor: the new object; another
+/// method: what it returns), in terms of `m`'s arguments. `Producers` reads it from `m`'s body.
+type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: MethodRef -> string option, produced: MethodRef -> string -> Origin) =
     let rec value (depth: int) (values: Values) : Symbolic =
         if depth > 12 then
             Hole
@@ -128,15 +141,100 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                     interpolated depth offset operands
                 | Call m when (constant m).IsSome -> Text (constant m).Value
                 | Call m
-                | CallVirt m
-                | NewObj m ->
-                    // A string built from a format literal somewhere in this expression (printf-style).
-                    match formatLiteral (depth + 1) offset with
-                    | Some t -> t
-                    | None -> Hole
+                | CallVirt m when (getterName m).IsSome && not operands.IsEmpty ->
+                    match memberValue (depth + 1) operands.Head (getterName m).Value offset with
+                    | Hole -> formatted depth offset
+                    | s -> s
+                | LdFld f when not operands.IsEmpty -> memberValue (depth + 1) operands.Head (memberOfField f.Name) offset
+                | Call _
+                | CallVirt _
+                | NewObj _ -> formatted depth offset
                 | _ -> Hole
-        | Argument i -> Param i
+        | Argument i -> Param(i, [])
         | _ -> Hole
+
+    /// A string built from a format literal somewhere in this expression (printf-style).
+    and formatted (depth: int) (offset: int) : Symbolic =
+        match formatLiteral (depth + 1) offset with
+        | Some t -> t
+        | None -> Hole
+
+    /// Member `name` of a value, as read at `before`: the last store to it in this method (a setter, a field, or
+    /// a constructor called on a local struct or on `this`), or else what the method that made the value sets.
+    and memberValue (depth: int) (receiver: Values) (name: string) (before: int) : Symbolic =
+        if depth > 12 then
+            Hole
+        else
+            let receiverList = Set.toList receiver
+
+            let isReceiver (target: Values) =
+                match receiverList, Set.toList target with
+                | [ LocalAddress(a, _) ], [ LocalAddress(b, _) ] -> a = b
+                | [ r ], [ t ] -> r = t
+                | _ -> false
+
+            let stored =
+                flow.Body.Instructions
+                |> Array.filter (fun i -> i.Offset < before)
+                |> Array.choose (fun i ->
+                    match i.Op, flow.OperandsAt i.Offset with
+                    | (Call m | CallVirt m), [ target; v ] when m.Name = "set_" + name && isReceiver target ->
+                        Some(fun () -> value (depth + 1) v)
+                    | StFld f, [ target; v ] when memberOfField f.Name = name && isReceiver target ->
+                        Some(fun () -> value (depth + 1) v)
+                    | Call m, target :: _ when m.Name = ".ctor" && isReceiver target && produced m name <> Origin.unknown ->
+                        // A constructor run on a local struct, or a chained or base constructor on `this`; one that
+                        // is not read (System.Object's) stores nothing.
+                        Some(fun () -> produce depth m name i.Offset false)
+                    | _ -> None)
+                |> Array.tryLast
+
+            match stored, receiverList with
+            | Some read, _ -> read ()
+            | None, [ Argument i ] -> Param(i, [ name ])
+            | None, [ Pushed o ] ->
+                match flow.InstructionAt o with
+                | Some { Op = NewObj ctor } -> produce depth ctor name o true
+                | Some { Op = (Call m | CallVirt m) } when m.ReturnsValue && (getterName m).IsNone -> produce depth m name o false
+                | _ ->
+                    match one (depth + 1) (Pushed o) with
+                    | Param(i, path) -> Param(i, path @ [ name ])
+                    | _ -> Hole
+            | None, _ -> Hole
+
+    /// Member `name` of what the call at `offset` produces.
+    and produce (depth: int) (m: MethodRef) (name: string) (offset: int) (isNewObj: bool) : Symbolic =
+        match produced m name with
+        | [ Unknown ] -> Hole
+        | origin -> resolveAt depth origin offset isNewObj
+
+    /// A callee's origin evaluated at the call at `offset`: its arguments replaced by what is passed there.
+    and resolveAt (depth: int) (origin: Origin) (offset: int) (isNewObj: bool) : Symbolic =
+        let operands = flow.OperandsAt offset
+
+        origin
+        |> List.map (function
+            | Literal t -> Text t
+            | Unknown -> Hole
+            | FromParameter(i, path) ->
+                // `this` of a constructor is not on the stack.
+                let index = if isNewObj then i - 1 else i
+
+                match List.tryItem index operands with
+                | Some v when index >= 0 -> memberPath depth v path offset
+                | _ -> Hole)
+        |> function
+            | [ single ] -> single
+            | parts -> Parts parts
+
+    and memberPath (depth: int) (v: Values) (path: string list) (before: int) : Symbolic =
+        match path with
+        | [] -> value (depth + 1) v
+        | first :: rest ->
+            match memberValue (depth + 1) v first before, rest with
+            | s, [] -> s
+            | Param(i, p), _ -> Param(i, p @ rest)
+            | _ -> Hole
 
     /// An interpolated string built with the platform's handler on a local:
     /// `ldloca h; call .ctor; ldloca h; ldstr; call AppendLiteral; ldloca h; ...; call AppendFormatted; ...;
@@ -241,6 +339,8 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                         | _ -> None)
             | _ -> None
 
+    new(flow, recognizers, constant) = Evaluator(flow, recognizers, constant, (fun _ _ -> Origin.unknown))
+
     /// The symbolic value of operand `index` (in push order) of the instruction at `offset`.
     member _.Operand(offset: int, index: int) : Symbolic =
         match List.tryItem index (flow.OperandsAt offset) with
@@ -256,70 +356,34 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
     /// object before the call, or else the string constructor argument at `constructorArgument` of the
     /// construction that made it. Anything else is dynamic.
     member this.PropertyPayload(offset: int, property: string, constructorArgument: int option, role: string) : Payload =
-        let found =
-            match this.PropertySource(offset, property, constructorArgument) with
-            | Some v -> value 0 v
-            | None -> Hole
+        Evaluator.ToPayload(this.ReceiverMember(offset, property, constructorArgument), role)
 
-        Evaluator.ToPayload(found, role)
-
-    /// The values a property of the call's receiver holds at the call, as `PropertyPayload` finds them.
-    member _.PropertySource(offset: int, property: string, constructorArgument: int option) : Values option =
-        match flow.OperandsAt offset |> List.tryHead |> Option.map Set.toList with
-        | Some [ Pushed o ] ->
-            let setter = "set_" + property
-
-            let stored =
-                flow.Body.Instructions
-                |> Array.filter (fun i -> i.Offset < offset)
-                |> Array.choose (fun i ->
-                    match i.Op with
-                    | Call m
-                    | CallVirt m when m.Name = setter ->
-                        match flow.OperandsAt i.Offset with
-                        | [ target; v ] when target = Set.singleton (Pushed o) -> Some v
-                        | _ -> None
-                    | _ -> None)
-                |> Array.tryLast
-
-            match stored with
-            | Some v -> Some v
-            | None ->
+    /// A property of the call's receiver at the call: as `memberValue` finds it, or else the string constructor
+    /// argument at `constructorArgument` of the construction that made the receiver.
+    member this.ReceiverMember(offset: int, property: string, constructorArgument: int option) : Symbolic =
+        match flow.OperandsAt offset |> List.tryHead with
+        | None -> Hole
+        | Some receiver ->
+            match memberValue 0 receiver property offset, Set.toList receiver with
+            | Hole, [ Pushed o ] ->
                 match flow.InstructionAt o, constructorArgument with
-                | Some { Op = NewObj ctor }, Some i when List.tryItem i ctor.ParameterTypes = Some "System.String" ->
-                    List.tryItem i (flow.OperandsAt o)
-                | _ -> None
-        | _ -> None
+                | Some { Op = NewObj ctor }, Some i when List.tryItem i ctor.ParameterTypes = Some "System.String" -> this.Operand(o, i)
+                | _ -> Hole
+            | found, _ -> found
+
+    /// Member `name` of a value read at `before`, in terms of this method's arguments.
+    member _.MemberOf(receiver: Values, name: string, before: int) : Origin =
+        Origin.ofSymbolic (memberValue 0 receiver name before)
 
     /// What a value is in terms of this method's arguments.
     member _.OriginOf(values: Values) : Origin = Origin.ofSymbolic (value 0 values)
 
-    /// The operand of a call that holds argument `index` of the called method: `this` of a constructor is not
-    /// on the stack.
-    static member private OperandFor(index: int, isNewObj: bool) = if isNewObj then index - 1 else index
-
     /// A callee's origin seen from the call at `offset`: its arguments replaced by what this method passes.
     member this.Substitute(callee: Origin, offset: int, isNewObj: bool) : Origin =
-        callee
-        |> List.collect (function
-            | FromParameter(i, []) ->
-                match List.tryItem (Evaluator.OperandFor(i, isNewObj)) (flow.OperandsAt offset) with
-                | Some v when i >= 0 -> this.OriginOf v
-                | _ -> Origin.unknown
-            | FromParameter _ -> Origin.unknown
-            | other -> [ other ])
+        Origin.ofSymbolic (this.Resolve(callee, offset, isNewObj))
 
     /// A callee's origin evaluated at the call at `offset`, as a value: what the user's call site passes.
-    member this.Resolve(callee: Origin, offset: int, isNewObj: bool) : Symbolic =
-        callee
-        |> List.map (function
-            | Literal t -> Text t
-            | Unknown -> Hole
-            | FromParameter(i, []) when Evaluator.OperandFor(i, isNewObj) >= 0 -> this.Operand(offset, Evaluator.OperandFor(i, isNewObj))
-            | FromParameter _ -> Hole)
-        |> function
-            | [ single ] -> single
-            | parts -> Parts parts
+    member _.Resolve(callee: Origin, offset: int, isNewObj: bool) : Symbolic = resolveAt 0 callee offset isNewObj
 
     static member ToPayload(value: Symbolic, role: string) : Payload =
         match value with
@@ -351,3 +415,45 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
 /// The operand index of declared argument `argument` of a call: `this` comes first for instance calls.
 let operandIndex (m: MethodRef) (isNewObj: bool) (argument: int) =
     if m.HasThis && not isNewObj then argument + 1 else argument
+
+/// What methods outside the one being evaluated set on the objects they produce (`Evaluator`'s `produced`): a
+/// constructor's stores to the new object, a method's to the object it returns. Read once per (method, member)
+/// from the method's body; base-library methods are not read.
+type Producers(set: AssemblySet, recognizers: ICodegenRecognizer list) =
+    let memo = System.Collections.Generic.Dictionary<struct (string * string), Origin>()
+
+    member this.Member(m: MethodRef, name: string) : Origin =
+        let key = struct (m.Key, name)
+
+        match memo.TryGetValue key with
+        | true, o -> o
+        | _ ->
+            // Unknown while computed, so recursion through the same member ends.
+            memo[key] <- Origin.unknown
+
+            let origin =
+                if set.Origin m.Type.Assembly = Framework then
+                    Origin.unknown
+                else
+                    match set.TryMethod m |> Option.bind (fun (def, _) -> DataFlow.ofMethod def) with
+                    | None -> Origin.unknown
+                    | Some flow ->
+                        let evaluator = Evaluator(flow, recognizers, constantReturn set, fun m n -> this.Member(m, n))
+
+                        if m.Name = ".ctor" then
+                            evaluator.MemberOf(Set.singleton (Argument 0), name, System.Int32.MaxValue)
+                        else
+                            let returns =
+                                flow.Body.Instructions
+                                |> Array.filter (fun i -> i.Op = Ret)
+                                |> Array.choose (fun i ->
+                                    match flow.OperandsAt i.Offset with
+                                    | [ v ] -> Some(i.Offset, v)
+                                    | _ -> None)
+
+                            match returns with
+                            | [| offset, v |] -> evaluator.MemberOf(v, name, offset)
+                            | _ -> Origin.unknown
+
+            memo[key] <- origin
+            origin

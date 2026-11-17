@@ -89,7 +89,7 @@ let private mvidOf (path: string) =
         ""
 
 let private cacheKey (assembly: string) (mvid: string) (catalog: string) =
-    Caching.hash [ "summaries-v4"; assembly; mvid; catalog ]
+    Caching.hash [ "summaries-v5"; assembly; mvid; catalog ]
 
 /// The program every analysis of one run shares: assemblies, call graph, per-catalog matchers and summaries,
 /// and the dependency summary cache.
@@ -194,6 +194,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                 g
 
     let userList = users ()
+    let producers = Values.Producers(set, recognizers)
     let matchers = Dictionary<string, Matcher>()
     let summaries = Dictionary<string, Summaries.Summaries>()
 
@@ -201,6 +202,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
     member _.Graph = graph
     member _.Users = userList
     member _.Recognizers = recognizers
+    member _.Producers = producers
     member _.Attributor = Attribution.Attributor(input.Units, input.Projects)
 
     /// Dependency assemblies whose summaries came from the cache.
@@ -225,7 +227,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
         | true, s -> s
         | _ ->
             let s =
-                Summaries.Summaries(graph, matcher, recognizers, fun m ->
+                Summaries.Summaries(graph, matcher, recognizers, producers, fun m ->
                     set.Origin m.Type.Assembly = Dependency && not (cachedAssemblies.Contains m.Type.Assembly))
 
             summaries[matcher.Catalog.Name] <- s
@@ -380,7 +382,8 @@ let exitPoints (program: Program) (input: AnalysisInput) : EffectResult =
                   Matcher = program.MatcherFor project
                   Effects = program.EffectsFor project
                   Attributor = attributor
-                  Recognizers = program.Recognizers }
+                  Recognizers = program.Recognizers
+                  Producers = program.Producers }
 
             ExitPoints.analyze ctx assembly)
 
