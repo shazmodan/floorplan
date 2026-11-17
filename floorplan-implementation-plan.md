@@ -147,7 +147,10 @@ The catalog is the tool's entire knowledge of what counts as "outside the applic
 
 - `kind` is `sink` (an effect happens here), `source` (external data enters here) or `registration` (a handler is registered here).
 - `includeDerivedTypes` makes the rule apply to overrides and implementations. One rule on `System.Data.Common.DbCommand.Execute*` therefore covers SqlClient, Npgsql and every other ADO.NET provider without naming any of them.
-- `payload` says which argument carries the URL, SQL text or file path, so the tool can try to show it.
+- `payload` says which argument carries the URL, SQL text or file path, so the tool can try to show it. When the
+  value is a property of the receiver rather than an argument, the entry names it: `{ "property": "CommandText",
+  "constructorArgument": 0, "role": "sql" }` takes the value last stored through `set_CommandText` on the same
+  object before the call, or else the constructor's string argument 0 (`new SqlCommand(sql, connection)`).
 
 ### 4.2 Categories
 

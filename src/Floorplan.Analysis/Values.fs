@@ -225,8 +225,47 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
     member _.Value(values: Values) = value 0 values
 
     /// As a payload: literal, template or dynamic.
-    member this.Payload(offset: int, index: int, role: string) : Payload =
-        match this.Operand(offset, index) with
+    member this.Payload(offset: int, index: int, role: string) : Payload = Evaluator.ToPayload(this.Operand(offset, index), role)
+
+    /// A property of the call's receiver as a payload: the value last stored through `set_<property>` on the same
+    /// object before the call, or else the string constructor argument at `constructorArgument` of the
+    /// construction that made it. Anything else is dynamic.
+    member this.PropertyPayload(offset: int, property: string, constructorArgument: int option, role: string) : Payload =
+        let origin =
+            match flow.OperandsAt offset |> List.tryHead |> Option.map Set.toList with
+            | Some [ Pushed o ] -> Some o
+            | _ -> None
+
+        let found =
+            match origin with
+            | None -> Hole
+            | Some o ->
+                let setter = "set_" + property
+
+                let stored =
+                    flow.Body.Instructions
+                    |> Array.filter (fun i -> i.Offset < offset)
+                    |> Array.choose (fun i ->
+                        match i.Op with
+                        | Call m
+                        | CallVirt m when m.Name = setter ->
+                            match flow.OperandsAt i.Offset with
+                            | [ target; v ] when target = Set.singleton (Pushed o) -> Some v
+                            | _ -> None
+                        | _ -> None)
+                    |> Array.tryLast
+
+                match stored with
+                | Some v -> value 0 v
+                | None ->
+                    match flow.InstructionAt o, constructorArgument with
+                    | Some { Op = NewObj ctor }, Some i when List.tryItem i ctor.ParameterTypes = Some "System.String" -> this.Operand(o, i)
+                    | _ -> Hole
+
+        Evaluator.ToPayload(found, role)
+
+    static member ToPayload(value: Symbolic, role: string) : Payload =
+        match value with
         | Text t ->
             { Role = role
               Kind = PayloadKind.Literal

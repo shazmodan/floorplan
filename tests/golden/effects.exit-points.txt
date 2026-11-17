@@ -1,7 +1,7 @@
 database | Effects.App:Effects.Database | Effects.Database::sqlite | System.Data.Common.DbConnection::Open | via - | - | Effects/Effects.App/Database.fs:9
-database | Effects.App:Effects.Database | Effects.Database::sqlite | System.Data.Common.DbCommand::ExecuteNonQuery | via - | - | Effects/Effects.App/Database.fs:12
+database | Effects.App:Effects.Database | Effects.Database::sqlite | System.Data.Common.DbCommand::ExecuteNonQuery | via - | literal:DELETE FROM sessions | Effects/Effects.App/Database.fs:12
 database | Effects.App:Effects.Database | Effects.Database::postgres | System.Data.Common.DbConnection::Open | via - | - | Effects/Effects.App/Database.fs:16
-database | Effects.App:Effects.Database | Effects.Database::postgres | System.Data.Common.DbCommand::ExecuteScalar | via - | - | Effects/Effects.App/Database.fs:18
+database | Effects.App:Effects.Database | Effects.Database::postgres | System.Data.Common.DbCommand::ExecuteScalar | via - | literal:SELECT count(*) FROM orders | Effects/Effects.App/Database.fs:18
 http-out | Effects.App:Effects.Direct | Effects.Direct::fetch | System.Net.Http.HttpClient::GetStringAsync | via - | literal:https://api.example.org/status | Effects/Effects.App/Direct.fs:11
 filesystem-read | Effects.App:Effects.Direct | Effects.Direct::readConfig | System.IO.File::ReadAllText | via - | literal:config.json | Effects/Effects.App/Direct.fs:13
 filesystem-write | Effects.App:Effects.Direct | Effects.Direct::writeReport | System.IO.File::WriteAllText | via - | literal:report.txt | Effects/Effects.App/Direct.fs:15

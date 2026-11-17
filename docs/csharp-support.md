@@ -78,14 +78,16 @@ Also new, outside the recognizer:
   the same name), and their output is compiled so that code calling it binds. Without this, every `LibraryImport`,
   `[GeneratedRegex]`, JSON or logging generator gave a compile error.
 - **Types of a namespace**: a namespace unit lists the types it declares (`CodeUnit.Types`, shown on its page).
+- **SQL text** (F# and C#): an ADO.NET command's `CommandText` is the payload of its `Execute*` calls, whether
+  set as a property, in an object initializer or through the constructor; built from values it is a template
+  (`DELETE FROM {…}`), and a command made elsewhere stays dynamic. SQL given to a wrapper library (Dapper) is not
+  shown: the catalog only knows .NET's own types.
 - **Route parameter names** (F# and C#): a segment taken as a parameter is named after the handler parameter
   that receives it (`/orders/{id}` for `Show(HttpContext ctx, string id)`), for control-flow routes as it already
   was for platform routes.
 
 ## Not done yet
 
-- SQL text is not recovered as a payload for ADO.NET commands (`CommandText` set as a property or in an object
-  initializer); the same holds for F#.
 - Generators that read additional files or MSBuild properties through analyzer config options get none, so code
   depending on what those generate may not bind; it is then reported as a compile error and the result is not
   cached.

@@ -1,7 +1,9 @@
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Sqlite | System.Data.Common.DbConnection::Open | via - | - | CSharp/CSharp.Effects/Database.cs:12
-database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Sqlite | System.Data.Common.DbCommand::ExecuteNonQuery | via - | - | CSharp/CSharp.Effects/Database.cs:15
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Sqlite | System.Data.Common.DbCommand::ExecuteNonQuery | via - | literal:DELETE FROM sessions | CSharp/CSharp.Effects/Database.cs:15
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Postgres | System.Data.Common.DbConnection::Open | via - | - | CSharp/CSharp.Effects/Database.cs:21
-database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Postgres | System.Data.Common.DbCommand::ExecuteScalar | via - | - | CSharp/CSharp.Effects/Database.cs:23
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Postgres | System.Data.Common.DbCommand::ExecuteScalar | via - | literal:SELECT count(*) FROM orders | CSharp/CSharp.Effects/Database.cs:23
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Purge | System.Data.Common.DbCommand::ExecuteNonQuery | via - | template:DELETE FROM {…} | CSharp/CSharp.Effects/Database.cs:32
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Run | System.Data.Common.DbCommand::ExecuteNonQuery | via - | dynamic:- | CSharp/CSharp.Effects/Database.cs:36
 http-out | CSharp.Effects:CSharp.Effects | CSharp.Effects.Direct::Fetch | System.Net.Http.HttpClient::GetStringAsync | via - | literal:https://api.example.org/status | CSharp/CSharp.Effects/Direct.cs:10
 filesystem-read | CSharp.Effects:CSharp.Effects | CSharp.Effects.Direct::ReadConfig | System.IO.File::ReadAllText | via - | literal:config.json | CSharp/CSharp.Effects/Direct.cs:12
 filesystem-write | CSharp.Effects:CSharp.Effects | CSharp.Effects.Direct::WriteReport | System.IO.File::WriteAllText | via - | literal:report.txt | CSharp/CSharp.Effects/Direct.cs:14
