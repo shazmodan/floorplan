@@ -10,6 +10,7 @@ open Floorplan.Structure
 open Floorplan.Structure.FSharp
 open Floorplan.Structure.CSharp
 open Floorplan.IL.Codegen.FSharp
+open Floorplan.IL.Codegen.CSharp
 open Floorplan.Analysis
 open Floorplan.Layout
 open Floorplan.Rendering
@@ -82,7 +83,7 @@ let buildModel (log: string -> unit) (store: Caching.Store) (catalogs: string li
 
     log "Analyzing effects"
     let input = analysisInput solution index structure.Units catalogs
-    use program = new EffectAnalysis.Program(input, [ FSharpCodegen.recognizer ], store)
+    use program = new EffectAnalysis.Program(input, [ FSharpCodegen.recognizer; CSharpCodegen.recognizer ], store)
 
     if not program.CachedAssemblies.IsEmpty then
         log $"Using cached summaries for {program.CachedAssemblies.Length} dependencies"

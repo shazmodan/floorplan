@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Recognizers for C# compiler output: cached delegates, format strings.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="CSharpCodegen.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Floorplan.IL\Floorplan.IL.fsproj" />
+  </ItemGroup>
+</Project>

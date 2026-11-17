@@ -114,5 +114,7 @@ let recognizer =
             || t.StartsWith "Microsoft.FSharp.Reflection"
             || t.StartsWith "Microsoft.FSharp.Collections.HashIdentity"
             || t.StartsWith "Microsoft.FSharp.Collections.ComparisonIdentity"
-            || (t = "Microsoft.FSharp.Core.ExtraTopLevelOperators" && m.Name.StartsWith "PrintFormat") }
+            || (t = "Microsoft.FSharp.Core.ExtraTopLevelOperators" && m.Name.StartsWith "PrintFormat")
+
+        member _.IsLazyCache _ = false }
 

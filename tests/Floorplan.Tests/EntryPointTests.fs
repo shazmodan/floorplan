@@ -28,7 +28,8 @@ let render (model: AnalysisModel) =
 
         // A lambda's class is named by the compiler, and compilers name it differently: keep only its module.
         let handlerMember =
-            System.Text.RegularExpressions.Regex.Replace(e.HandlerMember, @"/[^/:|]*@[^/:|]*::Invoke$", "/<lambda>")
+            let fsharp = System.Text.RegularExpressions.Regex.Replace(e.HandlerMember, @"/[^/:|]*@[^/:|]*::Invoke$", "/<lambda>")
+            System.Text.RegularExpressions.Regex.Replace(fsharp, @"/<>c(__DisplayClass[\d_]+)?::<.*>b__[\d_]+$", "/<lambda>")
 
         b.AppendLine(
             $"{e.ApplicationId} | {Json.unionName e.Category} | {httpMethod} {route} | {Json.unionName e.Completeness} | {e.HandlerUnit} | {handlerMember} | forms [{forms}] | [{predicates}]"

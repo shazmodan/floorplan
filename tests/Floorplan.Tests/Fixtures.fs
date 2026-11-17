@@ -22,6 +22,10 @@ let shopWithTests =
 /// The Mixed fixture: F# and C# projects that call each other, C# namespaces in a cycle, a C# global namespace.
 let mixed = lazy (loadOrFail LoadOptions.defaults "Mixed/Mixed.slnx")
 
+/// The CSharp fixture: the routing styles of the Routing fixture written in C# (minimal APIs, controllers,
+/// hand-written middleware, a table lookup, a switch expression).
+let csharp = lazy (loadOrFail LoadOptions.defaults "CSharp/CSharp.slnx")
+
 /// The Effects fixture: every effect category, called directly, through wrapper libraries and higher-order code.
 let effects = lazy (loadOrFail LoadOptions.defaults "Effects/Effects.slnx")
 
@@ -42,6 +46,7 @@ let private onNet10 (first: Lazy<LoadedSolution>) relative =
 let effectsNet10 = onNet10 effects "Effects/Effects.slnx"
 let routingNet10 = onNet10 routing "Routing/Routing.slnx"
 let frameworksNet10 = onNet10 frameworks "Frameworks/Frameworks.slnx"
+let csharpNet10 = onNet10 csharp "CSharp/CSharp.slnx"
 
 let project (solution: LoadedSolution) (name: string) =
     solution.Projects |> List.find (fun p -> p.Name = name)

@@ -3,6 +3,7 @@
     <Project Path="src/Floorplan.Analysis/Floorplan.Analysis.fsproj" />
     <Project Path="src/Floorplan.Catalog/Floorplan.Catalog.fsproj" />
     <Project Path="src/Floorplan.Cli/Floorplan.Cli.fsproj" />
+    <Project Path="src/Floorplan.IL.Codegen.CSharp/Floorplan.IL.Codegen.CSharp.fsproj" />
     <Project Path="src/Floorplan.IL.Codegen.FSharp/Floorplan.IL.Codegen.FSharp.fsproj" />
     <Project Path="src/Floorplan.IL/Floorplan.IL.fsproj" />
     <Project Path="src/Floorplan.Layout/Floorplan.Layout.fsproj" />

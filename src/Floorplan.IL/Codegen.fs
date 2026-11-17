@@ -33,6 +33,9 @@ type ICodegenRecognizer =
     /// Runtime-library machinery that never decides routing (generic hashing and comparison, formatting,
     /// reflection). A symbolic run treats calls into it as returning unknown values instead of interpreting it.
     abstract IsOpaque: method: MethodRef -> bool
+    /// A static field the compiler fills on first use and tests for null before (a cached delegate): null until
+    /// code stores it, whatever static initialization runs.
+    abstract IsLazyCache: field: FieldRef -> bool
 
 /// Code generation every .NET compiler shares: delegates and async state machines.
 module CommonCodegen =
