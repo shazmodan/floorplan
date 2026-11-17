@@ -3,8 +3,11 @@
 /// that makes it pass; the plan names which.
 module Floorplan.Tests.LibraryPayloadTests
 
+open System
+open System.IO
 open Expecto
 open Floorplan.Model
+open Floorplan.Cli
 
 let private model () = CSharpTests.csharpModel.Force()
 
@@ -36,20 +39,40 @@ let tests =
           }
 
           // Iteration 2: arguments passed straight through.
-          ptest "a: the argument is the command text" { Expect.equal (sql "ExecLiteral") (literal "sql" "DELETE FROM sessions") "" }
+          test "a: the argument is the command text" { Expect.equal (sql "ExecLiteral") (literal "sql" "DELETE FROM sessions") "" }
 
-          ptest "b: the argument is the URL" {
+          test "b: the argument is the URL" {
               let url = (exitOf "FetchLiteral" EffectCategory.HttpOut).Payload |> Option.map (fun p -> p.Role, p.Kind, p.Value)
               Expect.equal url (literal "url" "https://api.example.org/status") ""
           }
 
-          ptest "c: passed on through another library call" { Expect.equal (sql "RunChain") (literal "sql" "DELETE FROM carts") "" }
+          test "c: passed on through another library call" { Expect.equal (sql "RunChain") (literal "sql" "DELETE FROM carts") "" }
 
-          ptest "i: through a dictionary the SQL is not followed" {
+          test "i: through a dictionary the SQL is not followed" {
               Expect.equal (sql "ThroughDictionary") (Some("sql", PayloadKind.Dynamic, None)) ""
           }
 
-          // Iteration 3: values built inside the library.
+          test "a warm summary cache gives the same payloads" {
+              let dir = Path.Combine(Path.GetTempPath(), "floorplan-cache-" + string (Guid.NewGuid()))
+              let store = Caching.Store(Some dir)
+              let solution = Fixtures.csharp.Force()
+
+              let payloads (m: AnalysisModel) =
+                  m.ExitPoints |> List.map (fun x -> x.Member, x.Category, x.Primitive, x.Payload)
+
+              let cold = Pipeline.buildModel ignore store [] [] solution
+              let cachedOrigins =
+                  Directory.GetFiles(Path.Combine(dir, "summaries"), "*", SearchOption.AllDirectories)
+                  |> Array.exists (fun f -> File.ReadAllText(f).Contains "\"parameter\":1")
+
+              Expect.isTrue cachedOrigins "origins in terms of arguments are cached"
+              let warm = Pipeline.buildModel ignore store [] [] solution
+              Expect.equal (payloads warm) (payloads cold) "same payloads"
+              Expect.equal (payloads cold) (payloads (model ())) "the same as without a cache"
+              try Directory.Delete(dir, true) with _ -> ()
+          }
+
+          // Iteration 3: values built inside the library (j already passes in iteration 2: the argument is passed through).
           ptest "d: built inside the library from a literal argument" {
               Expect.equal (sql "CountLiteral") (literal "sql" "SELECT count(*) FROM orders") ""
           }
@@ -58,7 +81,7 @@ let tests =
               Expect.equal (sql "CountDynamic") (template "sql" "SELECT count(*) FROM {…}") ""
           }
 
-          ptest "j: an interpolated argument is a template" {
+          test "j: an interpolated argument is a template" {
               Expect.equal (sql "Interpolated") (template "sql" "DELETE FROM orders WHERE id = {…}") ""
           }
 

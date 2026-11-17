@@ -25,7 +25,7 @@ branch, or at least saved in the working tree) must say where it stopped.
 | # | Iteration | Branch | Status |
 |---|---|---|---|
 | 1 | Wrapper fixture and pending tests | `claude/library-payload-wrapper-fixture` | done |
-| 2 | Arguments passed straight through, with caching | `claude/library-payload-pass-through` | not started |
+| 2 | Arguments passed straight through, with caching | `claude/library-payload-pass-through` | done |
 | 3 | Values built inside the library | `claude/library-payload-built-values` | not started |
 | 4 | Properties, fields, constructors, returned objects | `claude/library-payload-object-members` | not started |
 | 5 | Async and iterator state machines | `claude/library-payload-state-machines` | not started |
@@ -64,15 +64,16 @@ collections, caches, reflection or virtual calls with several targets.
 ### Origins
 
 The payload of a primitive, seen from a method on the path, is an **origin**: what the value is in terms of that
-method's arguments.
+method's arguments. As built (`src/Floorplan.Analysis/Values.fs`), it is a flat list of segments, concatenated, so
+that it caches as plain records (the cache's JSON writes no unions with fields):
 
 ```fsharp
-type Origin =
-    | Known of Values.Symbolic        // text fixed inside the library (may itself be a template)
-    | Parameter of int                // argument i of this method (0 is `this` for instance methods)
-    | Member of Origin * string       // property or field `name` of a value (CommandText of argument 0)
-    | Concat of Origin list           // built from several parts ("SELECT * FROM " + table)
-    | Unknown
+type Segment =
+    | Literal of string                              // text fixed inside the library
+    | Unknown                                        // something it cannot follow
+    | FromParameter of index: int * members: string list
+        // argument i (0 is `this` for instance methods), then a property or field path into it (iteration 4)
+type Origin = Segment list
 ```
 
 Field names are normalized to the property they back (`<CommandText>k__BackingField` and F#'s `CommandText@`
@@ -156,8 +157,8 @@ goldens are unchanged except for the new call sites. **Done when**: all tests gr
 
 ### 2. Arguments passed straight through, with caching
 
-`Origin` with `Known`, `Parameter`, `Unknown`; the backward walk along `Summaries.Path`; the choice in
-`ExitPoints`; origins in the summaries cache (`summaries-v3`). **Done when**: cases a, b, c, i pass (`LibraryPayloadTests.fs`); a test runs
+`Origin` with `Literal`, `Unknown`, `FromParameter` (no members yet); the backward walk along the witness path; the
+choice in `ExitPoints`; origins in the summaries cache (`summaries-v3`). **Done when**: cases a, b, c, i pass (`LibraryPayloadTests.fs`); a test runs
 the fixture twice with a cache store and gets the same payloads both times.
 
 ### 3. Values built inside the library
@@ -219,3 +220,21 @@ has one active test (every case is reported via `CSharp.Wrappers`) and the cases
 iteration that enables them. `tests/golden/csharp.exit-points.txt` gained the twelve call sites; all reach the
 expected primitive already (for example `ExecuteNonQueryAsync` for g, `ExecuteReader` for h), with no payload.
 Next: iteration 2 from `main` once this is merged.
+
+**2026-11-17, iteration 2, done.** Built as designed:
+- `Values.fs`: `Segment`/`Origin`; `Evaluator.OriginOf` (an argument, or else today's evaluation with holes as
+  `Unknown`), `Substitute` (a callee's origin seen from a call in a library method), `Resolve` (at the user's call
+  site, into a `Symbolic`), and `PropertySource` (what `PropertyPayload` already did, returning the values).
+- `Summaries.fs`: `PayloadOf(m, ruleId)`, memoized per (method, rule), walking the stored witness edge by edge;
+  only `Direct` and `Virtual` edges are followed, `Deferred` and `StateMachine` give `Unknown` (iteration 5).
+  `DependencyEffect.Payload` carries the role and origin. The constructor takes the recognizers.
+- `EffectAnalysis.fs`: `CachedWitness.Payload` (`CachedPayload` of `CachedSegment` records), key `summaries-v3`.
+- `ExitPoints.fs`: per category, the shortest witness whose payload resolves to a literal or template, else the
+  shortest; a rule with a payload spec now shows "dynamic" instead of nothing.
+- Tests a, b, c, i pass, and j (interpolated argument) already did: nothing more was needed. New test: a warm cache
+  gives the same payloads, and the cache files hold origins with parameters.
+- Goldens: the wrapper cases as expected; `CountLiteral` and `CountDynamic` both show the template
+  `SELECT count(*) FROM {…}` (the argument inside a concatenation is still a hole: iteration 3 makes the literal
+  one full text); Flurl's `SendAsync` changed from no payload to `dynamic` (role `request`, not followed); Dapper
+  unchanged (`IDbConnection::Open`, the `IDbCommand` witness is still unknown).
+Next: iteration 3.

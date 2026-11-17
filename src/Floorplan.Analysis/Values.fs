@@ -24,6 +24,26 @@ let private render (s: Symbolic) =
         | _ -> "{…}")
     |> String.concat ""
 
+/// One piece of a payload as a dependency method sees it (docs/library-payloads-plan.md): text fixed in the
+/// library, something it cannot follow, or a value its caller passes.
+type Segment =
+    | Literal of string
+    | Unknown
+    /// Argument `index` of the method (0 is `this` for instance methods), then the property or field path into it.
+    | FromParameter of index: int * members: string list
+
+/// A payload in terms of a method's arguments: its segments, concatenated.
+type Origin = Segment list
+
+module Origin =
+    let unknown: Origin = [ Unknown ]
+
+    let ofSymbolic (s: Symbolic) : Origin =
+        flatten s
+        |> List.map (function
+            | Text t -> Literal t
+            | _ -> Unknown)
+
 /// The platform type C# (10 and later) builds interpolated strings with.
 let private interpolationHandler = "System.Runtime.CompilerServices.DefaultInterpolatedStringHandler"
 
@@ -231,38 +251,73 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
     /// object before the call, or else the string constructor argument at `constructorArgument` of the
     /// construction that made it. Anything else is dynamic.
     member this.PropertyPayload(offset: int, property: string, constructorArgument: int option, role: string) : Payload =
-        let origin =
-            match flow.OperandsAt offset |> List.tryHead |> Option.map Set.toList with
-            | Some [ Pushed o ] -> Some o
-            | _ -> None
-
         let found =
-            match origin with
+            match this.PropertySource(offset, property, constructorArgument) with
+            | Some v -> value 0 v
             | None -> Hole
-            | Some o ->
-                let setter = "set_" + property
-
-                let stored =
-                    flow.Body.Instructions
-                    |> Array.filter (fun i -> i.Offset < offset)
-                    |> Array.choose (fun i ->
-                        match i.Op with
-                        | Call m
-                        | CallVirt m when m.Name = setter ->
-                            match flow.OperandsAt i.Offset with
-                            | [ target; v ] when target = Set.singleton (Pushed o) -> Some v
-                            | _ -> None
-                        | _ -> None)
-                    |> Array.tryLast
-
-                match stored with
-                | Some v -> value 0 v
-                | None ->
-                    match flow.InstructionAt o, constructorArgument with
-                    | Some { Op = NewObj ctor }, Some i when List.tryItem i ctor.ParameterTypes = Some "System.String" -> this.Operand(o, i)
-                    | _ -> Hole
 
         Evaluator.ToPayload(found, role)
+
+    /// The values a property of the call's receiver holds at the call, as `PropertyPayload` finds them.
+    member _.PropertySource(offset: int, property: string, constructorArgument: int option) : Values option =
+        match flow.OperandsAt offset |> List.tryHead |> Option.map Set.toList with
+        | Some [ Pushed o ] ->
+            let setter = "set_" + property
+
+            let stored =
+                flow.Body.Instructions
+                |> Array.filter (fun i -> i.Offset < offset)
+                |> Array.choose (fun i ->
+                    match i.Op with
+                    | Call m
+                    | CallVirt m when m.Name = setter ->
+                        match flow.OperandsAt i.Offset with
+                        | [ target; v ] when target = Set.singleton (Pushed o) -> Some v
+                        | _ -> None
+                    | _ -> None)
+                |> Array.tryLast
+
+            match stored with
+            | Some v -> Some v
+            | None ->
+                match flow.InstructionAt o, constructorArgument with
+                | Some { Op = NewObj ctor }, Some i when List.tryItem i ctor.ParameterTypes = Some "System.String" ->
+                    List.tryItem i (flow.OperandsAt o)
+                | _ -> None
+        | _ -> None
+
+    /// What a value is in terms of this method's arguments.
+    member _.OriginOf(values: Values) : Origin =
+        match Set.toList values with
+        | [ Argument i ] -> [ FromParameter(i, []) ]
+        | _ -> Origin.ofSymbolic (value 0 values)
+
+    /// The operand of a call that holds argument `index` of the called method: `this` of a constructor is not
+    /// on the stack.
+    static member private OperandFor(index: int, isNewObj: bool) = if isNewObj then index - 1 else index
+
+    /// A callee's origin seen from the call at `offset`: its arguments replaced by what this method passes.
+    member this.Substitute(callee: Origin, offset: int, isNewObj: bool) : Origin =
+        callee
+        |> List.collect (function
+            | FromParameter(i, []) ->
+                match List.tryItem (Evaluator.OperandFor(i, isNewObj)) (flow.OperandsAt offset) with
+                | Some v when i >= 0 -> this.OriginOf v
+                | _ -> Origin.unknown
+            | FromParameter _ -> Origin.unknown
+            | other -> [ other ])
+
+    /// A callee's origin evaluated at the call at `offset`, as a value: what the user's call site passes.
+    member this.Resolve(callee: Origin, offset: int, isNewObj: bool) : Symbolic =
+        callee
+        |> List.map (function
+            | Literal t -> Text t
+            | Unknown -> Hole
+            | FromParameter(i, []) when Evaluator.OperandFor(i, isNewObj) >= 0 -> this.Operand(offset, Evaluator.OperandFor(i, isNewObj))
+            | FromParameter _ -> Hole)
+        |> function
+            | [ single ] -> single
+            | parts -> Parts parts
 
     static member ToPayload(value: Symbolic, role: string) : Payload =
         match value with

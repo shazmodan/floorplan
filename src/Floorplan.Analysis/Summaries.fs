@@ -65,13 +65,18 @@ type PathStep =
       Declared: string
       Virtual: bool }
 
+/// The payload of the primitive a dependency method reaches, in terms of the method's arguments.
+type PayloadOrigin = { Role: string; Origin: Values.Origin }
+
 /// A rule a dependency method can reach, with the shortest path to it.
 type DependencyEffect =
     { RuleId: string
       Category: EffectCategory
       Primitive: string
       PrimitiveAssembly: string
-      Steps: PathStep list }
+      Steps: PathStep list
+      /// None when the rule has no payload.
+      Payload: PayloadOrigin option }
 
 let toStep (e: CallEdge) =
     { Caller = e.Caller.Display
@@ -79,9 +84,10 @@ let toStep (e: CallEdge) =
       Declared = e.Declared.Display
       Virtual = e.Kind = Virtual }
 
-type Summaries(graph: CallGraph, matcher: Matcher, isSummarized: MethodRef -> bool) =
+type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecognizer list, isSummarized: MethodRef -> bool) =
     let set = graph.Set
     let best = Dictionary<string, Dictionary<string, Witness>>()
+    let origins = Dictionary<struct (string * string), Values.Origin>()
 
     let witnesses (m: MethodRef) =
         match best.TryGetValue m.Key with
@@ -153,6 +159,68 @@ type Summaries(graph: CallGraph, matcher: Matcher, isSummarized: MethodRef -> bo
 
         walk m [] 0
 
+    /// The payload of the primitive `m` reaches for `ruleId`, in terms of `m`'s arguments, worked out backwards
+    /// along the witness path (docs/library-payloads-plan.md). None when the rule has no payload.
+    member this.PayloadOf(m: MethodRef, ruleId: string) : PayloadOrigin option =
+        match best.TryGetValue m.Key with
+        | true, d when d.ContainsKey ruleId ->
+            d[ruleId].Hit.Rule.Payload
+            |> List.tryHead
+            |> Option.map (fun spec -> { Role = spec.Role; Origin = this.OriginOf(m, ruleId, spec, 0) })
+        | _ -> None
+
+    member private this.OriginOf(m: MethodRef, ruleId: string, spec: PayloadSpec, depth: int) : Values.Origin =
+        let key = struct (m.Key, ruleId)
+
+        match origins.TryGetValue key with
+        | true, o -> o
+        | _ when depth > 32 -> Values.Origin.unknown
+        | _ ->
+            // Marked unknown while computed, so recursion through the same method ends.
+            origins[key] <- Values.Origin.unknown
+            let w = best[m.Key][ruleId]
+
+            let flow =
+                match set.TryMethod m with
+                | Some(def, _) -> DataFlow.ofMethod def
+                | None -> None
+
+            let origin =
+                match flow with
+                | None -> Values.Origin.unknown
+                | Some flow ->
+                    let evaluator = Values.Evaluator(flow, recognizers, Values.constantReturn set)
+
+                    let isNewObj =
+                        match flow.InstructionAt w.Edge.Offset with
+                        | Some { Op = NewObj _ } -> true
+                        | _ -> false
+
+                    if w.Distance = 1 then
+                        // The call to the primitive: its payload operand, or a property of its receiver.
+                        match spec.Property with
+                        | Some property when w.Edge.Declared.HasThis && not isNewObj ->
+                            match evaluator.PropertySource(w.Edge.Offset, property, spec.ConstructorArgument) with
+                            | Some v -> evaluator.OriginOf v
+                            | None -> Values.Origin.unknown
+                        | Some _ -> Values.Origin.unknown
+                        | None ->
+                            match List.tryItem (Values.operandIndex w.Edge.Declared isNewObj spec.Argument) (flow.OperandsAt w.Edge.Offset) with
+                            | Some v -> evaluator.OriginOf v
+                            | None -> Values.Origin.unknown
+                    else
+                        match w.Edge.Kind with
+                        | Direct
+                        | Virtual ->
+                            match best.TryGetValue w.Edge.Target.Key with
+                            | true, d when d.ContainsKey ruleId ->
+                                evaluator.Substitute(this.OriginOf(w.Edge.Target, ruleId, spec, depth + 1), w.Edge.Offset, isNewObj)
+                            | _ -> Values.Origin.unknown
+                        | _ -> Values.Origin.unknown
+
+            origins[key] <- origin
+            origin
+
     /// Every rule the method can reach, each with its shortest path as steps.
     member this.Effects(m: MethodRef) : DependencyEffect list =
         this.Reaches m
@@ -161,4 +229,5 @@ type Summaries(graph: CallGraph, matcher: Matcher, isSummarized: MethodRef -> bo
               Category = w.Hit.Category
               Primitive = w.Hit.Primitive.Display
               PrimitiveAssembly = w.Hit.Primitive.Type.Assembly
-              Steps = this.Path(m, w.Hit.Rule.Id) |> List.map toStep })
+              Steps = this.Path(m, w.Hit.Rule.Id) |> List.map toStep
+              Payload = this.PayloadOf(m, w.Hit.Rule.Id) })

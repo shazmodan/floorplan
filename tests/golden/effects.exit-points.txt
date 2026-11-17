@@ -19,7 +19,7 @@ filesystem-read | Effects.App:Effects.Payloads | Effects.Payloads::file | System
 filesystem-read | Effects.App:Effects.Payloads | Effects.Payloads::anything | System.IO.File::ReadAllText | via - | dynamic:- | Effects/Effects.App/Payloads.fs:20
 database | Effects.App:Effects.Wrapped | Effects.Wrapped::queryNames | System.Data.IDbConnection::Open | via Dapper | - | Effects/Effects.App/Wrapped.fs:10
 nondeterminism | Effects.App:Effects.Wrapped | Effects.Wrapped::queryNames | System.Guid::NewGuid | via Dapper | - | Effects/Effects.App/Wrapped.fs:10
-http-out | Effects.App:Effects.Wrapped | Effects.Wrapped::fetchUsers | System.Net.Http.HttpClient::SendAsync | via Flurl.Http | - | Effects/Effects.App/Wrapped.fs:13
+http-out | Effects.App:Effects.Wrapped | Effects.Wrapped::fetchUsers | System.Net.Http.HttpClient::SendAsync | via Flurl.Http | dynamic:- | Effects/Effects.App/Wrapped.fs:13
 nondeterminism | Effects.App:Effects.Wrapped | Effects.Wrapped::fetchUsers | System.DateTime::get_UtcNow | via Flurl.Http | - | Effects/Effects.App/Wrapped.fs:13
 -- diagnostics
 blind-spot.reflection | Effects.Hidden::plugin calls System.Type::GetType (reflection). What happens behind it is not analyzed.

@@ -165,11 +165,28 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                         | None ->
                             match ctx.Set.Origin edge.Target.Type.Assembly with
                             | Dependency ->
-                                // Through a dependency: one exit point per category it can reach, the shortest path each.
+                                // Through a dependency: one exit point per category it can reach. The path is the
+                                // shortest one whose payload, worked out through the dependency's code, has a
+                                // value here; failing that, the shortest one.
+                                let payloadOf (d: DependencyEffect) =
+                                    d.Payload
+                                    |> Option.map (fun p ->
+                                        match flow.Value with
+                                        | Some f ->
+                                            let evaluator = Values.Evaluator(f, ctx.Recognizers, Values.constantReturn ctx.Set)
+                                            Values.Evaluator.ToPayload(evaluator.Resolve(p.Origin, ins.Offset, isNewObj), p.Role)
+                                        | None -> Values.Evaluator.ToPayload(Values.Hole, p.Role))
+
                                 ctx.Effects edge.Target
                                 |> List.groupBy (fun d -> d.Category)
                                 |> List.iter (fun (category, ds) ->
-                                    let d = ds |> List.minBy (fun d -> d.Steps.Length, d.RuleId)
+                                    let resolved = ds |> List.map (fun d -> d, payloadOf d)
+                                    let shortest = List.minBy (fun (d: DependencyEffect, _) -> d.Steps.Length, d.RuleId)
+
+                                    let d, payload =
+                                        match resolved |> List.filter (fun (_, p) -> p |> Option.exists (fun p -> p.Kind <> PayloadKind.Dynamic)) with
+                                        | [] -> shortest resolved
+                                        | known -> shortest known
 
                                     let steps =
                                         [ step $"{m.Ref.Display} calls {edge.Target.Display}" m.Ref point
@@ -185,7 +202,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                             Assembly = d.PrimitiveAssembly
                                             Location = None } ]
 
-                                    add category d.RuleId d.Primitive (Some edge.Target.Type.Assembly) None (confidenceOf d.Steps) steps)
+                                    add category d.RuleId d.Primitive (Some edge.Target.Type.Assembly) payload (confidenceOf d.Steps) steps)
                             | _ -> ()
 
     List.ofSeq found, List.ofSeq diagnostics
