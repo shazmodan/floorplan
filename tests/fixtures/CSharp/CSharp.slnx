@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="CSharp.Controllers/CSharp.Controllers.csproj" />
+  <Project Path="CSharp.Endpoints/CSharp.Endpoints.csproj" />
+  <Project Path="CSharp.Middleware/CSharp.Middleware.csproj" />
+  <Project Path="CSharp.Switch/CSharp.Switch.csproj" />
+  <Project Path="CSharp.Table/CSharp.Table.csproj" />
+</Solution>

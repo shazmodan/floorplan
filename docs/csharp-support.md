@@ -1,7 +1,7 @@
 # C# support: status
 
 Date: 2026-11-17. Plan section 10, Phase 7. Fixtures: `tests/fixtures/Mixed` (F# and C# projects calling each
-other) and `Shop.Storage` in `tests/fixtures/Shop`.
+other), `tests/fixtures/CSharp` (routing in C#) and `Shop.Storage` in `tests/fixtures/Shop`.
 
 ## Done: structure analysis
 
@@ -31,15 +31,43 @@ support instead of appearing as one limited-support node.
 The architecture test now also keeps Roslyn and `*.CSharp` projects out of `Floorplan.Analysis`,
 `Floorplan.Layout` and `Floorplan.Rendering`.
 
+## Done: entry points and C# compiler output
+
+Fixture: `tests/fixtures/CSharp`, the routing styles of the Routing fixture written in C#, built for net8.0 and
+net10.0 with the same golden results (`tests/golden/csharp.entry-points.txt`):
+
+| Project | Routing | Result |
+|---|---|---|
+| `CSharp.Endpoints` | Minimal APIs: method groups, lambdas, async lambdas, a group handed to a method, a nested group behind `RequireAuthorization`, a template built at run time | Every constant route complete, one entry each; the run-time template partial |
+| `CSharp.Controllers` | `[ApiController]` attribute routes and `MapDefaultControllerRoute` | As for F# controllers |
+| `CSharp.Middleware` | `==`, `StartsWith`, `HttpMethods.IsOptions`, `Split` with indexing, a `switch` statement on the method | As for the F# middleware |
+| `CSharp.Switch` | A switch expression on a `(method, path)` tuple with seven string cases (Roslyn compares hashes, then strings), and list patterns over segments (`["api", "orders", var id]`) | Every case complete, with a path parameter for `var id` |
+| `CSharp.Table` | A `Dictionary<string, Func<string>>` initializer behind `HttpListener` | As for the F# table |
+
+Most of what C# emits needed no new code: it is either shared by every .NET compiler (delegates through `ldftn`,
+async state machines, iterators) or made of platform calls the analysis reads anyway (`String.op_Equality` in
+string switches, array length and element access in list patterns, `string.Format`).
+`Floorplan.IL.Codegen.CSharp` holds what is Roslyn's own:
+
+- **Delegate caches.** Roslyn caches the delegate for a lambda (`<>c.<>9__0_1`) or a static method group
+  (`<>O.<0>__Name`) in a static field and creates it only when the field is null. The symbolic run read such a
+  field as unknown, so every minimal API route had a second entry whose handler was "a library function". Those
+  fields now start out null (`ICodegenRecognizer.IsLazyCache`).
+
+Also new, outside the recognizer:
+
+- **Interpolated strings** built with the platform's `DefaultInterpolatedStringHandler` are read as payload
+  templates (`$"orders/{id}.json"` gives `orders/{…}.json`), as `string.Format` already was.
+- **Readable C# names on the website**: a lambda is shown by its enclosing method (`Admin › lambda in Map`,
+  `Program › lambda in top-level statements`), an async body as `Store › async body of Load`, a local function by
+  its name. The compiler's name stays in the tooltip.
+- The global namespace unit is shown by its label wherever the site names a unit.
+
 ## Not done yet
 
-- **C# compiler-output recognizers** (`Floorplan.IL.Codegen.CSharp`): the recognizer for an assembly is chosen by
-  language, and only the F# one exists. C# lambdas and async methods are already linked through what every
-  compiler shares (delegates created with `ldftn`, `IAsyncStateMachine`), so exit points in C# code are found,
-  including one in a lambda inside an async method. But route recovery in C# code lacks C#'s idioms: string
-  `switch` (hash and compare), string equality as C# emits it, collection access, and `string.Format` and
-  interpolation handlers for payload templates. Lambdas keep their compiler names
-  (`InvoiceStore/<>c::<ArchiveAsync>b__1_0`) where F# ones are made readable.
-- **C# entry-point fixtures**: minimal APIs and controllers written in C#, and hand-written routing in C#, with
-  golden files, so that C# and mixed solutions pass the same fixture categories as F# (the Phase 7 "done when").
+- **C# effect fixtures**: `HttpClient`, ADO.NET, process start, effects behind interfaces and dependency
+  injection, called directly and through a wrapper library, as the F# Effects fixture does. Exit points in C# code
+  are found (Mixed fixture, including one in a lambda in an async method) but not tested across those categories.
+- **C# routing inside a dependency**: the same routing code in a separate library project.
 - A unit lists no types: the unit detail page shows a namespace's first declaration, not the types it holds.
+- Route parameters taken from a list pattern are named `{param}`, as in F#, not after the C# variable.

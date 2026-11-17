@@ -20,6 +20,7 @@
     <Compile Include="EntryPointTests.fs" />
     <Compile Include="NoiseAndTraceTests.fs" />
     <Compile Include="FrameworkTests.fs" />
+    <Compile Include="CSharpTests.fs" />
     <Compile Include="SymbolicSamples.fs" />
     <Compile Include="SymbolicTests.fs" />
     <Compile Include="Main.fs" />
@@ -36,6 +37,7 @@
     <ProjectReference Include="..\..\src\Floorplan.Rendering\Floorplan.Rendering.fsproj" />
     <ProjectReference Include="..\..\src\Floorplan.Cli\Floorplan.Cli.fsproj" />
     <ProjectReference Include="..\..\src\Floorplan.IL.Codegen.FSharp\Floorplan.IL.Codegen.FSharp.fsproj" />
+    <ProjectReference Include="..\..\src\Floorplan.IL.Codegen.CSharp\Floorplan.IL.Codegen.CSharp.fsproj" />
     <ProjectReference Include="..\..\src\Floorplan.Catalog\Floorplan.Catalog.fsproj" />
     <ProjectReference Include="..\..\src\Floorplan.Analysis\Floorplan.Analysis.fsproj" />
   </ItemGroup>

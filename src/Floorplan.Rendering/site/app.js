@@ -96,21 +96,27 @@
   var traceByEntry = by(D.traces, "entryPointId");
   var unitsByProject = groupBy(D.units, "projectId");
 
-  function unitName(id) { var u = units[id]; return u ? u.name : id; }
+  // A unit's full name; the global namespace has none and is shown by its label.
+  function fullName(u) { return u.name || u.displayName; }
+  function unitName(id) { var u = units[id]; return u ? fullName(u) : id; }
   function unitLink(id) {
     var u = units[id];
     if (!u) return el("span", { class: "mono" }, id);
-    return el("a", { href: "#/unit/" + enc(id), title: u.name }, u.name);
+    return el("a", { href: "#/unit/" + enc(id), title: fullName(u) }, fullName(u));
   }
   function projectName(id) { var p = projects[id]; return p ? p.name : id; }
   // A member as people wrote it. The compiler turns a lambda into a class nested in its module, named after the
   // enclosing binding and the line ("map@24", "Pipe #1 input at line 24@24"), with the body in Invoke (or
-  // MoveNext for a task or async body): shown as "Admin.map › lambda at line 24".
+  // MoveNext for a task or async body): shown as "Admin.map › lambda at line 24". C# names a lambda after its
+  // enclosing method ("<Map>b__0_1" in "Admin/<>c" or "Admin/<>c__DisplayClass0_0"), an async body after its
+  // method ("Admin/<Load>d__3", MoveNext) and a local function "<Map>g__Name|0_0": shown as "Admin › lambda in Map".
   function readableMember(m, short) {
     if (!m) return "";
     var i = m.lastIndexOf("::");
     var type = i >= 0 ? m.slice(0, i) : m, method = i >= 0 ? m.slice(i + 2) : "";
     var owner = function (t) { return short ? t.split(".").pop().replace(/\+/g, ".") : t; };
+    var cs = readableCSharp(type, method, owner);
+    if (cs) return cs;
     var slash = type.indexOf("/"), last = type.slice(type.lastIndexOf("/") + 1), at = last.match(/@(\d+)(?:-\d+)?$/);
     if (slash >= 0 && at) {
       var binding = last.match(/^([A-Za-z_][\w']*)@\d+/);
@@ -118,6 +124,24 @@
       return owner(type.slice(0, slash)) + (binding ? "." + binding[1] : "") + " › " + what + " at line " + at[1];
     }
     return owner(type) + (i >= 0 ? (short ? "." : "::") + method : "");
+  }
+  function readableCSharp(type, method, owner) {
+    var enclosing = function (n) { return n === "<Main>$" ? "top-level statements" : n; };
+    var segs = type.split("/");
+    var closure = /^<>c(__DisplayClass[\d_]+)?$/;
+    var lambda = method.match(/^<(.+)>b__[\d_]+$/);
+    if (lambda && segs.length > 1 && closure.test(segs[segs.length - 1]))
+      return owner(segs.slice(0, -1).join("/")) + " › lambda in " + enclosing(lambda[1]);
+    var local = method.match(/^<(.+)>g__(.+)\|[\d_]+$/);
+    if (local) return owner(type) + " › " + local[2] + " in " + enclosing(local[1]);
+    var async = segs.length > 1 && method === "MoveNext" && segs[segs.length - 1].match(/^<(.+)>d(__\d+)?$/);
+    if (async) {
+      var outer = segs.slice(0, -1);
+      if (outer.length > 1 && closure.test(outer[outer.length - 1])) outer = outer.slice(0, -1);
+      var inner = async[1].match(/^<(.+)>b__[\d_]+$/);
+      return owner(outer.join("/")) + (inner ? " › async lambda in " + enclosing(inner[1]) : " › async body of " + enclosing(async[1]));
+    }
+    return null;
   }
   function shortMember(m) { return readableMember(m, true); }
 
@@ -548,7 +572,7 @@
       var out = (depsFrom[selected] || []).slice().sort(function (a, b) { return b.weight - a.weight; });
       var inc = (depsTo[selected] || []).slice().sort(function (a, b) { return b.weight - a.weight; });
       append(side, [
-        el("h3", null, u.name),
+        el("h3", null, fullName(u)),
         el("div", { class: "muted" }, kindLabel(u.kind), " in ", projectName(u.projectId), u.location ? " · " + loc(u.location) : ""),
         el("p", null, el("a", { href: "#/unit/" + enc(u.id) }, "Open details")),
         el("h4", null, "Depends on (" + out.length + ")"),
@@ -581,7 +605,7 @@
       on: { keydown: function (e) {
         if (e.key !== "Enter") return;
         var q = search.value.toLowerCase();
-        var hit = D.units.filter(function (u) { return u.name.toLowerCase().indexOf(q) >= 0; })[0];
+        var hit = D.units.filter(function (u) { return fullName(u).toLowerCase().indexOf(q) >= 0; })[0];
         if (!hit) return;
         collapsedState[hit.projectId] = false;
         redraw();
@@ -757,7 +781,7 @@
       var outs = (exitByUnit[unitId] || []).filter(visibleExit);
       var byCat = groupBy(outs, "category");
       append(side, [
-        el("h3", null, u.name),
+        el("h3", null, fullName(u)),
         el("div", { class: "muted" }, kindLabel(u.kind), " in ", projectName(u.projectId)),
         el("p", null, el("a", { href: "#/unit/" + enc(u.id) }, "Open details"), " · ",
           el("a", { href: "#/units?unit=" + enc(u.id) + "&project=" + enc(u.projectId) }, "Show in " + unitWord.many.toLowerCase())),
@@ -796,7 +820,7 @@
         var hit = g.nodes.filter(function (n) {
           if (kindOf(n.id) !== "unit") return false;
           var unitId = n.id.slice("unit:".length), u = units[unitId] || {};
-          return (u.name || "").toLowerCase().indexOf(q) >= 0 ||
+          return (u.name || u.displayName || "").toLowerCase().indexOf(q) >= 0 ||
             (entryByUnit[unitId] || []).some(function (x) { return routeLabel(x).toLowerCase().indexOf(q) >= 0; });
         })[0];
         if (!hit) return;
@@ -851,7 +875,7 @@
       el("p", { class: "muted" }, el("a", { href: "#/units?unit=" + enc(u.id) + "&project=" + enc(u.projectId) }, "← Show in graph"),
         (D.layout.flowGraph && D.layout.flowGraph.nodes.some(function (n) { return n.id === "unit:" + u.id || n.members.indexOf("unit:" + u.id) >= 0; }))
           ? [" · ", el("a", { href: "#/flow?unit=" + enc(u.id) }, "Show in flow")] : null),
-      el("h1", null, u.name),
+      el("h1", null, fullName(u)),
       el("p", { class: "sub" }, kindLabel(u.kind), " in ", el("a", { href: "#/units?project=" + enc(u.projectId) }, p.name || u.projectId),
         u.location ? [" · ", el("span", { class: "mono", title: u.location.file }, loc(u.location))] : null,
         u.parent ? [" · inside ", unitLink(u.parent)] : null),

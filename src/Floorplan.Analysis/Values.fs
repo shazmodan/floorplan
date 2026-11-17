@@ -24,6 +24,9 @@ let private render (s: Symbolic) =
         | _ -> "{…}")
     |> String.concat ""
 
+/// The platform type C# (10 and later) builds interpolated strings with.
+let private interpolationHandler = "System.Runtime.CompilerServices.DefaultInterpolatedStringHandler"
+
 let isTransparent (m: MethodRef) =
     // Calls that return their (first) argument's text unchanged, as far as a reader is concerned.
     match m.Type.FullName, m.Name with
@@ -97,6 +100,8 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                 | NewObj m when isTransparent m && not operands.IsEmpty ->
                     // The text is the first operand: `this` for instance calls, the argument otherwise.
                     value (depth + 1) operands.Head
+                | Call m when m.Type.FullName = interpolationHandler && m.Name = "ToStringAndClear" ->
+                    interpolated depth offset operands
                 | Call m when (constant m).IsSome -> Text (constant m).Value
                 | Call m
                 | CallVirt m
@@ -107,6 +112,45 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                     | None -> Hole
                 | _ -> Hole
         | _ -> Hole
+
+    /// An interpolated string built with the platform's handler on a local:
+    /// `ldloca h; call .ctor; ldloca h; ldstr; call AppendLiteral; ldloca h; ...; call AppendFormatted; ...;
+    /// ldloca h; call ToStringAndClear`. The parts are the appends to that local since its last construction.
+    and interpolated (depth: int) (offset: int) (operands: Values list) : Symbolic =
+        let localOf (vs: Values) =
+            match Set.toList vs with
+            | [ LocalAddress(n, _) ] -> Some n
+            | _ -> None
+
+        match operands |> List.tryHead |> Option.bind localOf with
+        | None -> Hole
+        | Some local ->
+            let calls =
+                flow.Body.Instructions
+                |> Array.filter (fun i -> i.Offset < offset)
+                |> Array.choose (fun i ->
+                    match i.Op with
+                    | Call m when m.Type.FullName = interpolationHandler ->
+                        match flow.OperandsAt i.Offset with
+                        | target :: args when localOf target = Some local -> Some(m.Name, args)
+                        | _ -> None
+                    | _ -> None)
+
+            let since =
+                match calls |> Array.tryFindIndexBack (fun (name, _) -> name = ".ctor") with
+                | Some i -> calls[i + 1 ..]
+                | None -> calls
+
+            if since.Length = 0 then
+                Hole
+            else
+                since
+                |> Array.toList
+                |> List.map (fun (name, args) ->
+                    match name, args with
+                    | "AppendLiteral", [ text ] -> value (depth + 1) text
+                    | _ -> Hole)
+                |> Parts
 
     and formatHoles (t: Symbolic) =
         match t with

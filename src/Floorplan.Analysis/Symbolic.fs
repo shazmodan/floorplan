@@ -1775,6 +1775,7 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                             match t.State.Statics.TryFind f.Key with
                             | Some v -> t <- push v t.Stack
                             | None when (matcher.Constant f).IsSome -> t <- push (Const((matcher.Constant f).Value)) t.Stack
+                            | None when recognizers |> List.exists (fun r -> r.IsLazyCache f) -> t <- push Null t.Stack
                             | None ->
                                 // First use: run the static initialization that sets the field, once per path.
                                 let marker = "<init>" + f.Key

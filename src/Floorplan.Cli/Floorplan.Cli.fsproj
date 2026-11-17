@@ -30,6 +30,7 @@
     <ProjectReference Include="..\Floorplan.Structure.FSharp\Floorplan.Structure.FSharp.fsproj" />
     <ProjectReference Include="..\Floorplan.Structure.CSharp\Floorplan.Structure.CSharp.fsproj" />
     <ProjectReference Include="..\Floorplan.IL.Codegen.FSharp\Floorplan.IL.Codegen.FSharp.fsproj" />
+    <ProjectReference Include="..\Floorplan.IL.Codegen.CSharp\Floorplan.IL.Codegen.CSharp.fsproj" />
     <ProjectReference Include="..\Floorplan.Analysis\Floorplan.Analysis.fsproj" />
     <ProjectReference Include="..\Floorplan.Layout\Floorplan.Layout.fsproj" />
     <ProjectReference Include="..\Floorplan.Rendering\Floorplan.Rendering.fsproj" />
