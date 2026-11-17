@@ -17,6 +17,10 @@ http-out | Effects.App:Effects.Payloads | Effects.Payloads::user | System.Net.Ht
 http-out | Effects.App:Effects.Payloads | Effects.Payloads::order | System.Net.Http.HttpClient::GetStringAsync | via - | template:https://api.example.org/orders/{…} | Effects/Effects.App/Payloads.fs:16
 filesystem-read | Effects.App:Effects.Payloads | Effects.Payloads::file | System.IO.File::ReadAllText | via - | template:data/{…} | Effects/Effects.App/Payloads.fs:18
 filesystem-read | Effects.App:Effects.Payloads | Effects.Payloads::anything | System.IO.File::ReadAllText | via - | dynamic:- | Effects/Effects.App/Payloads.fs:20
+database | Effects.App:Effects.ThroughWrappers | Effects.ThroughWrappers::execLiteral | System.Data.Common.DbCommand::ExecuteNonQuery | via Effects.Wrappers | literal:DELETE FROM sessions | Effects/Effects.App/ThroughWrappers.fs:9
+database | Effects.App:Effects.ThroughWrappers | Effects.ThroughWrappers::executeRecord | System.Data.Common.DbCommand::ExecuteNonQuery | via Effects.Wrappers | literal:UPDATE orders SET seen = 1 | Effects/Effects.App/ThroughWrappers.fs:11
+database | Effects.App:Effects.ThroughWrappers | Effects.ThroughWrappers::execTaskLiteral | System.Data.Common.DbCommand::ExecuteNonQueryAsync | via Effects.Wrappers | literal:DELETE FROM tokens | Effects/Effects.App/ThroughWrappers.fs:13
+database | Effects.App:Effects.ThroughWrappers | Effects.ThroughWrappers::rowsLiteral | System.Data.Common.DbCommand::ExecuteReader | via Effects.Wrappers | literal:SELECT name FROM users | Effects/Effects.App/ThroughWrappers.fs:15
 database | Effects.App:Effects.Wrapped | Effects.Wrapped::queryNames | System.Data.IDbConnection::Open | via Dapper | - | Effects/Effects.App/Wrapped.fs:10
 nondeterminism | Effects.App:Effects.Wrapped | Effects.Wrapped::queryNames | System.Guid::NewGuid | via Dapper | - | Effects/Effects.App/Wrapped.fs:10
 http-out | Effects.App:Effects.Wrapped | Effects.Wrapped::fetchUsers | System.Net.Http.HttpClient::SendAsync | via Flurl.Http | dynamic:- | Effects/Effects.App/Wrapped.fs:13

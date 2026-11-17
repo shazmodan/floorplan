@@ -99,6 +99,22 @@ let tests =
           }
 
           // Iteration 5: state machines.
-          ptest "g: an async library method" { Expect.equal (sql "ExecAsyncLiteral") (literal "sql" "DELETE FROM tokens") "" }
+          test "g: an async library method" { Expect.equal (sql "ExecAsyncLiteral") (literal "sql" "DELETE FROM tokens") "" }
 
-          ptest "h: an iterator library method" { Expect.equal (sql "RowsLiteral") (literal "sql" "SELECT name FROM users") "" } ]
+          test "h: an iterator library method" { Expect.equal (sql "RowsLiteral") (literal "sql" "SELECT name FROM users") "" }
+
+          // F#: the same through an F# wrapper (Effects fixture, Dependency/Effects.Wrappers).
+          test "F#: the argument, a record field, a task and a sequence expression" {
+              let m = ExitPointTests.effectsModel.Force()
+
+              let fsql memberName =
+                  m.ExitPoints
+                  |> List.filter (fun x -> x.Member = "Effects.ThroughWrappers::" + memberName && x.Category = EffectCategory.Database)
+                  |> List.map (fun x -> x.ViaAssembly, x.Payload |> Option.map (fun p -> p.Role, p.Kind, p.Value))
+
+              let via = Some "Effects.Wrappers"
+              Expect.equal (fsql "execLiteral") [ via, literal "sql" "DELETE FROM sessions" ] "argument"
+              Expect.equal (fsql "executeRecord") [ via, literal "sql" "UPDATE orders SET seen = 1" ] "record field"
+              Expect.equal (fsql "execTaskLiteral") [ via, literal "sql" "DELETE FROM tokens" ] "task { }"
+              Expect.equal (fsql "rowsLiteral") [ via, literal "sql" "SELECT name FROM users" ] "seq { }"
+          } ]

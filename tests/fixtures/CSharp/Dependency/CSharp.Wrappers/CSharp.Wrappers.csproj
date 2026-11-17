@@ -5,5 +5,7 @@
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Compiled as packages are: optimized, so async state machines are structs started through the builder. -->
+    <Optimize>true</Optimize>
   </PropertyGroup>
 </Project>

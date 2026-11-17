@@ -215,6 +215,20 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
                             | true, d when d.ContainsKey ruleId ->
                                 evaluator.Substitute(this.OriginOf(w.Edge.Target, ruleId, spec, depth + 1), w.Edge.Offset, isNewObj)
                             | _ -> Values.Origin.unknown
+                        | StateMachine
+                        | Deferred ->
+                            // The body runs later, on an object this method makes: an async method's or iterator's
+                            // state machine, or a function object (an F# closure or sequence expression).
+                            match best.TryGetValue w.Edge.Target.Key with
+                            | true, d when d.ContainsKey ruleId && w.Edge.Target.HasThis ->
+                                evaluator.ThroughStateMachine(
+                                    this.OriginOf(w.Edge.Target, ruleId, spec, depth + 1),
+                                    w.Edge.Offset,
+                                    w.Edge.Target.Type,
+                                    (fun field -> recognizers |> List.collect (fun r -> r.StateMachineArgumentFields field)),
+                                    (w.Edge.Kind = Deferred)
+                                )
+                            | _ -> Values.Origin.unknown
                         | _ -> Values.Origin.unknown
 
             origins[key] <- origin

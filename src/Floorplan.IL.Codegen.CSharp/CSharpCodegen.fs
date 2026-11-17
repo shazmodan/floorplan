@@ -44,4 +44,7 @@ let recognizer =
             m.Type.FullName = "System.String" && (m.Name = "op_Equality" || m.Name = "Equals") && m.ParameterCount >= 1
 
         member _.IsOpaque _ = false
-        member _.IsLazyCache f = isLazyCache f }
+        member _.IsLazyCache f = isLazyCache f
+
+        // An iterator's starting method stores argument x into <>3__x; GetEnumerator copies it into x.
+        member _.StateMachineArgumentFields field = [ "<>3__" + field ] }

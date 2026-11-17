@@ -15,7 +15,8 @@ on its own. To pick up after a break:
    for this work's tests). Goldens are updated with `FLOORPLAN_UPDATE_GOLDEN=1`; check every changed line.
 4. Before committing, update this file in the same commit: the Status row, and a dated **Log** entry with what was
    done, what was found, and anything left over. Findings that change the design go into **Design** as well.
-5. Ask the owner before merging; after the merge, delete the branch.
+5. Ask the owner before merging; after the merge, delete the branch. (2026-11-17: the owner asked to merge, push
+   and go on without asking until the plan is fully implemented.)
 
 Never leave knowledge only in a conversation: if a session ends mid-iteration, the Log entry (committed on the
 branch, or at least saved in the working tree) must say where it stopped.
@@ -28,7 +29,7 @@ branch, or at least saved in the working tree) must say where it stopped.
 | 2 | Arguments passed straight through, with caching | `claude/library-payload-pass-through` | done |
 | 3 | Values built inside the library | `claude/library-payload-built-values` | done |
 | 4 | Properties, fields, constructors, returned objects | `claude/library-payload-object-members` | done |
-| 5 | Async and iterator state machines | `claude/library-payload-state-machines` | not started |
+| 5 | Async and iterator state machines | `claude/library-payload-state-machines` | done |
 | 6 | Dapper | `claude/library-payload-dapper` | not started |
 | 7 | Other paths when the shortest gives nothing | `claude/library-payload-other-paths` | not started |
 | 8 | Flurl and HTTP request objects (stretch) | `claude/library-payload-http-requests` | not started |
@@ -158,7 +159,7 @@ goldens are unchanged except for the new call sites. **Done when**: all tests gr
 ### 2. Arguments passed straight through, with caching
 
 `Origin` with `Literal`, `Unknown`, `FromParameter` (no members yet); the backward walk along the witness path; the
-choice in `ExitPoints`; origins in the summaries cache (`summaries-v3`; `summaries-v4` from iteration 3, `summaries-v5` from iteration 4). **Done when**: cases a, b, c, i pass (`LibraryPayloadTests.fs`); a test runs
+choice in `ExitPoints`; origins in the summaries cache (`summaries-v3`; `summaries-v4` from iteration 3, `summaries-v5` from iteration 4, `summaries-v7` from iteration 5). **Done when**: cases a, b, c, i pass (`LibraryPayloadTests.fs`); a test runs
 the fixture twice with a cache store and gets the same payloads both times.
 
 ### 3. Values built inside the library
@@ -268,3 +269,24 @@ Next: iteration 4.
 - Cache key `summaries-v5`. Tests e, f, k pass; golden changes only those three lines. F# backing fields (`X@`)
   are normalized but not covered by a fixture yet.
 Next: iteration 5.
+
+**2026-11-17, iteration 5, done.**
+- `ICodegenRecognizer.StateMachineArgumentFields` (C#: `x` → `<>3__x`, the iterator starter's copy; F#: none).
+- `Evaluator.ThroughStateMachine`: a `StateMachine` edge's callee origin is in terms of its `this`; the machine is
+  the object constructed at the edge (a class: `newobj`, Debug builds), the `initobj` local, or the starter's local
+  of the machine's type (a struct, optimized builds, edge offset 0). Its fields are what the starter stores; for a
+  field the starter did not store, the recognizer's alternative names are tried.
+- `Deferred` edges (function objects) go the same way, but only for an object constructed at the edge: F# `seq { }`
+  compiles to a class constructed with the arguments, its `GenerateNext` linked by the F# recognizer. C# lambdas
+  (a display class made elsewhere) stay unknown.
+- Found: in a state machine, a local is a field of `this`, loaded anew at each use, so the setter's receiver and the
+  executing call's receiver were different values. `memberValue` now matches receivers by identity
+  (`identity`: a local by number, a field by field name and owner, else the value).
+- `CSharp.Wrappers` is built optimized (`<Optimize>true</Optimize>`), as packages are: its async state machine is
+  a struct started through the builder. Both builds were checked: Debug (class) passed before the switch.
+- F# check: new `tests/fixtures/Effects/Dependency/Effects.Wrappers` (F#, optimized), called from
+  `Effects.App/ThroughWrappers.fs`: an argument, a record field (`Text@` backing field), `task { }` (inlined
+  into the method by the compiler, nothing more needed) and `seq { }`; all four give their SQL (one test).
+- Cache key `summaries-v7` (v6 was never committed). Goldens: g and h in `csharp.exit-points.txt`, four new lines
+  in `effects.exit-points.txt`; nothing else changed (Dapper still `IDbConnection::Open`).
+Next: iteration 6, Dapper.
