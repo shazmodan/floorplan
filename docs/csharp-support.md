@@ -63,11 +63,29 @@ Also new, outside the recognizer:
   its name. The compiler's name stays in the tooltip.
 - The global namespace unit is shown by its label wherever the site names a unit.
 
+## Done: effects, dependencies, source generators
+
+- **`CSharp.Effects`** ports the F# Effects fixture (`tests/golden/csharp.exit-points.txt`): every category
+  called directly, ADO.NET through SQLite and Npgsql (using declarations, an object initializer), Dapper and
+  Flurl as wrapper libraries, a lambda capturing a local, an interface, an implementation only named in a
+  dependency-injection registration, an async method, an iterator, literal/constant/template/dynamic payloads,
+  `LibraryImport`, and reflection as a blind spot. All give the F# results.
+- **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
+  built assembly (a dependency, like a package), with the application's handlers passed as method groups in a
+  record. Same routes as the F# `Routing.Delegated`.
+- **Source generators** run during structure analysis: the generator assemblies the compiler is given
+  (`/analyzer:`) are loaded, one load context per folder (projects on different .NET versions have generators of
+  the same name), and their output is compiled so that code calling it binds. Without this, every `LibraryImport`,
+  `[GeneratedRegex]`, JSON or logging generator gave a compile error.
+- **Types of a namespace**: a namespace unit lists the types it declares (`CodeUnit.Types`, shown on its page).
+- **Route parameter names** (F# and C#): a segment taken as a parameter is named after the handler parameter
+  that receives it (`/orders/{id}` for `Show(HttpContext ctx, string id)`), for control-flow routes as it already
+  was for platform routes.
+
 ## Not done yet
 
-- **C# effect fixtures**: `HttpClient`, ADO.NET, process start, effects behind interfaces and dependency
-  injection, called directly and through a wrapper library, as the F# Effects fixture does. Exit points in C# code
-  are found (Mixed fixture, including one in a lambda in an async method) but not tested across those categories.
-- **C# routing inside a dependency**: the same routing code in a separate library project.
-- A unit lists no types: the unit detail page shows a namespace's first declaration, not the types it holds.
-- Route parameters taken from a list pattern are named `{param}`, as in F#, not after the C# variable.
+- SQL text is not recovered as a payload for ADO.NET commands (`CommandText` set as a property or in an object
+  initializer); the same holds for F#.
+- Generators that read additional files or MSBuild properties through analyzer config options get none, so code
+  depending on what those generate may not bind; it is then reported as a compile error and the result is not
+  cached.

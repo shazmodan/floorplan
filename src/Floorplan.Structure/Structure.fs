@@ -66,7 +66,8 @@ module LimitedSupport =
           Name = project.Name
           DisplayName = project.Name
           Parent = None
-          Location = None }
+          Location = None
+          Types = [] }
 
     let analyze (projects: LoadedProject list) =
         { Units = projects |> List.map unitFor

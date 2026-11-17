@@ -54,7 +54,9 @@ type CodeUnit =
       /// Last name segment, for labels.
       DisplayName: string
       Parent: string option
-      Location: Location option }
+      Location: Location option
+      /// The types a namespace unit declares, by simple name, sorted; empty for other kinds.
+      Types: string list }
 
 type Dependency =
     { FromUnit: string

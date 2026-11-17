@@ -108,6 +108,11 @@ let tests =
               Expect.stringEnds storage.Location.Value.File "InvoiceStore.cs" "block-scoped namespace location"
               Expect.isNone (units |> List.find (fun u -> u.Name = "")).Location "the global namespace has no location"
 
+              Expect.equal
+                  (units |> List.map (fun u -> u.Types))
+                  [ [ "BillingDefaults" ]; [ "Invoice" ]; [ "InvoiceStore" ] ]
+                  "the types each namespace declares, without nested ones"
+
               let tool = result.Units |> List.filter (fun u -> u.ProjectId = "Mixed.Tool") |> List.map (fun u -> u.Id)
               Expect.equal tool [ "Mixed.Tool:" ] "top-level statements are in the global namespace"
           }

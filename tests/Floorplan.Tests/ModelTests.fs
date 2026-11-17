@@ -24,7 +24,8 @@ let private sample =
                 Name = "App.Orders"
                 DisplayName = "Orders"
                 Parent = None
-                Location = None } ] }
+                Location = None
+                Types = [] } ] }
 
 [<Tests>]
 let tests =

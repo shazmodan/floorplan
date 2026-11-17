@@ -75,7 +75,63 @@ module CSharpStructureAnalyzer =
 
         CSharpParseOptions(LanguageVersion.Preview, DocumentationMode.None, SourceCodeKind.Regular, symbols)
 
-    /// A Roslyn compilation of the project from its MSBuild evaluation: its compile items and resolved references.
+    /// Analyzer assemblies from one folder, in a context of their own: projects may target different .NET versions,
+    /// whose generators have the same names and different versions. Roslyn itself is shared with the tool.
+    type private AnalyzerContext(folder: string) =
+        inherit System.Runtime.Loader.AssemblyLoadContext($"analyzers:{folder}")
+
+        override this.Load(name: System.Reflection.AssemblyName) =
+            let shared = name.Name.StartsWith "Microsoft.CodeAnalysis" || name.Name = "System.Collections.Immutable" || name.Name = "System.Reflection.Metadata"
+            let local = Path.Combine(folder, name.Name + ".dll")
+
+            if not shared && File.Exists local then this.LoadFromAssemblyPath local else null
+
+    let private contexts = System.Collections.Concurrent.ConcurrentDictionary<string, AnalyzerContext>(StringComparer.OrdinalIgnoreCase)
+
+    let private assemblyLoader =
+        { new IAnalyzerAssemblyLoader with
+            member _.AddDependencyLocation _ = ()
+
+            member _.LoadFromPath path =
+                let folder = Path.GetDirectoryName(Path.GetFullPath path)
+                contexts.GetOrAdd(folder, fun f -> new AnalyzerContext(f)).LoadFromAssemblyPath(Path.GetFullPath path) }
+
+    /// The analyzer assemblies the compiler is given (`/analyzer:`), which carry the project's source generators.
+    let private analyzerPaths (project: LoadedProject) =
+        project.Options.OtherOptions
+        |> List.choose (fun o ->
+            if o.StartsWith "/analyzer:" || o.StartsWith "-analyzer:" then Some(o.Substring 10)
+            elif o.StartsWith "/a:" || o.StartsWith "-a:" then Some(o.Substring 3)
+            else None)
+        |> List.map (fun p -> p.Trim '"')
+        |> List.filter File.Exists
+        |> List.distinct
+
+    /// Runs the project's source generators (LibraryImport, JSON, regex, logging...), so code that calls what they
+    /// generate binds. Generated code is compiled but gives no units and no edges. A generator that cannot be
+    /// loaded or fails is skipped.
+    let private runGenerators (project: LoadedProject) (options: CSharpParseOptions) (compilation: CSharpCompilation) : CSharpCompilation =
+        let generators =
+            analyzerPaths project
+            |> List.collect (fun path ->
+                try
+                    (Microsoft.CodeAnalysis.Diagnostics.AnalyzerFileReference(path, assemblyLoader)).GetGenerators(LanguageNames.CSharp)
+                    |> List.ofSeq
+                with _ ->
+                    [])
+
+        if generators.IsEmpty then
+            compilation
+        else
+            try
+                let driver = CSharpGeneratorDriver.Create(generators, parseOptions = options)
+                let _, updated, _ = driver.RunGeneratorsAndUpdateCompilation(compilation)
+                updated :?> CSharpCompilation
+            with _ ->
+                compilation
+
+    /// A Roslyn compilation of the project from its MSBuild evaluation: its compile items and resolved references,
+    /// with the code its source generators add.
     let compilation (project: LoadedProject) =
         let options = parseOptions project
 
@@ -92,17 +148,20 @@ module CSharpStructureAnalyzer =
         let kind =
             if project.IsApplication then OutputKind.ConsoleApplication else OutputKind.DynamicallyLinkedLibrary
 
-        CSharpCompilation.Create(
-            project.AssemblyName,
-            trees,
-            references,
-            CSharpCompilationOptions(kind, nullableContextOptions = NullableContextOptions.Enable, allowUnsafe = true)
-        )
+        let compilation =
+            CSharpCompilation.Create(
+                project.AssemblyName,
+                trees,
+                references,
+                CSharpCompilationOptions(kind, nullableContextOptions = NullableContextOptions.Enable, allowUnsafe = true)
+            )
 
-    /// Each namespace that declares a type in the project's own source, with where it is first declared.
+        runGenerators project options compilation
+
+    /// Each namespace that declares a type in the project's own source, with where it is first declared and the
+    /// simple names of the types it declares (not nested ones).
     let private declaredNamespaces (trees: SyntaxTree list) =
         trees
-        |> List.filter (fun t -> not (isGenerated t.FilePath))
         |> List.collect (fun tree ->
             let root = tree.GetRoot()
 
@@ -114,35 +173,43 @@ module CSharpStructureAnalyzer =
                           let own = ns.Members |> Seq.exists (fun m -> not (m :? BaseNamespaceDeclarationSyntax))
 
                           if own then
-                              yield name, Some(toLocation (ns.GetLocation().GetLineSpan()))
+                              yield name, Some(toLocation (ns.GetLocation().GetLineSpan())), None
 
                           yield! walk name ns
-                      | :? BaseTypeDeclarationSyntax
-                      | :? DelegateDeclarationSyntax -> yield prefix, None
-                      | :? GlobalStatementSyntax when prefix = "" -> yield "", None
+                      | :? BaseTypeDeclarationSyntax as t -> yield prefix, None, Some t.Identifier.Text
+                      | :? DelegateDeclarationSyntax as d -> yield prefix, None, Some d.Identifier.Text
+                      | :? GlobalStatementSyntax when prefix = "" -> yield "", None, None
                       | _ -> () ]
 
             walk "" root)
-        |> List.groupBy fst
-        |> List.map (fun (name, found) -> name, found |> List.tryPick snd)
-        |> List.sortBy fst
+        |> List.groupBy (fun (name, _, _) -> name)
+        |> List.map (fun (name, found) ->
+            name,
+            found |> List.tryPick (fun (_, location, _) -> location),
+            found |> List.choose (fun (_, _, t) -> t) |> List.distinct |> List.sort)
+        |> List.sortBy (fun (name, _, _) -> name)
 
     let private analyzeProject (index: SolutionIndex) (project: LoadedProject) =
         let compilation = compilation project
+
+        // The project's own source: not generated files under obj/, nor what source generators add.
+        let ownFiles = project.SourceFiles |> List.filter (fun f -> not (isGenerated f)) |> set
+        let isOwn (tree: SyntaxTree) = ownFiles.Contains tree.FilePath
         let unitId = UnitId.create project.Id
 
-        let namespaces = declaredNamespaces (List.ofSeq compilation.SyntaxTrees)
+        let namespaces = declaredNamespaces (compilation.SyntaxTrees |> Seq.filter isOwn |> List.ofSeq)
 
         let units =
             namespaces
-            |> List.map (fun (name, location) ->
+            |> List.map (fun (name, location, types) ->
                 { Id = unitId name
                   ProjectId = project.Id
                   Kind = UnitKind.Namespace
                   Name = name
                   DisplayName = if name = "" then globalNamespaceLabel else name.Split('.') |> Array.last
                   Parent = None
-                  Location = location })
+                  Location = location
+                  Types = types })
 
         let errors =
             compilation.GetDiagnostics()
@@ -169,7 +236,7 @@ module CSharpStructureAnalyzer =
 
         let edges =
             compilation.SyntaxTrees
-            |> Seq.filter (fun t -> not (isGenerated t.FilePath))
+            |> Seq.filter isOwn
             |> Seq.collect (fun tree ->
                 let model = compilation.GetSemanticModel(tree, false)
 
@@ -212,7 +279,7 @@ module CSharpStructureAnalyzer =
     /// belong to which project of the solution.
     let private cacheKey (index: SolutionIndex) (project: LoadedProject) =
         Caching.hash
-            [ yield "structure-csharp-v1"
+            [ yield "structure-csharp-v2"
               yield typeof<StructureResult>.Assembly.GetName().Version.ToString()
               yield typeof<CSharpCompilation>.Assembly.GetName().Version.ToString()
               yield project.Id

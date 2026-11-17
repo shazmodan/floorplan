@@ -37,7 +37,8 @@ let private unit projectId name =
       Name = name
       DisplayName = name
       Parent = None
-      Location = None }
+      Location = None
+      Types = [] }
 
 let private uses (a: CodeUnit) (b: CodeUnit) =
     { FromUnit = a.Id

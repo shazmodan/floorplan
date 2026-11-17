@@ -27,6 +27,7 @@ let private entryFor
     ctx.Program.Attributor.Attribute(projectId, handler, point)
     |> Option.map (fun unit ->
         let httpMethod, route, completeness = assemble predicates
+        let route = route |> Option.map (nameFromHandler set handler)
 
         { Id = ""
           ApplicationId = ctx.Project.ProjectId
