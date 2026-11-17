@@ -234,6 +234,15 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
                     if w.Distance = 1 then
                         // The call to the primitive: its payload operand, or a property of its receiver.
                         match spec.Property with
+                        | Some property when spec.Argument >= 0 ->
+                            Values.Origin.ofSymbolic (
+                                evaluator.OperandMember(
+                                    w.Edge.Offset,
+                                    Values.operandIndex w.Edge.Declared isNewObj spec.Argument,
+                                    property,
+                                    spec.ConstructorArgument
+                                )
+                            )
                         | Some property when w.Edge.Declared.HasThis && not isNewObj ->
                             Values.Origin.ofSymbolic (evaluator.ReceiverMember(w.Edge.Offset, property, spec.ConstructorArgument))
                         | Some _ -> Values.Origin.unknown

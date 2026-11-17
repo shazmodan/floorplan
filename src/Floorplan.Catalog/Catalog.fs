@@ -24,9 +24,10 @@ type RuleKind =
 
 /// Which argument of a matched call carries something worth showing: a URL, SQL text, a path, a route template,
 /// a handler. Argument 0 is the first declared parameter; for instance methods `this` is not counted.
-/// With `Property`, the payload is a property of the receiver instead (a command's SQL text): the value last
-/// stored through its setter before the call, or else the constructor argument at `ConstructorArgument` when the
-/// receiver was created with a constructor whose parameter there is a string.
+/// With `Property`, the payload is a property of the receiver instead (a command's SQL text), or of argument
+/// `Argument` when both are given (a request's URL): the value last stored through its setter before the call, or
+/// else the constructor argument at `ConstructorArgument` when the object was created with a constructor whose
+/// parameter there is a string or a `Uri`. Without an argument, `Argument` is -1.
 type PayloadSpec =
     { Argument: int
       Role: string

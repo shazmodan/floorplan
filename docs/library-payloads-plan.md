@@ -32,7 +32,7 @@ branch, or at least saved in the working tree) must say where it stopped.
 | 5 | Async and iterator state machines | `claude/library-payload-state-machines` | done |
 | 6 | Dapper | `claude/library-payload-dapper` | done |
 | 7 | Other paths when the shortest gives nothing | done in iteration 6 (Dapper needed it) | done |
-| 8 | Flurl and HTTP request objects (stretch) | `claude/library-payload-http-requests` | not started |
+| 8 | Flurl and HTTP request objects (stretch) | `claude/library-payload-http-requests` | done (Flurl stays dynamic) |
 | 9 | Documentation and TODO | with the last iteration merged | not started |
 
 ## Goal
@@ -162,7 +162,7 @@ goldens are unchanged except for the new call sites. **Done when**: all tests gr
 ### 2. Arguments passed straight through, with caching
 
 `Origin` with `Literal`, `Unknown`, `FromParameter` (no members yet); the backward walk along the witness path; the
-choice in `ExitPoints`; origins in the summaries cache (`summaries-v3`; `summaries-v4` from iteration 3, `summaries-v5` from iteration 4, `summaries-v7` from iteration 5, `summaries-v8` from iteration 6). **Done when**: cases a, b, c, i pass (`LibraryPayloadTests.fs`); a test runs
+choice in `ExitPoints`; origins in the summaries cache (`summaries-v3`; `summaries-v4` from iteration 3, `summaries-v5` from iteration 4, `summaries-v7` from iteration 5, `summaries-v8` from iteration 6, `summaries-v9` from iteration 8). **Done when**: cases a, b, c, i pass (`LibraryPayloadTests.fs`); a test runs
 the fixture twice with a cache store and gets the same payloads both times.
 
 ### 3. Values built inside the library
@@ -313,3 +313,13 @@ call sites `DeleteSessions`/`deleteSessions` calling `Execute`; one test).
 - Cache key `summaries-v8`. Golden changes: the four Dapper lines (two new, two from `Open` to the command with
   its SQL); the Flurl lines only moved with the new call sites.
 Next: iteration 8, Flurl.
+
+**2026-11-17, iteration 8, done.** A payload can now be a property of an argument: `{ "argument": 0, "property":
+"RequestUri", "constructorArgument": 1, "role": "url" }` (`Evaluator.OperandMember`; `ReceiverMember` is the
+receiver's case). `HttpClient.Send*` and `HttpMessageInvoker.Send*` use it, so their role is `url` instead of
+`request`; the constructor fallback takes a `Uri` parameter as well as a string. New wrapper cases
+`RequestConstructed` (`new HttpRequestMessage(method, url)`) and `RequestProperty` (`RequestUri = new Uri(url)`)
+show their URLs (one test). Flurl stays dynamic, as expected: `FlurlClient.SendAsync` builds the message from
+`Url.op_Implicit(request.Url)`, which renders Flurl's parsed `Url` object (scheme, host, path segments, query)
+back into a string; that is not followed. Cache key `summaries-v9`. Golden: the two new lines (the others moved).
+Next: iteration 9, documentation.

@@ -395,13 +395,24 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
     /// A property of the call's receiver at the call: as `memberValue` finds it, or else the string constructor
     /// argument at `constructorArgument` of the construction that made the receiver.
     member this.ReceiverMember(offset: int, property: string, constructorArgument: int option) : Symbolic =
-        match flow.OperandsAt offset |> List.tryHead with
+        this.OperandMember(offset, 0, property, constructorArgument)
+
+    /// A property of operand `index` of the call at `offset` (a request's URL): as `ReceiverMember` finds it for the
+    /// receiver. The constructor argument fallback takes a string or a `Uri` parameter.
+    member this.OperandMember(offset: int, index: int, property: string, constructorArgument: int option) : Symbolic =
+        match List.tryItem index (flow.OperandsAt offset) with
         | None -> Hole
-        | Some receiver ->
-            match memberValue 0 receiver property offset, Set.toList receiver with
+        | Some operand ->
+            match memberValue 0 operand property offset, Set.toList operand with
             | Hole, [ Pushed o ] ->
                 match flow.InstructionAt o, constructorArgument with
-                | Some { Op = NewObj ctor }, Some i when List.tryItem i ctor.ParameterTypes = Some "System.String" -> this.Operand(o, i)
+                | Some { Op = NewObj ctor }, Some i when
+                    (match List.tryItem i ctor.ParameterTypes with
+                     | Some "System.String"
+                     | Some "System.Uri" -> true
+                     | _ -> false)
+                    ->
+                    this.Operand(o, i)
                 | _ -> Hole
             | found, _ -> found
 
