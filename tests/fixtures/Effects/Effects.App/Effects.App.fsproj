@@ -2,11 +2,14 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <WrapperLibrary>$(MSBuildThisFileDirectory)../Dependency/Effects.Wrappers/Effects.Wrappers.fsproj</WrapperLibrary>
+    <WrapperLibraryAssembly>$(MSBuildThisFileDirectory)../Dependency/Effects.Wrappers/bin/$(Configuration)/$(TargetFramework)/Effects.Wrappers.dll</WrapperLibraryAssembly>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Direct.fs" />
     <Compile Include="Database.fs" />
     <Compile Include="Wrapped.fs" />
+    <Compile Include="ThroughWrappers.fs" />
     <Compile Include="HigherOrder.fs" />
     <Compile Include="Payloads.fs" />
     <Compile Include="Hidden.fs" />
@@ -18,4 +21,19 @@
     <PackageReference Include="Dapper" Version="2.1.35" />
     <PackageReference Include="Flurl.Http" Version="4.0.2" />
   </ItemGroup>
+  <!-- The wrapper library is referenced as a built assembly, not as a project: it is a dependency, like a package,
+       and not part of the solution under analysis. Built as in the CSharp fixture. -->
+  <ItemGroup Condition="'$(TargetFramework)' != ''">
+    <Reference Include="Effects.Wrappers">
+      <HintPath>$(WrapperLibraryAssembly)</HintPath>
+    </Reference>
+  </ItemGroup>
+  <Target Name="BuildWrapperLibrary" BeforeTargets="DispatchToInnerBuilds">
+    <MSBuild Projects="$(WrapperLibrary)" Targets="Restore" Properties="Configuration=$(Configuration);RestoreSeparately=true" />
+    <MSBuild Projects="$(WrapperLibrary)" Targets="Build" Properties="Configuration=$(Configuration)" />
+  </Target>
+  <Target Name="BuildWrapperLibraryFor" BeforeTargets="ResolveAssemblyReferences" Condition="'$(TargetFramework)' != '' And !Exists('$(WrapperLibraryAssembly)')">
+    <MSBuild Projects="$(WrapperLibrary)" Targets="Restore" Properties="Configuration=$(Configuration);RestoreSeparately=true" />
+    <MSBuild Projects="$(WrapperLibrary)" Targets="Build" Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)" />
+  </Target>
 </Project>

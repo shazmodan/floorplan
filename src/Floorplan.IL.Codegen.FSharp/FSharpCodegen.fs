@@ -116,5 +116,6 @@ let recognizer =
             || t.StartsWith "Microsoft.FSharp.Collections.ComparisonIdentity"
             || (t = "Microsoft.FSharp.Core.ExtraTopLevelOperators" && m.Name.StartsWith "PrintFormat")
 
-        member _.IsLazyCache _ = false }
+        member _.IsLazyCache _ = false
+        member _.StateMachineArgumentFields _ = [] }
 

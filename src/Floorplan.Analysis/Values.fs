@@ -166,12 +166,12 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
             Hole
         else
             let receiverList = Set.toList receiver
+            let receiverIdentity = identity 0 receiver
 
             let isReceiver (target: Values) =
-                match receiverList, Set.toList target with
-                | [ LocalAddress(a, _) ], [ LocalAddress(b, _) ] -> a = b
-                | [ r ], [ t ] -> r = t
-                | _ -> false
+                match receiverIdentity with
+                | Some r -> identity 0 target = Some r
+                | None -> false
 
             let stored =
                 flow.Body.Instructions
@@ -201,6 +201,22 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                     | Param(i, path) -> Param(i, path @ [ name ])
                     | _ -> Hole
             | None, _ -> Hole
+
+    /// What object a value is, for matching stores to reads: a local by number (its address is taken anew at each
+    /// use), a field of an object by field and object (a local hoisted into a state machine is loaded anew at
+    /// each use), or else the value itself.
+    and identity (depth: int) (values: Values) : string option =
+        if depth > 8 then
+            None
+        else
+            match Set.toList values with
+            | [ LocalAddress(n, _) ] -> Some $"local {n}"
+            | [ Pushed o ] ->
+                match flow.InstructionAt o, flow.OperandsAt o with
+                | Some { Op = LdFld f }, [ owner ] -> identity (depth + 1) owner |> Option.map (fun i -> $"{i}.{f.Name}")
+                | _ -> Some $"pushed {o}"
+            | [ v ] -> Some(string v)
+            | _ -> None
 
     /// Member `name` of what the call at `offset` produces.
     and produce (depth: int) (m: MethodRef) (name: string) (offset: int) (isNewObj: bool) : Symbolic =
@@ -377,6 +393,40 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
 
     /// What a value is in terms of this method's arguments.
     member _.OriginOf(values: Values) : Origin = Origin.ofSymbolic (value 0 values)
+
+    /// The origin of a state machine's body (an async method's or iterator's MoveNext, in terms of its `this`)
+    /// seen from the method that starts it: the machine's fields are what this method stores into them. The
+    /// machine is the object constructed at `offset`, or this method's local of type `machine` (a struct
+    /// machine, started through the platform's builder). `alternatives` names other fields the argument held in
+    /// a field may be stored into. With `constructedOnly` (function objects, such as F# closures and sequence
+    /// expressions), only an object constructed at `offset` counts.
+    member _.ThroughStateMachine(callee: Origin, offset: int, machine: TypeRef, alternatives: string -> string list, constructedOnly: bool) : Origin =
+        let receiver =
+            match flow.InstructionAt offset with
+            | Some { Op = NewObj ctor } when ctor.Type.FullName = machine.FullName -> Some(Set.singleton (Pushed offset))
+            | _ when constructedOnly -> None
+            | Some { Op = InitObj t } when t.FullName = machine.FullName -> flow.OperandsAt offset |> List.tryHead
+            | _ ->
+                flow.Body.LocalTypes
+                |> List.tryFindIndex (fun t -> t.FullName = machine.FullName)
+                |> Option.map (fun n -> Set.singleton (LocalAddress(n, 0)))
+
+        match receiver with
+        | None -> Origin.unknown
+        | Some machineValue ->
+            callee
+            |> List.map (function
+                | Literal t -> Text t
+                | FromParameter(0, field :: rest) ->
+                    field :: alternatives field
+                    |> List.tryPick (fun name ->
+                        match memberPath 0 machineValue (name :: rest) System.Int32.MaxValue with
+                        | Hole -> None
+                        | found -> Some found)
+                    |> Option.defaultValue Hole
+                | _ -> Hole)
+            |> Parts
+            |> Origin.ofSymbolic
 
     /// A callee's origin seen from the call at `offset`: its arguments replaced by what this method passes.
     member this.Substitute(callee: Origin, offset: int, isNewObj: bool) : Origin =

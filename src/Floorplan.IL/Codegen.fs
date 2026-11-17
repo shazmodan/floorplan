@@ -36,6 +36,10 @@ type ICodegenRecognizer =
     /// A static field the compiler fills on first use and tests for null before (a cached delegate): null until
     /// code stores it, whatever static initialization runs.
     abstract IsLazyCache: field: FieldRef -> bool
+    /// For a field of a state machine (async method, iterator) that holds one of the starting method's
+    /// arguments, the other fields the starting method may store that argument into (C# iterators store it into
+    /// `<>3__x`, and the enumerator copies it into `x`).
+    abstract StateMachineArgumentFields: field: string -> string list
 
 /// Code generation every .NET compiler shares: delegates and async state machines.
 module CommonCodegen =

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Not in Effects.slnx: an F# wrapper library Effects.App depends on, so its code is a dependency. The payloads
+       of the effects behind it are worked out from its code (docs/library-payloads-plan.md). Compiled as packages
+       are: optimized. -->
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Sql.fs" />
+  </ItemGroup>
+</Project>
