@@ -12,6 +12,10 @@ public static class ThroughWrappers
 
     public static string FetchLiteral() => Http.Fetch(new HttpClient(), "https://api.example.org/status").Result;
 
+    public static HttpResponseMessage RequestConstructed() => Http.Get(new HttpClient(), "https://api.example.org/orders").Result;
+
+    public static HttpResponseMessage RequestProperty() => Http.Delete(new HttpClient(), "https://api.example.org/carts/1").Result;
+
     public static int RunChain() => Sql.Run(Connect(), "DELETE FROM carts");
 
     public static object? CountLiteral() => Sql.Count(Connect(), "orders");

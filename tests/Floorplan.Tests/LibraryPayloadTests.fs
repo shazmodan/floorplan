@@ -136,4 +136,13 @@ let tests =
               Expect.equal (dapper cs "CSharp.Effects.Wrapped::DeleteSessions") [ via, execute, literal "sql" "DELETE FROM sessions" ] "C# Execute"
               Expect.equal (dapper fs "Effects.Wrapped::queryNames") [ via, query, literal "sql" "SELECT name FROM users" ] "F# Query"
               Expect.equal (dapper fs "Effects.Wrapped::deleteSessions") [ via, execute, literal "sql" "DELETE FROM sessions" ] "F# Execute"
+          }
+
+          // Iteration 8: HTTP request objects.
+          test "a request's URL: given to its constructor, or set as RequestUri" {
+              let url memberName =
+                  (exitOf memberName EffectCategory.HttpOut).Payload |> Option.map (fun p -> p.Role, p.Kind, p.Value)
+
+              Expect.equal (url "RequestConstructed") (literal "url" "https://api.example.org/orders") "constructor"
+              Expect.equal (url "RequestProperty") (literal "url" "https://api.example.org/carts/1") "RequestUri"
           } ]

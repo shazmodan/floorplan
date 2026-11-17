@@ -153,6 +153,9 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                         let evaluator = evaluatorOf f
 
                                         match spec.Property with
+                                        | Some property when spec.Argument >= 0 ->
+                                            let index = Values.operandIndex declared isNewObj spec.Argument
+                                            Values.Evaluator.ToPayload(evaluator.OperandMember(ins.Offset, index, property, spec.ConstructorArgument), spec.Role)
                                         | Some property when declared.HasThis && not isNewObj ->
                                             evaluator.PropertyPayload(ins.Offset, property, spec.ConstructorArgument, spec.Role)
                                         | Some _ -> Values.Evaluator.ToPayload(Values.Hole, spec.Role)

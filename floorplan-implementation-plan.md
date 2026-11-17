@@ -141,7 +141,7 @@ The catalog is the tool's entire knowledge of what counts as "outside the applic
   "includeDerivedTypes": true,
   "kind": "sink",
   "category": "http-out",
-  "payload": [{ "argument": 0, "role": "request" }]
+  "payload": [{ "argument": 0, "property": "RequestUri", "constructorArgument": 1, "role": "url" }]
 }
 ```
 
@@ -150,7 +150,10 @@ The catalog is the tool's entire knowledge of what counts as "outside the applic
 - `payload` says which argument carries the URL, SQL text or file path, so the tool can try to show it. When the
   value is a property of the receiver rather than an argument, the entry names it: `{ "property": "CommandText",
   "constructorArgument": 0, "role": "sql" }` takes the value last stored through `set_CommandText` on the same
-  object before the call, or else the constructor's string argument 0 (`new SqlCommand(sql, connection)`).
+  object before the call, or else the constructor's string argument 0 (`new SqlCommand(sql, connection)`). With
+  an `argument` as well, the property is read from that argument instead: the request's `RequestUri` above, or
+  the URL given to `new HttpRequestMessage(method, url)`. Payloads behind dependencies are worked out from the
+  dependency's code (`docs/library-payloads-plan.md`).
 
 ### 4.2 Categories
 
