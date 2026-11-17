@@ -80,8 +80,17 @@ Also new, outside the recognizer:
 - **Types of a namespace**: a namespace unit lists the types it declares (`CodeUnit.Types`, shown on its page).
 - **SQL text** (F# and C#): an ADO.NET command's `CommandText` is the payload of its `Execute*` calls, whether
   set as a property, in an object initializer or through the constructor; built from values it is a template
-  (`DELETE FROM {…}`), and a command made elsewhere stays dynamic. SQL given to a wrapper library (Dapper) is not
-  shown: the catalog only knows .NET's own types.
+  (`DELETE FROM {…}`), and a command made elsewhere stays dynamic. A request's URL is read the same way
+  (`RequestUri`, or the URL given to `new HttpRequestMessage(method, url)`).
+- **Payloads through libraries** (F# and C#, `docs/library-payloads-plan.md`): for an effect behind a dependency,
+  the payload is worked out from the dependency's own code, in terms of its arguments, and evaluated at the call
+  site; no rule names the library. Arguments passed on, text built from them, properties and fields of objects
+  (set by setters, constructors, or methods that return the object), structs passed by reference, async methods,
+  iterators and F# `task { }` / `seq { }` are followed. Dapper's `Query` and `Execute` show their SQL; when a
+  library reaches the primitive by several routes, the shortest one whose payload is known is shown, with its
+  evidence. Values kept in collections or caches, or rebuilt from parsed objects (Flurl's `Url`), stay dynamic.
+  Fixtures: `Dependency/CSharp.Wrappers` and `Effects/Dependency/Effects.Wrappers`, both built optimized as
+  packages are.
 - **Route parameter names** (F# and C#): a segment taken as a parameter is named after the handler parameter
   that receives it (`/orders/{id}` for `Show(HttpContext ctx, string id)`), for control-flow routes as it already
   was for platform routes.

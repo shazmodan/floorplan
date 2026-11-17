@@ -1,6 +1,6 @@
 # Payloads through libraries: plan
 
-Date: 2026-11-17. Status: in progress. Extends plan section 5, step 5 ("Recover payloads").
+Date: 2026-11-17. Status: done (all iterations merged). Extends plan section 5, step 5 ("Recover payloads").
 
 ## Resuming work (read this first)
 
@@ -33,7 +33,7 @@ branch, or at least saved in the working tree) must say where it stopped.
 | 6 | Dapper | `claude/library-payload-dapper` | done |
 | 7 | Other paths when the shortest gives nothing | done in iteration 6 (Dapper needed it) | done |
 | 8 | Flurl and HTTP request objects (stretch) | `claude/library-payload-http-requests` | done (Flurl stays dynamic) |
-| 9 | Documentation and TODO | with the last iteration merged | not started |
+| 9 | Documentation and TODO | `claude/library-payload-docs` | done |
 
 ## Goal
 
@@ -323,3 +323,8 @@ show their URLs (one test). Flurl stays dynamic, as expected: `FlurlClient.SendA
 `Url.op_Implicit(request.Url)`, which renders Flurl's parsed `Url` object (scheme, host, path segments, query)
 back into a string; that is not followed. Cache key `summaries-v9`. Golden: the two new lines (the others moved).
 Next: iteration 9, documentation.
+
+**2026-11-17, iteration 9, done.** `docs/csharp-support.md` (the Dapper limit replaced by what is followed and what
+is not), plan section 5 step 5 and section 4.1 (done in iteration 8), `TODO.md` (item removed). The README does not
+describe payloads. Left for later, if wanted: the catalog-rule fallback above (not needed for Dapper); C# lambdas
+in a library (a display class made elsewhere) stay unknown; values through collections or caches stay dynamic.
