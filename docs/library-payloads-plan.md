@@ -1,6 +1,6 @@
 # Payloads through libraries: plan
 
-Date: 2026-11-17. Status: not started. Extends plan section 5, step 5 ("Recover payloads").
+Date: 2026-11-17. Status: in progress. Extends plan section 5, step 5 ("Recover payloads").
 
 ## Resuming work (read this first)
 
@@ -10,7 +10,9 @@ on its own. To pick up after a break:
 1. Read the **Status** table below. The first iteration not marked done is the current one.
 2. Check `git branch -a` for that iteration's branch. If it exists, check it out and read its commits and the
    iteration's **Log** entry: that is where work stopped. If not, branch from `main` with the name in the table.
-3. Do the iteration's steps, then its **Done when** checks: `dotnet test` (all tests), and the goldens it names.
+3. Do the iteration's steps, then its **Done when** checks and the whole suite:
+   `dotnet run --project tests/Floorplan.Tests -- --summary` (as CI runs it; `--filter-test-list "Library payloads"`
+   for this work's tests). Goldens are updated with `FLOORPLAN_UPDATE_GOLDEN=1`; check every changed line.
 4. Before committing, update this file in the same commit: the Status row, and a dated **Log** entry with what was
    done, what was found, and anything left over. Findings that change the design go into **Design** as well.
 5. Ask the owner before merging; after the merge, delete the branch.
@@ -22,7 +24,7 @@ branch, or at least saved in the working tree) must say where it stopped.
 
 | # | Iteration | Branch | Status |
 |---|---|---|---|
-| 1 | Wrapper fixture and pending tests | `claude/library-payload-wrapper-fixture` | not started |
+| 1 | Wrapper fixture and pending tests | `claude/library-payload-wrapper-fixture` | done |
 | 2 | Arguments passed straight through, with caching | `claude/library-payload-pass-through` | not started |
 | 3 | Values built inside the library | `claude/library-payload-built-values` | not started |
 | 4 | Properties, fields, constructors, returned objects | `claude/library-payload-object-members` | not started |
@@ -131,21 +133,22 @@ holds; F# has its own recognizer for its closures and state machines.
 ### 1. Wrapper fixture and pending tests
 
 A C# library referenced as a built assembly (as `tests/fixtures/CSharp/Dependency/CSharp.Library` is, see
-`CSharp.Delegated.csproj`), at `tests/fixtures/CSharp/Dependency/CSharp.Wrappers`, called from a new
-`CSharp.Effects/Wrappers.cs`. One method per case, with its expected payload:
+`CSharp.Delegated.csproj`), at `tests/fixtures/CSharp/Dependency/CSharp.Wrappers`, called from
+`CSharp.Effects/ThroughWrappers.cs`. One method per case, with its expected payload:
 
-| Case | Library code | Expected |
-|---|---|---|
-| a | `Exec(conn, sql)`: `cmd.CommandText = sql; cmd.ExecuteNonQuery()` | the literal at the call site |
-| b | `Fetch(client, url)` → `client.GetStringAsync(url)` | the literal |
-| c | a chain: `Run(conn, sql)` → `Exec(conn, sql)` | the literal |
-| d | `Count(conn, table)`: `"SELECT count(*) FROM " + table` | template `SELECT count(*) FROM {…}` when `table` is dynamic, the full text when it is a literal |
-| e | `Prepare(conn, sql)` returns the command, the caller executes it | the literal |
-| f | `new Query(sql)` then `Execute(conn, query)` reads `query.Text` | the literal |
-| g | `ExecAsync(conn, sql)` (async) | the literal |
-| h | `Rows(conn, sql)` (iterator, `yield return`) | the literal |
-| i | the SQL goes through a `Dictionary` before use | dynamic |
-| j | `Exec(conn, sql)` called with an interpolated string | template |
+| Case | Call site (`ThroughWrappers`) | Library code (`Sql`, `Http`) | Expected |
+|---|---|---|---|
+| a | `ExecLiteral` | `Exec(conn, sql)`: `cmd.CommandText = sql; cmd.ExecuteNonQuery()` | the literal at the call site |
+| b | `FetchLiteral` | `Fetch(client, url)` → `client.GetStringAsync(url)` | the literal |
+| c | `RunChain` | a chain: `Run(conn, sql)` → `Exec(conn, sql)` | the literal |
+| d | `CountLiteral`, `CountDynamic` | `Count(conn, table)`: `"SELECT count(*) FROM " + table` | the full text for a literal, template `SELECT count(*) FROM {…}` for an unknown |
+| e | `ScalarReturned` | `Scalar` calls private `Prepare(conn, sql)`, which returns the command; `Scalar` executes it | the literal |
+| f | `ExecuteQueryObject` | the caller makes `new Query(sql)`; `Execute(conn, query)` reads `query.Text` | the literal |
+| g | `ExecAsyncLiteral` | `ExecAsync(conn, sql)` (async) | the literal |
+| h | `RowsLiteral` | `Rows(conn, sql)` (iterator, `yield return`) | the literal |
+| i | `ThroughDictionary` | the SQL goes through a `Dictionary` before use | dynamic |
+| j | `Interpolated` | `Exec(conn, sql)` called with an interpolated string | template |
+| k | `ExecuteDefinition` | makes a `Definition` struct from `sql`, passes it by `in` to a private method that sets `CommandText` from it (Dapper's shape) | the literal |
 
 Tests in a new `tests/Floorplan.Tests/LibraryPayloadTests.fs`, one per case, written now as pending (`ptest`) and
 enabled by the iteration that makes them pass. Plus: the fixture builds for net8.0 and net10.0; the existing
@@ -154,7 +157,7 @@ goldens are unchanged except for the new call sites. **Done when**: all tests gr
 ### 2. Arguments passed straight through, with caching
 
 `Origin` with `Known`, `Parameter`, `Unknown`; the backward walk along `Summaries.Path`; the choice in
-`ExitPoints`; origins in the summaries cache (`summaries-v3`). **Done when**: cases a, b, c, i pass; a test runs
+`ExitPoints`; origins in the summaries cache (`summaries-v3`). **Done when**: cases a, b, c, i pass (`LibraryPayloadTests.fs`); a test runs
 the fixture twice with a cache store and gets the same payloads both times.
 
 ### 3. Values built inside the library
@@ -164,7 +167,7 @@ pass.
 
 ### 4. Properties, fields, constructors, returned objects
 
-`Member`, field name normalization, constructor bodies, return origins. **Done when**: cases e and f pass.
+`Member`, field name normalization, constructor bodies, return origins. **Done when**: cases e, f and k pass.
 
 ### 5. Async and iterator state machines
 
@@ -208,3 +211,11 @@ passed with `--catalog`. Only after iteration 6, and only with the owner's agree
 ## Log
 
 (Dated entries, newest last: what was done, found, and left over.)
+
+**2026-11-17, iteration 1, done.** Added `tests/fixtures/CSharp/Dependency/CSharp.Wrappers` (no packages, only
+the base libraries), referenced by `CSharp.Effects` as a built assembly, and `CSharp.Effects/ThroughWrappers.cs`
+with cases a to k (k added: a struct passed by `in`, Dapper's shape). `tests/Floorplan.Tests/LibraryPayloadTests.fs`
+has one active test (every case is reported via `CSharp.Wrappers`) and the cases as `ptest`, grouped by the
+iteration that enables them. `tests/golden/csharp.exit-points.txt` gained the twelve call sites; all reach the
+expected primitive already (for example `ExecuteNonQueryAsync` for g, `ExecuteReader` for h), with no payload.
+Next: iteration 2 from `main` once this is merged.

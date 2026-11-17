@@ -5,6 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <WrapperLibrary>$(MSBuildThisFileDirectory)../Dependency/CSharp.Wrappers/CSharp.Wrappers.csproj</WrapperLibrary>
+    <WrapperLibraryAssembly>$(MSBuildThisFileDirectory)../Dependency/CSharp.Wrappers/bin/$(Configuration)/$(TargetFramework)/CSharp.Wrappers.dll</WrapperLibraryAssembly>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
@@ -13,4 +15,19 @@
     <PackageReference Include="Flurl.Http" Version="4.0.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
   </ItemGroup>
+  <!-- The wrapper library is referenced as a built assembly, not as a project: it is a dependency, like a package,
+       and not part of the solution under analysis. Built as CSharp.Delegated builds its routing library. -->
+  <ItemGroup Condition="'$(TargetFramework)' != ''">
+    <Reference Include="CSharp.Wrappers">
+      <HintPath>$(WrapperLibraryAssembly)</HintPath>
+    </Reference>
+  </ItemGroup>
+  <Target Name="BuildWrapperLibrary" BeforeTargets="DispatchToInnerBuilds">
+    <MSBuild Projects="$(WrapperLibrary)" Targets="Restore" Properties="Configuration=$(Configuration);RestoreSeparately=true" />
+    <MSBuild Projects="$(WrapperLibrary)" Targets="Build" Properties="Configuration=$(Configuration)" />
+  </Target>
+  <Target Name="BuildWrapperLibraryFor" BeforeTargets="ResolveAssemblyReferences" Condition="'$(TargetFramework)' != '' And !Exists('$(WrapperLibraryAssembly)')">
+    <MSBuild Projects="$(WrapperLibrary)" Targets="Restore" Properties="Configuration=$(Configuration);RestoreSeparately=true" />
+    <MSBuild Projects="$(WrapperLibrary)" Targets="Build" Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)" />
+  </Target>
 </Project>
