@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>C# structure analysis with Roslyn: namespaces and namespace dependencies.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="CSharpStructureAnalyzer.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Floorplan.Structure\Floorplan.Structure.fsproj" />
+  </ItemGroup>
+</Project>

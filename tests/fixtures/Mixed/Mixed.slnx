@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Mixed.App/Mixed.App.fsproj" />
+  <Project Path="Mixed.Billing/Mixed.Billing.csproj" />
+  <Project Path="Mixed.Core/Mixed.Core.fsproj" />
+  <Project Path="Mixed.Tool/Mixed.Tool.csproj" />
+</Solution>

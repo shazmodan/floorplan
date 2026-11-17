@@ -27,7 +27,7 @@ let tests =
               Expect.exists price (fun x -> x.Category = EffectCategory.HttpOut) "price calls the price service"
 
               let create = traceOf m "::createOrder"
-              Expect.exists create (fun x -> x.Category = EffectCategory.FilesystemWrite && x.Unit = "Shop.Storage:*") "create writes through the C# library"
+              Expect.exists create (fun x -> x.Category = EffectCategory.FilesystemWrite && x.Unit = "Shop.Storage:Shop.Storage") "create writes through the C# library"
 
               let list = traceOf m "::listOrders"
               Expect.exists list (fun x -> x.Category = EffectCategory.FilesystemRead) "list reads the orders file"

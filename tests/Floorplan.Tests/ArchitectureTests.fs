@@ -59,13 +59,17 @@ let tests =
     testList
         "Architecture"
         [ for name in neutralProjects do
-              test $"{name} does not depend on the F# compiler service or any *.FSharp project" {
+              test $"{name} does not depend on a compiler (FCS, Roslyn) or any *.FSharp or *.CSharp project" {
                   let file = projectFile name
 
                   if File.Exists file then
                       let offending =
                           closure file
-                          |> List.filter (fun d -> d = "FSharp.Compiler.Service" || d.EndsWith ".FSharp")
+                          |> List.filter (fun d ->
+                              d = "FSharp.Compiler.Service"
+                              || d.StartsWith "Microsoft.CodeAnalysis"
+                              || d.EndsWith ".FSharp"
+                              || d.EndsWith ".CSharp")
 
                       Expect.isEmpty offending $"{name} must stay language-neutral"
               }

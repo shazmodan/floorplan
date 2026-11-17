@@ -66,13 +66,15 @@ application data folder), so a second run is about twice as fast.
 
 | Result | How |
 |---|---|
-| Module graph | F# compiler service: every symbol use is an edge from the enclosing to the declaring module |
+| Module graph | F# compiler service for F# (a unit per module), Roslyn for C# (a unit per namespace): every symbol use is an edge from the enclosing to the declaring unit, also between F# and C# projects |
 | Exit points | Call graph over IL (rapid type analysis, closures, async and task state machines, iterators) matched against the catalog; effects inside NuGet packages are summarized and reported at the user call site |
 | Entry points | Handlers from platform registrations, from handler tables, and from request-data tracking (a user function called on a branch that request data decides) |
 | Routes | Recovered from the conditions on request data: equality, prefixes, constant regexes, path segments, list patterns, active patterns, table keys. Reported as complete, partial or unresolved; never guessed |
 
-Blind spots (reflection, run-time code generation, `dynamic`) are listed under Diagnostics. C# projects appear as
-a single node with limited support; their effects are found and attributed to the project.
+Blind spots (reflection, run-time code generation, `dynamic`) are listed under Diagnostics. C# support is in
+progress: C# projects get namespaces, dependencies and exit points, but routes in C# code are not yet recovered as
+well as in F# ([status](docs/csharp-support.md)). Projects in other languages appear as a single node with limited
+support; their effects are found and attributed to the project.
 
 ## Documentation
 
@@ -83,6 +85,7 @@ a single node with limited support; their effects are found and attributed to th
 - [Routing inside frameworks (Giraffe, Falco, Oxpecker fixtures)](docs/framework-routing.md)
 - [Traces, noise control and caching](docs/phase-5-performance.md)
 - [Updating the catalog for a new .NET version](docs/updating-catalogs.md)
+- [C# support status](docs/csharp-support.md)
 
 ## Building from source
 
@@ -101,7 +104,7 @@ only on purpose: set `FLOORPLAN_UPDATE_GOLDEN=1` to rewrite them.
 |---|---|
 | `src/Floorplan.Model` | The analysis model every renderer reads |
 | `src/Floorplan.ProjectLoading` | Solution loading through MSBuild |
-| `src/Floorplan.Structure`, `.Structure.FSharp` | Structure analysis behind a language-neutral interface |
+| `src/Floorplan.Structure`, `.Structure.FSharp`, `.Structure.CSharp` | Structure analysis behind a language-neutral interface |
 | `src/Floorplan.IL`, `.IL.Codegen.FSharp` | IL reading, data flow, control flow, call graph; F# compiler-output recognizers |
 | `src/Floorplan.Catalog` | Boundary catalogs and matching |
 | `src/Floorplan.Analysis` | Exit points, entry points, routes, traces |
