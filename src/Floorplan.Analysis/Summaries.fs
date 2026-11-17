@@ -87,7 +87,8 @@ let toStep (e: CallEdge) =
 type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecognizer list, producers: Values.Producers, isSummarized: MethodRef -> bool) =
     let set = graph.Set
     let best = Dictionary<string, Dictionary<string, Witness>>()
-    let origins = Dictionary<struct (string * string), Values.Origin>()
+    let chosen = Dictionary<struct (string * string), Witness * Values.Origin>()
+    let flows = Dictionary<string, DataFlow.Flow option>()
 
     let witnesses (m: MethodRef) =
         match best.TryGetValue m.Key with
@@ -135,10 +136,26 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
                         queue.Enqueue((e.Caller, ruleId))
             | _ -> ()
 
-    /// Every rule the method can reach, with the shortest witness for each.
-    member _.Reaches(m: MethodRef) : Witness list =
+    /// A rule's payload spec, when it has one.
+    let payloadSpec (w: Witness) = w.Hit.Rule.Payload |> List.tryHead
+
+    let flowOf (m: MethodRef) =
+        match flows.TryGetValue m.Key with
+        | true, f -> f
+        | _ ->
+            let f = set.TryMethod m |> Option.bind (fun (def, _) -> DataFlow.ofMethod def)
+            flows[m.Key] <- f
+            f
+
+    /// Every rule the method can reach, with its witness for each: the shortest, or for a rule with a payload the
+    /// shortest whose payload is not entirely unknown (`Choose`), so evidence follows the payload's path.
+    member this.Reaches(m: MethodRef) : Witness list =
         match best.TryGetValue m.Key with
-        | true, d -> d.Values |> Seq.sortBy (fun w -> w.Distance, w.Hit.Rule.Id) |> Seq.toList
+        | true, d ->
+            d.Values
+            |> Seq.map (fun w -> if (payloadSpec w).IsSome then fst (this.Choose(m, w.Hit.Rule.Id, 0)) else w)
+            |> Seq.sortBy (fun w -> w.Distance, w.Hit.Rule.Id)
+            |> Seq.toList
         | _ -> []
 
     /// The call path from `m` to the primitive of `ruleId`: each edge in order, the last one being the sink call.
@@ -149,7 +166,7 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
             else
                 match best.TryGetValue m.Key with
                 | true, d when d.ContainsKey ruleId ->
-                    let w = d[ruleId]
+                    let w = if (payloadSpec d[ruleId]).IsSome then fst (this.Choose(m, ruleId, 0)) else d[ruleId]
 
                     if w.Distance = 1 then
                         List.rev (w.Edge :: acc)
@@ -164,29 +181,46 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
     member this.PayloadOf(m: MethodRef, ruleId: string) : PayloadOrigin option =
         match best.TryGetValue m.Key with
         | true, d when d.ContainsKey ruleId ->
-            d[ruleId].Hit.Rule.Payload
-            |> List.tryHead
-            |> Option.map (fun spec -> { Role = spec.Role; Origin = this.OriginOf(m, ruleId, spec, 0) })
+            payloadSpec d[ruleId]
+            |> Option.map (fun spec -> { Role = spec.Role; Origin = snd (this.Choose(m, ruleId, 0)) })
         | _ -> None
 
-    member private this.OriginOf(m: MethodRef, ruleId: string, spec: PayloadSpec, depth: int) : Values.Origin =
+    /// For a rule with a payload: the witness to use for `m` and the payload's origin along it. The candidates
+    /// are `m`'s calls that reach the rule (the primitive itself, or a method that reaches it), shortest first; the
+    /// first whose origin is not entirely unknown wins, else the shortest witness. A dependency often reaches a
+    /// primitive by several routes (Dapper's multi-row loop is shorter than its single-command path).
+    member private this.Choose(m: MethodRef, ruleId: string, depth: int) : Witness * Values.Origin =
         let key = struct (m.Key, ruleId)
+        let shortest = best[m.Key][ruleId]
 
-        match origins.TryGetValue key with
-        | true, o -> o
-        | _ when depth > 32 -> Values.Origin.unknown
+        match chosen.TryGetValue key with
+        | true, c -> c
+        | _ when depth > 32 -> shortest, Values.Origin.unknown
         | _ ->
-            // Marked unknown while computed, so recursion through the same method ends.
-            origins[key] <- Values.Origin.unknown
-            let w = best[m.Key][ruleId]
+            // The shortest and unknown while computed, so recursion through the same method ends.
+            chosen[key] <- (shortest, Values.Origin.unknown)
+            let spec = (payloadSpec shortest).Value
 
-            let flow =
-                match set.TryMethod m with
-                | Some(def, _) -> DataFlow.ofMethod def
-                | None -> None
+            let candidates =
+                graph.Callees m
+                |> List.filter (fun e -> e.Kind <> Initializer)
+                |> List.choose (fun e ->
+                    match sinkOf set matcher e with
+                    | Some hit when hit.Rule.Id = ruleId -> Some { Distance = 1; Edge = e; Hit = hit }
+                    | Some _ -> None
+                    | None ->
+                        match best.TryGetValue e.Target.Key with
+                        | true, d when d.ContainsKey ruleId ->
+                            Some
+                                { Distance = d[ruleId].Distance + 1
+                                  Edge = e
+                                  Hit = d[ruleId].Hit }
+                        | _ -> None)
+                |> List.sortBy (fun w -> w.Distance, w.Edge.Offset)
+                |> List.truncate 8
 
-            let origin =
-                match flow with
+            let originVia (w: Witness) : Values.Origin =
+                match flowOf m with
                 | None -> Values.Origin.unknown
                 | Some flow ->
                     let evaluator =
@@ -208,33 +242,38 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
                             | Some v -> evaluator.OriginOf v
                             | None -> Values.Origin.unknown
                     else
+                        let callee () = snd (this.Choose(w.Edge.Target, ruleId, depth + 1))
+
                         match w.Edge.Kind with
                         | Direct
-                        | Virtual ->
-                            match best.TryGetValue w.Edge.Target.Key with
-                            | true, d when d.ContainsKey ruleId ->
-                                evaluator.Substitute(this.OriginOf(w.Edge.Target, ruleId, spec, depth + 1), w.Edge.Offset, isNewObj)
-                            | _ -> Values.Origin.unknown
+                        | Virtual -> evaluator.Substitute(callee (), w.Edge.Offset, isNewObj)
                         | StateMachine
-                        | Deferred ->
+                        | Deferred when w.Edge.Target.HasThis ->
                             // The body runs later, on an object this method makes: an async method's or iterator's
                             // state machine, or a function object (an F# closure or sequence expression).
-                            match best.TryGetValue w.Edge.Target.Key with
-                            | true, d when d.ContainsKey ruleId && w.Edge.Target.HasThis ->
-                                evaluator.ThroughStateMachine(
-                                    this.OriginOf(w.Edge.Target, ruleId, spec, depth + 1),
-                                    w.Edge.Offset,
-                                    w.Edge.Target.Type,
-                                    (fun field -> recognizers |> List.collect (fun r -> r.StateMachineArgumentFields field)),
-                                    (w.Edge.Kind = Deferred)
-                                )
-                            | _ -> Values.Origin.unknown
+                            evaluator.ThroughStateMachine(
+                                callee (),
+                                w.Edge.Offset,
+                                w.Edge.Target.Type,
+                                (fun field -> recognizers |> List.collect (fun r -> r.StateMachineArgumentFields field)),
+                                (w.Edge.Kind = Deferred)
+                            )
                         | _ -> Values.Origin.unknown
 
-            origins[key] <- origin
-            origin
+            let known (o: Values.Origin) = o |> List.exists (fun s -> s <> Values.Unknown)
 
-    /// Every rule the method can reach, each with its shortest path as steps.
+            let result =
+                candidates
+                |> Seq.map (fun w -> w, originVia w)
+                |> Seq.tryFind (snd >> known)
+                |> Option.defaultWith (fun () ->
+                    // Nothing known on any route: the shortest witness, with its origin as far as it goes.
+                    shortest, (if candidates |> List.contains shortest then originVia shortest else Values.Origin.unknown))
+
+            chosen[key] <- result
+            result
+
+    /// Every rule the method can reach, each with its witness path as steps.
     member this.Effects(m: MethodRef) : DependencyEffect list =
         this.Reaches m
         |> List.map (fun w ->

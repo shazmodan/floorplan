@@ -30,8 +30,8 @@ branch, or at least saved in the working tree) must say where it stopped.
 | 3 | Values built inside the library | `claude/library-payload-built-values` | done |
 | 4 | Properties, fields, constructors, returned objects | `claude/library-payload-object-members` | done |
 | 5 | Async and iterator state machines | `claude/library-payload-state-machines` | done |
-| 6 | Dapper | `claude/library-payload-dapper` | not started |
-| 7 | Other paths when the shortest gives nothing | `claude/library-payload-other-paths` | not started |
+| 6 | Dapper | `claude/library-payload-dapper` | done |
+| 7 | Other paths when the shortest gives nothing | done in iteration 6 (Dapper needed it) | done |
 | 8 | Flurl and HTTP request objects (stretch) | `claude/library-payload-http-requests` | not started |
 | 9 | Documentation and TODO | with the last iteration merged | not started |
 
@@ -109,6 +109,9 @@ Every recursion is bounded (depth and a per-run memo keyed by method and origin)
 
 ### Choosing what to show
 
+(As built from iteration 6 on, the choice of route happens first inside the dependency, per method: see the log of
+iteration 6. What follows still holds at the user's call site.)
+
 In the `Dependency` branch of `ExitPoints`, per category: if any witness's rule has a payload spec and its origin
 resolves to a literal or template at this call site, that witness is used, its primitive and evidence path
 included, so the evidence shows where the payload went. Otherwise, as today: the shortest witness, no payload, or a
@@ -159,7 +162,7 @@ goldens are unchanged except for the new call sites. **Done when**: all tests gr
 ### 2. Arguments passed straight through, with caching
 
 `Origin` with `Literal`, `Unknown`, `FromParameter` (no members yet); the backward walk along the witness path; the
-choice in `ExitPoints`; origins in the summaries cache (`summaries-v3`; `summaries-v4` from iteration 3, `summaries-v5` from iteration 4, `summaries-v7` from iteration 5). **Done when**: cases a, b, c, i pass (`LibraryPayloadTests.fs`); a test runs
+choice in `ExitPoints`; origins in the summaries cache (`summaries-v3`; `summaries-v4` from iteration 3, `summaries-v5` from iteration 4, `summaries-v7` from iteration 5, `summaries-v8` from iteration 6). **Done when**: cases a, b, c, i pass (`LibraryPayloadTests.fs`); a test runs
 the fixture twice with a cache store and gets the same payloads both times.
 
 ### 3. Values built inside the library
@@ -290,3 +293,23 @@ Next: iteration 5.
 - Cache key `summaries-v7` (v6 was never committed). Goldens: g and h in `csharp.exit-points.txt`, four new lines
   in `effects.exit-points.txt`; nothing else changed (Dapper still `IDbConnection::Open`).
 Next: iteration 6, Dapper.
+
+**2026-11-17, iteration 6 (and 7), done.** Dapper's `Query` and `Execute` show their SQL in both fixtures (new
+call sites `DeleteSessions`/`deleteSessions` calling `Execute`; one test).
+- `Execute`: the shortest witness was `ExecuteImpl`'s multi-row loop, where `CommandText` is reset from a local
+  holding several values (unknown). The single-command route is one call longer:
+  `ExecuteImpl` → `ExecuteCommand` → `SetupCommand` (sets `CommandText` from the `CommandDefinition` passed by
+  reference) → `IDbCommand.ExecuteNonQuery`. So iteration 7 was needed and is done here: `Summaries.Choose`, per
+  (method, rule with a payload), tries the method's calls that reach the rule (the primitive, or a method reaching
+  it), shortest first, at most 8, and keeps the first whose origin is not entirely unknown; else the shortest.
+  `Reaches` and `Path` use that witness, so the evidence, the primitive and the cache follow the payload's route
+  (Dapper's `queryNames` is now `IDbCommand::ExecuteReader` instead of `IDbConnection::Open`).
+- `Query`: `Query` builds the `CommandDefinition` on a local (`ldloca; call .ctor`), passes it by value to the
+  iterator `QueryImpl`, which stores it into `<>3__command`; `MoveNext` passes `this.command` to `SetupCommand` by
+  field address (`ldflda`), keeps the command in a hoisted field `<cmd>5__2`, and hands it to
+  `ExecuteReaderWithFlagsFallback`, which executes it. Needed: field addresses read as members (`LdFldA`, also in
+  `identity`), and a member of a value read from a member (a field, a field address, a getter) resolved through
+  what was stored into that member (`lastStore`, used by `memberValue`).
+- Cache key `summaries-v8`. Golden changes: the four Dapper lines (two new, two from `Open` to the command with
+  its SQL); the Flurl lines only moved with the new call sites.
+Next: iteration 8, Flurl.

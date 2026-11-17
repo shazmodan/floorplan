@@ -9,5 +9,9 @@ let queryNames () =
     use connection = new SqliteConnection("Data Source=app.db")
     connection.Query<string>("SELECT name FROM users") |> Seq.toList
 
+let deleteSessions () =
+    use connection = new SqliteConnection("Data Source=app.db")
+    connection.Execute("DELETE FROM sessions")
+
 let fetchUsers () =
     "https://api.example.org/users".GetStringAsync().Result
