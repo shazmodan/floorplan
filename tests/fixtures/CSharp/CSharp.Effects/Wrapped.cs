@@ -13,5 +13,11 @@ public static class Wrapped
         return connection.Query<string>("SELECT name FROM users").ToList();
     }
 
+    public static int DeleteSessions()
+    {
+        using var connection = new SqliteConnection("Data Source=app.db");
+        return connection.Execute("DELETE FROM sessions");
+    }
+
     public static string FetchUsers() => "https://api.example.org/users".GetStringAsync().Result;
 }

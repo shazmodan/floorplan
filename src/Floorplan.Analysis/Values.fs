@@ -91,6 +91,13 @@ let memberOfField (name: string) =
 let private getterName (m: MethodRef) =
     if m.HasThis && m.ParameterCount = 0 && m.ReturnsValue && m.Name.StartsWith "get_" then Some(m.Name.Substring 4) else None
 
+/// The last store to a member found in a method body.
+type private Store =
+    /// A setter or field store, with the value stored.
+    | Stored of Values
+    /// A constructor run on the object, at this offset.
+    | Constructed of MethodRef * int
+
 /// `produced m name`: member `name` of the object method `m` produces (a constructor: the new object; another
 /// method: what it returns), in terms of `m`'s arguments. `Producers` reads it from `m`'s body.
 type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: MethodRef -> string option, produced: MethodRef -> string -> Origin) =
@@ -145,7 +152,8 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                     match memberValue (depth + 1) operands.Head (getterName m).Value offset with
                     | Hole -> formatted depth offset
                     | s -> s
-                | LdFld f when not operands.IsEmpty -> memberValue (depth + 1) operands.Head (memberOfField f.Name) offset
+                | LdFld f
+                | LdFldA f when not operands.IsEmpty -> memberValue (depth + 1) operands.Head (memberOfField f.Name) offset
                 | Call _
                 | CallVirt _
                 | NewObj _ -> formatted depth offset
@@ -159,48 +167,58 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
         | Some t -> t
         | None -> Hole
 
-    /// Member `name` of a value, as read at `before`: the last store to it in this method (a setter, a field, or
-    /// a constructor called on a local struct or on `this`), or else what the method that made the value sets.
+    /// The last store to member `name` of a value before `before`: a setter call or a field store (its value), or a
+    /// constructor run on it (a local struct, or a chained or base constructor on `this`; one the producers know
+    /// nothing about, such as System.Object's, stores nothing).
+    and lastStore (receiver: Values) (name: string) (before: int) : Store option =
+        match identity 0 receiver with
+        | None -> None
+        | Some receiverIdentity ->
+            let isReceiver (target: Values) = identity 0 target = Some receiverIdentity
+
+            flow.Body.Instructions
+            |> Array.filter (fun i -> i.Offset < before)
+            |> Array.choose (fun i ->
+                match i.Op, flow.OperandsAt i.Offset with
+                | (Call m | CallVirt m), [ target; v ] when m.Name = "set_" + name && isReceiver target -> Some(Stored v)
+                | StFld f, [ target; v ] when memberOfField f.Name = name && isReceiver target -> Some(Stored v)
+                | Call m, target :: _ when m.Name = ".ctor" && isReceiver target && produced m name <> Origin.unknown ->
+                    Some(Constructed(m, i.Offset))
+                | _ -> None)
+            |> Array.tryLast
+
+    /// Member `name` of a value, as read at `before`: the last store to it in this method, or else what made the
+    /// value sets: the constructor or method that produced it, or, for a value read from a member of another
+    /// value (a field, a field's address, a getter), what was stored into that member.
     and memberValue (depth: int) (receiver: Values) (name: string) (before: int) : Symbolic =
         if depth > 12 then
             Hole
         else
-            let receiverList = Set.toList receiver
-            let receiverIdentity = identity 0 receiver
+            match lastStore receiver name before with
+            | Some(Stored v) -> value (depth + 1) v
+            | Some(Constructed(ctor, offset)) -> produce depth ctor name offset false
+            | None ->
+                match Set.toList receiver with
+                | [ Argument i ] -> Param(i, [ name ])
+                | [ Pushed o ] ->
+                    let held =
+                        match flow.InstructionAt o, flow.OperandsAt o with
+                        | Some { Op = (LdFld f | LdFldA f) }, [ owner ] -> Some(owner, memberOfField f.Name)
+                        | Some { Op = (Call m | CallVirt m) }, [ owner ] when (getterName m).IsSome -> Some(owner, (getterName m).Value)
+                        | _ -> None
 
-            let isReceiver (target: Values) =
-                match receiverIdentity with
-                | Some r -> identity 0 target = Some r
-                | None -> false
-
-            let stored =
-                flow.Body.Instructions
-                |> Array.filter (fun i -> i.Offset < before)
-                |> Array.choose (fun i ->
-                    match i.Op, flow.OperandsAt i.Offset with
-                    | (Call m | CallVirt m), [ target; v ] when m.Name = "set_" + name && isReceiver target ->
-                        Some(fun () -> value (depth + 1) v)
-                    | StFld f, [ target; v ] when memberOfField f.Name = name && isReceiver target ->
-                        Some(fun () -> value (depth + 1) v)
-                    | Call m, target :: _ when m.Name = ".ctor" && isReceiver target && produced m name <> Origin.unknown ->
-                        // A constructor run on a local struct, or a chained or base constructor on `this`; one that
-                        // is not read (System.Object's) stores nothing.
-                        Some(fun () -> produce depth m name i.Offset false)
-                    | _ -> None)
-                |> Array.tryLast
-
-            match stored, receiverList with
-            | Some read, _ -> read ()
-            | None, [ Argument i ] -> Param(i, [ name ])
-            | None, [ Pushed o ] ->
-                match flow.InstructionAt o with
-                | Some { Op = NewObj ctor } -> produce depth ctor name o true
-                | Some { Op = (Call m | CallVirt m) } when m.ReturnsValue && (getterName m).IsNone -> produce depth m name o false
-                | _ ->
-                    match one (depth + 1) (Pushed o) with
-                    | Param(i, path) -> Param(i, path @ [ name ])
-                    | _ -> Hole
-            | None, _ -> Hole
+                    match held |> Option.bind (fun (owner, field) -> lastStore owner field o) with
+                    | Some(Stored v) -> memberValue (depth + 1) v name before
+                    | Some(Constructed _)
+                    | None ->
+                        match flow.InstructionAt o with
+                        | Some { Op = NewObj ctor } -> produce depth ctor name o true
+                        | Some { Op = (Call m | CallVirt m) } when m.ReturnsValue && (getterName m).IsNone -> produce depth m name o false
+                        | _ ->
+                            match one (depth + 1) (Pushed o) with
+                            | Param(i, path) -> Param(i, path @ [ name ])
+                            | _ -> Hole
+                | _ -> Hole
 
     /// What object a value is, for matching stores to reads: a local by number (its address is taken anew at each
     /// use), a field of an object by field and object (a local hoisted into a state machine is loaded anew at
@@ -213,7 +231,7 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
             | [ LocalAddress(n, _) ] -> Some $"local {n}"
             | [ Pushed o ] ->
                 match flow.InstructionAt o, flow.OperandsAt o with
-                | Some { Op = LdFld f }, [ owner ] -> identity (depth + 1) owner |> Option.map (fun i -> $"{i}.{f.Name}")
+                | Some { Op = (LdFld f | LdFldA f) }, [ owner ] -> identity (depth + 1) owner |> Option.map (fun i -> $"{i}.{f.Name}")
                 | _ -> Some $"pushed {o}"
             | [ v ] -> Some(string v)
             | _ -> None

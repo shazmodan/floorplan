@@ -117,4 +117,23 @@ let tests =
               Expect.equal (fsql "executeRecord") [ via, literal "sql" "UPDATE orders SET seen = 1" ] "record field"
               Expect.equal (fsql "execTaskLiteral") [ via, literal "sql" "DELETE FROM tokens" ] "task { }"
               Expect.equal (fsql "rowsLiteral") [ via, literal "sql" "SELECT name FROM users" ] "seq { }"
+          }
+
+          // Iteration 6: Dapper, in both fixtures.
+          test "Dapper: the SQL given to Query and Execute, in C# and F#" {
+              let dapper (m: AnalysisModel) memberName =
+                  m.ExitPoints
+                  |> List.filter (fun x -> x.Member = memberName && x.Category = EffectCategory.Database)
+                  |> List.map (fun x -> x.ViaAssembly, x.Primitive, x.Payload |> Option.map (fun p -> p.Role, p.Kind, p.Value))
+
+              let via = Some "Dapper"
+              let query = "System.Data.IDbCommand::ExecuteReader"
+              let execute = "System.Data.IDbCommand::ExecuteNonQuery"
+              let cs = model ()
+              let fs = ExitPointTests.effectsModel.Force()
+
+              Expect.equal (dapper cs "CSharp.Effects.Wrapped::QueryNames") [ via, query, literal "sql" "SELECT name FROM users" ] "C# Query"
+              Expect.equal (dapper cs "CSharp.Effects.Wrapped::DeleteSessions") [ via, execute, literal "sql" "DELETE FROM sessions" ] "C# Execute"
+              Expect.equal (dapper fs "Effects.Wrapped::queryNames") [ via, query, literal "sql" "SELECT name FROM users" ] "F# Query"
+              Expect.equal (dapper fs "Effects.Wrapped::deleteSessions") [ via, execute, literal "sql" "DELETE FROM sessions" ] "F# Execute"
           } ]

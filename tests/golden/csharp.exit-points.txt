@@ -32,10 +32,12 @@ database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::ExecA
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::RowsLiteral | System.Data.Common.DbCommand::ExecuteReader | via CSharp.Wrappers | literal:SELECT name FROM users | CSharp/CSharp.Effects/ThroughWrappers.cs:29
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::ThroughDictionary | System.Data.Common.DbCommand::ExecuteNonQuery | via CSharp.Wrappers | dynamic:- | CSharp/CSharp.Effects/ThroughWrappers.cs:31
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::Interpolated | System.Data.Common.DbCommand::ExecuteNonQuery | via CSharp.Wrappers | template:DELETE FROM orders WHERE id = {…} | CSharp/CSharp.Effects/ThroughWrappers.cs:33
-database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::QueryNames | System.Data.IDbConnection::Open | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:13
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::QueryNames | System.Data.IDbCommand::ExecuteReader | via Dapper | literal:SELECT name FROM users | CSharp/CSharp.Effects/Wrapped.cs:13
 nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::QueryNames | System.Guid::NewGuid | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:13
-http-out | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.Net.Http.HttpClient::SendAsync | via Flurl.Http | dynamic:- | CSharp/CSharp.Effects/Wrapped.cs:16
-nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.DateTime::get_UtcNow | via Flurl.Http | - | CSharp/CSharp.Effects/Wrapped.cs:16
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::DeleteSessions | System.Data.IDbCommand::ExecuteNonQuery | via Dapper | literal:DELETE FROM sessions | CSharp/CSharp.Effects/Wrapped.cs:19
+nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::DeleteSessions | System.Guid::NewGuid | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:19
+http-out | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.Net.Http.HttpClient::SendAsync | via Flurl.Http | dynamic:- | CSharp/CSharp.Effects/Wrapped.cs:22
+nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.DateTime::get_UtcNow | via Flurl.Http | - | CSharp/CSharp.Effects/Wrapped.cs:22
 environment | CSharp.Endpoints: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via - | literal:STATUS_PREFIX | CSharp/CSharp.Endpoints/Program.cs:13
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::GetOrder | System.IO.File::ReadAllText | via - | template:orders/{…}.json | CSharp/CSharp.Endpoints/Api.cs:8
 nondeterminism | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::CreateOrder | System.Guid::NewGuid | via - | - | CSharp/CSharp.Endpoints/Api.cs:12
