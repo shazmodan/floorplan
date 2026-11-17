@@ -443,20 +443,33 @@ let parsePattern (pattern: string) : PatternSegment list =
 
 /// The routes a conventional pattern gives an action: the pattern with the controller, action and area filled in,
 /// and the shorter forms its defaults allow (`{controller=Home}/{action=Index}/{id?}` gives Home.Index `/Home/Index/{id?}`,
-/// `/Home` and `/`). None when the pattern does not reach the action: no controller or action parameter, or an area
-/// that does not match the controller's.
-let conventionalRoutes (pattern: string) (requiredArea: string option) (controller: string) (action: string) (area: string option) =
-    let segments = parsePattern pattern
+/// `/Home` and `/`). `defaults` are the controller, action and area values of the route's defaults object (lower-case
+/// keys): they act as the defaults of those parameters, and where the pattern has no such parameter they name the only
+/// value the route accepts (`blog/{*article}` with controller Blog and action Article reaches only Blog.Article). Empty
+/// when the pattern does not reach the action: no controller or action, or an area that does not match the controller's.
+let conventionalRoutes (pattern: string) (requiredArea: string option) (defaults: Map<string, string>) (controller: string) (action: string) (area: string option) =
+    let same (a: string) (b: string) = System.String.Equals(a, b, System.StringComparison.OrdinalIgnoreCase)
+
+    let segments =
+        parsePattern pattern
+        |> List.map (function
+            | Parameter(n, None, optional, t) when defaults.ContainsKey n -> Parameter(n, Some defaults[n], optional, t)
+            | s -> s)
+
     let has name = segments |> List.exists (function Parameter(n, _, _, _) -> n = name | _ -> false)
+
+    // A value the pattern does not take as a parameter must be the one its defaults name.
+    let fixedMatches name (value: string) =
+        has name || defaults.TryFind name |> Option.exists (same value)
 
     let areaMatches =
         if has "area" then area.IsSome
         else
-            match requiredArea with
-            | Some a -> area |> Option.exists (fun x -> System.String.Equals(x, a, System.StringComparison.OrdinalIgnoreCase))
+            match requiredArea |> Option.orElse (defaults.TryFind "area") with
+            | Some a -> area |> Option.exists (same a)
             | None -> area.IsNone
 
-    if not (has "controller" && has "action") || not areaMatches then
+    if not (fixedMatches "controller" controller && fixedMatches "action" action) || not areaMatches then
         []
     else
         let values =
@@ -477,7 +490,7 @@ let conventionalRoutes (pattern: string) (requiredArea: string option) (controll
         // A trailing segment can be left out when it is optional, or has a default equal to the value it takes.
         let defaulted (s: PatternSegment) =
             match s with
-            | Parameter(n, Some d, _, _) -> values.TryFind n |> Option.exists (fun v -> System.String.Equals(v, d, System.StringComparison.OrdinalIgnoreCase))
+            | Parameter(n, Some d, _, _) -> values.TryFind n |> Option.exists (same d)
             | _ -> false
 
         let droppable (s: PatternSegment) =
@@ -527,7 +540,39 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                 | Values.Text t -> Some t
                 | _ -> None)
 
-        // Each conventional route: its pattern (None when not a constant), the area it requires, and where it is mapped.
+        // The controller, action and area values of a route's defaults object: an anonymous object or record
+        // (`new { controller = "Blog", action = "Article" }`) whose constructor takes them as constants, or null.
+        // None when the object is something else, or one of those values is not a constant.
+        let routeDefaults (r: PlatformRouting.Registration) : Map<string, string> option =
+            match r.Rule.Payload |> List.tryFind (fun p -> p.Role = "route-defaults") with
+            | None -> Some Map.empty
+            | Some spec ->
+                match List.tryItem (Values.operandIndex r.Declared false spec.Argument) (r.Flow.OperandsAt r.Offset) |> Option.map Set.toList with
+                | None -> Some Map.empty
+                | Some [ Pushed o ] ->
+                    match r.Flow.InstructionAt o with
+                    | Some { Op = LdNull } -> Some Map.empty
+                    | Some { Op = NewObj ctor } when ctor.Type.Name.Contains "AnonymousType" ->
+                        match set.TryMethod ctor with
+                        | Some(def, _) when def.ParameterNames.Length = ctor.ParameterCount ->
+                            let evaluator = Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set)
+
+                            let routing =
+                                List.zip def.ParameterNames (r.Flow.OperandsAt o)
+                                |> List.map (fun (n, v) -> n.ToLowerInvariant(), v)
+                                |> List.filter (fun (n, _) -> n = "controller" || n = "action" || n = "area")
+                                |> List.map (fun (n, v) ->
+                                    match evaluator.Value v with
+                                    | Values.Text t -> Some(n, t)
+                                    | _ -> None)
+
+                            if routing |> List.forall Option.isSome then Some(routing |> List.choose id |> Map.ofList) else None
+                        | _ -> None
+                    | _ -> None
+                | Some _ -> None
+
+        // Each conventional route: its pattern (None when not a constant), the area it requires, its defaults (None
+        // when they cannot be read), and where it is mapped.
         let conventional =
             mapping
             |> List.filter (fun r -> hasRole "conventional-controllers" r.Rule)
@@ -537,7 +582,7 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                     | Some p -> Some p
                     | None -> if hasRole "route-pattern" r.Rule then None else r.Rule.ComparesTo
 
-                pattern, operandText r "area-name", r)
+                pattern, operandText r "area-name", routeDefaults r, r)
 
         // The application's own assembly and the user assemblies it references: MVC's application parts.
         let users = ctx.Program.Users |> List.map snd
@@ -611,6 +656,111 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
 
                         Some(methods, template)
                     | None -> None))
+
+        // ---- Application model conventions ----
+        // A convention's Apply runs over the model MVC builds and can rewrite routes, names and methods. The
+        // analysis does not evaluate it: it finds the conventions, reads their code for the model members that
+        // change routes (catalog role "route-change"), and marks the routes they may change partial.
+
+        // The Apply methods of a type that is a convention, its own and inherited.
+        let appliesCache = Dictionary<string, MethodDef list>()
+
+        let conventionApplies (t: TypeRef) : MethodDef list =
+            match appliesCache.TryGetValue t.FullName with
+            | true, ms -> ms
+            | _ ->
+                let ms =
+                    set.BaseChain t
+                    |> List.collect (fun b -> match set.TryType b with Some(d, _) -> d.Methods | None -> [])
+                    |> List.filter (fun m ->
+                        (m.Ref.Name = "Apply" || m.Ref.Name.EndsWith ".Apply")
+                        && ctx.Matcher.Match m.Ref |> List.exists (hasRole "model-convention"))
+
+                appliesCache[t.FullName] <- ms
+                ms
+
+        let routeChangeCache = Dictionary<string, string option>()
+
+        // How a convention changes routes: the first route-changing member its Apply reaches through user and
+        // dependency code (closures included), or None when it reaches none. A platform convention, or code the
+        // analysis cannot read, is taken to change them.
+        let routeChange (t: TypeRef) : string option =
+            match routeChangeCache.TryGetValue t.FullName with
+            | true, c -> c
+            | _ ->
+                let seen = HashSet<string>()
+
+                let rec scan (depth: int) (m: MethodDef) : string option =
+                    if depth > 8 || not (seen.Add m.Ref.Key) then
+                        None
+                    else
+                        match m.Body.Value with
+                        | None -> Some $"{m.Ref.Display}, whose code the analysis cannot read"
+                        | Some body ->
+                            body.Instructions
+                            |> Array.tryPick (fun i ->
+                                match i.Op with
+                                | Call c
+                                | CallVirt c
+                                | NewObj c
+                                | LdFtn c
+                                | LdVirtFtn c ->
+                                    if ctx.Matcher.Match c |> List.exists (hasRole "route-change") then
+                                        Some $"it uses {c.Display}"
+                                    elif set.Origin c.Type.Assembly = Framework then
+                                        None
+                                    else
+                                        let callee = match set.TryMethod c with Some(d, _) -> [ d ] | None -> []
+
+                                        // A closure created here runs through members the code does not name.
+                                        let closure =
+                                            match i.Op, set.TryType c.Type with
+                                            | NewObj _, Some(d, _) when d.IsCompilerGenerated || d.Ref.FullName.Contains "@" -> d.Methods
+                                            | _ -> []
+
+                                        (callee @ closure) |> List.tryPick (scan (depth + 1))
+                                | _ -> None)
+
+                let change =
+                    if set.Origin t.Assembly = Framework then Some "it is a platform convention"
+                    else conventionApplies t |> List.tryPick (scan 0)
+
+                routeChangeCache[t.FullName] <- change
+                change
+
+        // Conventions the application creates (to add to MvcOptions.Conventions), that change routes: every
+        // controller and action is subject to them.
+        let applicationConventions =
+            ctx.Methods.Values
+            |> Seq.collect (fun m ->
+                match m.Body.Value with
+                | None -> Seq.empty
+                | Some body ->
+                    body.Instructions
+                    |> Seq.mapi (fun i ins -> i, ins)
+                    |> Seq.choose (fun (i, ins) ->
+                        match ins.Op with
+                        | NewObj c when not (conventionApplies c.Type).IsEmpty ->
+                            routeChange c.Type
+                            |> Option.map (fun how ->
+                                c.Type.FullName,
+                                step
+                                    $"{m.Ref.Display} creates the application model convention {c.Type.FullName}, which may change routes ({how}); the analysis does not follow it"
+                                    m.Ref
+                                    (Instruction.pointAt body.Instructions i))
+                        | _ -> None))
+            |> Seq.distinctBy fst
+            |> Seq.map snd
+            |> Seq.toList
+
+        // Attributes that are conventions changing routes, on a controller or an action.
+        let attributeConventions (target: string) (attributes: AttributeDef list) (m: MethodRef) (point: SourcePoint option) =
+            attributes
+            |> List.filter (fun a -> not (conventionApplies a.Type).IsEmpty)
+            |> List.choose (fun a ->
+                routeChange a.Type
+                |> Option.map (fun how ->
+                    step $"{a.Type.FullName} on {target} is an application model convention, which may change its routes ({how}); the analysis does not follow it" m point))
 
         parts
         |> List.collect (fun assembly -> assembly.Types)
@@ -703,12 +853,23 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
 
                         let byConvention =
                             conventional
-                            |> List.collect (fun (pattern, requiredArea, r) ->
-                                match pattern with
-                                | Some p ->
-                                    conventionalRoutes p requiredArea controllerName actionName area
+                            |> List.collect (fun (pattern, requiredArea, defaults, r) ->
+                                match pattern, defaults with
+                                | Some p, Some d ->
+                                    conventionalRoutes p requiredArea d controllerName actionName area
                                     |> List.map (fun route -> Some route, $"the conventional route \"{p}\"", r)
-                                | None -> [ None, "a conventional route whose pattern is not a constant", r ])
+                                | Some p, None ->
+                                    // Without its defaults, a pattern that names the controller and action still
+                                    // gives the full route; one that does not could reach any action.
+                                    let names = parsePattern p |> List.choose (function Parameter(n, _, _, _) -> Some n | _ -> None)
+
+                                    if List.contains "controller" names && List.contains "action" names then
+                                        conventionalRoutes p requiredArea Map.empty controllerName actionName area
+                                        |> List.truncate 1
+                                        |> List.map (fun route -> Some route, $"the conventional route \"{p}\"", r)
+                                    else
+                                        [ None, $"the conventional route \"{p}\", whose defaults are not constants", r ]
+                                | None, _ -> [ None, "a conventional route whose pattern is not a constant", r ])
                             |> List.distinctBy (fun (route, _, _) -> route)
 
                         match byConvention, attributeMapping with
@@ -728,6 +889,11 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                 | Some unit ->
                     let location = point |> Option.map Attribution.toLocation
 
+                    let conventions =
+                        applicationConventions
+                        @ attributeConventions $"controller {controller.Ref.FullName}" inherited action.Ref point
+                        @ attributeConventions $"action {action.Ref.Display}" action.Attributes action.Ref point
+
                     routes
                     |> List.map (fun (httpMethod, route, how, registration) ->
                         let methodPredicate =
@@ -742,9 +908,10 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
 
                         let routePredicates = route |> Option.map (fun r -> PlatformRouting.templatePredicates r location) |> Option.defaultValue []
 
+                        // A convention that may change the route leaves it partial at best.
                         let completeness =
                             match httpMethod, route with
-                            | Some _, Some _ -> Completeness.Complete
+                            | Some _, Some _ when conventions.IsEmpty -> Completeness.Complete
                             | None, None -> Completeness.Unresolved
                             | _ -> Completeness.Partial
 
@@ -762,4 +929,5 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                           Evidence =
                             { Steps =
                                 [ step $"{registration.Caller.Ref.Display} maps controllers with {registration.Declared.Display} (rule {registration.Rule.Id})" registration.Caller.Ref (pointOf registration)
-                                  step $"{action.Ref.Display} is an action of controller {controller.Ref.FullName}, routed by {how}" action.Ref point ] } })))
+                                  step $"{action.Ref.Display} is an action of controller {controller.Ref.FullName}, routed by {how}" action.Ref point ]
+                                @ conventions } })))

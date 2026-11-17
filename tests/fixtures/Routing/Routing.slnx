@@ -1,11 +1,13 @@
 <Solution>
   <Project Path="Routing.Controllers/Routing.Controllers.fsproj" />
   <Project Path="Routing.Conventional/Routing.Conventional.fsproj" />
+  <Project Path="Routing.Conventions/Routing.Conventions.fsproj" />
   <Project Path="Routing.Delegated/Routing.Delegated.fsproj" />
   <Project Path="Routing.Dynamic/Routing.Dynamic.fsproj" />
   <Project Path="Routing.Endpoints/Routing.Endpoints.fsproj" />
   <Project Path="Routing.Listener/Routing.Listener.fsproj" />
   <Project Path="Routing.Middleware/Routing.Middleware.fsproj" />
+  <Project Path="Routing.Prefixed/Routing.Prefixed.fsproj" />
   <Project Path="Routing.Socket/Routing.Socket.fsproj" />
   <Project Path="Routing.Table/Routing.Table.fsproj" />
 </Solution>

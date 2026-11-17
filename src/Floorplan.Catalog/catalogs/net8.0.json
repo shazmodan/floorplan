@@ -317,14 +317,14 @@
     // attribute's arguments.
     { "id": "http-in.map-controllers", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Builder.ControllerEndpointRouteBuilderExtensions",
       "members": ["MapControllers"], "kind": "registration", "category": "http-in", "payload": [{ "argument": 0, "role": "controllers" }] },
-    // Conventional routes: MapControllerRoute(endpoints, name, pattern, ...), MapAreaControllerRoute(endpoints, name,
-    // areaName, pattern, ...), and MapDefaultControllerRoute, whose pattern is the platform's default.
+    // Conventional routes: MapControllerRoute(endpoints, name, pattern, defaults, ...), MapAreaControllerRoute(endpoints,
+    // name, areaName, pattern, defaults, ...), and MapDefaultControllerRoute, whose pattern is the platform's default.
     { "id": "http-in.map-controller-route", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Builder.ControllerEndpointRouteBuilderExtensions",
       "members": ["MapControllerRoute"], "kind": "registration", "category": "http-in",
-      "payload": [{ "argument": 0, "role": "conventional-controllers" }, { "argument": 2, "role": "route-pattern" }] },
+      "payload": [{ "argument": 0, "role": "conventional-controllers" }, { "argument": 2, "role": "route-pattern" }, { "argument": 3, "role": "route-defaults" }] },
     { "id": "http-in.map-area-controller-route", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Builder.ControllerEndpointRouteBuilderExtensions",
       "members": ["MapAreaControllerRoute"], "kind": "registration", "category": "http-in",
-      "payload": [{ "argument": 0, "role": "conventional-controllers" }, { "argument": 2, "role": "area-name" }, { "argument": 3, "role": "route-pattern" }] },
+      "payload": [{ "argument": 0, "role": "conventional-controllers" }, { "argument": 2, "role": "area-name" }, { "argument": 3, "role": "route-pattern" }, { "argument": 4, "role": "route-defaults" }] },
     { "id": "http-in.map-default-controller-route", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Builder.ControllerEndpointRouteBuilderExtensions",
       "members": ["MapDefaultControllerRoute"], "kind": "registration", "category": "http-in", "comparesTo": "{controller=Home}/{action=Index}/{id?}",
       "payload": [{ "argument": 0, "role": "conventional-controllers" }] },
@@ -356,6 +356,25 @@
       "members": [".ctor"], "kind": "metadata", "category": "http-in", "httpMethod": "HEAD", "payload": [{ "argument": 0, "role": "route-template" }] },
     { "id": "http-in.mvc-http-options", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.HttpOptionsAttribute",
       "members": [".ctor"], "kind": "metadata", "category": "http-in", "httpMethod": "OPTIONS", "payload": [{ "argument": 0, "role": "route-template" }] },
+
+    // ---------------- MVC controllers: application model conventions ----------------
+    // Conventions run over the application model MVC builds from the controllers, and their Apply can rewrite the
+    // routes: those registered in MvcOptions.Conventions, and attributes on controllers and actions that are
+    // conventions. The members below are the ways a convention changes routes, names or methods.
+    { "id": "http-in.mvc-application-model-convention", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.ApplicationModels.IApplicationModelConvention",
+      "members": ["Apply"], "includeDerivedTypes": true, "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "model-convention" }] },
+    { "id": "http-in.mvc-controller-model-convention", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.ApplicationModels.IControllerModelConvention",
+      "members": ["Apply"], "includeDerivedTypes": true, "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "model-convention" }] },
+    { "id": "http-in.mvc-action-model-convention", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.ApplicationModels.IActionModelConvention",
+      "members": ["Apply"], "includeDerivedTypes": true, "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "model-convention" }] },
+    { "id": "http-in.mvc-selector-model", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.ApplicationModels.SelectorModel",
+      "members": [".ctor", "set_AttributeRouteModel", "get_ActionConstraints", "get_EndpointMetadata"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "route-change" }] },
+    { "id": "http-in.mvc-attribute-route-model", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.ApplicationModels.AttributeRouteModel",
+      "members": [".ctor", "set_Template", "CombineAttributeRouteModel"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "route-change" }] },
+    { "id": "http-in.mvc-controller-model", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.ApplicationModels.ControllerModel",
+      "members": ["set_ControllerName", "get_RouteValues"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "route-change" }] },
+    { "id": "http-in.mvc-action-model", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Mvc.ApplicationModels.ActionModel",
+      "members": ["set_ActionName", "get_RouteValues"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "route-change" }] },
 
     // ---------------- blind spots (plan risk 7) ----------------
     { "id": "blind-spot.reflection-invoke", "type": "System.Reflection.MethodBase", "members": ["Invoke"], "includeDerivedTypes": true,
