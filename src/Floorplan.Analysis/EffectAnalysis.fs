@@ -15,6 +15,37 @@ type EffectResult =
       /// The catalog used for each project, by project id.
       Catalogs: Map<string, CatalogChoice> }
 
+/// A segment of a payload origin (`Values.Segment`): text, an argument (with a member path), or unknown when
+/// neither is set.
+type CachedSegment =
+    { Text: string option
+      Parameter: int option
+      Members: string list }
+
+type CachedPayload =
+    { Role: string
+      Segments: CachedSegment list }
+
+module private CachedPayload =
+    let ofPayload (p: Summaries.PayloadOrigin) : CachedPayload =
+        { Role = p.Role
+          Segments =
+            p.Origin
+            |> List.map (function
+                | Values.Literal t -> { Text = Some t; Parameter = None; Members = [] }
+                | Values.Unknown -> { Text = None; Parameter = None; Members = [] }
+                | Values.FromParameter(i, members) -> { Text = None; Parameter = Some i; Members = members }) }
+
+    let toPayload (p: CachedPayload) : Summaries.PayloadOrigin =
+        { Role = p.Role
+          Origin =
+            p.Segments
+            |> List.map (fun s ->
+                match s.Text, s.Parameter with
+                | Some t, _ -> Values.Literal t
+                | None, Some i -> Values.FromParameter(i, s.Members)
+                | None, None -> Values.Unknown) }
+
 /// One rule a method reaches: the first call on the shortest path, and the method that call leads to.
 type CachedWitness =
     { RuleId: string
@@ -24,7 +55,9 @@ type CachedWitness =
       Distance: int
       Step: Summaries.PathStep
       /// The key of the next method on the path; none when Step is the call to the primitive.
-      Next: string option }
+      Next: string option
+      /// The primitive's payload in terms of the method's arguments; none when the rule has no payload.
+      Payload: CachedPayload option }
 
 type CachedMethod =
     { Key: string
@@ -56,7 +89,7 @@ let private mvidOf (path: string) =
         ""
 
 let private cacheKey (assembly: string) (mvid: string) (catalog: string) =
-    Caching.hash [ "summaries-v2"; assembly; mvid; catalog ]
+    Caching.hash [ "summaries-v3"; assembly; mvid; catalog ]
 
 /// The program every analysis of one run shares: assemblies, call graph, per-catalog matchers and summaries,
 /// and the dependency summary cache.
@@ -192,7 +225,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
         | true, s -> s
         | _ ->
             let s =
-                Summaries.Summaries(graph, matcher, fun m ->
+                Summaries.Summaries(graph, matcher, recognizers, fun m ->
                     set.Origin m.Type.Assembly = Dependency && not (cachedAssemblies.Contains m.Type.Assembly))
 
             summaries[matcher.Catalog.Name] <- s
@@ -246,7 +279,8 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                           Category = w.Category
                           Primitive = w.Primitive
                           PrimitiveAssembly = w.PrimitiveAssembly
-                          Steps = path w [] 0 })
+                          Steps = path w [] 0
+                          Payload = w.Payload |> Option.map CachedPayload.toPayload })
                 | _ -> []
             | None -> computed.Effects m
 
@@ -264,14 +298,15 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                 |> List.filter (fun e -> e.Kind = Virtual && set.Origin e.Declared.Type.Assembly = Dependency)
                 |> List.groupBy (fun e -> e.Declared)
 
-            let toCached (w: Summaries.Witness) : CachedWitness =
+            let toCached (summaries: Summaries.Summaries) (m: MethodRef) (w: Summaries.Witness) : CachedWitness =
                 { RuleId = w.Hit.Rule.Id
                   Category = w.Hit.Category
                   Primitive = w.Hit.Primitive.Display
                   PrimitiveAssembly = w.Hit.Primitive.Type.Assembly
                   Distance = w.Distance
                   Step = Summaries.toStep w.Edge
-                  Next = if w.Distance = 1 then None else Some w.Edge.Target.Key }
+                  Next = if w.Distance = 1 then None else Some w.Edge.Target.Key
+                  Payload = summaries.PayloadOf(m, w.Hit.Rule.Id) |> Option.map CachedPayload.ofPayload }
 
             for project in input.Projects |> List.distinctBy (fun p -> (catalogFor p).Catalog.Name) do
                 let catalog = (catalogFor project).Catalog.Name
@@ -280,7 +315,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                 for (assembly, methods) in byAssembly do
                     if not (cachedAssemblies.Contains assembly) then
                         let direct =
-                            methods |> List.map (fun m -> { Key = m.Key; Witnesses = summaries.Reaches m |> List.map toCached })
+                            methods |> List.map (fun m -> { Key = m.Key; Witnesses = summaries.Reaches m |> List.map (toCached summaries m) })
 
                         let declared =
                             virtualTargets
@@ -292,7 +327,8 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                                     |> List.collect (fun e ->
                                         summaries.Reaches e.Target
                                         |> List.map (fun w ->
-                                            { toCached w with
+                                            // The declared method has the implementation's arguments.
+                                            { toCached summaries e.Target w with
                                                 Distance = w.Distance + 1
                                                 Step =
                                                     { Caller = d.Display
