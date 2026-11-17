@@ -199,7 +199,7 @@ Each later catalog is a delta on the previous one. Users can pass `--catalog ext
 2. **Summarize dependencies.** For each method in a dependency DLL, compute which catalog categories it can reach. Summaries are cached on disk per assembly identity (MVID), so a NuGet package is analyzed once per machine.
 3. **Find boundary call sites.** An exit point is a call site in user code whose target is either a catalog sink or a dependency method whose summary reaches one.
 4. **Attribute.** The exit point belongs to the module containing that call site. The record keeps the dependency assembly the call went through, which gives a natural label ("network, via RabbitMQ.Client") without the tool knowing the library.
-5. **Recover payloads.** Constant propagation over the payload argument, best effort. A literal URL is shown as is; an interpolated string is shown as a template; anything else is "dynamic".
+5. **Recover payloads.** Constant propagation over the payload argument, best effort. A literal URL is shown as is; an interpolated string is shown as a template; anything else is "dynamic". For a call into a dependency, the payload is first worked out inside the dependency in terms of its method's arguments, then evaluated at the call site (`docs/library-payloads-plan.md`); such origins are cached with the summaries.
 6. **Keep the evidence.** Every exit point stores the shortest call path from the user call site to the catalog primitive. The website shows it, so each result can be checked by hand.
 
 ## 6. Finding entry points
