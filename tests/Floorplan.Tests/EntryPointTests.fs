@@ -255,13 +255,13 @@ let tests =
                   (routes m "Routing.Middleware")
                   [ "-", "-", "Routing.Middleware.NotFound::handle", Completeness.Unresolved
                     "-", "/orders/*", "Routing.Middleware.NotFound::handle", Completeness.Partial
-                    "DELETE", "/orders/{param}", "Routing.Middleware.Orders::remove", Completeness.Complete
+                    "DELETE", "/orders/{id}", "Routing.Middleware.Orders::remove", Completeness.Complete
                     "GET", "/health", "Routing.Middleware.Health::check", Completeness.Complete
-                    "GET", "/orders/{param}", "Routing.Middleware.Orders::show", Completeness.Complete
+                    "GET", "/orders/{id}", "Routing.Middleware.Orders::show", Completeness.Complete
                     "OPTIONS", "/orders", "Routing.Middleware.Orders::options", Completeness.Complete
-                    "PATCH", "/orders/{param}", "Routing.Middleware.Orders::patch", Completeness.Complete
+                    "PATCH", "/orders/{id}", "Routing.Middleware.Orders::patch", Completeness.Complete
                     "POST", "/orders/*", "Routing.Middleware.Orders::create", Completeness.Partial
-                    "PUT", "/orders/{param}", "Routing.Middleware.Orders::replace", Completeness.Complete ]
+                    "PUT", "/orders/{id}", "Routing.Middleware.Orders::replace", Completeness.Complete ]
                   "routes"
 
               let create = entries m "Routing.Middleware" |> List.find (fun e -> e.HandlerMember.EndsWith "create")
@@ -273,13 +273,13 @@ let tests =
 
               Expect.equal
                   (routes m "Routing.Listener")
-                  [ "DELETE", "/api/orders/{param}", "Routing.Listener.Orders::remove", Completeness.Complete
+                  [ "DELETE", "/api/orders/{id}", "Routing.Listener.Orders::remove", Completeness.Complete
                     "GET", "/api/orders", "Routing.Listener.Orders::list", Completeness.Complete
-                    "GET", "/api/orders/{param}", "Routing.Listener.Orders::fetch", Completeness.Complete
+                    "GET", "/api/orders/{id}", "Routing.Listener.Orders::fetch", Completeness.Complete
                     "OPTIONS", "/api/orders", "Routing.Listener.Orders::options", Completeness.Complete
-                    "PATCH", "/api/orders/{param}", "Routing.Listener.Orders::patch", Completeness.Complete
+                    "PATCH", "/api/orders/{id}", "Routing.Listener.Orders::patch", Completeness.Complete
                     "POST", "/api/orders", "Routing.Listener.Orders::create", Completeness.Complete
-                    "PUT", "/api/orders/{param}", "Routing.Listener.Orders::replace", Completeness.Complete ]
+                    "PUT", "/api/orders/{id}", "Routing.Listener.Orders::replace", Completeness.Complete ]
                   "routes"
           }
 

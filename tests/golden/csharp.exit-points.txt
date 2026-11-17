@@ -1,0 +1,31 @@
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Sqlite | System.Data.Common.DbConnection::Open | via - | - | CSharp/CSharp.Effects/Database.cs:12
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Sqlite | System.Data.Common.DbCommand::ExecuteNonQuery | via - | - | CSharp/CSharp.Effects/Database.cs:15
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Postgres | System.Data.Common.DbConnection::Open | via - | - | CSharp/CSharp.Effects/Database.cs:21
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Postgres | System.Data.Common.DbCommand::ExecuteScalar | via - | - | CSharp/CSharp.Effects/Database.cs:23
+http-out | CSharp.Effects:CSharp.Effects | CSharp.Effects.Direct::Fetch | System.Net.Http.HttpClient::GetStringAsync | via - | literal:https://api.example.org/status | CSharp/CSharp.Effects/Direct.cs:10
+filesystem-read | CSharp.Effects:CSharp.Effects | CSharp.Effects.Direct::ReadConfig | System.IO.File::ReadAllText | via - | literal:config.json | CSharp/CSharp.Effects/Direct.cs:12
+filesystem-write | CSharp.Effects:CSharp.Effects | CSharp.Effects.Direct::WriteReport | System.IO.File::WriteAllText | via - | literal:report.txt | CSharp/CSharp.Effects/Direct.cs:14
+process | CSharp.Effects:CSharp.Effects | CSharp.Effects.Direct::RunGit | System.Diagnostics.Process::Start | via - | literal:git | CSharp/CSharp.Effects/Direct.cs:16
+nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Hidden::Now | System.DateTime::get_Now | via - | - | CSharp/CSharp.Effects/Hidden.cs:8
+environment | CSharp.Effects:CSharp.Effects | CSharp.Effects.Hidden::Home | System.Environment::GetEnvironmentVariable | via - | literal:HOME | CSharp/CSharp.Effects/Hidden.cs:10
+native | CSharp.Effects:CSharp.Effects | CSharp.Effects.Hidden::Pid | CSharp.Effects.Hidden::GetCurrentProcessId | via - | - | CSharp/CSharp.Effects/Hidden.cs:15
+filesystem-write | CSharp.Effects:CSharp.Effects | CSharp.Effects.HigherOrder/<>c__DisplayClass1_0::<SaveAll>b__0 | System.IO.File::AppendAllText | via - | dynamic:- | CSharp/CSharp.Effects/HigherOrder.cs:17
+http-out | CSharp.Effects:CSharp.Effects | CSharp.Effects.HigherOrder/<FetchAsync>d__5::MoveNext | System.Net.Http.HttpClient::GetStringAsync | via - | literal:https://api.example.org/async | CSharp/CSharp.Effects/HigherOrder.cs:35
+filesystem-read | CSharp.Effects:CSharp.Effects | CSharp.Effects.HigherOrder/<ReadLines>d__6::MoveNext | System.IO.File::ReadLines | via - | literal:lines.txt | CSharp/CSharp.Effects/HigherOrder.cs:41
+filesystem-write | CSharp.Effects:CSharp.Effects | CSharp.Effects.FileStore::Save | System.IO.File::WriteAllText | via - | literal:store.txt | CSharp/CSharp.Effects/HigherOrder.cs:53
+filesystem-write | CSharp.Effects:CSharp.Effects | CSharp.Effects.AuditStore::Save | System.IO.File::AppendAllText | via - | literal:audit.txt | CSharp/CSharp.Effects/HigherOrder.cs:58
+http-out | CSharp.Effects:CSharp.Effects | CSharp.Effects.Payloads::User | System.Net.Http.HttpClient::GetStringAsync | via - | template:https://api.example.org/users/{…} | CSharp/CSharp.Effects/Payloads.cs:10
+http-out | CSharp.Effects:CSharp.Effects | CSharp.Effects.Payloads::Order | System.Net.Http.HttpClient::GetStringAsync | via - | template:https://api.example.org/orders/{…} | CSharp/CSharp.Effects/Payloads.cs:12
+filesystem-read | CSharp.Effects:CSharp.Effects | CSharp.Effects.Payloads::File | System.IO.File::ReadAllText | via - | template:data/{…} | CSharp/CSharp.Effects/Payloads.cs:14
+filesystem-read | CSharp.Effects:CSharp.Effects | CSharp.Effects.Payloads::Anything | System.IO.File::ReadAllText | via - | dynamic:- | CSharp/CSharp.Effects/Payloads.cs:16
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::QueryNames | System.Data.IDbConnection::Open | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:13
+nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::QueryNames | System.Guid::NewGuid | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:13
+http-out | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.Net.Http.HttpClient::SendAsync | via Flurl.Http | - | CSharp/CSharp.Effects/Wrapped.cs:16
+nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.DateTime::get_UtcNow | via Flurl.Http | - | CSharp/CSharp.Effects/Wrapped.cs:16
+environment | CSharp.Endpoints: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via - | literal:STATUS_PREFIX | CSharp/CSharp.Endpoints/Program.cs:13
+filesystem-read | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::GetOrder | System.IO.File::ReadAllText | via - | template:orders/{…}.json | CSharp/CSharp.Endpoints/Api.cs:8
+nondeterminism | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::CreateOrder | System.Guid::NewGuid | via - | - | CSharp/CSharp.Endpoints/Api.cs:12
+filesystem-write | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::CreateOrder | System.IO.File::WriteAllText | via - | template:orders/{…}.json | CSharp/CSharp.Endpoints/Api.cs:12
+-- diagnostics
+blind-spot.reflection | CSharp.Effects.Hidden::Plugin calls System.Type::GetType (reflection). What happens behind it is not analyzed.
+blind-spot.reflection | CSharp.Effects.Hidden::Plugin calls System.Activator::CreateInstance (reflection). What happens behind it is not analyzed.

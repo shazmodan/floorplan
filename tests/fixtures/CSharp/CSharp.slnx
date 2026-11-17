@@ -1,5 +1,7 @@
 <Solution>
   <Project Path="CSharp.Controllers/CSharp.Controllers.csproj" />
+  <Project Path="CSharp.Delegated/CSharp.Delegated.csproj" />
+  <Project Path="CSharp.Effects/CSharp.Effects.csproj" />
   <Project Path="CSharp.Endpoints/CSharp.Endpoints.csproj" />
   <Project Path="CSharp.Middleware/CSharp.Middleware.csproj" />
   <Project Path="CSharp.Switch/CSharp.Switch.csproj" />

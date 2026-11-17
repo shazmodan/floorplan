@@ -72,10 +72,10 @@ application data folder), so a second run is about twice as fast.
 | Routes | Recovered from the conditions on request data: equality, prefixes, constant regexes, path segments, list patterns, active patterns, table keys. Reported as complete, partial or unresolved; never guessed |
 
 Blind spots (reflection, run-time code generation, `dynamic`) are listed under Diagnostics. C# projects get
-namespaces, dependencies, entry points and exit points; minimal APIs, controllers, hand-written routing, switch
-expressions and list patterns in C# give the same routes as in F#. C# effects across all categories are not yet
-covered by fixtures ([status](docs/csharp-support.md)). Projects in other languages appear as a single node with
-limited support; their effects are found and attributed to the project.
+namespaces, dependencies, entry points and exit points, with the same results as F# on the same fixture
+categories: minimal APIs, controllers, hand-written routing, switch expressions, list patterns, tables, routing in
+a dependency, and every effect category ([status](docs/csharp-support.md)). Projects in other languages appear as
+a single node with limited support; their effects are found and attributed to the project.
 
 ## Documentation
 

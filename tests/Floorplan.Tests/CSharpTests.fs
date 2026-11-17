@@ -34,6 +34,48 @@ let tests =
               Golden.check "csharp.entry-points.txt" (EntryPointTests.render m)
           }
 
+          test "golden: CSharp exit points" { Golden.check "csharp.exit-points.txt" (ExitPointTests.render (csharpModel.Force())) }
+
+          test "golden: CSharp exit points on net10.0 give the net8.0 results" {
+              Golden.check "csharp.exit-points.txt" (ExitPointTests.render (csharpModelNet10.Force()))
+          }
+
+          test "effects in C#: every category, behind lambdas, interfaces, a container, async methods and iterators" {
+              let m = csharpModel.Force()
+
+              let has (memberPart: string) (category: EffectCategory) =
+                  Expect.exists
+                      m.ExitPoints
+                      (fun x -> x.Member.Contains memberPart && x.Category = category && x.Unit.StartsWith "CSharp.Effects:")
+                      $"{memberPart}: {category}"
+
+              has "Direct::Fetch" EffectCategory.HttpOut
+              has "Direct::ReadConfig" EffectCategory.FilesystemRead
+              has "Direct::WriteReport" EffectCategory.FilesystemWrite
+              has "Direct::RunGit" EffectCategory.Process
+              has "Database::Sqlite" EffectCategory.Database
+              has "Database::Postgres" EffectCategory.Database
+              has "<SaveAll>" EffectCategory.FilesystemWrite
+              has "FileStore::Save" EffectCategory.FilesystemWrite
+              has "AuditStore::Save" EffectCategory.FilesystemWrite
+              has "<FetchAsync>" EffectCategory.HttpOut
+              has "<ReadLines>" EffectCategory.FilesystemRead
+              // LibraryImport: the P/Invoke is in code a source generator adds; the call site is the user's.
+              has "Hidden::Pid" EffectCategory.Native
+
+              let via memberName =
+                  m.ExitPoints |> List.filter (fun x -> x.Member = memberName) |> List.choose (fun x -> x.ViaAssembly)
+
+              Expect.contains (via "CSharp.Effects.Wrapped::QueryNames") "Dapper" "through Dapper"
+              Expect.contains (via "CSharp.Effects.Wrapped::FetchUsers") "Flurl.Http" "through Flurl"
+              Expect.exists m.Diagnostics (fun d -> d.Code = "blind-spot.reflection" && d.Message.Contains "Hidden::Plugin") "reflection"
+          }
+
+          test "C#: source generators run, so code that calls what they generate compiles" {
+              let m = csharpModel.Force()
+              Expect.isFalse (m.Diagnostics |> List.exists (fun d -> d.Code.StartsWith "structure.")) "no compile errors"
+          }
+
           test "minimal APIs: one entry per route; cached delegates are not taken for library responses" {
               let m = csharpModel.Force()
               let endpoints = entries m "CSharp.Endpoints"
@@ -63,16 +105,33 @@ let tests =
                       | _ -> None)
                   |> set
 
-              for r in [ "GET /health"; "OPTIONS /orders"; "GET /orders/{param}"; "PUT /orders/{param}"; "DELETE /orders/{param}" ] do
+              for r in [ "GET /health"; "OPTIONS /orders"; "GET /orders/{id}"; "PUT /orders/{id}"; "DELETE /orders/{id}" ] do
                   Expect.contains (routes "CSharp.Middleware") r $"middleware {r}"
 
               // Seven string cases (Roslyn compares hashes first, then the strings), then list patterns.
               Expect.equal (routes "CSharp.Switch").Count 9 "every case of both switches"
               Expect.contains (routes "CSharp.Switch") "POST /api/orders" "method and path from the tuple"
-              Expect.contains (routes "CSharp.Switch") "DELETE /api/orders/{param}" "a list pattern with a parameter"
+              Expect.contains (routes "CSharp.Switch") "DELETE /api/orders/{id}" "a list pattern with a parameter"
 
               let table = entries m "CSharp.Table" |> List.map (fun e -> e.Route) |> List.sort
               Expect.equal table [ Some "/health"; Some "/orders" ] "dictionary initializer keys"
+          }
+
+          test "routing code in a C# dependency reaches handlers the application passes as method groups" {
+              let m = csharpModel.Force()
+
+              let complete =
+                  entries m "CSharp.Delegated"
+                  |> List.filter (fun e -> e.Completeness = Completeness.Complete)
+                  |> List.map (fun e -> defaultArg e.HttpMethod "-" + " " + defaultArg e.Route "-", e.HandlerMember)
+                  |> List.sort
+
+              Expect.equal
+                  complete
+                  [ "DELETE /orders/{id}", "CSharp.Delegated.Orders::Remove"
+                    "GET /health", "CSharp.Delegated.Orders::Health"
+                    "GET /orders/{id}", "CSharp.Delegated.Orders::Show" ]
+                  "routes from the library, handlers from the application, parameters named by the handlers"
           }
 
           test "MVC controllers in C#: attribute routes and the default conventional route" {
@@ -120,4 +179,8 @@ let tests =
                   Expect.isFalse (page.Contains ">CSharp.Endpoints.Admin/&lt;&gt;c") "no compiler-generated name shown"
                   Expect.isFalse (page.Contains "title=\"\"></a>") "the global namespace links by its label"
                   Expect.stringContains page "(global namespace)</a>" "global namespace label"
+
+                  let unitPage = Browser.dumpDom browser index "#/unit/CSharp.Effects%3ACSharp.Effects"
+                  Expect.stringContains unitPage "Types (" "a namespace lists its types"
+                  Expect.stringContains unitPage "AuditStore, Database, Direct, FileStore" "sorted type names"
           } ]

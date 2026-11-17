@@ -369,6 +369,20 @@ let nameParameters (names: string list) (route: string) =
                 "{" + names[i] + "}"
         )
 
+/// Values taken from the path are passed to the handler: its parameters name the route's placeholders, when there
+/// are as many as placeholders. Parameters of the request pipeline itself (the context, the next function) are not
+/// route values.
+let nameFromHandler (set: AssemblySet) (handler: MethodRef) (route: string) =
+    match set.TryMethod handler with
+    | Some(def, _) when def.ParameterNames.Length = handler.ParameterTypes.Length ->
+        let names =
+            List.zip handler.ParameterTypes def.ParameterNames
+            |> List.filter (fun (t, _) -> not (t.Contains "Microsoft.AspNetCore." || t.StartsWith "Microsoft.FSharp.Core.FSharpFunc"))
+            |> List.map snd
+
+        nameParameters names route
+    | _ -> route
+
 /// Turns predicates into a method, a route and a completeness level (plan section 6.6).
 let assemble (predicates: Predicate list) : string option * string option * Completeness =
     let methods =

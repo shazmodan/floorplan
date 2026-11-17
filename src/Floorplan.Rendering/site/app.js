@@ -881,6 +881,7 @@
         u.parent ? [" · inside ", unitLink(u.parent)] : null),
       p.supportLevel === "limited" ? el("div", { class: "notice warning" }, "This project's language has limited support. It is shown as a single node and every effect found in it is attributed to the project as a whole.") : null,
       children.length ? [el("h2", null, "Contains"), el("ul", null, children.map(function (c) { return el("li", null, unitLink(c.id)); }))] : null,
+      (u.types || []).length ? [el("h2", null, "Types (" + u.types.length + ")"), el("p", { class: "mono unit-types" }, u.types.join(", "))] : null,
       el("h2", null, "Depends on (" + out.length + ")"), depTable(out, "toUnit"),
       el("h2", null, "Used by (" + inc.length + ")"), depTable(inc, "fromUnit"),
       el("h2", null, "Entry points (" + (entryByUnit[u.id] || []).length + ")"), entryTable(entryByUnit[u.id] || [], false),
