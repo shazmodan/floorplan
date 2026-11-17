@@ -73,11 +73,11 @@ let tests =
           }
 
           // Iteration 3: values built inside the library (j already passes in iteration 2: the argument is passed through).
-          ptest "d: built inside the library from a literal argument" {
+          test "d: built inside the library from a literal argument" {
               Expect.equal (sql "CountLiteral") (literal "sql" "SELECT count(*) FROM orders") ""
           }
 
-          ptest "d: built inside the library from an unknown argument" {
+          test "d: built inside the library from an unknown argument" {
               Expect.equal (sql "CountDynamic") (template "sql" "SELECT count(*) FROM {…}") ""
           }
 

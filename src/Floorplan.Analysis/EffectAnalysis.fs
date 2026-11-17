@@ -89,7 +89,7 @@ let private mvidOf (path: string) =
         ""
 
 let private cacheKey (assembly: string) (mvid: string) (catalog: string) =
-    Caching.hash [ "summaries-v3"; assembly; mvid; catalog ]
+    Caching.hash [ "summaries-v4"; assembly; mvid; catalog ]
 
 /// The program every analysis of one run shares: assemblies, call graph, per-catalog matchers and summaries,
 /// and the dependency summary cache.

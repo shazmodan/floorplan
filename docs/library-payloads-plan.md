@@ -26,7 +26,7 @@ branch, or at least saved in the working tree) must say where it stopped.
 |---|---|---|---|
 | 1 | Wrapper fixture and pending tests | `claude/library-payload-wrapper-fixture` | done |
 | 2 | Arguments passed straight through, with caching | `claude/library-payload-pass-through` | done |
-| 3 | Values built inside the library | `claude/library-payload-built-values` | not started |
+| 3 | Values built inside the library | `claude/library-payload-built-values` | done |
 | 4 | Properties, fields, constructors, returned objects | `claude/library-payload-object-members` | not started |
 | 5 | Async and iterator state machines | `claude/library-payload-state-machines` | not started |
 | 6 | Dapper | `claude/library-payload-dapper` | not started |
@@ -158,12 +158,12 @@ goldens are unchanged except for the new call sites. **Done when**: all tests gr
 ### 2. Arguments passed straight through, with caching
 
 `Origin` with `Literal`, `Unknown`, `FromParameter` (no members yet); the backward walk along the witness path; the
-choice in `ExitPoints`; origins in the summaries cache (`summaries-v3`). **Done when**: cases a, b, c, i pass (`LibraryPayloadTests.fs`); a test runs
+choice in `ExitPoints`; origins in the summaries cache (`summaries-v3`; `summaries-v4` from iteration 3). **Done when**: cases a, b, c, i pass (`LibraryPayloadTests.fs`); a test runs
 the fixture twice with a cache store and gets the same payloads both times.
 
 ### 3. Values built inside the library
 
-`Concat`, and the `Evaluator` producing `Parameter` for arguments inside templates. **Done when**: cases d and j
+The `Evaluator` producing an argument, not a hole, inside concatenations and templates. **Done when**: cases d and j
 pass.
 
 ### 4. Properties, fields, constructors, returned objects
@@ -238,3 +238,12 @@ Next: iteration 2 from `main` once this is merged.
   one full text); Flurl's `SendAsync` changed from no payload to `dynamic` (role `request`, not followed); Dapper
   unchanged (`IDbConnection::Open`, the `IDbCommand` witness is still unknown).
 Next: iteration 3.
+
+**2026-11-17, iteration 3, done.** `Values.Symbolic` has a new case `Param i`: the incoming value of argument
+`i`, which `Evaluator` now gives for an argument instead of `Hole`. Everywhere else it reads as a hole (all other
+matches on `Symbolic` fall through to a wildcard; alone, it is still a dynamic payload). `Origin.ofSymbolic` turns
+it into `FromParameter`, so `"SELECT count(*) FROM " + table` is `[Literal; FromParameter 2]`, and `OriginOf` is
+just that. `ToPayload` now gives a literal for parts that are all text (it gave a template without holes). Cache key
+`summaries-v4`. Tests d (both) pass; one golden line changed: `CountLiteral` is `literal:SELECT count(*) FROM
+orders`. No change in any other golden: direct calls that join constant strings did not occur in the fixtures.
+Next: iteration 4.

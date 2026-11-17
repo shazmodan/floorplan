@@ -9,6 +9,9 @@ open Floorplan.IL.DataFlow
 type Symbolic =
     | Text of string
     | Hole
+    /// The incoming value of argument `index` of the method (0 is `this`). Unknown in the method itself, so shown
+    /// as a hole; a caller can fill it in (docs/library-payloads-plan.md).
+    | Param of index: int
     /// A sequence of parts, concatenated.
     | Parts of Symbolic list
 
@@ -42,6 +45,7 @@ module Origin =
         flatten s
         |> List.map (function
             | Text t -> Literal t
+            | Param i -> FromParameter(i, [])
             | _ -> Unknown)
 
 /// The platform type C# (10 and later) builds interpolated strings with.
@@ -131,6 +135,7 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                     | Some t -> t
                     | None -> Hole
                 | _ -> Hole
+        | Argument i -> Param i
         | _ -> Hole
 
     /// An interpolated string built with the platform's handler on a local:
@@ -287,10 +292,7 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
         | _ -> None
 
     /// What a value is in terms of this method's arguments.
-    member _.OriginOf(values: Values) : Origin =
-        match Set.toList values with
-        | [ Argument i ] -> [ FromParameter(i, []) ]
-        | _ -> Origin.ofSymbolic (value 0 values)
+    member _.OriginOf(values: Values) : Origin = Origin.ofSymbolic (value 0 values)
 
     /// The operand of a call that holds argument `index` of the called method: `this` of a constructor is not
     /// on the stack.
@@ -329,6 +331,11 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
             { Role = role
               Kind = PayloadKind.Dynamic
               Value = None }
+        | parts when flatten parts |> List.forall (function Text _ -> true | _ -> false) ->
+            // Only text, joined: a literal.
+            { Role = role
+              Kind = PayloadKind.Literal
+              Value = Some(render parts) }
         | parts ->
             let rendered = render parts
 
