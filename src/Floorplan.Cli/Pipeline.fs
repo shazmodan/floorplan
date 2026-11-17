@@ -105,7 +105,15 @@ let buildModel (log: string -> unit) (store: Caching.Store) (catalogs: string li
             | None -> p)
 
     log "Computing layout"
-    let layout = SolutionLayout.compute projects structure.Units structure.Dependencies
+    let presentation =
+        { HiddenCategories =
+            [ EffectCategory.Environment; EffectCategory.Nondeterminism ]
+            |> List.filter (fun c -> not (List.contains c show))
+          HiddenConfidence = [ Confidence.Low ] }
+
+    let layout =
+        { SolutionLayout.compute projects structure.Units structure.Dependencies with
+            FlowGraph = SolutionLayout.flow structure.Units structure.Dependencies entries effects.ExitPoints presentation }
 
     { AnalysisModel.empty toolVersion (DateTime.UtcNow.ToString "yyyy-MM-ddTHH:mm:ssZ") { Name = solution.Name; Path = solution.Path } with
         Projects = projects
@@ -115,11 +123,7 @@ let buildModel (log: string -> unit) (store: Caching.Store) (catalogs: string li
         Traces = traces
         ExitPoints = effects.ExitPoints
         Layout = layout
-        Presentation =
-            { HiddenCategories =
-                [ EffectCategory.Environment; EffectCategory.Nondeterminism ]
-                |> List.filter (fun c -> not (List.contains c show))
-              HiddenConfidence = [ Confidence.Low ] }
+        Presentation = presentation
         Diagnostics = (solution.Failures |> List.map failureDiagnostic) @ structure.Diagnostics @ effects.Diagnostics }
 
 let run (log: string -> unit) (options: AnalyzeOptions) : Result<Outcome, string> =

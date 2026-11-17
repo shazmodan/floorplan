@@ -19,6 +19,14 @@
   --edge-cross: #7f6bd6;
   --dependency: #2f5fd0;
   --dependent: #c2410c;
+  --cat-database: #2e7d32;
+  --cat-http-out: #2f5fd0;
+  --cat-network: #0e7490;
+  --cat-filesystem-read: #9a5b00;
+  --cat-filesystem-write: #c2410c;
+  --cat-process: #7c3aed;
+  --cat-native: #b3261e;
+  --flow-in: #1f7a4d;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
@@ -44,6 +52,14 @@
   --edge-cross: #a897ff;
   --dependency: #8aa8ff;
   --dependent: #ff9e66;
+  --cat-database: #7fd08a;
+  --cat-http-out: #8aa8ff;
+  --cat-network: #5fd4e8;
+  --cat-filesystem-read: #f0b252;
+  --cat-filesystem-write: #ff9e66;
+  --cat-process: #b79cff;
+  --cat-native: #ff8a80;
+  --flow-in: #6fd3a0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -68,6 +84,14 @@
     --edge-cross: #a897ff;
     --dependency: #8aa8ff;
     --dependent: #ff9e66;
+    --cat-database: #7fd08a;
+    --cat-http-out: #8aa8ff;
+    --cat-network: #5fd4e8;
+    --cat-filesystem-read: #f0b252;
+    --cat-filesystem-write: #ff9e66;
+    --cat-process: #b79cff;
+    --cat-native: #ff8a80;
+    --flow-in: #6fd3a0;
   }
 }
 
@@ -217,6 +241,37 @@ ul.plain li { padding: 3px 0; }
 .g-edge.dependent { stroke: var(--dependent); stroke-width: 2; opacity: 1; }
 #arrow path { fill: var(--edge); }
 #arrow-cross path { fill: var(--edge-cross); }
+
+/* Flow view: cards of entry and exit points around the units. */
+.flow-unit .project { font-size: 11px; fill: var(--muted); }
+.g-card rect { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; }
+.g-card .head { font-size: 12px; font-weight: 650; fill: var(--muted); }
+.g-card .line text { font-family: var(--mono); font-size: 11.5px; fill: var(--text); }
+.g-card .line:hover text, .g-card .line:focus text { fill: var(--accent); text-decoration: underline; }
+.g-card .line.more text { font-family: var(--font); fill: var(--accent); }
+.g-card .line.partial text { fill: var(--warn); }
+.g-card .line.unresolved text { fill: var(--muted); }
+.g-card.in rect { stroke: var(--flow-in); }
+.g-card.in .head { fill: var(--flow-in); }
+.g-card.cat-database rect { stroke: var(--cat-database); }
+.g-card.cat-database .head { fill: var(--cat-database); }
+.g-card.cat-http-out rect { stroke: var(--cat-http-out); }
+.g-card.cat-http-out .head { fill: var(--cat-http-out); }
+.g-card.cat-network rect { stroke: var(--cat-network); }
+.g-card.cat-network .head { fill: var(--cat-network); }
+.g-card.cat-filesystem-read rect { stroke: var(--cat-filesystem-read); }
+.g-card.cat-filesystem-read .head { fill: var(--cat-filesystem-read); }
+.g-card.cat-filesystem-write rect { stroke: var(--cat-filesystem-write); }
+.g-card.cat-filesystem-write .head { fill: var(--cat-filesystem-write); }
+.g-card.cat-process rect { stroke: var(--cat-process); }
+.g-card.cat-process .head { fill: var(--cat-process); }
+.g-card.cat-native rect { stroke: var(--cat-native); }
+.g-card.cat-native .head { fill: var(--cat-native); }
+.g-card.dim { opacity: 0.18; }
+.g-edge.flow-in { stroke: var(--flow-in); }
+.g-edge.flow-out { stroke-dasharray: 4 3; }
+.legend i.in { border-color: var(--flow-in); }
+.legend i.out { border-top-style: dashed; }
 
 .legend { position: absolute; right: 12px; bottom: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; }

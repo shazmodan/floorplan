@@ -126,6 +126,7 @@
     { id: "overview", label: "Overview" },
     { id: "projects", label: "Projects" },
     { id: "units", label: unitWord.many },
+    { id: "flow", label: "Flow" },
     { id: "entry-points", label: "Entry points", count: function () { return D.entryPoints.length; } },
     { id: "exit-points", label: "Exit points", count: function () { return D.exitPoints.filter(visibleExit).length; } },
     { id: "diagnostics", label: "Diagnostics", count: function () { return D.diagnostics.filter(function (d) { return d.severity !== "info"; }).length; } }
@@ -156,7 +157,7 @@
   function route() {
     var r = parseRoute();
     var view = {
-      "overview": overview, "projects": projectGraph, "units": unitGraph, "unit": unitDetail,
+      "overview": overview, "projects": projectGraph, "units": unitGraph, "flow": flowGraph, "unit": unitDetail,
       "entry-points": entryPoints, "exit-points": exitPoints, "evidence": evidence, "diagnostics": diagnostics
     }[r.view] || overview;
     var navId = r.view === "unit" ? "units" : (r.view === "evidence" ? null : r.view);
@@ -263,7 +264,7 @@
 
     var drag = null;
     root.addEventListener("pointerdown", function (e) {
-      if (e.target.closest && e.target.closest(".g-node, .toggle")) return;
+      if (e.target.closest && e.target.closest(".g-node, .toggle, .g-card a")) return;
       drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, scale: toWorld(e).scale, moved: false };
       root.setPointerCapture(e.pointerId);
       root.classList.add("panning");
@@ -608,6 +609,223 @@
     if (selected && nodeOf[selected]) focusUnit(selected);
   }
 
+  // ---------- Flow graph ----------
+  // Where requests enter and side-effects leave. The layout (D.layout.flowGraph) has three kinds of node, told
+  // apart by id: "unit:<id>", "entries:<unit id>" (a card of the routes a unit handles) and
+  // "exits:<unit id>|<category>" (a card of a unit's exit points of one category). Card geometry matches the layout.
+  var CARD_HEADER = 26, CARD_LINE = 18, CARD_PADDING = 8;
+
+  function flowGraph(r) {
+    var g = D.layout.flowGraph;
+    var page = el("div", { class: "graph-page" });
+    if (!g || !g.nodes.length) {
+      append(page, el("div", { class: "page" }, el("h1", null, "Flow"),
+        el("p", { class: "empty" }, "No entry points or exit points were found, so there is no flow to show.")));
+      main.appendChild(page);
+      return;
+    }
+    var host = el("div", { class: "graph" });
+    var canvas = graphCanvas(g.width, g.height);
+    var side = el("div", { class: "side", hidden: true });
+    var edgesLayer = svg("g"), nodesLayer = svg("g");
+    canvas.world.appendChild(edgesLayer);
+    canvas.world.appendChild(nodesLayer);
+    var selected = null;
+    var nodeEls = [], edgeEls = [];
+    var nodeKey = {};
+    g.nodes.forEach(function (n) { nodeKey[n.id] = n.id; n.members.forEach(function (m) { nodeKey[m] = n.id; }); });
+
+    function kindOf(id) { return id.slice(0, id.indexOf(":")); }
+    function unitOfCard(id) { var rest = id.slice(id.indexOf(":") + 1); var bar = rest.lastIndexOf("|"); return id.indexOf("exits:") === 0 && bar >= 0 ? rest.slice(0, bar) : rest; }
+    function categoryOfCard(id) { return id.slice(id.lastIndexOf("|") + 1); }
+    function capacity(n) { return Math.max(1, Math.round((n.height - CARD_HEADER - CARD_PADDING) / CARD_LINE)); }
+
+    // Items of a card: [{ text, title, href }], one per distinct text, in a stable order.
+    function entryItems(unitId) {
+      var seen = {}, items = [];
+      (entryByUnit[unitId] || []).slice().sort(function (a, b) { return routeLabel(a) < routeLabel(b) ? -1 : 1; }).forEach(function (e) {
+        var t = routeLabel(e);
+        if (seen[t]) { seen[t].count++; return; }
+        seen[t] = { text: t, title: t + " — " + shortMember(e.handlerMember) + " (" + e.completeness + ")", href: "#/evidence/entry:" + enc(e.id), completeness: e.completeness, count: 1 };
+        items.push(seen[t]);
+      });
+      return items;
+    }
+    function exitText(x) { return x.payload && x.payload.value !== null && x.payload.value !== undefined ? x.payload.value : shortMember(x.primitive); }
+    function exitItems(unitId, category) {
+      var seen = {}, items = [];
+      (exitByUnit[unitId] || []).filter(function (x) { return x.category === category && visibleExit(x); }).forEach(function (x) {
+        var t = exitText(x);
+        if (seen[t]) { seen[t].count++; return; }
+        seen[t] = { text: t, title: t + " — " + shortMember(x.member) + " via " + shortMember(x.primitive), href: "#/evidence/exit:" + enc(x.id), count: 1 };
+        items.push(seen[t]);
+      });
+      return items;
+    }
+
+    function card(n, cls, header, items, moreHref) {
+      var cap = capacity(n);
+      var shown = items.length > cap ? items.slice(0, cap - 1) : items;
+      var grp = svg("g", { class: "g-card " + cls },
+        svg("rect", { x: n.x, y: n.y, width: n.width, height: n.height, rx: 6 }),
+        svg("text", { class: "head", x: n.x + 10, y: n.y + 17, text: nodeText(header, n.width) }));
+      shown.forEach(function (it, i) {
+        var label = nodeText(it.text + (it.count > 1 ? " ×" + it.count : ""), n.width - 4);
+        grp.appendChild(svg("a", { href: it.href, class: "line" + (it.completeness ? " " + it.completeness : "") },
+          svg("text", { x: n.x + 10, y: n.y + CARD_HEADER + i * CARD_LINE + 13, text: label }),
+          svg("title", { text: it.title })));
+      });
+      if (items.length > shown.length) {
+        grp.appendChild(svg("a", { href: moreHref, class: "line more" },
+          svg("text", { x: n.x + 10, y: n.y + CARD_HEADER + shown.length * CARD_LINE + 13, text: "+" + (items.length - shown.length) + " more…" })));
+      }
+      return grp;
+    }
+
+    function unitNode(n) {
+      var ids = (n.members.length ? n.members : [n.id]).map(function (m) { return m.slice("unit:".length); });
+      var u = units[ids[0]] || {};
+      var label = ids.map(function (i) { return (units[i] || {}).displayName || i; }).join(" ⇄ ");
+      var select = function () { selectNode(n.id); };
+      var open = function () { location.hash = "#/unit/" + enc(ids[0]); };
+      return svg("g", { class: "g-node flow-unit" + (n.members.length ? " group" : ""), tabindex: "0", role: "button",
+        "aria-label": kindLabel(u.kind) + " " + ids.map(unitName).join(", ") + " in " + projectName(u.projectId),
+        on: {
+          click: select, dblclick: open,
+          keydown: function (e) {
+            if (e.key === "Enter") { e.preventDefault(); if (selected === n.id) open(); else select(); }
+            else if (e.key === " ") { e.preventDefault(); select(); }
+            else if (e.key === "Escape") { selectNode(null); }
+          }
+        } },
+        svg("rect", { x: n.x, y: n.y, width: n.width, height: n.height, rx: 6 }),
+        svg("text", { x: n.x + n.width / 2, y: n.y + 19, "text-anchor": "middle", text: nodeText(label, n.width) }),
+        svg("text", { class: "project", x: n.x + n.width / 2, y: n.y + 35, "text-anchor": "middle", text: nodeText(projectName(u.projectId), n.width * 1.15) }),
+        svg("title", { text: ids.map(unitName).join("\n") + "\n" + projectName(u.projectId) }));
+    }
+
+    g.edges.forEach(function (e) {
+      var cls = "g-edge" + (kindOf(e.from) === "entries" ? " flow-in" : kindOf(e.to) === "exits" ? " flow-out" : "");
+      var path = svg("path", { class: cls, d: curve(e.points) });
+      path.__ends = [e.from, e.to];
+      edgesLayer.appendChild(path);
+      edgeEls.push(path);
+    });
+
+    g.nodes.forEach(function (n) {
+      var kind = kindOf(n.id), node;
+      if (kind === "entries") {
+        var unitId = unitOfCard(n.id), items = entryItems(unitId);
+        node = card(n, "in", "Entry points · " + (entryByUnit[unitId] || []).length, items, "#/unit/" + enc(unitId));
+      } else if (kind === "exits") {
+        var owner = unitOfCard(n.id), cat = categoryOfCard(n.id), xs = exitItems(owner, cat);
+        var total = xs.reduce(function (a, it) { return a + it.count; }, 0);
+        node = card(n, "out cat-" + cat, (CATEGORY_LABEL[cat] || cat) + " · " + total, xs, "#/unit/" + enc(owner));
+      } else {
+        node = unitNode(n);
+      }
+      node.__id = n.id;
+      nodeEls.push(node);
+      nodesLayer.appendChild(node);
+    });
+
+    function selectNode(id) {
+      selected = id;
+      var near = {};
+      if (id) {
+        near[id] = true;
+        g.edges.forEach(function (e) { if (e.from === id) near[e.to] = true; if (e.to === id) near[e.from] = true; });
+      }
+      nodeEls.forEach(function (x) {
+        x.classList.toggle("dim", !!id && !near[x.__id]);
+        x.classList.toggle("selected", x.__id === id);
+      });
+      edgeEls.forEach(function (x) { x.classList.toggle("dim", !!id && x.__ends.indexOf(id) < 0); });
+      renderSide();
+    }
+
+    function renderSide() {
+      side.textContent = "";
+      if (!selected) { side.hidden = true; return; }
+      var ids = [selected];
+      g.nodes.forEach(function (n) { if (n.id === selected && n.members.length) ids = n.members; });
+      var unitId = ids[0].slice("unit:".length);
+      var u = units[unitId];
+      if (!u) { side.hidden = true; return; }
+      side.hidden = false;
+      var ins = entryByUnit[unitId] || [];
+      var outs = (exitByUnit[unitId] || []).filter(visibleExit);
+      var byCat = groupBy(outs, "category");
+      append(side, [
+        el("h3", null, u.name),
+        el("div", { class: "muted" }, kindLabel(u.kind), " in ", projectName(u.projectId)),
+        el("p", null, el("a", { href: "#/unit/" + enc(u.id) }, "Open details"), " · ",
+          el("a", { href: "#/units?unit=" + enc(u.id) + "&project=" + enc(u.projectId) }, "Show in " + unitWord.many.toLowerCase())),
+        el("h4", null, "Entry points (" + ins.length + ")"),
+        ins.length ? el("ul", { class: "plain" }, ins.slice(0, 20).map(function (e) {
+          return el("li", null, el("a", { class: "mono", href: "#/evidence/entry:" + enc(e.id) }, routeLabel(e)), " ", el("span", { class: "tag " + e.completeness }, e.completeness));
+        })) : el("div", { class: "muted" }, "None"),
+        el("h4", null, "Exit points (" + outs.length + ")"),
+        outs.length ? Object.keys(byCat).sort().map(function (c) {
+          return el("div", null, el("div", null, el("span", { class: "tag" }, CATEGORY_LABEL[c] || c)),
+            el("ul", { class: "plain" }, byCat[c].slice(0, 12).map(function (x) {
+              return el("li", null, el("a", { class: "mono", href: "#/evidence/exit:" + enc(x.id) }, exitText(x)));
+            })));
+        }) : el("div", { class: "muted" }, "None")
+      ]);
+    }
+
+    canvas.svg.addEventListener("panend", function (e) { if (!e.detail.moved) selectNode(null); });
+
+    // Frames a node with its cards and the units it uses and is used by.
+    function frame(id) {
+      var ends = {}; ends[id] = true;
+      g.edges.forEach(function (e) { if (e.from === id) ends[e.to] = true; if (e.to === id) ends[e.from] = true; });
+      var near = g.nodes.filter(function (n) { return ends[n.id]; });
+      if (!near.length) return;
+      var x1 = Math.min.apply(null, near.map(function (n) { return n.x; })), y1 = Math.min.apply(null, near.map(function (n) { return n.y; }));
+      var x2 = Math.max.apply(null, near.map(function (n) { return n.x + n.width; })), y2 = Math.max.apply(null, near.map(function (n) { return n.y + n.height; }));
+      canvas.focus(x1, y1, x2 - x1, y2 - y1, 900, 560);
+    }
+
+    var search = el("input", { type: "search", placeholder: "Find " + unitWord.one.toLowerCase() + " or route…", "aria-label": "Find " + unitWord.one.toLowerCase() + " or route",
+      on: { keydown: function (e) {
+        if (e.key !== "Enter") return;
+        var q = search.value.toLowerCase();
+        if (!q) return;
+        var hit = g.nodes.filter(function (n) {
+          if (kindOf(n.id) !== "unit") return false;
+          var unitId = n.id.slice("unit:".length), u = units[unitId] || {};
+          return (u.name || "").toLowerCase().indexOf(q) >= 0 ||
+            (entryByUnit[unitId] || []).some(function (x) { return routeLabel(x).toLowerCase().indexOf(q) >= 0; });
+        })[0];
+        if (!hit) return;
+        selectNode(hit.id);
+        frame(hit.id);
+      } } });
+
+    var handlers = g.nodes.filter(function (n) { return kindOf(n.id) === "entries"; }).length;
+    var exitCards = g.nodes.filter(function (n) { return kindOf(n.id) === "exits"; }).length;
+    append(page, [
+      el("div", { class: "toolbar" },
+        el("strong", null, "Flow"), search,
+        el("span", { class: "muted" }, "Routes enter at the top, run through the " + unitWord.many.toLowerCase() + " that handle them and those they use, and leave as side-effects at the bottom. " +
+          plural(handlers, "handler") + ", " + plural(exitCards, "kind of exit", "kinds of exit") + " by " + unitWord.one.toLowerCase() + "."),
+        el("span", { class: "spacer" }), zoomButtons(canvas)),
+      host
+    ]);
+    host.appendChild(canvas.svg);
+    host.appendChild(side);
+    host.appendChild(el("div", { class: "legend", "aria-hidden": "true" },
+      el("span", null, el("i", { class: "in" }), "enters"), el("span", null, el("i"), "uses"), el("span", null, el("i", { class: "out" }), "side-effect")));
+    main.appendChild(page);
+    var focusUnit = r.query.unit && nodeKey["unit:" + r.query.unit];
+    if (focusUnit) {
+      selectNode(focusUnit);
+      frame(focusUnit);
+    }
+  }
+
   // ---------- Unit detail ----------
   function unitDetail(r) {
     var u = units[r.arg];
@@ -630,7 +848,9 @@
     }
 
     append(page, [
-      el("p", { class: "muted" }, el("a", { href: "#/units?unit=" + enc(u.id) + "&project=" + enc(u.projectId) }, "← Show in graph")),
+      el("p", { class: "muted" }, el("a", { href: "#/units?unit=" + enc(u.id) + "&project=" + enc(u.projectId) }, "← Show in graph"),
+        (D.layout.flowGraph && D.layout.flowGraph.nodes.some(function (n) { return n.id === "unit:" + u.id || n.members.indexOf("unit:" + u.id) >= 0; }))
+          ? [" · ", el("a", { href: "#/flow?unit=" + enc(u.id) }, "Show in flow")] : null),
       el("h1", null, u.name),
       el("p", { class: "sub" }, kindLabel(u.kind), " in ", el("a", { href: "#/units?project=" + enc(u.projectId) }, p.name || u.projectId),
         u.location ? [" · ", el("span", { class: "mono", title: u.location.file }, loc(u.location))] : null,

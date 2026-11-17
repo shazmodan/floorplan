@@ -58,6 +58,33 @@ let private sample () =
     let dependencies = [ uses app orders; uses orders domain; uses app domain ]
     SolutionLayout.compute projects units dependencies, unused
 
+let private entry (handler: CodeUnit) (route: string) =
+    { Id = route
+      ApplicationId = handler.ProjectId
+      HandlerUnit = handler.Id
+      HandlerMember = handler.Name + "::handle"
+      Location = None
+      Category = EffectCategory.HttpIn
+      Predicates = []
+      HttpMethod = Some "GET"
+      Route = Some route
+      Completeness = Completeness.Complete
+      Forms = []
+      Evidence = { Steps = [] } }
+
+let private exit (owner: CodeUnit) (category: EffectCategory) (payload: string) =
+    { Id = owner.Id + payload
+      Category = category
+      Unit = owner.Id
+      Member = owner.Name + "::run"
+      Location = None
+      RuleId = "rule"
+      Primitive = "System.IO.File::WriteAllText"
+      Payload = Some { Role = "path"; Kind = PayloadKind.Literal; Value = Some payload }
+      ViaAssembly = None
+      Confidence = Confidence.High
+      Evidence = { Steps = [] } }
+
 [<Tests>]
 let tests =
     testList
@@ -156,6 +183,47 @@ let tests =
               let layout, _ = sample ()
               Expect.equal (layout.ProjectEdges |> List.map (fun e -> e.From, e.To)) [ "Web", "Core" ] "one edge, Web to Core"
               Expect.isFalse (layout.UnitGraph.Edges |> List.exists (fun e -> e.From.StartsWith "Web:" && e.To.StartsWith "Core:")) "no unit-level cross edges"
+          }
+
+          test "the flow graph: entry cards above their handlers, the units between, exit cards below their units" {
+              let api = unit "Web" "Api"
+              let orders = unit "Web" "Orders"
+              let store = unit "Core" "Store"
+              let clock = unit "Core" "Clock"
+              let unrelated = unit "Core" "Reports"
+              let units = [ api; orders; store; clock; unrelated ]
+              // Reports uses Store, but handles no request and has no exit points of its own: it is left out.
+              let dependencies = [ uses api orders; uses orders store; uses unrelated store; uses orders clock ]
+              let entries = [ entry api "/orders"; entry api "/orders/{id}" ]
+
+              let exits =
+                  [ exit store EffectCategory.Database "SELECT * FROM orders"
+                    exit store EffectCategory.Database "SELECT * FROM orders"
+                    exit store EffectCategory.FilesystemWrite "audit.log"
+                    exit clock EffectCategory.Nondeterminism "now" ]
+
+              let presentation = (AnalysisModel.empty "t" "t" { Name = "s"; Path = "p" }).Presentation
+              let g = SolutionLayout.flow units dependencies entries exits presentation
+              let ids = g.Nodes |> List.map (fun n -> n.Id) |> set
+
+              Expect.equal
+                  ids
+                  (set
+                      [ "entries:" + api.Id
+                        "unit:" + api.Id
+                        "unit:" + orders.Id
+                        "unit:" + store.Id
+                        $"exits:{store.Id}|database"
+                        $"exits:{store.Id}|filesystem-write" ])
+                  "handlers, the units between, units with exits and their cards; not Clock (its only exit is hidden by default) nor Reports"
+
+              let at id = g.Nodes |> List.find (fun n -> n.Id = id)
+              Expect.isLessThan (at ("entries:" + api.Id)).Y (at ("unit:" + api.Id)).Y "entry card above its handler"
+              Expect.isGreaterThan (at $"exits:{store.Id}|database").Y (at ("unit:" + store.Id)).Y "exit card below its unit"
+              Expect.equal (at ("entries:" + api.Id)).Height (SolutionLayout.cardHeight 2) "one line per route"
+              Expect.equal (at $"exits:{store.Id}|database").Height (SolutionLayout.cardHeight 1) "one line per distinct payload"
+              Expect.isEmpty (noOverlaps g.Nodes) "no overlaps"
+              Expect.equal (SolutionLayout.cardHeight 50) (SolutionLayout.cardHeight SolutionLayout.cardLines) "long cards are capped"
           }
 
           test "is deterministic" {
