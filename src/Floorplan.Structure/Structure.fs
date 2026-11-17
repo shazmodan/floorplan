@@ -97,12 +97,27 @@ module StructureAnalysis =
 
         let result = StructureResult.combine (LimitedSupport.analyze unsupported :: analyzed)
 
-        // Keep only edges whose ends exist, merging duplicates that different analyzers may produce.
+        // An analyzer names an edge's target by what declares the symbol, which in another language's project
+        // may be a type inside a unit: the edge goes to the innermost unit that contains it, the project's
+        // root namespace ("project:") last. Edges whose ends do not exist are dropped, and duplicates that
+        // different analyzers may produce are merged.
         let ids = result.Units |> List.map (fun u -> u.Id) |> set
+
+        let rec resolve (id: string) =
+            if ids.Contains id then
+                Some id
+            else
+                let colon = id.IndexOf ':'
+                let dot = id.LastIndexOf '.'
+
+                if colon < 0 || id.Length = colon + 1 then None
+                elif dot > colon then resolve (id.Substring(0, dot))
+                else resolve (id.Substring(0, colon + 1))
 
         let dependencies =
             result.Dependencies
-            |> List.filter (fun d -> ids.Contains d.FromUnit && ids.Contains d.ToUnit && d.FromUnit <> d.ToUnit)
+            |> List.choose (fun d -> resolve d.ToUnit |> Option.map (fun t -> { d with ToUnit = t }))
+            |> List.filter (fun d -> ids.Contains d.FromUnit && d.FromUnit <> d.ToUnit)
             |> List.groupBy (fun d -> d.FromUnit, d.ToUnit)
             |> List.map (fun ((f, t), ds) ->
                 { FromUnit = f

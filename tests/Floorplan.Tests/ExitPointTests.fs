@@ -12,6 +12,7 @@ let private modelOf (solution: Lazy<Floorplan.ProjectLoading.LoadedSolution>) =
 let effectsModel = modelOf Fixtures.effects
 let effectsModelNet10 = modelOf Fixtures.effectsNet10
 let shopModel = modelOf Fixtures.shop
+let mixedModel = modelOf Fixtures.mixed
 
 let private exits (model: AnalysisModel) = model.ExitPoints
 
@@ -132,13 +133,33 @@ let tests =
               Expect.exists m.Diagnostics (fun d -> d.Code = "blind-spot.reflection") "reflection is a blind spot"
           }
 
-          test "Shop: an effect in a C# library is attributed to the project node" {
+          test "Shop: an effect in a C# library is attributed to its namespace" {
               let m = shopModel.Force()
 
               let storage =
-                  exits m |> List.filter (fun x -> x.Unit = "Shop.Storage:*")
+                  exits m |> List.filter (fun x -> x.Unit = "Shop.Storage:Shop.Storage")
 
               Expect.exists storage (fun x -> x.Category = EffectCategory.FilesystemWrite) "file append in C#"
+          }
+
+          test "Mixed: effects in C# code are attributed to the namespace, or the global namespace, they are in" {
+              let m = mixedModel.Force()
+
+              Expect.exists
+                  (exits m)
+                  (fun x -> x.Category = EffectCategory.FilesystemWrite && x.Unit = "Mixed.Billing:Mixed.Billing.Storage")
+                  "the file write in a block-scoped namespace"
+
+              Expect.exists
+                  (exits m)
+                  (fun x ->
+                      x.Category = EffectCategory.FilesystemWrite
+                      && x.Unit = "Mixed.Billing:Mixed.Billing.Storage"
+                      && x.Member.Contains "ArchiveAsync"
+                      && x.Payload |> Option.exists (fun p -> p.Value = Some "archive.txt"))
+                  "the file write in a lambda inside an async method"
+
+              Expect.exists (exits m) (fun x -> x.Unit = "Mixed.Tool:") "top-level statements"
           }
 
           test "Shop: the excluded test project contributes nothing" {

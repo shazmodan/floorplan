@@ -19,6 +19,9 @@ let shop = lazy (loadOrFail LoadOptions.defaults "Shop/Shop.slnx")
 let shopWithTests =
     lazy (loadOrFail { LoadOptions.defaults with IncludeTests = true; Build = false } "Shop/Shop.slnx")
 
+/// The Mixed fixture: F# and C# projects that call each other, C# namespaces in a cycle, a C# global namespace.
+let mixed = lazy (loadOrFail LoadOptions.defaults "Mixed/Mixed.slnx")
+
 /// The Effects fixture: every effect category, called directly, through wrapper libraries and higher-order code.
 let effects = lazy (loadOrFail LoadOptions.defaults "Effects/Effects.slnx")
 

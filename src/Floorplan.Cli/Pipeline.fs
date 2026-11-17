@@ -8,6 +8,7 @@ open Floorplan.Model
 open Floorplan.ProjectLoading
 open Floorplan.Structure
 open Floorplan.Structure.FSharp
+open Floorplan.Structure.CSharp
 open Floorplan.IL.Codegen.FSharp
 open Floorplan.Analysis
 open Floorplan.Layout
@@ -77,7 +78,7 @@ let analysisInput (solution: LoadedSolution) (index: SolutionIndex) (units: Code
 /// Builds the analysis model for a loaded solution.
 let buildModel (log: string -> unit) (store: Caching.Store) (catalogs: string list) (show: EffectCategory list) (solution: LoadedSolution) : AnalysisModel =
     log $"Analyzing structure of {solution.Projects.Length} projects"
-    let structure, index = StructureAnalysis.analyze [ FSharpStructureAnalyzer.create store ] solution.Projects
+    let structure, index = StructureAnalysis.analyze [ FSharpStructureAnalyzer.create store; CSharpStructureAnalyzer.create store ] solution.Projects
 
     log "Analyzing effects"
     let input = analysisInput solution index structure.Units catalogs

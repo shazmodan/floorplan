@@ -31,6 +31,7 @@
     <ProjectReference Include="..\..\src\Floorplan.Model\Floorplan.Model.fsproj" />
     <ProjectReference Include="..\..\src\Floorplan.ProjectLoading\Floorplan.ProjectLoading.fsproj" />
     <ProjectReference Include="..\..\src\Floorplan.Structure.FSharp\Floorplan.Structure.FSharp.fsproj" />
+    <ProjectReference Include="..\..\src\Floorplan.Structure.CSharp\Floorplan.Structure.CSharp.fsproj" />
     <ProjectReference Include="..\..\src\Floorplan.Layout\Floorplan.Layout.fsproj" />
     <ProjectReference Include="..\..\src\Floorplan.Rendering\Floorplan.Rendering.fsproj" />
     <ProjectReference Include="..\..\src\Floorplan.Cli\Floorplan.Cli.fsproj" />

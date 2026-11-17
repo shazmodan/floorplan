@@ -45,14 +45,15 @@ type Attributor(units: CodeUnit list, projects: AnalyzedProject list) =
             |> List.tryLast
         | _ -> None
 
-    /// The unit by the declaring type's name: the longest unit name the type name starts with.
+    /// The unit by the declaring type's name: the longest unit name the type name starts with. A unit with an
+    /// empty name is the project's root namespace and contains every type.
     member _.ByTypeName(projectId: string, t: TypeRef) : CodeUnit option =
         match byProject.TryGetValue projectId with
         | true, candidates ->
             let name = t.FullName.Replace('/', '.')
 
             candidates
-            |> List.filter (fun u -> name = u.Name || name.StartsWith(u.Name + ".") || name.StartsWith(u.Name + "@"))
+            |> List.filter (fun u -> u.Name = "" || name = u.Name || name.StartsWith(u.Name + ".") || name.StartsWith(u.Name + "@"))
             |> List.sortBy (fun u -> u.Name.Length)
             |> List.tryLast
         | _ -> None

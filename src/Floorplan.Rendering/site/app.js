@@ -431,7 +431,7 @@
             on: { click: toggle, keydown: function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } } } },
             svg("rect", { x: b.x + b.width - 30, y: b.y + 4, width: 22, height: 20, rx: 4, fill: "transparent" }),
             svg("text", { x: b.x + b.width - 19, y: b.y + 19, "text-anchor": "middle", text: collapsed ? "+" : "−" })),
-          svg("title", { text: (p.name || b.id) + " — " + (p.targetFramework || "") + ", " + plural(count, kindLabel("module").toLowerCase()) + (p.supportLevel === "limited" ? ", limited support" : "") }));
+          svg("title", { text: (p.name || b.id) + " — " + (p.targetFramework || "") + ", " + plural(count, unitWord.one.toLowerCase(), unitWord.many.toLowerCase()) + (p.supportLevel === "limited" ? ", limited support" : "") }));
         boxEls[(detached ? "detached:" : "") + b.id] = grp;
         boxesLayer.appendChild(grp);
       });

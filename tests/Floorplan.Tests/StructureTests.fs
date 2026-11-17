@@ -4,11 +4,20 @@ open Expecto
 open Floorplan.Model
 open Floorplan.Structure
 open Floorplan.Structure.FSharp
+open Floorplan.Structure.CSharp
 
 let shopStructure =
     lazy
         (let solution = Fixtures.shop.Force()
          StructureAnalysis.analyze [ FSharpStructureAnalyzer.create Floorplan.Model.Caching.Store.Disabled ] solution.Projects |> fst)
+
+let private bothLanguages (solution: Floorplan.ProjectLoading.LoadedSolution) =
+    StructureAnalysis.analyze
+        [ FSharpStructureAnalyzer.create Floorplan.Model.Caching.Store.Disabled
+          CSharpStructureAnalyzer.create Floorplan.Model.Caching.Store.Disabled ]
+        solution.Projects
+
+let mixedStructure = lazy (bothLanguages (Fixtures.mixed.Force()))
 
 let private hasEdge (from: string) (target: string) (result: StructureResult) =
     result.Dependencies |> List.exists (fun d -> d.FromUnit = from && d.ToUnit = target)
@@ -69,6 +78,57 @@ let tests =
 
           test "no type-check errors on the fixture" {
               let result = shopStructure.Force()
+              let errors = result.Diagnostics |> List.filter (fun d -> d.Code.StartsWith "structure.")
+              Expect.isEmpty errors "clean"
+          }
+
+          test "C#: with its analyzer, a C# project has full support and a unit per namespace" {
+              let result, index = bothLanguages (Fixtures.shop.Force())
+              let storage = Fixtures.project (Fixtures.shop.Force()) "Shop.Storage"
+              Expect.equal (SolutionIndex.supportLevel storage index) SupportLevel.Full "full support"
+
+              let units = result.Units |> List.filter (fun u -> u.ProjectId = "Shop.Storage")
+              Expect.equal (units |> List.map (fun u -> u.Id, u.Kind)) [ "Shop.Storage:Shop.Storage", UnitKind.Namespace ] "one namespace unit"
+              Expect.isTrue (hasEdge "Shop.Data:Shop.Data.Repository" "Shop.Storage:Shop.Storage" result) "F# to C# edge"
+              Expect.isFalse (result.Diagnostics |> List.exists (fun d -> d.Code = "limited-support")) "no limited support"
+          }
+
+          test "C#: namespaces that declare types are units, types outside any namespace the global one" {
+              let result, _ = mixedStructure.Force()
+              let units = result.Units |> List.filter (fun u -> u.ProjectId = "Mixed.Billing") |> List.sortBy (fun u -> u.Id)
+
+              Expect.equal
+                  (units |> List.map (fun u -> u.Id, u.DisplayName))
+                  [ "Mixed.Billing:", CSharpStructureAnalyzer.globalNamespaceLabel
+                    "Mixed.Billing:Mixed.Billing", "Billing"
+                    "Mixed.Billing:Mixed.Billing.Storage", "Storage" ]
+                  "units"
+
+              let storage = units |> List.find (fun u -> u.Name = "Mixed.Billing.Storage")
+              Expect.stringEnds storage.Location.Value.File "InvoiceStore.cs" "block-scoped namespace location"
+              Expect.isNone (units |> List.find (fun u -> u.Name = "")).Location "the global namespace has no location"
+
+              let tool = result.Units |> List.filter (fun u -> u.ProjectId = "Mixed.Tool") |> List.map (fun u -> u.Id)
+              Expect.equal tool [ "Mixed.Tool:" ] "top-level statements are in the global namespace"
+          }
+
+          test "C#: edges within a project, a namespace cycle, and edges both ways between C# and F#" {
+              let result, _ = mixedStructure.Force()
+              Expect.isTrue (hasEdge "Mixed.Billing:Mixed.Billing" "Mixed.Billing:Mixed.Billing.Storage" result) "Billing uses Storage"
+              Expect.isTrue (hasEdge "Mixed.Billing:Mixed.Billing.Storage" "Mixed.Billing:Mixed.Billing" result) "and back: a cycle"
+              Expect.isTrue (hasEdge "Mixed.Billing:Mixed.Billing.Storage" "Mixed.Billing:" result) "Storage uses a type in no namespace"
+
+              let toFSharp =
+                  result.Dependencies |> List.find (fun d -> d.FromUnit = "Mixed.Billing:Mixed.Billing" && d.ToUnit = "Mixed.Core:Mixed.Core.Pricing")
+
+              Expect.isTrue toFSharp.CrossProject "C# to an F# module, across projects"
+              Expect.isNonEmpty toFSharp.SampleLocations "sample locations"
+              Expect.isTrue (hasEdge "Mixed.App:Mixed.App.Program" "Mixed.Billing:Mixed.Billing" result) "F# to a C# namespace"
+              Expect.isTrue (hasEdge "Mixed.Tool:" "Mixed.Billing:Mixed.Billing" result) "top-level statements to a namespace"
+          }
+
+          test "C#: no compile errors on the mixed fixture" {
+              let result, _ = mixedStructure.Force()
               let errors = result.Diagnostics |> List.filter (fun d -> d.Code.StartsWith "structure.")
               Expect.isEmpty errors "clean"
           } ]

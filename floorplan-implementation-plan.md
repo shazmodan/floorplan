@@ -479,6 +479,6 @@ Phases 1 and 2 are independently useful. Phase 4 is the hardest and the least ce
 
 ## 12. Open decisions
 
-1. **C# unit granularity** (decide in Phase 7): one unit per namespace with types inside, or one unit per type?
+1. **C# unit granularity**: decided 2026-11-17, one unit per namespace ([status](docs/csharp-support.md)).
 2. **Mono.Cecil or System.Reflection.Metadata** for IL reading. The plan assumes Cecil for development speed, behind an interface. System.Reflection.Metadata is maintained with .NET itself and is the alternative if Cecil lags a future metadata change.
 3. **Runtime cross-check** as a later optional mode: start the app with the server replaced and read the registered endpoints, to validate platform-routing results. Outside the static-only scope today.
