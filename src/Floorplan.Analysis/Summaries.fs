@@ -84,7 +84,7 @@ let toStep (e: CallEdge) =
       Declared = e.Declared.Display
       Virtual = e.Kind = Virtual }
 
-type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecognizer list, isSummarized: MethodRef -> bool) =
+type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecognizer list, producers: Values.Producers, isSummarized: MethodRef -> bool) =
     let set = graph.Set
     let best = Dictionary<string, Dictionary<string, Witness>>()
     let origins = Dictionary<struct (string * string), Values.Origin>()
@@ -189,7 +189,8 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
                 match flow with
                 | None -> Values.Origin.unknown
                 | Some flow ->
-                    let evaluator = Values.Evaluator(flow, recognizers, Values.constantReturn set)
+                    let evaluator =
+                        Values.Evaluator(flow, recognizers, Values.constantReturn set, fun m n -> producers.Member(m, n))
 
                     let isNewObj =
                         match flow.InstructionAt w.Edge.Offset with
@@ -200,9 +201,7 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
                         // The call to the primitive: its payload operand, or a property of its receiver.
                         match spec.Property with
                         | Some property when w.Edge.Declared.HasThis && not isNewObj ->
-                            match evaluator.PropertySource(w.Edge.Offset, property, spec.ConstructorArgument) with
-                            | Some v -> evaluator.OriginOf v
-                            | None -> Values.Origin.unknown
+                            Values.Origin.ofSymbolic (evaluator.ReceiverMember(w.Edge.Offset, property, spec.ConstructorArgument))
                         | Some _ -> Values.Origin.unknown
                         | None ->
                             match List.tryItem (Values.operandIndex w.Edge.Declared isNewObj spec.Argument) (flow.OperandsAt w.Edge.Offset) with

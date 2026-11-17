@@ -86,15 +86,15 @@ let tests =
           }
 
           // Iteration 4: properties, fields, constructors, returned objects.
-          ptest "e: the command is made and returned by another library method" {
+          test "e: the command is made and returned by another library method" {
               Expect.equal (sql "ScalarReturned") (literal "sql" "SELECT max(id) FROM orders") ""
           }
 
-          ptest "f: kept in an object the caller made" {
+          test "f: kept in an object the caller made" {
               Expect.equal (sql "ExecuteQueryObject") (literal "sql" "UPDATE orders SET seen = 1") ""
           }
 
-          ptest "k: kept in a struct the library made, passed by reference" {
+          test "k: kept in a struct the library made, passed by reference" {
               Expect.equal (sql "ExecuteDefinition") (literal "sql" "DELETE FROM logs") ""
           }
 

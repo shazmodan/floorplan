@@ -27,7 +27,7 @@ branch, or at least saved in the working tree) must say where it stopped.
 | 1 | Wrapper fixture and pending tests | `claude/library-payload-wrapper-fixture` | done |
 | 2 | Arguments passed straight through, with caching | `claude/library-payload-pass-through` | done |
 | 3 | Values built inside the library | `claude/library-payload-built-values` | done |
-| 4 | Properties, fields, constructors, returned objects | `claude/library-payload-object-members` | not started |
+| 4 | Properties, fields, constructors, returned objects | `claude/library-payload-object-members` | done |
 | 5 | Async and iterator state machines | `claude/library-payload-state-machines` | not started |
 | 6 | Dapper | `claude/library-payload-dapper` | not started |
 | 7 | Other paths when the shortest gives nothing | `claude/library-payload-other-paths` | not started |
@@ -158,7 +158,7 @@ goldens are unchanged except for the new call sites. **Done when**: all tests gr
 ### 2. Arguments passed straight through, with caching
 
 `Origin` with `Literal`, `Unknown`, `FromParameter` (no members yet); the backward walk along the witness path; the
-choice in `ExitPoints`; origins in the summaries cache (`summaries-v3`; `summaries-v4` from iteration 3). **Done when**: cases a, b, c, i pass (`LibraryPayloadTests.fs`); a test runs
+choice in `ExitPoints`; origins in the summaries cache (`summaries-v3`; `summaries-v4` from iteration 3, `summaries-v5` from iteration 4). **Done when**: cases a, b, c, i pass (`LibraryPayloadTests.fs`); a test runs
 the fixture twice with a cache store and gets the same payloads both times.
 
 ### 3. Values built inside the library
@@ -247,3 +247,24 @@ just that. `ToPayload` now gives a literal for parts that are all text (it gave 
 `summaries-v4`. Tests d (both) pass; one golden line changed: `CountLiteral` is `literal:SELECT count(*) FROM
 orders`. No change in any other golden: direct calls that join constant strings did not occur in the fixtures.
 Next: iteration 4.
+
+**2026-11-17, iteration 4, done.** In `Values.fs`:
+- `Param` carries a member path (`Param(i, ["Text"])`: property `Text` of argument `i`), as `FromParameter` does.
+- `Evaluator` reads instance getters (`get_X`) and field loads as members of a value (`memberValue`): the last
+  store to that member on the same object before the read (a setter, a field store, or a constructor called on a
+  local struct or on `this`); else, for an argument, `Param(i, [X])`; for an object from `newobj` or from a call,
+  what that constructor or method sets on it; for a member of a member, the path grows. Fields are named after
+  the property they back (`memberOfField`). A getter that gives nothing falls back to the old evaluation.
+- `Producers` (one per run, in `EffectAnalysis.Program`, passed to `Summaries` and to `ExitPoints` through
+  `ProjectContext.Producers`) reads what a constructor stores into the new object, or what a method sets on the
+  one object it returns (single `ret` only), memoized per (method, member); base-library methods are not read.
+  `Evaluator` takes it as its fourth argument; the three-argument constructor (entry points, route recovery)
+  has none.
+- `ReceiverMember` replaces `PropertySource` for property payloads: the member as above, then the constructor
+  argument fallback (`constructorArgument`, for constructors whose body sets a differently named field, such as
+  Npgsql's). `Substitute` is now `Origin.ofSymbolic` of `Resolve`, and `Resolve` follows member paths.
+- Found: a constructor's call to `System.Object::.ctor` comes after its field stores and looked like the last
+  store to `this`; constructor calls now count as stores only when the producers know something about them.
+- Cache key `summaries-v5`. Tests e, f, k pass; golden changes only those three lines. F# backing fields (`X@`)
+  are normalized but not covered by a fixture yet.
+Next: iteration 5.

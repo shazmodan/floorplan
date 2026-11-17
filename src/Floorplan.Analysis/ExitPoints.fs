@@ -17,7 +17,9 @@ type ProjectContext =
       /// Rules a dependency method reaches, from the call graph or the summary cache.
       Effects: MethodRef -> DependencyEffect list
       Attributor: Attribution.Attributor
-      Recognizers: ICodegenRecognizer list }
+      Recognizers: ICodegenRecognizer list
+      /// What constructors and other methods set on the objects they produce, read from their bodies.
+      Producers: Values.Producers }
 
 /// An exit point before ids are assigned.
 type Found =
@@ -72,6 +74,9 @@ let private callSites (ctx: ProjectContext) (m: MethodDef) (body: MethodBody) =
 
 let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnostic list =
     let found = ResizeArray<Found>()
+
+    let evaluatorOf (flow: DataFlow.Flow) =
+        Values.Evaluator(flow, ctx.Recognizers, Values.constantReturn ctx.Set, fun m n -> ctx.Producers.Member(m, n))
     let diagnostics = ResizeArray<Diagnostic>()
     let projectId = ctx.Project.ProjectId
 
@@ -145,7 +150,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                 |> Option.bind (fun spec ->
                                     flow.Value
                                     |> Option.map (fun f ->
-                                        let evaluator = Values.Evaluator(f, ctx.Recognizers, Values.constantReturn ctx.Set)
+                                        let evaluator = evaluatorOf f
 
                                         match spec.Property with
                                         | Some property when declared.HasThis && not isNewObj ->
@@ -173,7 +178,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                     |> Option.map (fun p ->
                                         match flow.Value with
                                         | Some f ->
-                                            let evaluator = Values.Evaluator(f, ctx.Recognizers, Values.constantReturn ctx.Set)
+                                            let evaluator = evaluatorOf f
                                             Values.Evaluator.ToPayload(evaluator.Resolve(p.Origin, ins.Offset, isNewObj), p.Role)
                                         | None -> Values.Evaluator.ToPayload(Values.Hole, p.Role))
 
