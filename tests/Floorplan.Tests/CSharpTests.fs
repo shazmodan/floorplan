@@ -71,6 +71,20 @@ let tests =
               Expect.exists m.Diagnostics (fun d -> d.Code = "blind-spot.reflection" && d.Message.Contains "Hidden::Plugin") "reflection"
           }
 
+          test "SQL text of ADO.NET commands: set as a property, in an object initializer, as a template, or unknown" {
+              let m = csharpModel.Force()
+
+              let sql memberName =
+                  m.ExitPoints
+                  |> List.find (fun x -> x.Member = memberName && x.Primitive.Contains "DbCommand::")
+                  |> fun x -> x.Payload |> Option.map (fun p -> p.Role, p.Kind, p.Value)
+
+              Expect.equal (sql "CSharp.Effects.Database::Sqlite") (Some("sql", PayloadKind.Literal, Some "DELETE FROM sessions")) "property"
+              Expect.equal (sql "CSharp.Effects.Database::Postgres") (Some("sql", PayloadKind.Literal, Some "SELECT count(*) FROM orders")) "object initializer"
+              Expect.equal (sql "CSharp.Effects.Database::Purge") (Some("sql", PayloadKind.Template, Some "DELETE FROM {…}")) "interpolated"
+              Expect.equal (sql "CSharp.Effects.Database::Run") (Some("sql", PayloadKind.Dynamic, None)) "a command made elsewhere"
+          }
+
           test "C#: source generators run, so code that calls what they generate compiles" {
               let m = csharpModel.Force()
               Expect.isFalse (m.Diagnostics |> List.exists (fun d -> d.Code.StartsWith "structure.")) "no compile errors"

@@ -83,8 +83,21 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
         match e.TryGetProperty "payload" with
         | true, v when v.ValueKind = JsonValueKind.Array ->
             [ for p in v.EnumerateArray() ->
-                  { Argument = p.GetProperty("argument").GetInt32()
-                    Role = p.GetProperty("role").GetString() } ]
+                  let property = str p "property"
+
+                  let argument =
+                      match p.TryGetProperty "argument" with
+                      | true, a -> a.GetInt32()
+                      | _ when property.IsSome -> -1
+                      | _ -> fail $"{context}: a payload needs an argument or a property."
+
+                  { Argument = argument
+                    Role = p.GetProperty("role").GetString()
+                    Property = property
+                    ConstructorArgument =
+                      match p.TryGetProperty "constructorArgument" with
+                      | true, a -> Some(a.GetInt32())
+                      | _ -> None } ]
         | _ -> []
       HttpMethod = str e "httpMethod"
       RequestPart = str e "requestPart" |> Option.map (fun p -> requestPart p context)

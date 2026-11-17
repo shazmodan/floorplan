@@ -84,6 +84,18 @@ let tests =
                   Expect.exists db (fun x -> x.RuleId = "database.dbcommand") $"{memberName} executes a command"
           }
 
+          test "the SQL text of a command is its payload: set through CommandText or given to the constructor" {
+              let m = effectsModel.Force()
+
+              let sql memberName =
+                  find m memberName EffectCategory.Database
+                  |> List.filter (fun x -> x.RuleId = "database.dbcommand")
+                  |> List.map (fun x -> x.Payload |> Option.bind (fun p -> p.Value))
+
+              Expect.equal (sql "Effects.Database::sqlite") [ Some "DELETE FROM sessions" ] "command.CommandText <- ..."
+              Expect.equal (sql "Effects.Database::postgres") [ Some "SELECT count(*) FROM orders" ] "new NpgsqlCommand(sql, connection)"
+          }
+
           test "effects through wrapper libraries name the library and keep the path" {
               let m = effectsModel.Force()
               let dapper = one m "Effects.Wrapped::queryNames" EffectCategory.Database

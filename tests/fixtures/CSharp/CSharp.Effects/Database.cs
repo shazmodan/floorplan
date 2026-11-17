@@ -22,4 +22,16 @@ public static class Database
         using var command = new NpgsqlCommand { Connection = connection, CommandText = "SELECT count(*) FROM orders" };
         return command.ExecuteScalar();
     }
+
+    /// SQL built from a value: a template.
+    public static int Purge(string table)
+    {
+        using var connection = new SqliteConnection("Data Source=app.db");
+        using var command = connection.CreateCommand();
+        command.CommandText = $"DELETE FROM {table}";
+        return command.ExecuteNonQuery();
+    }
+
+    /// A command made elsewhere: its SQL is not known here, so it stays dynamic.
+    public static int Run(System.Data.Common.DbCommand command) => command.ExecuteNonQuery();
 }

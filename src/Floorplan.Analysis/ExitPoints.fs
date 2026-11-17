@@ -146,7 +146,12 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                     flow.Value
                                     |> Option.map (fun f ->
                                         let evaluator = Values.Evaluator(f, ctx.Recognizers, Values.constantReturn ctx.Set)
-                                        evaluator.Payload(ins.Offset, Values.operandIndex declared isNewObj spec.Argument, spec.Role)))
+
+                                        match spec.Property with
+                                        | Some property when declared.HasThis && not isNewObj ->
+                                            evaluator.PropertyPayload(ins.Offset, property, spec.ConstructorArgument, spec.Role)
+                                        | Some _ -> Values.Evaluator.ToPayload(Values.Hole, spec.Role)
+                                        | None -> evaluator.Payload(ins.Offset, Values.operandIndex declared isNewObj spec.Argument, spec.Role)))
 
                             add
                                 hit.Category
