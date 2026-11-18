@@ -87,10 +87,11 @@ Also new, outside the recognizer:
   site; no rule names the library. Arguments passed on, text built from them, properties and fields of objects
   (set by setters, constructors, or methods that return the object), structs passed by reference, async methods,
   iterators and F# `task { }` / `seq { }` are followed. Dapper's `Query` and `Execute` show their SQL, and so do its async
-  methods (`QueryAsync`, `QuerySingleAsync`, `ExecuteAsync`, `ExecuteScalarAsync`; 99 of 100 calls on a real
-  solution, the other one rewritten by the application's own code first); when a
+  methods (`QueryAsync`, `QuerySingleAsync`, `ExecuteAsync`, `ExecuteScalarAsync`). A value returned by a
+  method that builds it from its arguments (a helper that appends paging to the SQL it is given) is followed
+  too; on a real solution every one of 109 Dapper calls shows its SQL (`docs/phase-2-review.md`). When a
   library reaches the primitive by several routes, the shortest one whose payload is known is shown, with its
-  evidence. Values kept in collections or caches, or rebuilt from parsed objects (Flurl's `Url`), stay dynamic.
+  evidence and the primitive that route ends at. Values kept in collections or caches, or rebuilt from parsed objects (Flurl's `Url`), stay dynamic.
   Fixtures: `Dependency/CSharp.Wrappers` and `Effects/Dependency/Effects.Wrappers`, both built optimized as
   packages are.
 - **Route parameter names** (F# and C#): a segment taken as a parameter is named after the handler parameter

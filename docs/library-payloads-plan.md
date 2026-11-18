@@ -336,3 +336,10 @@ in a library (a display class made elsewhere) stay unknown; values through colle
 evaluator now takes an argument's address for the argument and a cast for the value cast, in values and in member
 reads. 99 of the 100 calls show their SQL; the last one goes through the application's own `AppendPageStatement`.
 Cache key `summaries-v10`. Fixtures: async Dapper calls in `CSharp.Effects/Wrapped.cs` and `Effects.App/Wrapped.fs`.
+
+**2026-11-18, the review on that solution (`docs/phase-2-review.md`).** Two fixes. A value returned by a method
+that builds it from its arguments is followed (`Producers` with an empty member name: the returned value itself),
+so `AppendPageStatement(sql)` shows the SQL with its paging clause. And the witness through a callee takes the
+primitive from the route the callee chose, not from its shortest route: `filesystem-write.file` covers both
+`File.Open` and `File.Delete`, and Serilog's file sink reported `Open` with the evidence and payload of `Delete`.
+Cache key `summaries-v11`. Fixtures: `Wrapped.QueryPage`, and `Files.Rotate` in `Dependency/CSharp.Wrappers`.

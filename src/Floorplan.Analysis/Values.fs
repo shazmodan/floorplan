@@ -99,7 +99,8 @@ type private Store =
     | Constructed of MethodRef * int
 
 /// `produced m name`: member `name` of the object method `m` produces (a constructor: the new object; another
-/// method: what it returns), in terms of `m`'s arguments. `Producers` reads it from `m`'s body.
+/// method: what it returns), in terms of `m`'s arguments; with an empty `name`, what a method returns itself.
+/// `Producers` reads it from `m`'s body.
 type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: MethodRef -> string option, produced: MethodRef -> string -> Origin) =
     let rec value (depth: int) (values: Values) : Symbolic =
         if depth > 12 then
@@ -159,6 +160,15 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                 | LdArgA n -> Param(n, [])
                 | CastClass _
                 | IsInst _ when not operands.IsEmpty -> value (depth + 1) operands.Head
+                | Call m when m.ReturnsValue && m.Name <> ".ctor" ->
+                    // A method of the solution or a dependency that builds the value from its arguments (a helper
+                    // that appends a paging clause to the SQL it is given): what it returns, at this call.
+                    match formatted depth offset with
+                    | Hole ->
+                        match produced m "" with
+                        | [ Unknown ] -> Hole
+                        | origin -> resolveAt depth origin offset false
+                    | s -> s
                 | Call _
                 | CallVirt _
                 | NewObj _ -> formatted depth offset
@@ -296,7 +306,9 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                     match i.Op with
                     | Call m when m.Type.FullName = interpolationHandler ->
                         match flow.OperandsAt i.Offset with
-                        | target :: args when localOf target = Some local -> Some(m.Name, args)
+                        | target :: args when localOf target = Some local ->
+                            let name = if m.Name = "AppendFormatted" && m.ParameterTypes = [ "System.String" ] then "AppendFormatted(string)" else m.Name
+                            Some(name, args)
                         | _ -> None
                     | _ -> None)
 
@@ -313,6 +325,9 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                 |> List.map (fun (name, args) ->
                     match name, args with
                     | "AppendLiteral", [ text ] -> value (depth + 1) text
+                    // A string formatted with no alignment or format is the string itself (a constant, or an
+                    // argument the caller passes). Other values are formatted at run time.
+                    | "AppendFormatted(string)", [ v ] -> value (depth + 1) v
                     | _ -> Hole)
                 |> Parts
 
@@ -538,6 +553,7 @@ type Producers(set: AssemblySet, recognizers: ICodegenRecognizer list) =
                                     | _ -> None)
 
                             match returns with
+                            | [| _, v |] when name = "" -> evaluator.OriginOf v
                             | [| offset, v |] -> evaluator.MemberOf(v, name, offset)
                             | _ -> Origin.unknown
 
