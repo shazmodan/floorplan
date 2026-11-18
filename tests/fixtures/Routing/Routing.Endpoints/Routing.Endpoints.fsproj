@@ -5,6 +5,7 @@
   <ItemGroup>
     <Compile Include="Api.fs" />
     <Compile Include="Admin.fs" />
+    <Compile Include="Verify.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>

@@ -19,6 +19,9 @@ an option (active patterns) through a "succeeds when" summary, and boolean value
 Conditions in callers are collected up to the root, one route per call path. A path segment taken as a parameter
 is named after the handler's parameter that receives it (`{id}` for `Orders.show ctx id`) when the handler has
 as many such parameters, other than the request pipeline's own, as the route has; otherwise it stays `{param}`.
+A branch on request data in code that a handler with a route runs (the handler, and what it calls) is the
+handler's own logic, such as a check of the content type, not routing: the functions it calls are not reported as
+handlers (`Routing.Endpoints/Verify.fs`, GitHub issue 1).
 
 ## Known limits
 

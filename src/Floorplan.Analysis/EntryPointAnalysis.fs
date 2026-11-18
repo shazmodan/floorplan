@@ -111,9 +111,33 @@ let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoin
 
         let foundHandlers = trackedHandlers ctx
 
+        // Code a routed handler runs: a branch on request data there is the handler's own logic (a check of the
+        // content type), not routing, so what it calls is not a handler of its own.
+        let routedCode =
+            let routed =
+                (platform @ tables) |> List.filter (fun e -> e.Route.IsSome) |> List.map (fun e -> e.HandlerMember) |> Set.ofList
+
+            let seen = System.Collections.Generic.HashSet<string>()
+
+            let stack =
+                System.Collections.Generic.Stack<MethodRef>(
+                    methods.Values |> Seq.filter (fun m -> routed.Contains m.Ref.Display) |> Seq.map (fun m -> m.Ref)
+                )
+
+            while stack.Count > 0 do
+                let m = stack.Pop()
+
+                if seen.Add m.Key then
+                    for e in program.Graph.Callees m do
+                        if methods.ContainsKey e.Target.Key && not (seen.Contains e.Target.Key) then
+                            stack.Push e.Target
+
+            seen
+
         let tracked =
             foundHandlers
             |> List.filter (fun h -> not (known.Contains h.Handler.Display))
+            |> List.filter (fun h -> not (routedCode.Contains h.Caller.Ref.Key))
             |> List.distinctBy (fun h -> h.Handler.Key, h.Caller.Ref.Key, h.CallIndex)
             |> trackedEntries ctx recovery
 
