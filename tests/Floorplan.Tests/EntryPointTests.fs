@@ -204,8 +204,15 @@ let tests =
                     "PATCH", "/api/orders/{id:int}", Completeness.Complete
                     "POST", "/admin/reports/rebuild", Completeness.Complete
                     "POST", "/v2/orders", Completeness.Complete
+                    "POST", "/verify", Completeness.Complete
                     "PUT", "/api/orders/{id:int}", Completeness.Complete ]
                   "routes"
+
+              // A handler that branches on request data itself (GitHub issue 1): what it calls on a branch is not
+              // an entry point of its own.
+              Expect.isFalse
+                  (entries m "Routing.Endpoints" |> List.exists (fun e -> e.HandlerMember.Contains "Verify" && not (e.HandlerMember.EndsWith "::verifyEndpoint")))
+                  "only verifyEndpoint is a handler"
 
               // A group handed to a function gets its caller's prefix, and only that: no unprefixed /users.
               let users = entries m "Routing.Endpoints" |> List.filter (fun e -> e.HandlerMember.EndsWith "::listUsers")

@@ -2,6 +2,7 @@ module Routing.Endpoints.Program
 
 open System
 open Microsoft.AspNetCore.Builder
+open Microsoft.AspNetCore.Http
 
 [<EntryPoint>]
 let main args =
@@ -16,6 +17,8 @@ let main args =
 
     let v2 = app.MapGroup("/v2")
     v2.MapPost("/orders", Func<string>(Api.createOrder)) |> ignore
+
+    app.MapPost("/verify", Func<HttpContext, Threading.Tasks.Task<IResult>>(Verify.verifyEndpoint)) |> ignore
 
     app.MapMethods("/health", [| "GET"; "HEAD" |], Func<string>(Api.health)) |> ignore
 
