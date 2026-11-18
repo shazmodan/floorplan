@@ -90,7 +90,10 @@ let tests =
               let project (references: string) =
                   $"""<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup>{references}</ItemGroup></Project>"""
 
-              write "Broken.slnx" """<Solution><Project Path="Lib/Lib.csproj" /><Project Path="App/App.csproj" /></Solution>"""
+              // The repo's SDK, as for the fixtures: MSBuild is loaded once per process, and a newer SDK installed
+              // on the machine (the Ubuntu runner has 11) would otherwise be picked outside the repo.
+              write "global.json" (File.ReadAllText(Path.Combine(ArchitectureTests.repoRoot, "global.json")))
+              write "Broken.slnx""""<Solution><Project Path="Lib/Lib.csproj" /><Project Path="App/App.csproj" /></Solution>"""
               write "Lib/Lib.csproj" (project "")
               write "Lib/Lib.cs" "public class Lib { int x = \"not a number\"; }"
               write "App/App.csproj" (project """<ProjectReference Include="../Lib/Lib.csproj" />""")
