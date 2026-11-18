@@ -156,8 +156,9 @@ let tests =
 
               Expect.equal
                   routes
-                  [ "*", "/"; "*", "/Home"; "*", "/Home/Index/{id?}"; "GET", "/api/Orders"; "GET", "/api/Orders/{id:int}"; "POST", "/api/Orders" ]
-                  "routes"
+                  [ "*", "/"; "*", "/Home"; "*", "/Home/Index/{id?}"; "*", "/Users"; "GET", "/api/Orders"; "GET", "/api/Orders/{id:int}"
+                    "POST", "/api/Orders" ]
+                  "routes (GitHub issue 3: an override of Controller.OnActionExecuting is not an action)"
           }
 
           test "recognizer: Roslyn's delegate caches start out null" {

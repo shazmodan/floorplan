@@ -21,7 +21,9 @@ How MVC's rules are followed:
   references, named `...Controller` or carrying `[Controller]` (inherited: `ControllerBase` carries it), and
   without `[NonController]`.
 - **Actions** are their public instance methods, including those inherited from base classes in user code,
-  except constructors, property accessors and `[NonAction]` methods. `[ActionName]` renames an action for
+  except constructors, property accessors and `[NonAction]` methods. As MVC reads `[NonAction]` with
+  inheritance, an override of a `[NonAction]` method is not an action either (`OnActionExecuting` and the other
+  filter methods of `Controller`), nor is an override of an `object` method, or `Dispose()`. `[ActionName]` renames an action for
   routing and for the `[action]` token.
 - **Attribute routes** (with `MapControllers`) combine the controller's `[Route]`, its own or inherited from a
   base controller, with the action's template; an action template starting with `/` or `~/` stands alone.

@@ -793,18 +793,37 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
 
             let methods =
                 (controller :: userBases controller.BaseType 0)
-                |> List.collect (fun t -> t.Methods)
-                |> List.distinctBy signature
+                |> List.collect (fun t -> t.Methods |> List.map (fun m -> t, m))
+                |> List.distinctBy (snd >> signature)
+
+            // MVC reads [NonAction] with inheritance, so an override of a [NonAction] method (Controller's
+            // OnActionExecuting) is not an action either; nor is an override of an object method, or Dispose.
+            let overridesNonAction (owner: TypeDef) (m: MethodDef) =
+                let rec walk (t: TypeRef option) (depth: int) =
+                    match t |> Option.bind set.TryType with
+                    | Some(b, _) when depth < 10 ->
+                        match b.Methods |> List.tryFind (fun bm -> bm.IsVirtual && signature bm = signature m) with
+                        | Some bm ->
+                            b.Ref.FullName = "System.Object"
+                            || not (attributesWith "not-an-action" bm.Attributes).IsEmpty
+                            || walk b.BaseType (depth + 1)
+                        | None -> walk b.BaseType (depth + 1)
+                    | _ -> false
+
+                m.IsVirtual && walk owner.BaseType 0
 
             methods
-            |> List.filter (fun m ->
+            |> List.filter (fun (owner, m) ->
                 m.IsPublic
                 && not m.IsStatic
                 && not m.IsConstructor
                 && not m.IsAbstract
                 && not m.IsSpecialName
                 && not m.IsCompilerGenerated
-                && (attributesWith "not-an-action" m.Attributes).IsEmpty)
+                && (attributesWith "not-an-action" m.Attributes).IsEmpty
+                && not (m.Ref.Name = "Dispose" && m.Ref.ParameterTypes.IsEmpty)
+                && not (overridesNonAction owner m))
+            |> List.map snd
             |> List.collect (fun action ->
                 // [ActionName] renames the action for routing and the [action] token.
                 let actionName =
