@@ -77,4 +77,40 @@ let tests =
                   Expect.equal outcome.Model.Projects.Length 5 "projects"
                   Expect.isNonEmpty outcome.Model.Layout.UnitGraph.Nodes "layout"
                   Expect.equal outcome.Model.SchemaVersion AnalysisModel.CurrentSchemaVersion "schema version"
+          }
+
+          test "prints a failed build once, not with every project" {
+              let root = Path.Combine(Path.GetTempPath(), "floorplan-broken-" + string (Guid.NewGuid()))
+
+              let write (relative: string) (text: string) =
+                  let file = Path.Combine(root, relative)
+                  Directory.CreateDirectory(Path.GetDirectoryName file) |> ignore
+                  File.WriteAllText(file, text)
+
+              let project (references: string) =
+                  $"""<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup><ItemGroup>{references}</ItemGroup></Project>"""
+
+              write "Broken.slnx" """<Solution><Project Path="Lib/Lib.csproj" /><Project Path="App/App.csproj" /></Solution>"""
+              write "Lib/Lib.csproj" (project "")
+              write "Lib/Lib.cs" "public class Lib { int x = \"not a number\"; }"
+              write "App/App.csproj" (project """<ProjectReference Include="../Lib/Lib.csproj" />""")
+              write "App/App.cs" "public class App { }"
+
+              let options =
+                  { Options.defaults with
+                      Path = Some(Path.Combine(root, "Broken.slnx"))
+                      Output = Path.Combine(root, "out")
+                      Cache = false
+                      Quiet = true }
+
+              try
+                  match Pipeline.run ignore options with
+                  | Ok _ -> failtest "analyzed a solution that does not build"
+                  | Error e ->
+                      let count (text: string) = e.Split(text).Length - 1
+                      Expect.equal (count "The build failed:") 1 "the build log is printed once"
+                      Expect.equal (count "The project did not build.") 2 "each project is listed"
+                      Expect.stringContains e "CS0029" "the compiler error is shown"
+              finally
+                  try Directory.Delete(root, true) with _ -> ()
           } ]

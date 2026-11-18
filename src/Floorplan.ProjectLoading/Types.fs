@@ -61,7 +61,9 @@ type LoadedSolution =
       /// Projects left out by the test-project rule or by --include/--exclude, by name.
       Skipped: string list
       /// Projects that failed to load or build. The rest are still analyzed (plan risk 10).
-      Failures: LoadFailure list }
+      Failures: LoadFailure list
+      /// The build's output, once for the solution, when the build failed and some project was not built.
+      BuildOutput: string option }
 
 type LoadError =
     | InputNotFound of string
