@@ -38,8 +38,16 @@ database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::QueryNames | 
 nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::QueryNames | System.Guid::NewGuid | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:13
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::DeleteSessions | System.Data.IDbCommand::ExecuteNonQuery | via Dapper | literal:DELETE FROM sessions | CSharp/CSharp.Effects/Wrapped.cs:19
 nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::DeleteSessions | System.Guid::NewGuid | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:19
-http-out | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.Net.Http.HttpClient::SendAsync | via Flurl.Http | dynamic:- | CSharp/CSharp.Effects/Wrapped.cs:22
-nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.DateTime::get_UtcNow | via Flurl.Http | - | CSharp/CSharp.Effects/Wrapped.cs:22
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped/<QueryNameAsync>d__2::MoveNext | System.Data.Common.DbCommand::ExecuteReaderAsync | via Dapper | literal:SELECT name FROM users WHERE id = 1 | CSharp/CSharp.Effects/Wrapped.cs:25
+nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped/<QueryNameAsync>d__2::MoveNext | System.Guid::NewGuid | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:25
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped/<QueryNamesAsync>d__3::MoveNext | System.Data.Common.DbCommand::ExecuteReaderAsync | via Dapper | literal:SELECT name FROM users | CSharp/CSharp.Effects/Wrapped.cs:31
+nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped/<QueryNamesAsync>d__3::MoveNext | System.Guid::NewGuid | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:31
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped/<CountSessionsAsync>d__4::MoveNext | System.Data.Common.DbCommand::ExecuteScalarAsync | via Dapper | literal:SELECT COUNT(*) FROM sessions | CSharp/CSharp.Effects/Wrapped.cs:37
+nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped/<CountSessionsAsync>d__4::MoveNext | System.Guid::NewGuid | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:37
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::DeleteSessionsAsync | System.Data.Common.DbCommand::ExecuteNonQueryAsync | via Dapper | literal:DELETE FROM sessions | CSharp/CSharp.Effects/Wrapped.cs:43
+nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::DeleteSessionsAsync | System.Guid::NewGuid | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:43
+http-out | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.Net.Http.HttpClient::SendAsync | via Flurl.Http | dynamic:- | CSharp/CSharp.Effects/Wrapped.cs:46
+nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.DateTime::get_UtcNow | via Flurl.Http | - | CSharp/CSharp.Effects/Wrapped.cs:46
 environment | CSharp.Endpoints: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via - | literal:STATUS_PREFIX | CSharp/CSharp.Endpoints/Program.cs:13
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::GetOrder | System.IO.File::ReadAllText | via - | template:orders/{…}.json | CSharp/CSharp.Endpoints/Api.cs:8
 nondeterminism | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::CreateOrder | System.Guid::NewGuid | via - | - | CSharp/CSharp.Endpoints/Api.cs:12

@@ -25,8 +25,12 @@ database | Effects.App:Effects.Wrapped | Effects.Wrapped::queryNames | System.Da
 nondeterminism | Effects.App:Effects.Wrapped | Effects.Wrapped::queryNames | System.Guid::NewGuid | via Dapper | - | Effects/Effects.App/Wrapped.fs:10
 database | Effects.App:Effects.Wrapped | Effects.Wrapped::deleteSessions | System.Data.IDbCommand::ExecuteNonQuery | via Dapper | literal:DELETE FROM sessions | Effects/Effects.App/Wrapped.fs:14
 nondeterminism | Effects.App:Effects.Wrapped | Effects.Wrapped::deleteSessions | System.Guid::NewGuid | via Dapper | - | Effects/Effects.App/Wrapped.fs:14
-http-out | Effects.App:Effects.Wrapped | Effects.Wrapped::fetchUsers | System.Net.Http.HttpClient::SendAsync | via Flurl.Http | dynamic:- | Effects/Effects.App/Wrapped.fs:17
-nondeterminism | Effects.App:Effects.Wrapped | Effects.Wrapped::fetchUsers | System.DateTime::get_UtcNow | via Flurl.Http | - | Effects/Effects.App/Wrapped.fs:17
+database | Effects.App:Effects.Wrapped | Effects.Wrapped/queryNameAsync@17::MoveNext | System.Data.Common.DbCommand::ExecuteReaderAsync | via Dapper | literal:SELECT name FROM users WHERE id = 1 | Effects/Effects.App/Wrapped.fs:19
+nondeterminism | Effects.App:Effects.Wrapped | Effects.Wrapped/queryNameAsync@17::MoveNext | System.Guid::NewGuid | via Dapper | - | Effects/Effects.App/Wrapped.fs:19
+database | Effects.App:Effects.Wrapped | Effects.Wrapped/countSessionsAsync@23::MoveNext | System.Data.Common.DbCommand::ExecuteScalarAsync | via Dapper | literal:SELECT COUNT(*) FROM sessions | Effects/Effects.App/Wrapped.fs:25
+nondeterminism | Effects.App:Effects.Wrapped | Effects.Wrapped/countSessionsAsync@23::MoveNext | System.Guid::NewGuid | via Dapper | - | Effects/Effects.App/Wrapped.fs:25
+http-out | Effects.App:Effects.Wrapped | Effects.Wrapped::fetchUsers | System.Net.Http.HttpClient::SendAsync | via Flurl.Http | dynamic:- | Effects/Effects.App/Wrapped.fs:29
+nondeterminism | Effects.App:Effects.Wrapped | Effects.Wrapped::fetchUsers | System.DateTime::get_UtcNow | via Flurl.Http | - | Effects/Effects.App/Wrapped.fs:29
 -- diagnostics
 blind-spot.reflection | Effects.Hidden::plugin calls System.Type::GetType (reflection). What happens behind it is not analyzed.
 blind-spot.reflection | Effects.Hidden::plugin calls System.Activator::CreateInstance (reflection). What happens behind it is not analyzed.

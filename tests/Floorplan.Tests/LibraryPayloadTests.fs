@@ -138,6 +138,30 @@ let tests =
               Expect.equal (dapper fs "Effects.Wrapped::deleteSessions") [ via, execute, literal "sql" "DELETE FROM sessions" ] "F# Execute"
           }
 
+          // After the review on a real solution: Dapper's async methods wrap the SQL in a CommandDefinition and run
+          // it in their own state machines.
+          test "Dapper: the SQL given to its async methods" {
+              let sqlIn (m: AnalysisModel) (memberName: string) =
+                  m.ExitPoints
+                  |> List.filter (fun x -> x.Member.StartsWith memberName && x.Category = EffectCategory.Database)
+                  |> List.map (fun x -> x.ViaAssembly, x.Payload |> Option.map (fun p -> p.Role, p.Kind, p.Value))
+                  |> List.distinct
+
+              let sql = sqlIn (model ())
+              let via = Some "Dapper"
+              let wrapped = "CSharp.Effects.Wrapped/<"
+              Expect.equal (sql (wrapped + "QueryNameAsync>")) [ via, literal "sql" "SELECT name FROM users WHERE id = 1" ] "QuerySingleAsync"
+              Expect.equal (sql (wrapped + "QueryNamesAsync>")) [ via, literal "sql" "SELECT name FROM users" ] "QueryAsync"
+              Expect.equal (sql (wrapped + "CountSessionsAsync>")) [ via, literal "sql" "SELECT COUNT(*) FROM sessions" ] "ExecuteScalarAsync"
+              Expect.equal (sql "CSharp.Effects.Wrapped::DeleteSessionsAsync") [ via, literal "sql" "DELETE FROM sessions" ] "ExecuteAsync"
+
+              // F#: the effect is reported where the task's code runs, the method or its state machine.
+              let fs = sqlIn (ExitPointTests.effectsModel.Force()) "Effects.Wrapped"
+
+              Expect.contains fs (via, literal "sql" "SELECT name FROM users WHERE id = 1") "F# QuerySingleAsync"
+              Expect.contains fs (via, literal "sql" "SELECT COUNT(*) FROM sessions") "F# ExecuteScalarAsync"
+          }
+
           // Iteration 8: HTTP request objects.
           test "a request's URL: given to its constructor, or set as RequestUri" {
               let url memberName =
