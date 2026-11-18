@@ -8,9 +8,6 @@ Work that is known and not yet done. Remove an item when its branch is merged.
   cloned to `C:\utveckling\real-projects\mmddd`, built with `NuGetAudit=false` because the project treats the
   IdentityServer4 audit warning as an error). Check which SQL texts and URLs come through, which stay dynamic and
   why, and record the findings in a doc like `docs/phase-2-review.md`.
-- **Print a failed solution build once.** When `dotnet build` of the solution fails, the same build log is
-  printed again for every project that did not build (26 times on that solution). Print the log once and list
-  the projects after it.
 
 ## Later, if wanted (from docs/library-payloads-plan.md)
 

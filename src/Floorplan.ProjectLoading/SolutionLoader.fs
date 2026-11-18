@@ -203,7 +203,7 @@ let load (options: LoadOptions) (input: string option) : Result<LoadedSolution, 
                         { Path = p.Path
                           Message =
                             if buildFailed then
-                                $"The project did not build.\n{prepared.Output.Trim()}"
+                                "The project did not build."
                             else
                                 $"Built assembly not found: {p.OutputAssembly}. Build the solution, or run without --no-build." })
 
@@ -225,7 +225,8 @@ let load (options: LoadOptions) (input: string option) : Result<LoadedSolution, 
                         all
                         |> List.filter (fun p -> not (selected |> List.exists (fun s -> s.Path = p.Path)))
                         |> List.map (fun p -> p.Name)
-                      Failures = failures }
+                      Failures = failures
+                      BuildOutput = if buildFailed && not notBuilt.IsEmpty then Some(prepared.Output.Trim()) else None }
 
 let describe (error: LoadError) =
     match error with

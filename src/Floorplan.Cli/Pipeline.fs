@@ -50,6 +50,14 @@ let private failureDiagnostic (f: LoadFailure) =
       ProjectId = None
       Location = None }
 
+/// The failed build's output, once for the solution rather than with every project that was not built.
+let private buildDiagnostic (output: string) =
+    { Severity = DiagnosticSeverity.Error
+      Code = "build-failed"
+      Message = $"The build failed:\n{output}"
+      ProjectId = None
+      Location = None }
+
 /// Where a project's dependencies are found: its output folder first (implementation assemblies), then the
 /// compile-time references (reference packs for the shared frameworks).
 let private searchPaths (p: LoadedProject) =
@@ -126,7 +134,11 @@ let buildModel (log: string -> unit) (store: Caching.Store) (catalogs: string li
         ExitPoints = effects.ExitPoints
         Layout = layout
         Presentation = presentation
-        Diagnostics = (solution.Failures |> List.map failureDiagnostic) @ structure.Diagnostics @ effects.Diagnostics }
+        Diagnostics =
+            (solution.BuildOutput |> Option.map buildDiagnostic |> Option.toList)
+            @ (solution.Failures |> List.map failureDiagnostic)
+            @ structure.Diagnostics
+            @ effects.Diagnostics }
 
 let run (log: string -> unit) (options: AnalyzeOptions) : Result<Outcome, string> =
     let loadOptions =
@@ -143,7 +155,11 @@ let run (log: string -> unit) (options: AnalyzeOptions) : Result<Outcome, string
     | Error e -> Error(SolutionLoader.describe e)
     | Ok solution when solution.Projects.IsEmpty ->
         let reasons = solution.Failures |> List.map (fun f -> $"  {Path.GetFileName f.Path}: {f.Message}") |> String.concat "\n"
-        Error $"No project could be analyzed.\n{reasons}"
+
+        let build =
+            solution.BuildOutput |> Option.map (fun o -> $"\nThe build failed:\n{o}") |> Option.defaultValue ""
+
+        Error $"No project could be analyzed.\n{reasons}{build}"
     | Ok solution ->
         let store = if options.Cache then Caching.Store(Some(Caching.defaultDirectory ())) else Caching.Store.Disabled
         let model = buildModel log store options.Catalogs options.Show solution
