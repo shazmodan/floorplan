@@ -34,3 +34,49 @@ error paths, not what the call is for. This is risk 2 in the plan.
 - Give each exit point a confidence derived from the evidence path (length, virtual hops, error paths) and hide
   low-confidence results by default in the website, with a filter to show them.
 - Consider a per-assembly cap so that one large dependency cannot dominate the results.
+
+## A C# solution: modular-monolith-with-ddd
+
+Date: 2026-11-18. kgrzybek/modular-monolith-with-ddd: .NET 8, 25 projects analyzed, Dapper for queries, EF Core
+for writes, SqlStreamStore, Quartz, Autofac and Serilog. Built with `NuGetAudit=false` (the solution treats the
+IdentityServer4 audit warning as an error), analyzed with `--no-build`.
+
+### Payloads
+
+| Effect | Calls | Payload |
+|---|---|---|
+| Dapper (`Query*`, `Execute*`, sync and async) | 109 | all 109 literal SQL |
+| SqlStreamStore, dbup | 5 | dynamic or none: the SQL is the library's own, read from embedded scripts |
+| Connection opens in the solution's own factory | 2 | none (the rule has no payload) |
+| Outgoing HTTP | 0 | the solution makes no HTTP calls |
+| Files (Quartz, Serilog sinks, the solution's startup) | about 20 | literal where configured in code (`logs/logs`, `quartz.config`), else dynamic |
+
+The SQL comes through whole: multi-line `SELECT`s with `nameof` columns, `INSERT`s into the outbox and inbox
+tables. Before this review one call was dynamic: the solution's `PagedQueryHelper.AppendPageStatement(sql)`
+appends a paging clause to the SQL it is given, as an interpolated string with two `const` holes. A value returned
+by a method that builds it from its arguments is now followed, and so are strings formatted into an interpolated
+string, so the call shows its whole SQL ending in `OFFSET @Offset ROWS FETCH NEXT @Next ROWS ONLY;`.
+
+### Fixed
+
+| Found | Fix |
+|---|---|
+| 70 file writes through Serilog named `File::Open` as the primitive while the evidence ended at `File::Delete` | A rule covers several members. The witness through a callee now takes the primitive from the callee's chosen route (the one whose payload is known), not its shortest one; the cache stores the same. |
+| One Dapper call's SQL dynamic | Returned values of the solution's (and dependencies') methods are followed, and `AppendFormatted(string)` parts of interpolated strings, as above. |
+
+### Not followed
+
+- **EF Core writes.** `SaveChangesAsync` (two call sites) reaches no database primitive: EF Core runs its commands
+  through services resolved from its own container, which the call graph does not follow. A catalog rule for
+  `DbContext.SaveChanges*` would name them; this is the "catalog rule fallback" in `TODO.md`.
+
+### Noise
+
+- **Logging.** Every Serilog call (83) reaches the rolling file sink's `File::Delete` and
+  `Directory::Exists`, the console sink and the clock, through `ILogEventSink.Emit`. The paths are real and the
+  sinks are configured, but one result per log call says nothing about the call. File reads and writes are shown
+  by default at medium confidence: 166 of the 294 exit points the site shows by default.
+- **Library internals.** Dapper (`Guid.NewGuid` naming its generated methods), Autofac (callback ids) and Quartz
+  report nondeterminism at every call. These categories are hidden by default.
+
+Proposals for both are in `TODO.md`.

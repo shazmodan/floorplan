@@ -136,6 +136,12 @@ let tests =
               Expect.equal (dapper cs "CSharp.Effects.Wrapped::DeleteSessions") [ via, execute, literal "sql" "DELETE FROM sessions" ] "C# Execute"
               Expect.equal (dapper fs "Effects.Wrapped::queryNames") [ via, query, literal "sql" "SELECT name FROM users" ] "F# Query"
               Expect.equal (dapper fs "Effects.Wrapped::deleteSessions") [ via, execute, literal "sql" "DELETE FROM sessions" ] "F# Execute"
+
+              // Found on a real solution: the SQL goes through a helper of the solution that appends paging.
+              Expect.equal
+                  (dapper cs "CSharp.Effects.Wrapped::QueryPage")
+                  [ via, query, literal "sql" "SELECT name FROM users ORDER BY name OFFSET @Offset ROWS FETCH NEXT @Next ROWS ONLY" ]
+                  "through a helper"
           }
 
           // After the review on a real solution: Dapper's async methods wrap the SQL in a CommandDefinition and run
@@ -169,4 +175,17 @@ let tests =
 
               Expect.equal (url "RequestConstructed") (literal "url" "https://api.example.org/orders") "constructor"
               Expect.equal (url "RequestProperty") (literal "url" "https://api.example.org/carts/1") "RequestUri"
+          }
+
+          test "the primitive reported is the one the evidence ends at, when a rule covers several" {
+              let rotate = exitOf "RotateLog" EffectCategory.FilesystemWrite
+              Expect.equal rotate.Primitive "System.IO.File::Delete" "the route with the known path"
+              Expect.equal (rotate.Payload |> Option.map (fun p -> p.Role, p.Kind, p.Value)) (literal "path" "logs/app.log") "path"
+
+              for m in [ model (); ExitPointTests.effectsModel.Force() ] do
+                  for x in m.ExitPoints do
+                      match List.rev x.Evidence.Steps with
+                      | _ :: call :: _ when call.Description.Contains " calls " ->
+                          Expect.isTrue (call.Description.EndsWith(" calls " + x.Primitive)) $"{x.Member}: {call.Description} / {x.Primitive}"
+                      | _ -> ()
           } ]

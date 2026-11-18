@@ -4,10 +4,12 @@ Work that is known and not yet done. Remove an item when its branch is merged.
 
 ## Next
 
-- **Review payloads on a real solution.** Run on kgrzybek/modular-monolith-with-ddd (.NET 8, Dapper throughout;
-  cloned to `C:\utveckling\real-projects\mmddd`, built with `NuGetAudit=false` because the project treats the
-  IdentityServer4 audit warning as an error). Check which SQL texts and URLs come through, which stay dynamic and
-  why, and record the findings in a doc like `docs/phase-2-review.md`.
+- **Logging noise.** On a real C# solution every Serilog call reports the file sink's file reads and writes,
+  the console and the clock (`docs/phase-2-review.md`), over half of what the site shows. Proposal: report effects
+  reached through a logging library's logger (Serilog's `ILogger`, `Microsoft.Extensions.Logging.ILogger`) once
+  per sink, as configuration of the application, instead of at every log call.
+- **EF Core writes are not seen.** `DbContext.SaveChanges*` reaches no primitive (EF runs commands through its
+  own service container). A catalog rule for it is one case of the catalog-rule fallback below.
 
 ## Later, if wanted (from docs/library-payloads-plan.md)
 

@@ -33,7 +33,8 @@ database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::Execu
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::ExecAsyncLiteral | System.Data.Common.DbCommand::ExecuteNonQueryAsync | via CSharp.Wrappers | literal:DELETE FROM tokens | CSharp/CSharp.Effects/ThroughWrappers.cs:31
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::RowsLiteral | System.Data.Common.DbCommand::ExecuteReader | via CSharp.Wrappers | literal:SELECT name FROM users | CSharp/CSharp.Effects/ThroughWrappers.cs:33
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::ThroughDictionary | System.Data.Common.DbCommand::ExecuteNonQuery | via CSharp.Wrappers | dynamic:- | CSharp/CSharp.Effects/ThroughWrappers.cs:35
-database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::Interpolated | System.Data.Common.DbCommand::ExecuteNonQuery | via CSharp.Wrappers | template:DELETE FROM orders WHERE id = {…} | CSharp/CSharp.Effects/ThroughWrappers.cs:37
+filesystem-write | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::RotateLog | System.IO.File::Delete | via CSharp.Wrappers | literal:logs/app.log | CSharp/CSharp.Effects/ThroughWrappers.cs:37
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::Interpolated | System.Data.Common.DbCommand::ExecuteNonQuery | via CSharp.Wrappers | template:DELETE FROM orders WHERE id = {…} | CSharp/CSharp.Effects/ThroughWrappers.cs:39
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::QueryNames | System.Data.IDbCommand::ExecuteReader | via Dapper | literal:SELECT name FROM users | CSharp/CSharp.Effects/Wrapped.cs:13
 nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::QueryNames | System.Guid::NewGuid | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:13
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::DeleteSessions | System.Data.IDbCommand::ExecuteNonQuery | via Dapper | literal:DELETE FROM sessions | CSharp/CSharp.Effects/Wrapped.cs:19
@@ -46,8 +47,10 @@ database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped/<CountSessions
 nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped/<CountSessionsAsync>d__4::MoveNext | System.Guid::NewGuid | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:37
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::DeleteSessionsAsync | System.Data.Common.DbCommand::ExecuteNonQueryAsync | via Dapper | literal:DELETE FROM sessions | CSharp/CSharp.Effects/Wrapped.cs:43
 nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::DeleteSessionsAsync | System.Guid::NewGuid | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:43
-http-out | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.Net.Http.HttpClient::SendAsync | via Flurl.Http | dynamic:- | CSharp/CSharp.Effects/Wrapped.cs:46
-nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.DateTime::get_UtcNow | via Flurl.Http | - | CSharp/CSharp.Effects/Wrapped.cs:46
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::QueryPage | System.Data.IDbCommand::ExecuteReader | via Dapper | literal:SELECT name FROM users ORDER BY name OFFSET @Offset ROWS FETCH NEXT @Next ROWS ONLY | CSharp/CSharp.Effects/Wrapped.cs:49
+nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::QueryPage | System.Guid::NewGuid | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:49
+http-out | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.Net.Http.HttpClient::SendAsync | via Flurl.Http | dynamic:- | CSharp/CSharp.Effects/Wrapped.cs:58
+nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.DateTime::get_UtcNow | via Flurl.Http | - | CSharp/CSharp.Effects/Wrapped.cs:58
 environment | CSharp.Endpoints: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via - | literal:STATUS_PREFIX | CSharp/CSharp.Endpoints/Program.cs:13
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::GetOrder | System.IO.File::ReadAllText | via - | template:orders/{…}.json | CSharp/CSharp.Endpoints/Api.cs:8
 nondeterminism | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::CreateOrder | System.Guid::NewGuid | via - | - | CSharp/CSharp.Endpoints/Api.cs:12

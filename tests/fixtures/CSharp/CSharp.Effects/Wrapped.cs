@@ -43,5 +43,17 @@ public static class Wrapped
         return connection.ExecuteAsync("DELETE FROM sessions");
     }
 
+    public static List<string> QueryPage()
+    {
+        using var connection = new SqliteConnection("Data Source=app.db");
+        return connection.Query<string>(Paged("SELECT name FROM users ORDER BY name")).ToList();
+    }
+
+    /// A helper of the solution that appends to the SQL it is given.
+    private static string Paged(string sql) => $"{sql} " + $"OFFSET @{Offset} ROWS FETCH NEXT @{Next} ROWS ONLY";
+
+    private const string Offset = "Offset";
+    private const string Next = "Next";
+
     public static string FetchUsers() => "https://api.example.org/users".GetStringAsync().Result;
 }

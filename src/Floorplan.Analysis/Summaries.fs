@@ -279,6 +279,14 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
                     // Nothing known on any route: the shortest witness, with its origin as far as it goes.
                     shortest, (if candidates |> List.contains shortest then originVia shortest else Values.Origin.unknown))
 
+            // Through a callee, the primitive is the one at the end of the callee's chosen route: a rule covers
+            // several members, and that route need not end where the callee's shortest one does.
+            let result =
+                match result with
+                | w, origin when w.Distance > 1 && best.ContainsKey w.Edge.Target.Key ->
+                    { w with Hit = (fst (this.Choose(w.Edge.Target, ruleId, depth + 1))).Hit }, origin
+                | r -> r
+
             chosen[key] <- result
             result
 
