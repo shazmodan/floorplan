@@ -108,8 +108,8 @@ let tests =
                   | Ok _ -> failtest "analyzed a solution that does not build"
                   | Error e ->
                       let count (text: string) = e.Split(text).Length - 1
-                      Expect.equal (count "The build failed:") 1 "the build log is printed once"
-                      Expect.equal (count "The project did not build.") 2 "each project is listed"
+                      Expect.equal (count "The build failed:") 1 $"the build log is printed once, in:\n{e}"
+                      Expect.equal (count "The project did not build.") 2 $"each project is listed, in:\n{e}"
                       Expect.stringContains e "CS0029" "the compiler error is shown"
               finally
                   try Directory.Delete(root, true) with _ -> ()

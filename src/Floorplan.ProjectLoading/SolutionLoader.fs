@@ -179,7 +179,7 @@ let load (options: LoadOptions) (input: string option) : Result<LoadedSolution, 
 
             if evaluated.IsEmpty then
                 let detail =
-                    if buildFailed then $"\n{prepared.Output.Trim()}" else ""
+                    if buildFailed then $"\nThe build failed:\n{prepared.Output.Trim()}" else ""
 
                 Error(NoProjects $"No projects could be loaded from {path}.{detail}")
             else
