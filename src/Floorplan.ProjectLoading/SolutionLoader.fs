@@ -111,6 +111,24 @@ let private includeClosure (names: string list) (projects: LoadedProject list) =
 
         projects |> List.filter (fun p -> wanted.Contains(p.Path.ToLowerInvariant()))
 
+/// Why Ionide could not load a project, in words.
+let rec private describeLoadError (error: GetProjectOptionsErrors) =
+    match error with
+    | ProjectNotRestored _ -> "the project is not restored"
+    | ProjectNotFound _ -> "the project file was not found"
+    | LanguageNotSupported _ -> "the project's language is not supported"
+    | ProjectNotLoaded _ -> "MSBuild could not evaluate the project"
+    | MissingExtraProjectInfos _ -> "MSBuild returned no project information"
+    | InvalidExtraProjectInfos(_, e) -> $"MSBuild returned invalid project information: {e}"
+    | ReferencesNotLoaded(_, references) ->
+        let inner =
+            references
+            |> Seq.map (fun (path, e) -> $"{Path.GetFileName path}: {describeLoadError e}")
+            |> String.concat "; "
+
+        $"its references could not be loaded ({inner})"
+    | GenericError(_, e) -> e
+
 let private matchesName (names: string list) (p: LoadedProject) =
     names |> List.exists (fun n -> System.String.Equals(n, p.Name, StringComparison.OrdinalIgnoreCase))
 
@@ -138,6 +156,15 @@ let load (options: LoadOptions) (input: string option) : Result<LoadedSolution, 
             let globalProperties = [ "Configuration", options.Configuration ]
 
             let loader = WorkspaceLoader.Create(tools, globalProperties)
+
+            // Projects MSBuild could not evaluate are left out of the results; their reasons come as notifications.
+            let loadErrors = System.Collections.Concurrent.ConcurrentDictionary<string, string>()
+
+            use _ =
+                loader.Notifications.Subscribe(fun state ->
+                    match state with
+                    | WorkspaceProjectState.Failed(file, error) -> loadErrors[Path.GetFullPath file] <- describeLoadError error
+                    | _ -> ())
 
             let evaluated =
                 if Discovery.isProject path then
@@ -177,11 +204,17 @@ let load (options: LoadOptions) (input: string option) : Result<LoadedSolution, 
                             | Some r when switch p -> r
                             | _ -> p)
 
+            let reasons =
+                loadErrors
+                |> Seq.sortBy (fun kv -> kv.Key)
+                |> Seq.map (fun kv -> $"\n  {Path.GetRelativePath(root, kv.Key)}: {kv.Value}")
+                |> String.concat ""
+
             if evaluated.IsEmpty then
                 let detail =
                     if buildFailed then $"\nThe build failed:\n{prepared.Output.Trim()}" else ""
 
-                Error(NoProjects $"No projects could be loaded from {path}.{detail}")
+                Error(NoProjects $"No projects could be loaded from {path}.{reasons}{detail}")
             else
                 let ids = assignIds root evaluated
                 let all = evaluated |> List.map (toLoaded ids)
@@ -206,6 +239,15 @@ let load (options: LoadOptions) (input: string option) : Result<LoadedSolution, 
                                 "The project did not build."
                             else
                                 $"Built assembly not found: {p.OutputAssembly}. Build the solution, or run without --no-build." })
+
+                let notLoaded =
+                    loadErrors
+                    |> Seq.filter (fun kv -> Discovery.isProject kv.Key && not (all |> List.exists (fun p -> samePath p.Path kv.Key)))
+                    |> Seq.sortBy (fun kv -> kv.Key)
+                    |> Seq.map (fun kv -> { Path = kv.Key; Message = $"The project could not be loaded: {kv.Value}." })
+                    |> Seq.toList
+
+                let failures = notLoaded @ failures
 
                 let keptPaths = built |> List.map (fun p -> p.Path) |> set
 
