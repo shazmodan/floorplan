@@ -162,6 +162,9 @@ let analyze (set: AssemblySet) (graph: CallGraph) (matcher: Matcher) (recognizer
 
     // Results of tag queries, valid while the facts above do not change: cleared whenever they might.
     let memo = Dictionary<struct (string * int), Tags>()
+    // The same for the values a local held when its address was taken (by ldloca offset). Without it, locals
+    // whose values are themselves addresses are walked again at every level, exponentially in the depth.
+    let addressMemo = Dictionary<struct (string * int), Tags>()
 
     let work = Queue<string>()
     let queued = HashSet<string>()
@@ -189,9 +192,19 @@ let analyze (set: AssemblySet) (graph: CallGraph) (matcher: Matcher) (recognizer
             | _ -> Set.empty
         | CaughtException -> Set.empty
         | LocalAddress(_, offset) ->
-            match flow.AddressValues.TryGetValue offset with
-            | true, values when depth < 40 -> valueTags m flow (depth + 1) values
-            | _ -> Set.empty
+            let key = struct (m.Ref.Key, offset)
+
+            match addressMemo.TryGetValue key with
+            | true, t -> t
+            | _ ->
+                match flow.AddressValues.TryGetValue offset with
+                | true, values when depth < 40 ->
+                    // Placeholder breaks cycles, as in resultTags.
+                    addressMemo[key] <- Set.empty
+                    let t = valueTags m flow (depth + 1) values
+                    addressMemo[key] <- t
+                    t
+                | _ -> Set.empty
         | Pushed offset -> resultTags m flow depth offset
 
     and resultTags (m: MethodDef) (flow: Flow) (depth: int) (offset: int) : Tags =
@@ -271,6 +284,7 @@ let analyze (set: AssemblySet) (graph: CallGraph) (matcher: Matcher) (recognizer
 
     let processMethod (m: MethodDef) =
         memo.Clear()
+        addressMemo.Clear()
 
         match flowOf m with
         | None -> ()
@@ -370,6 +384,7 @@ let analyze (set: AssemblySet) (graph: CallGraph) (matcher: Matcher) (recognizer
         processMethod byKey[key]
 
     memo.Clear()
+    addressMemo.Clear()
 
     let operandTagsOf (m: MethodRef) (offset: int) =
         match byKey.TryGetValue m.Key with
