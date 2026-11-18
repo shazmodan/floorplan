@@ -156,9 +156,25 @@ let tests =
 
               Expect.equal
                   routes
-                  [ "*", "/"; "*", "/Home"; "*", "/Home/Index/{id?}"; "*", "/Users"; "GET", "/api/Orders"; "GET", "/api/Orders/{id:int}"
+                  [ "*", "/"; "*", "/Home"; "*", "/Home/Index/{id?}"; "*", "/Pages/About/{id?}"; "*", "/Pages/Describe/{id?}"; "*", "/Users"
+                    "GET", "/api/Orders"; "GET", "/api/Orders/{id:int}"
                     "POST", "/api/Orders" ]
                   "routes (GitHub issue 3: an override of Controller.OnActionExecuting is not an action)"
+          }
+
+          test "ViewBag in controllers and Razor views is not a blind spot; other dynamic values are" {
+              let m = csharpModel.Force()
+
+              let dynamicIn (memberPrefix: string) =
+                  m.Diagnostics
+                  |> List.filter (fun d -> d.Code = "blind-spot.dynamic" && d.Message.StartsWith memberPrefix)
+                  |> List.length
+
+              // GitHub issue 2: ViewBag is the view data dictionary, and @ViewBag.Title in a view writes it out.
+              Expect.equal (dynamicIn "CSharp.Controllers.PagesController::About") 0 "ViewBag set in an action"
+              Expect.equal (dynamicIn "AspNetCoreGeneratedDocument.Views_Pages_About") 0 "ViewBag set and written in a view"
+              // value.Name, and its conversion to string.
+              Expect.equal (dynamicIn "CSharp.Controllers.PagesController::Describe") 2 "a dynamic parameter"
           }
 
           test "recognizer: Roslyn's delegate caches start out null" {

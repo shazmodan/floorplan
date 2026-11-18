@@ -70,6 +70,11 @@ Also new, outside the recognizer:
   Flurl as wrapper libraries, a lambda capturing a local, an interface, an implementation only named in a
   dependency-injection registration, an async method, an iterator, literal/constant/template/dynamic payloads,
   `LibraryImport`, and reflection as a blind spot. All give the F# results.
+- **C# `dynamic`** is a blind spot (`blind-spot.dynamic`), except where MVC defines what happens: a member of
+  `ViewBag` read or written (an entry of the view data), in a controller, view or page, and a Razor view writing
+  a dynamic value to the page (`@ViewBag.Title`). Fixture: `CSharp.Controllers/Pages.cs` and its view (GitHub
+  issue 2). After a run the console prints three warnings of each kind and how many more there are; the site
+  and the JSON model list them all.
 - **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
   built assembly (a dependency, like a package), with the application's handlers passed as method groups in a
   record. Same routes as the F# `Routing.Delegated`.
