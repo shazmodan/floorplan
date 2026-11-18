@@ -58,6 +58,34 @@ let tests =
               | Ok _ -> failtest "accepted"
           }
 
+          test "prints a few warnings of each kind, and how many more there are" {
+              let diagnostic severity code message =
+                  { Severity = severity
+                    Code = code
+                    Message = message
+                    ProjectId = None
+                    Location = None }
+
+              let lines =
+                  Pipeline.consoleDiagnostics
+                      2
+                      ([ for i in 1..5 -> diagnostic DiagnosticSeverity.Warning "blind-spot.dynamic" $"dynamic {i}" ]
+                       @ [ diagnostic DiagnosticSeverity.Warning "blind-spot.reflection" "reflection"
+                           diagnostic DiagnosticSeverity.Info "catalog" "not printed" ]
+                       @ [ for i in 1..3 -> diagnostic DiagnosticSeverity.Error "project-load-failed" $"error {i}" ])
+
+              Expect.equal
+                  lines
+                  [ "warning: dynamic 1"
+                    "warning: dynamic 2"
+                    "warning: ... and 3 more like these (blind-spot.dynamic); the output lists them all."
+                    "warning: reflection"
+                    "error: error 1"
+                    "error: error 2"
+                    "error: error 3" ]
+                  "lines"
+          }
+
           test "analyzes the Shop fixture end to end" {
               let out = Path.Combine(Path.GetTempPath(), "floorplan-cli-" + string (Guid.NewGuid()))
 

@@ -36,8 +36,8 @@ let private analyze (options: AnalyzeOptions) =
                 m.EntryPoints.Length
                 exits.Length
 
-            for d in m.Diagnostics |> List.filter (fun d -> d.Severity <> DiagnosticSeverity.Info) do
-                eprintfn "%s: %s" (Json.unionName d.Severity) d.Message
+            for line in Pipeline.consoleDiagnostics 3 m.Diagnostics do
+                eprintfn "%s" line
 
         printfn "%s" outcome.Written
         if outcome.HadFailures then 1 else 0

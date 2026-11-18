@@ -128,8 +128,14 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                       Location = point |> Option.map Attribution.toLocation }
 
                     // Blind spots: the analysis cannot follow these calls.
+                    let knownDynamic (rule: Rule) =
+                        rule.BlindSpot = Some "dynamic"
+                        && match flow.Value with
+                           | Some f -> DynamicSites.isMvcViewData ctx.Set m f declared ins.Offset
+                           | None -> false
+
                     match ctx.Matcher.BlindSpot declared with
-                    | Some rule ->
+                    | Some rule when not (knownDynamic rule) ->
                         let kind = defaultArg rule.BlindSpot "unknown"
 
                         diagnostics.Add
@@ -138,7 +144,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                               Message = $"{m.Ref.Display} calls {declared.Display} ({kind}). What happens behind it is not analyzed."
                               ProjectId = Some projectId
                               Location = point |> Option.map Attribution.toLocation }
-                    | None -> ()
+                    | _ -> ()
 
                     for edge in edges do
                         match sinkOf ctx.Set ctx.Matcher edge with

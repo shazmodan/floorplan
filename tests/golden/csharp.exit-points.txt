@@ -56,5 +56,7 @@ filesystem-read | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::GetO
 nondeterminism | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::CreateOrder | System.Guid::NewGuid | via - | - | CSharp/CSharp.Endpoints/Api.cs:12
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::CreateOrder | System.IO.File::WriteAllText | via - | template:orders/{…}.json | CSharp/CSharp.Endpoints/Api.cs:12
 -- diagnostics
+blind-spot.dynamic | CSharp.Controllers.PagesController::Describe calls Microsoft.CSharp.RuntimeBinder.Binder::Convert (dynamic). What happens behind it is not analyzed.
+blind-spot.dynamic | CSharp.Controllers.PagesController::Describe calls Microsoft.CSharp.RuntimeBinder.Binder::GetMember (dynamic). What happens behind it is not analyzed.
 blind-spot.reflection | CSharp.Effects.Hidden::Plugin calls System.Type::GetType (reflection). What happens behind it is not analyzed.
 blind-spot.reflection | CSharp.Effects.Hidden::Plugin calls System.Activator::CreateInstance (reflection). What happens behind it is not analyzed.

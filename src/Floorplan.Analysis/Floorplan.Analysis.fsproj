@@ -7,6 +7,7 @@
     <Compile Include="Attribution.fs" />
     <Compile Include="Values.fs" />
     <Compile Include="Summaries.fs" />
+    <Compile Include="DynamicSites.fs" />
     <Compile Include="ExitPoints.fs" />
     <Compile Include="Taint.fs" />
     <Compile Include="PlatformRouting.fs" />

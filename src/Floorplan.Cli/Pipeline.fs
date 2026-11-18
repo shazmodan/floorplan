@@ -185,3 +185,18 @@ let run (log: string -> unit) (options: AnalyzeOptions) : Result<Outcome, string
                 { Model = model
                   Written = Path.GetFullPath written
                   HadFailures = not solution.Failures.IsEmpty }
+
+/// Diagnostics as printed after a run: errors in full; warnings of one kind up to `perCode`, then how many more
+/// there are. Every one is in the output (the site's diagnostics, the JSON model).
+let consoleDiagnostics (perCode: int) (diagnostics: Diagnostic list) : string list =
+    let severity (d: Diagnostic) = Json.unionName d.Severity
+
+    diagnostics
+    |> List.filter (fun d -> d.Severity <> DiagnosticSeverity.Info)
+    |> List.groupBy (fun d -> d.Severity = DiagnosticSeverity.Error, d.Code)
+    |> List.collect (fun ((isError, code), ds) ->
+        if isError || ds.Length <= perCode then
+            ds |> List.map (fun d -> $"{severity d}: {d.Message}")
+        else
+            (ds |> List.truncate perCode |> List.map (fun d -> $"{severity d}: {d.Message}"))
+            @ [ $"{severity ds.Head}: ... and {ds.Length - perCode} more like these ({code}); the output lists them all." ])
