@@ -328,3 +328,11 @@ Next: iteration 9, documentation.
 is not), plan section 5 step 5 and section 4.1 (done in iteration 8), `TODO.md` (item removed). The README does not
 describe payloads. Left for later, if wanted: the catalog-rule fallback above (not needed for Dapper); C# lambdas
 in a library (a display class made elsewhere) stay unknown; values through collections or caches stay dynamic.
+
+**2026-11-18, after the plan: Dapper's async methods.** Run on a real solution (kgrzybek/modular-monolith-with-ddd,
+100 Dapper calls), only the 2 synchronous calls showed their SQL. The async methods wrap the SQL in a
+`CommandDefinition`, keep it in their state machine and get the command from `TrySetupAsyncCommand`, which calls
+`SetupCommand` on its argument's address (`ldarga`) and returns the result through `isinst DbCommand`. The
+evaluator now takes an argument's address for the argument and a cast for the value cast, in values and in member
+reads. 99 of the 100 calls show their SQL; the last one goes through the application's own `AppendPageStatement`.
+Cache key `summaries-v10`. Fixtures: async Dapper calls in `CSharp.Effects/Wrapped.cs` and `Effects.App/Wrapped.fs`.

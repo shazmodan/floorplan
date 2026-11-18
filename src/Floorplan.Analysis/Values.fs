@@ -154,6 +154,11 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                     | s -> s
                 | LdFld f
                 | LdFldA f when not operands.IsEmpty -> memberValue (depth + 1) operands.Head (memberOfField f.Name) offset
+                // An argument's address (a struct argument's method called on it) stands for the argument, a cast
+                // for the value cast (Dapper's TrySetupAsyncCommand returns `SetupCommand(...) as DbCommand`).
+                | LdArgA n -> Param(n, [])
+                | CastClass _
+                | IsInst _ when not operands.IsEmpty -> value (depth + 1) operands.Head
                 | Call _
                 | CallVirt _
                 | NewObj _ -> formatted depth offset
@@ -212,6 +217,8 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                     | Some(Constructed _)
                     | None ->
                         match flow.InstructionAt o with
+                        | Some { Op = (CastClass _ | IsInst _) } when not (flow.OperandsAt o).IsEmpty ->
+                            memberValue (depth + 1) (flow.OperandsAt o).Head name before
                         | Some { Op = NewObj ctor } -> produce depth ctor name o true
                         | Some { Op = (Call m | CallVirt m) } when m.ReturnsValue && (getterName m).IsNone -> produce depth m name o false
                         | _ ->

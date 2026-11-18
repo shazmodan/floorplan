@@ -13,5 +13,17 @@ let deleteSessions () =
     use connection = new SqliteConnection("Data Source=app.db")
     connection.Execute("DELETE FROM sessions")
 
+let queryNameAsync () =
+    task {
+        use connection = new SqliteConnection("Data Source=app.db")
+        return! connection.QuerySingleAsync<string>("SELECT name FROM users WHERE id = 1")
+    }
+
+let countSessionsAsync () =
+    task {
+        use connection = new SqliteConnection("Data Source=app.db")
+        return! connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM sessions")
+    }
+
 let fetchUsers () =
     "https://api.example.org/users".GetStringAsync().Result

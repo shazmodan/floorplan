@@ -86,7 +86,9 @@ Also new, outside the recognizer:
   the payload is worked out from the dependency's own code, in terms of its arguments, and evaluated at the call
   site; no rule names the library. Arguments passed on, text built from them, properties and fields of objects
   (set by setters, constructors, or methods that return the object), structs passed by reference, async methods,
-  iterators and F# `task { }` / `seq { }` are followed. Dapper's `Query` and `Execute` show their SQL; when a
+  iterators and F# `task { }` / `seq { }` are followed. Dapper's `Query` and `Execute` show their SQL, and so do its async
+  methods (`QueryAsync`, `QuerySingleAsync`, `ExecuteAsync`, `ExecuteScalarAsync`; 99 of 100 calls on a real
+  solution, the other one rewritten by the application's own code first); when a
   library reaches the primitive by several routes, the shortest one whose payload is known is shown, with its
   evidence. Values kept in collections or caches, or rebuilt from parsed objects (Flurl's `Url`), stay dynamic.
   Fixtures: `Dependency/CSharp.Wrappers` and `Effects/Dependency/Effects.Wrappers`, both built optimized as
