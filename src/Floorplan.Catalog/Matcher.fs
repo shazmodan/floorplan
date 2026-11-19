@@ -16,6 +16,13 @@ type Matcher(catalog: Catalog, supertypes: TypeRef -> Set<string>) =
 
     let cache = Dictionary<string, Rule list>()
 
+    let loggerAttributes =
+        catalog.Rules
+        |> List.filter (fun r -> r.Kind = Logger && r.LogCall = LogCall.Attribute)
+        |> List.distinctBy (fun r -> r.Type)
+        |> List.map (fun r -> r.Type, r)
+        |> dict
+
     let queryTypes =
         catalog.Rules
         |> List.filter (fun r -> r.Kind = Query && r.Members = [ "*" ])
@@ -76,8 +83,19 @@ type Matcher(catalog: Catalog, supertypes: TypeRef -> Set<string>) =
     member this.BlindSpot(m: MethodRef) =
         this.Match m |> List.tryFind (fun r -> r.Kind = BlindSpot)
 
+    /// A logger rule for which a call of `m` is itself a log call.
     member this.Logger(m: MethodRef) =
-        this.Match m |> List.tryFind (fun r -> r.Kind = Logger)
+        this.Match m |> List.tryFind (fun r -> r.Kind = Logger && r.LogCall = LogCall.Direct)
+
+    /// A logger rule whose members, such as `m`, make a delegate that logs when invoked (LoggerMessage.Define).
+    member this.LoggerDelegate(m: MethodRef) =
+        this.Match m |> List.tryFind (fun r -> r.Kind = Logger && r.LogCall = LogCall.Delegate)
+
+    /// A logger rule for an attribute that marks log methods ([LoggerMessage]), by the attribute's full name.
+    member _.LoggerAttribute(fullName: string) : Rule option =
+        match loggerAttributes.TryGetValue fullName with
+        | true, r -> Some r
+        | _ -> None
 
     /// A query rule whose results are queries, for a call of `m`.
     member this.Query(m: MethodRef) =

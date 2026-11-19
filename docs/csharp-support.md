@@ -89,9 +89,12 @@ Also new, outside the recognizer:
   provider's logger, and that links `ILogger.Log`. The call graph links every callback rule this way; the summary
   cache keeps what a callback reaches in each assembly, because a later run does not see the cached code that
   constructs the logger. Only Serilog's provider is tested: fixtures `CSharp.Effects/MicrosoftLogging.cs` (a
-  console app with a container) and `CSharp.Endpoints/Shipping.cs` (ASP.NET Core). The source-generated
-  `[LoggerMessage]` methods and `LoggerMessage.Define` call `ILogger.Log` from a delegate the framework makes,
-  and are not yet recognized as log calls. A dependency's own log calls through `Microsoft.Extensions.Logging`
+  console app with a container) and `CSharp.Endpoints/Shipping.cs` (ASP.NET Core). `LoggerMessage.Define` makes a
+  delegate that calls `ILogger.Log`: invoking it is the log call (`"logCall": "delegate"`), found where the
+  delegate comes from the `Define` call directly or from a field its type stores it in. A call to a
+  `[LoggerMessage]` method is a log call too (`"logCall": "attribute"`), and the generated method's own log
+  call is not, so each counts once. Fixture: `CSharp.Effects/LoggerMessages.cs`, and `Parcels.Hold` in
+  `CSharp.Endpoints/Shipping.cs`. A dependency's own log calls through `Microsoft.Extensions.Logging`
   (Entity Framework Core logs every save) are not followed for effects, as where the library is part of the
   shared framework: what the sinks do belongs to the logging configuration, and shows at the application's log
   calls.

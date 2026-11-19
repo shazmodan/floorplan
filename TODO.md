@@ -7,8 +7,7 @@ Work that is known and not yet done. Remove an item when its branch is merged.
 - **An EF Core query returned from another method is not seen when enumerated** (a repository's
   `IQueryable<T> All() => db.Orders;`, then `repo.All().ToList()`): a query is followed back within one method.
   Queries enumerated inside a dependency are not seen either.
-- **`[LoggerMessage]` and `LoggerMessage.Define` log calls are not grouped.** They call `ILogger.Log` through a
-  delegate the framework makes, so no `logger` rule matches them. NLog and log4net have no rules either.
+- **NLog and log4net have no `logger` rules.**
 - **Serilog's `ForContext` reaches the clock.** On mmddd, 9 `ForContext` calls (which create a logger, not log) are
   still one nondeterminism exit point each. Hidden by default; low priority.
 

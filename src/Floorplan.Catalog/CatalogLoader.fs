@@ -78,6 +78,15 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
     | Some d when not (d.Contains "::") -> fail $"{context}: dispatch names a member as \"Type::Member\"."
     | _ -> ()
 
+    let logCall =
+        match str e "logCall" with
+        | None
+        | Some "direct" -> LogCall.Direct
+        | Some _ when k <> Logger -> fail $"{context}: only loggers have a logCall."
+        | Some "delegate" -> LogCall.Delegate
+        | Some "attribute" -> LogCall.Attribute
+        | Some other -> fail $"{context}: unknown logCall \"{other}\"."
+
     { Id = id
       Assembly = defaultArg (str e "assembly") ""
       Type = required e "type" context
@@ -114,6 +123,7 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
       BlindSpot = str e "blindSpot"
       ComparesTo = str e "comparesTo"
       Dispatch = dispatch
+      LogCall = logCall
       Source = source }
 
 /// A catalog document as written, before `extends` is resolved.

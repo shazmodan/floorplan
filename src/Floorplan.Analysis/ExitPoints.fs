@@ -91,6 +91,19 @@ let private callSites (ctx: ProjectContext) (m: MethodDef) (body: MethodBody) =
             Some(i, ins, declared, resolved)
         | _ -> None)
 
+/// The logger rule for an attribute among these, if one marks log methods ([LoggerMessage]).
+let private loggerAttribute (ctx: ProjectContext) (attributes: AttributeDef list) =
+    attributes |> List.tryPick (fun a -> ctx.Matcher.LoggerAttribute a.Type.FullName)
+
+/// Log methods whose bodies a source generator writes: a call to one is the log call (logger.microsoft-generated).
+let private generatedLogger (ctx: ProjectContext) (declared: MethodRef) =
+    match ctx.Set.Origin declared.Type.Assembly with
+    | Framework -> None
+    | _ ->
+        match ctx.Set.TryMethod declared with
+        | Some(def, _) -> loggerAttribute ctx def.Attributes
+        | None -> None
+
 let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnostic list =
     let found = ResizeArray<Found>()
 
@@ -98,6 +111,69 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
         Values.Evaluator(flow, ctx.Recognizers, Values.constantReturn ctx.Set, fun m n -> ctx.Producers.Member(m, n))
     let diagnostics = ResizeArray<Diagnostic>()
     let projectId = ctx.Project.ProjectId
+
+    // The call to a logger rule's member that made a delegate (LoggerMessage.Define), among these values.
+    let madeBy (flow: DataFlow.Flow) (values: DataFlow.Values) =
+        values
+        |> Set.toList
+        |> List.tryPick (function
+            | DataFlow.Pushed o ->
+                match flow.InstructionAt o with
+                | Some { Op = Call c } -> ctx.Matcher.LoggerDelegate c |> Option.map (fun r -> r, c)
+                | _ -> None
+            | _ -> None)
+
+    // The delegate a field holds, when its declaring type stores one made by a logger rule's member there (a
+    // static field set in the static constructor, as the [LoggerMessage] generator and hand-written code do).
+    let storedDelegates = Dictionary<string, (Rule * MethodRef) option>()
+
+    let storedIn (f: FieldRef) =
+        match storedDelegates.TryGetValue f.Key with
+        | true, r -> r
+        | _ ->
+            let stores (ins: Instruction) =
+                match ins.Op with
+                | StSFld g
+                | StFld g -> g.Key = f.Key
+                | _ -> false
+
+            let found =
+                match ctx.Set.TryType f.Type with
+                | Some(t, _) ->
+                    t.Methods
+                    |> List.tryPick (fun md ->
+                        match md.Body.Value with
+                        | Some b when b.Instructions |> Array.exists stores ->
+                            DataFlow.ofMethod md
+                            |> Option.bind (fun fl ->
+                                b.Instructions
+                                |> Array.filter stores
+                                |> Array.tryPick (fun i -> fl.OperandsAt i.Offset |> List.tryLast |> Option.bind (madeBy fl)))
+                        | _ -> None)
+                | None -> None
+
+            storedDelegates[f.Key] <- found
+            found
+
+    // A call that invokes a delegate made by a logger rule's member: the rule and the member.
+    let invokedLogger (flow: DataFlow.Flow) (offset: int) (declared: MethodRef) =
+        if declared.Name <> "Invoke" || not declared.HasThis then
+            None
+        else
+            match flow.OperandsAt offset with
+            | receiver :: _ ->
+                match madeBy flow receiver with
+                | Some r -> Some r
+                | None ->
+                    receiver
+                    |> Set.toList
+                    |> List.tryPick (function
+                        | DataFlow.Pushed o ->
+                            match flow.InstructionAt o with
+                            | Some { Op = (LdSFld f | LdFld f) } -> storedIn f
+                            | _ -> None
+                        | _ -> None)
+            | [] -> None
 
     // The SQL a query runs, when the call that made it has it (FromSqlRaw's argument).
     let queryPayload (flow: DataFlow.Flow) (q: Queries.QueryOrigin) =
@@ -142,12 +218,35 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
             | None -> ()
             | Some body ->
                 let flow = lazy (DataFlow.ofMethod m)
+
+                // A generated log method's own log call is not one: the call to the method is (generatedLogger).
+                let generatedBody = (loggerAttribute ctx m.Attributes).IsSome
+
+                let delegateLogger (offset: int) (declared: MethodRef) =
+                    flow.Value |> Option.bind (fun f -> invokedLogger f offset declared)
                 let seen = HashSet<int * EffectCategory>()
 
-                for (index, ins, declared, edges) in callSites ctx m body do
+                let sites =
+                    callSites ctx m body
+                    |> Array.filter (fun (_, ins, declared, _) ->
+                        not (generatedBody && ((ctx.Matcher.Logger declared).IsSome || (delegateLogger ins.Offset declared).IsSome)))
+
+                for (index, ins, declared, edges) in sites do
                     let point = Instruction.pointAt body.Instructions index
                     let isNewObj = match ins.Op with NewObj _ -> true | _ -> false
-                    let logger = ctx.Matcher.Logger declared
+                    // The logger rule, and the member shown as logging: the one called, or for a delegate the member
+                    // that made it.
+                    let logger, through =
+                        match ctx.Matcher.Logger declared with
+                        | Some r -> Some r, declared
+                        | None ->
+                            match generatedLogger ctx declared with
+                            | Some r -> Some r, declared
+                            | None ->
+                                match delegateLogger ins.Offset declared with
+                                | Some(r, maker) -> Some r, maker
+                                | None -> None, declared
+
                     let isLogCall = logger.IsSome
 
                     let unit = lazy (ctx.Attributor.Attribute(projectId, m.Ref, point))
@@ -252,7 +351,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                     | [] -> shortest resolved
                                     | known -> shortest known
 
-                                logged declared via category d payload)
+                                logged through via category d payload)
 
                             true
                         | None -> false

@@ -13,8 +13,14 @@ namespace CSharp.Endpoints.Shipping
         }
     }
 
-    public class Parcels(ILogger<Parcels> log)
+    public partial class Parcels(ILogger<Parcels> log)
     {
         public void Ship(string id) => log.LogInformation("Shipping {Id}", id);
+
+        // A [LoggerMessage] method, whose body is generated: calling it is a log call.
+        public void Hold(string id) => LogHolding(log, id);
+
+        [LoggerMessage(Level = LogLevel.Warning, Message = "Holding {Id}")]
+        private static partial void LogHolding(Microsoft.Extensions.Logging.ILogger logger, string id);
     }
 }

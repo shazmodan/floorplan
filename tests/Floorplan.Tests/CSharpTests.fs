@@ -124,6 +124,41 @@ let tests =
                   "also where the logging library is part of the shared framework"
           }
 
+          test "LoggerMessage.Define delegates and [LoggerMessage] methods are log calls, grouped with the unit's others" {
+              let m = csharpModel.Force()
+
+              let logCalls (unitId: string) =
+                  let write =
+                      m.ExitPoints
+                      |> List.filter (fun x ->
+                          x.Unit = unitId
+                          && x.Category = EffectCategory.FilesystemWrite
+                          && x.ViaAssembly = Some "Serilog.Extensions.Logging")
+
+                  Expect.hasLength write 1 $"{unitId}: one exit point for the unit's log calls"
+
+                  write.Head.Evidence.Steps
+                  |> List.filter (fun s -> s.Description.Contains " logs through ")
+                  |> List.map (fun s -> s.Description)
+
+              Expect.equal
+                  (logCalls "CSharp.Effects:CSharp.Effects.Labels")
+                  [ "CSharp.Effects.Labels.Printer::Print logs through Microsoft.Extensions.Logging.LoggerMessage::Define"
+                    "CSharp.Effects.Labels.Printer::Reprint logs through CSharp.Effects.Labels.Printer::LogReprinting" ]
+                  "the delegate's invocation, and the call to the generated method; not the generated body's own call"
+
+              Expect.isFalse
+                  (m.ExitPoints |> List.exists (fun x -> x.Member.EndsWith "::LogReprinting" || x.Member.EndsWith "::.cctor" && x.Unit.EndsWith "Labels"))
+                  "neither the generated method nor the Define calls are exit points"
+
+              // In ASP.NET Core, where the logging library is part of the shared framework.
+              Expect.equal
+                  (logCalls "CSharp.Endpoints:CSharp.Endpoints.Shipping")
+                  [ "CSharp.Endpoints.Shipping.Parcels::Ship logs through Microsoft.Extensions.Logging.LoggerExtensions::LogInformation"
+                    "CSharp.Endpoints.Shipping.Parcels::Hold logs through CSharp.Endpoints.Shipping.Parcels::LogHolding" ]
+                  "a [LoggerMessage] method in ASP.NET Core"
+          }
+
           test "Entity Framework Core: saving, raw SQL, bulk deletes and the calls that run a query reach the database" {
               let m = csharpModel.Force()
 
