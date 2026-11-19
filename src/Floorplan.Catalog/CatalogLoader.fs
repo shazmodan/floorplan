@@ -39,6 +39,7 @@ let private kind (text: string) context =
     | "metadata" -> Metadata
     | "constant" -> Constant
     | "logger" -> Logger
+    | "query" -> Query
     | other -> fail $"{context}: unknown kind \"{other}\"."
 
 let private requestPart (text: string) context =
@@ -62,7 +63,7 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
             match EffectCategory.tryParse c with
             | Some c -> Some c
             | None -> fail $"{context}: unknown category \"{c}\"."
-        | None when k = Sink || k = Source -> fail $"{context}: sinks and sources need a category."
+        | None when k = Sink || k = Source || k = Query -> fail $"{context}: sinks, sources and queries need a category."
         | None -> None
 
     let members = strings e "members"

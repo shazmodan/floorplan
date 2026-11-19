@@ -24,6 +24,10 @@ type RuleKind =
     /// A log call, e.g. Serilog's ILogger.Information. What the logger's sinks do is the logging configuration's
     /// effect, the same at every call: it is reported once for each unit that logs, not at every call.
     | Logger
+    /// A query that runs on the database when it is enumerated, e.g. Entity Framework Core's DbSet<T>. With
+    /// members "*", every value of the type is one; otherwise the results of calls to the members are, with the
+    /// SQL they run in `Payload` (FromSqlRaw).
+    | Query
 
 /// Which argument of a matched call carries something worth showing: a URL, SQL text, a path, a route template,
 /// a handler. Argument 0 is the first declared parameter; for instance methods `this` is not counted.

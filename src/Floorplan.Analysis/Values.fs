@@ -128,7 +128,13 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                     | [ single ] when m.ParameterTypes = [ "System.String[]" ] || m.ParameterTypes = [ "System.Object[]" ] ->
                         arrayElements depth single
                     | _ -> Parts(operands |> List.map (value (depth + 1)))
-                | Call m when m.Type.FullName = "System.String" && m.Name = "Format" && not operands.IsEmpty ->
+                // string.Format, and the FormattableString C# makes for an interpolated string passed as one
+                // (EF Core's ExecuteSql and FromSql): the format with holes where the arguments go.
+                | Call m when
+                    (m.Type.FullName = "System.String" && m.Name = "Format"
+                     || m.Type.FullName = "System.Runtime.CompilerServices.FormattableStringFactory" && m.Name = "Create")
+                    && not operands.IsEmpty
+                    ->
                     match value (depth + 1) operands.Head with
                     | Text format ->
                         formatHoles (Text(System.Text.RegularExpressions.Regex.Replace(format, @"\{\d+(,[^}]*)?(:[^}]*)?\}", "\u0000")))

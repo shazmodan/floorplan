@@ -16,6 +16,13 @@ type Matcher(catalog: Catalog, supertypes: TypeRef -> Set<string>) =
 
     let cache = Dictionary<string, Rule list>()
 
+    let queryTypes =
+        catalog.Rules
+        |> List.filter (fun r -> r.Kind = Query && r.Members = [ "*" ])
+        |> List.distinctBy (fun r -> r.Type)
+        |> List.map (fun r -> r.Type, r)
+        |> dict
+
     static member MemberMatches (pattern: string) (name: string) =
         if pattern = "*" then true
         elif pattern.EndsWith "*" then name.StartsWith(pattern.TrimEnd '*')
@@ -71,6 +78,16 @@ type Matcher(catalog: Catalog, supertypes: TypeRef -> Set<string>) =
 
     member this.Logger(m: MethodRef) =
         this.Match m |> List.tryFind (fun r -> r.Kind = Logger)
+
+    /// A query rule whose results are queries, for a call of `m`.
+    member this.Query(m: MethodRef) =
+        this.Match m |> List.tryFind (fun r -> r.Kind = Query)
+
+    /// A query rule that makes every value of the type a query (members "*"), by the type's full name.
+    member _.QueryType(fullName: string) : Rule option =
+        match queryTypes.TryGetValue fullName with
+        | true, r -> Some r
+        | _ -> None
 
     member this.Comparison(m: MethodRef) =
         this.Match m |> List.tryFind (fun r -> r.Kind = RuleKind.Comparison)

@@ -38,5 +38,41 @@ namespace CSharp.Effects.Ordering
         public Task<List<Order>> ListAsync() => db.Orders.ToListAsync();
 
         public ValueTask<Order?> FindAsync(int id) => db.Orders.FindAsync(id);
+
+        // Queries that run when they are enumerated.
+        public List<Order> All() => db.Orders.ToList();
+
+        public int Count() => db.Orders.Count(o => o.Id > 0);
+
+        public Order? Named(string name) => db.Orders.Where(o => o.Name == name).AsNoTracking().FirstOrDefault();
+
+        public List<string> Names()
+        {
+            var names = new List<string>();
+
+            foreach (var order in db.Orders.OrderBy(o => o.Name))
+                names.Add(order.Name);
+
+            return names;
+        }
+
+        public async Task<int> Stream()
+        {
+            var n = 0;
+
+            await foreach (var _ in db.Orders.AsAsyncEnumerable())
+                n++;
+
+            return n;
+        }
+
+        public List<Order> Raw() => db.Orders.FromSqlRaw("SELECT * FROM Orders").ToList();
+
+        public Task<List<Order>> RawAsync(int id) => db.Orders.FromSql($"SELECT * FROM Orders WHERE Id = {id}").ToListAsync();
+
+        public List<int> Ids() => db.Database.SqlQueryRaw<int>("SELECT Id FROM Orders").ToList();
+
+        // LINQ over a list is not a query.
+        public List<Order> Local(List<Order> orders) => orders.Where(o => o.Id > 0).ToList();
     }
 }

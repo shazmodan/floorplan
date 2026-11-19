@@ -97,10 +97,18 @@ Also new, outside the recognizer:
   calls.
 - **Entity Framework Core** runs its commands through its own service container, which the call graph does not
   follow, so the catalog names its calls to the database directly (`database.ef-*`, the first sink rules on a
-  library rather than the platform): `SaveChanges`, `Find`, `ExecuteSql*` (with the SQL of `ExecuteSqlRaw` as
-  the payload; an interpolated one stays dynamic), `ExecuteDelete`/`ExecuteUpdate`, and the async calls that run
-  a query (`ToListAsync`, `FirstOrDefaultAsync`, ...). A query run by enumerating it (`foreach`, `ToList()`) is
-  not seen. Fixture: `CSharp.Effects/EntityFramework.cs`.
+  library rather than the platform): `SaveChanges`, `Find`, `ExecuteSql*` (with its SQL as the payload; an
+  interpolated one is a template, read from the `FormattableStringFactory.Create` call C# makes for it),
+  `ExecuteDelete`/`ExecuteUpdate`, and the async calls that run a query (`ToListAsync`, `FirstOrDefaultAsync`,
+  ...). A query run by enumerating it is found through catalog rules of a new kind, `query`: a `DbSet<T>` is a
+  query, and so are the results of `FromSql*` and `SqlQuery*`, with their SQL as the payload. A call that
+  enumerates a query runs it: `foreach` and `await foreach` (`GetEnumerator`, `GetAsyncEnumerator`), a LINQ call
+  that returns something other than a sequence (`ToList()`, `First()`, `Count()`), or a collection made from it.
+  The query is followed back through the calls that build on it unrun (`Where`, `OrderBy`, `Include`,
+  `AsNoTracking`) to a `DbSet` value (a property, a field, a parameter, `Set<T>()`) or a `FromSql*` call, within
+  one method: a query returned from another method (a repository's `IQueryable<T>`) is not seen. A call that
+  runs a query and has no payload of its own (`ToListAsync`) shows the SQL of the `FromSql*` it was made from.
+  Fixture: `CSharp.Effects/EntityFramework.cs`.
 - **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
   built assembly (a dependency, like a package), with the application's handlers passed as method groups in a
   record. Same routes as the F# `Routing.Delegated`.
