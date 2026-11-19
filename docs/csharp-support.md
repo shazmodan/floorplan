@@ -98,6 +98,14 @@ Also new, outside the recognizer:
   (Entity Framework Core logs every save) are not followed for effects, as where the library is part of the
   shared framework: what the sinks do belongs to the logging configuration, and shows at the application's log
   calls.
+- **NLog and log4net** log calls are grouped the same way (`logger.nlog*`, `logger.log4net`). NLog's `Logger` is a
+  class whose code is followed to the targets it is configured with. log4net makes its loggers by reflection and
+  through a delegate, which are not followed, so its rule dispatches to the appenders instead
+  (`"dispatch": "log4net.Appender.IAppender::DoAppend"`, with a callback rule): a log call reaches what each
+  constructed appender's `DoAppend` reaches. Only targets and appenders made in code are seen; ones made from an
+  XML configuration file are made by reflection. Getting a logger (`LogManager.GetCurrentClassLogger()`,
+  `LogManager.GetLogger`) loads the configuration, and stays an exit point of its own. Fixture:
+  `CSharp.Effects/OtherLoggers.cs`.
 - **Entity Framework Core** runs its commands through its own service container, which the call graph does not
   follow, so the catalog names its calls to the database directly (`database.ef-*`, the first sink rules on a
   library rather than the platform): `SaveChanges`, `Find`, `ExecuteSql*` (with its SQL as the payload; an
