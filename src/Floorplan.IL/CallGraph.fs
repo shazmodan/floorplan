@@ -29,7 +29,10 @@ type CallEdge =
       Kind: EdgeKind }
 
 /// `stopAt` names assemblies whose method bodies are not explored (their summaries come from a cache).
-type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: string -> bool) =
+/// `callbacks` are members the platform or a library calls on objects it is given, as (type, member names):
+/// e.g. ILoggerProvider.CreateLogger. Constructing a type outside the framework that has them links each such
+/// member to its implementation, as a virtual call made from the member itself.
+type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: string -> bool, callbacks: (string * string list) list) =
     let callees = Dictionary<string, ResizeArray<CallEdge>>()
     let reachable = HashSet<string>()
     let methodsByKey = Dictionary<string, MethodRef>()
@@ -46,6 +49,8 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: s
             d[k] <- l
             l
     let work = Queue<MethodRef>()
+    // Callback members, by display name, to the edges from them to the implementations of constructed types.
+    let callbackEdges = Dictionary<string, ResizeArray<CallEdge>>()
 
     let recognizerFor =
         let cache = Dictionary<string, ICodegenRecognizer list>()
@@ -139,8 +144,55 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: s
                           Kind = Initializer }
             | None -> ()
 
+    /// The type itself or one of its base types or interfaces, by full name, as `t`'s metadata names it.
+    let supertypeNamed (t: TypeRef) (name: string) =
+        let seen = HashSet<string>()
+
+        let rec search (x: TypeRef) =
+            if x.FullName = name then Some x
+            elif not (seen.Add x.FullName) then None
+            else
+                match set.TryType x with
+                | Some(def, _) -> (Option.toList def.BaseType @ def.Interfaces) |> List.tryPick search
+                | None -> None
+
+        search t
+
+    let memberMatches (pattern: string) (name: string) =
+        if pattern.EndsWith "*" then name.StartsWith(pattern.TrimEnd '*') else name = pattern
+
+    let linkCallbacks (t: TypeRef) =
+        if set.Origin t.Assembly <> Framework then
+            let supers = set.Supertypes t
+
+            for (typeName, members) in callbacks do
+                if supers.Contains typeName then
+                    match supertypeNamed t typeName |> Option.bind set.TryType with
+                    | Some(declaring, _) ->
+                        for d in declaring.Methods do
+                            if members |> List.exists (fun p -> memberMatches p d.Ref.Name) then
+                                match set.Implementation(t, d.Ref) with
+                                | Some impl when analyzable impl ->
+                                    let edge =
+                                        { Caller = d.Ref
+                                          Offset = 0
+                                          Declared = d.Ref
+                                          Target = impl
+                                          Kind = Virtual }
+
+                                    let l = bucket callbackEdges d.Ref.Display
+
+                                    if not (l |> Seq.exists (fun e -> e.Target.Key = impl.Key)) then
+                                        l.Add edge
+
+                                    addEdge edge
+                                | _ -> ()
+                    | None -> ()
+
     let instantiate (t: TypeRef) =
         if instantiated.Add t then
+            linkCallbacks t
+
             for super in set.Supertypes t do
                 (bucket instantiatedBySuper super).Add t
 
@@ -274,4 +326,15 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: s
 
     member _.Set = set
 
-    new(set: AssemblySet, recognizers: ICodegenRecognizer list) = CallGraph(set, recognizers, fun _ -> false)
+    /// The implementations a callback member is linked to, by its display name ("Type::Member").
+    member _.CallbackTargets(callback: string) : CallEdge list =
+        match callbackEdges.TryGetValue callback with
+        | true, l -> List.ofSeq l
+        | _ -> []
+
+    /// Every edge from a callback member to an implementation.
+    member _.CallbackEdges : CallEdge list = callbackEdges.Values |> Seq.concat |> Seq.toList
+
+    new(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: string -> bool) = CallGraph(set, recognizers, stopAt, [])
+
+    new(set: AssemblySet, recognizers: ICodegenRecognizer list) = CallGraph(set, recognizers, (fun _ -> false), [])

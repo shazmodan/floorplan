@@ -89,7 +89,10 @@ let private mvidOf (path: string) =
         ""
 
 let private cacheKey (assembly: string) (mvid: string) (catalog: string) =
-    Caching.hash [ "summaries-v11"; assembly; mvid; catalog ]
+    Caching.hash [ "summaries-v12"; assembly; mvid; catalog ]
+
+/// The cache key under which an assembly keeps what a callback member reaches through its implementations there.
+let private callbackKey (assembly: string) (callback: string) = $"[{assembly}]callback:{callback}"
 
 /// The program every analysis of one run shares: assemblies, call graph, per-catalog matchers and summaries,
 /// and the dependency summary cache.
@@ -109,6 +112,14 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
 
     let catalogNames =
         input.Projects |> List.map (fun p -> (catalogFor p).Catalog.Name) |> List.distinct
+
+    // Callback members of every catalog in use: one call graph serves them all.
+    let callbacks =
+        input.Projects
+        |> List.collect (fun p -> (catalogFor p).Catalog.Rules)
+        |> List.filter (fun r -> r.Kind = Callback)
+        |> List.map (fun r -> r.Type, r.Members)
+        |> List.distinct
 
     let mutable set = newSet ()
     let mvids = Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -156,7 +167,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
             set.TryLoad(IO.Path.GetFileNameWithoutExtension p.AssemblyPath) |> Option.map (fun a -> p, a))
 
     let buildGraph () =
-        let g = CallGraph(set, recognizers, cachedAssemblies.Contains)
+        let g = CallGraph(set, recognizers, cachedAssemblies.Contains, callbacks)
 
         g.AddRoots(
             users ()
@@ -181,6 +192,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
             let miss =
                 g.ReachableMethods
                 |> Seq.collect g.Callees
+                |> Seq.append g.CallbackEdges
                 |> Seq.exists (fun e ->
                     cachedAssemblies.Contains e.Target.Type.Assembly && not (analyzed.Contains e.Target.Key))
 
@@ -233,10 +245,8 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
             summaries[matcher.Catalog.Name] <- s
             s
 
-    /// Rules a dependency method reaches under a project's catalog: from the cache or from the call graph.
-    member this.EffectsFor(project: AnalyzedProject) : MethodRef -> Summaries.DependencyEffect list =
-        let catalog = (this.CatalogFor project).Catalog.Name
-        let computed = this.SummariesFor project
+    /// Rules a cached method reaches under a catalog, by assembly and key: None when the assembly is not cached.
+    member private this.CachedEffects(catalog: string) : string -> string -> Summaries.DependencyEffect list option =
         let tables = Dictionary<string, Dictionary<string, CachedWitness list>>(StringComparer.OrdinalIgnoreCase)
 
         let table (assembly: string) =
@@ -261,10 +271,10 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                 | true, ws -> ws |> List.tryFind (fun w -> w.RuleId = ruleId)
                 | _ -> None)
 
-        fun (m: MethodRef) ->
-            match table m.Type.Assembly with
+        fun (assembly: string) (key: string) ->
+            match table assembly with
             | Some t ->
-                match t.TryGetValue m.Key with
+                match t.TryGetValue key with
                 | true, ws ->
                     ws
                     |> List.map (fun w ->
@@ -277,14 +287,58 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                                 | None -> List.rev (w.Step :: acc)
                             | _ -> List.rev (w.Step :: acc)
 
-                        { RuleId = w.RuleId
-                          Category = w.Category
-                          Primitive = w.Primitive
-                          PrimitiveAssembly = w.PrimitiveAssembly
-                          Steps = path w [] 0
-                          Payload = w.Payload |> Option.map CachedPayload.toPayload })
-                | _ -> []
+                        ({ RuleId = w.RuleId
+                           Category = w.Category
+                           Primitive = w.Primitive
+                           PrimitiveAssembly = w.PrimitiveAssembly
+                           Steps = path w [] 0
+                           Payload = w.Payload |> Option.map CachedPayload.toPayload }
+                        : Summaries.DependencyEffect))
+                    |> Some
+                | _ -> Some []
+            | None -> None
+
+    /// Rules a dependency method reaches under a project's catalog: from the cache or from the call graph.
+    member this.EffectsFor(project: AnalyzedProject) : MethodRef -> Summaries.DependencyEffect list =
+        let computed = this.SummariesFor project
+        let fromCache = this.CachedEffects (this.CatalogFor project).Catalog.Name
+
+        fun (m: MethodRef) ->
+            match fromCache m.Type.Assembly m.Key with
+            | Some effects -> effects
             | None -> computed.Effects m
+
+    /// What a callback member ("Type::Member") reaches through the implementations it is linked to, with the
+    /// assembly of each implementation: the shortest route for each rule and assembly. Implementations in cached
+    /// assemblies come from the cache, which also keeps those the cached code constructs.
+    member this.DispatchFor(project: AnalyzedProject) : string -> (string * Summaries.DependencyEffect) list =
+        let effects = this.EffectsFor project
+        let fromCache = this.CachedEffects (this.CatalogFor project).Catalog.Name
+
+        fun (callback: string) ->
+            let linked =
+                graph.CallbackTargets callback
+                |> List.filter (fun e -> set.Origin e.Target.Type.Assembly = Dependency)
+                |> List.collect (fun e ->
+                    let step: Summaries.PathStep =
+                        { Caller = e.Declared.Display
+                          CallerAssembly = e.Declared.Type.Assembly
+                          Declared = e.Target.Display
+                          Virtual = true }
+
+                    effects e.Target
+                    |> List.map (fun d -> e.Target.Type.Assembly, { d with Steps = step :: d.Steps }))
+
+            let cachedOnly =
+                cachedAssemblies
+                |> Seq.toList
+                |> List.collect (fun a ->
+                    fromCache a (callbackKey a callback) |> Option.defaultValue [] |> List.map (fun d -> a, d))
+
+            linked @ cachedOnly
+            |> List.groupBy (fun (a, d) -> a, d.RuleId)
+            |> List.map (fun (_, ds) -> ds |> List.minBy (fun (_, d) -> d.Steps.Length))
+            |> List.sortBy (fun (a, d) -> a, d.RuleId)
 
     /// Writes summaries of the dependencies analyzed in this run, for later runs.
     member this.SaveCache() =
@@ -341,8 +395,32 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                                     |> List.sortBy (fun w -> w.Distance)
                                     |> List.distinctBy (fun w -> w.RuleId) })
 
+                        // Callback members linked to implementations here, which a later run may not see
+                        // constructed: the cached code that constructs them is not explored again.
+                        let callbacksHere =
+                            graph.CallbackEdges
+                            |> List.filter (fun e -> e.Target.Type.Assembly = assembly)
+                            |> List.groupBy (fun e -> e.Declared)
+                            |> List.map (fun (d, edges) ->
+                                { Key = callbackKey assembly d.Display
+                                  Witnesses =
+                                    edges
+                                    |> List.collect (fun e ->
+                                        summaries.Reaches e.Target
+                                        |> List.map (fun w ->
+                                            { toCached summaries e.Target w with
+                                                Distance = w.Distance + 1
+                                                Step =
+                                                    { Caller = d.Display
+                                                      CallerAssembly = d.Type.Assembly
+                                                      Declared = e.Target.Display
+                                                      Virtual = true }
+                                                Next = Some e.Target.Key }))
+                                    |> List.sortBy (fun w -> w.Distance)
+                                    |> List.distinctBy (fun w -> w.RuleId) })
+
                         let entries =
-                            (direct @ declared) |> List.filter (fun m -> not m.Witnesses.IsEmpty) |> List.distinctBy (fun m -> m.Key)
+                            (direct @ declared @ callbacksHere) |> List.filter (fun m -> not m.Witnesses.IsEmpty) |> List.distinctBy (fun m -> m.Key)
 
                         let depends =
                             entries
@@ -381,6 +459,7 @@ let exitPoints (program: Program) (input: AnalysisInput) : EffectResult =
                   Graph = program.Graph
                   Matcher = program.MatcherFor project
                   Effects = program.EffectsFor project
+                  Dispatch = program.DispatchFor project
                   Attributor = attributor
                   Recognizers = program.Recognizers
                   Producers = program.Producers }

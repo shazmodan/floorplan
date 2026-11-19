@@ -136,4 +136,16 @@ let tests =
               Expect.throwsC
                   (fun () -> CatalogLoader.parse "bad" bad |> ignore)
                   (fun e -> Expect.stringContains e.Message "need a category" "message")
+
+              let dispatching = """{ "name": "bad", "rules": [ { "id": "x", "type": "T", "members": ["M"], "kind": "blind-spot", "dispatch": "I::M" } ] }"""
+
+              Expect.throwsC
+                  (fun () -> CatalogLoader.parse "bad" dispatching |> ignore)
+                  (fun e -> Expect.stringContains e.Message "only loggers dispatch" "message")
+          }
+
+          test "a logger rule may name the member its library dispatches to" {
+              let net8 = CatalogLoader.loadBuiltIn "net8.0"
+              let rule = net8.Rules |> List.find (fun r -> r.Id = "logger.microsoft")
+              Expect.equal rule.Dispatch (Some "Microsoft.Extensions.Logging.ILogger::Log") "dispatch"
           } ]

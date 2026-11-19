@@ -79,8 +79,19 @@ Also new, outside the recognizer:
   whatever sinks the logger is configured with, the same at every call. What a unit's log calls reach is one exit
   point per effect, shown at its first log call, with all of them in the evidence; traces follow every one of them.
   Configuring the logger is the application's own call and is reported as before. Fixtures:
-  `CSharp.Effects/Logging.cs`, `CSharp.Endpoints/Audit.cs`. `Microsoft.Extensions.Logging` has no rule: in the
-  fixture its calls reach no sink, so a rule could not be tested.
+  `CSharp.Effects/Logging.cs`, `CSharp.Endpoints/Audit.cs`.
+- **Log calls through `Microsoft.Extensions.Logging`** are grouped the same way. The library hands each call on to
+  the loggers its providers make, and its own code is not followed: in ASP.NET Core it is part of the shared
+  framework, and elsewhere the container builds its loggers. The `logger.microsoft` rules name the member those
+  loggers implement (`"dispatch": "Microsoft.Extensions.Logging.ILogger::Log"`), and a log call reaches what each
+  constructed implementation of it reaches. Two `callback` rules make the implementations reachable: constructing
+  a provider outside the framework links `ILoggerProvider.CreateLogger` to its implementation, which constructs the
+  provider's logger, and that links `ILogger.Log`. The call graph links every callback rule this way; the summary
+  cache keeps what a callback reaches in each assembly, because a later run does not see the cached code that
+  constructs the logger. Only Serilog's provider is tested: fixtures `CSharp.Effects/MicrosoftLogging.cs` (a
+  console app with a container) and `CSharp.Endpoints/Shipping.cs` (ASP.NET Core). The source-generated
+  `[LoggerMessage]` methods and `LoggerMessage.Define` call `ILogger.Log` from a delegate the framework makes,
+  and are not yet recognized as log calls.
 - **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
   built assembly (a dependency, like a package), with the application's handlers passed as method groups in a
   record. Same routes as the F# `Routing.Delegated`.
