@@ -402,6 +402,19 @@
     { "id": "logger.serilog", "assembly": "Serilog", "type": "Serilog.ILogger",
       "members": ["Write", "Verbose", "Debug", "Information", "Warning", "Error", "Fatal"], "includeDerivedTypes": true, "kind": "logger" },
     { "id": "logger.serilog-static", "assembly": "Serilog", "type": "Serilog.Log",
-      "members": ["Write", "Verbose", "Debug", "Information", "Warning", "Error", "Fatal"], "kind": "logger" }
+      "members": ["Write", "Verbose", "Debug", "Information", "Warning", "Error", "Fatal"], "kind": "logger" },
+    // Microsoft.Extensions.Logging hands every log call on to the loggers its providers make (Serilog's, the
+    // console's, ...). In ASP.NET Core it is part of the shared framework and its code is not followed; elsewhere
+    // the container builds its loggers. Either way, a log call reaches what each constructed ILogger.Log reaches,
+    // and the callbacks below make those reachable: the library asks each registered provider for a logger.
+    { "id": "logger.microsoft", "assembly": "Microsoft.Extensions.Logging.Abstractions", "type": "Microsoft.Extensions.Logging.LoggerExtensions",
+      "members": ["Log", "LogTrace", "LogDebug", "LogInformation", "LogWarning", "LogError", "LogCritical"], "kind": "logger",
+      "dispatch": "Microsoft.Extensions.Logging.ILogger::Log" },
+    { "id": "logger.microsoft-interface", "assembly": "Microsoft.Extensions.Logging.Abstractions", "type": "Microsoft.Extensions.Logging.ILogger",
+      "members": ["Log"], "includeDerivedTypes": true, "kind": "logger", "dispatch": "Microsoft.Extensions.Logging.ILogger::Log" },
+    { "id": "callback.microsoft-logger-provider", "assembly": "Microsoft.Extensions.Logging.Abstractions", "type": "Microsoft.Extensions.Logging.ILoggerProvider",
+      "members": ["CreateLogger"], "includeDerivedTypes": true, "kind": "callback" },
+    { "id": "callback.microsoft-logger", "assembly": "Microsoft.Extensions.Logging.Abstractions", "type": "Microsoft.Extensions.Logging.ILogger",
+      "members": ["Log"], "includeDerivedTypes": true, "kind": "callback" }
   ]
 }

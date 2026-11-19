@@ -16,6 +16,8 @@ type ProjectContext =
       Matcher: Matcher
       /// Rules a dependency method reaches, from the call graph or the summary cache.
       Effects: MethodRef -> DependencyEffect list
+      /// What a callback member reaches through its constructed implementations, with each one's assembly.
+      Dispatch: string -> (string * DependencyEffect) list
       Attributor: Attribution.Attributor
       Recognizers: ICodegenRecognizer list
       /// What constructors and other methods set on the objects they produce, read from their bodies.
@@ -139,7 +141,8 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                 for (index, ins, declared, edges) in callSites ctx m body do
                     let point = Instruction.pointAt body.Instructions index
                     let isNewObj = match ins.Op with NewObj _ -> true | _ -> false
-                    let isLogCall = (ctx.Matcher.Logger declared).IsSome
+                    let logger = ctx.Matcher.Logger declared
+                    let isLogCall = logger.IsSome
 
                     let unit = lazy (ctx.Attributor.Attribute(projectId, m.Ref, point))
 
@@ -184,7 +187,71 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                               Location = point |> Option.map Attribution.toLocation }
                     | _ -> ()
 
-                    for edge in edges do
+                    // A log call: grouped with the unit's other log calls that reach the same effect.
+                    let logged (logger: MethodRef) (via: string) (category: EffectCategory) (d: DependencyEffect) (payload: Payload option) =
+                        match unit.Value with
+                        | Some u ->
+                            let site =
+                                { Caller = m.Ref
+                                  Offset = ins.Offset
+                                  Point = point
+                                  Logger = logger }
+
+                            let key = (u.Id, category, d.RuleId, d.Primitive, payload, via)
+
+                            match logGroups.TryGetValue key with
+                            | true, g ->
+                                if not (g.Sites |> Seq.exists (fun s -> s.Caller.Key = m.Ref.Key && s.Offset = ins.Offset)) then
+                                    g.Sites.Add site
+
+                                if d.Steps.Length < g.Effect.Steps.Length then
+                                    g.Effect <- d
+                                    g.EffectSite <- site
+                            | _ ->
+                                logGroups[key] <-
+                                    { Unit = u.Id
+                                      Category = category
+                                      Payload = payload
+                                      ViaAssembly = via
+                                      Sites = ResizeArray [ site ]
+                                      Effect = d
+                                      EffectSite = site }
+                        | None -> if seen.Add((ins.Offset, category)) then unattributed category m point
+
+                    // The library hands the call on to the loggers its providers make: what they reach, whatever the
+                    // call's arguments, so a payload keeps only what is fixed in the logger's code.
+                    let dispatched =
+                        match logger |> Option.bind (fun r -> r.Dispatch) with
+                        | Some callback ->
+                            ctx.Dispatch callback
+                            |> List.groupBy (fun (via, d) -> via, d.Category)
+                            |> List.iter (fun ((via, category), ds) ->
+                                let payloadOf (d: DependencyEffect) =
+                                    d.Payload
+                                    |> Option.map (fun p ->
+                                        let parts =
+                                            p.Origin
+                                            |> List.map (function
+                                                | Values.Literal t -> Values.Text t
+                                                | _ -> Values.Hole)
+
+                                        Values.Evaluator.ToPayload(Values.Parts parts, p.Role))
+
+                                // As through a dependency: the shortest route whose payload is known, else the shortest.
+                                let resolved = ds |> List.map (fun (_, d) -> d, payloadOf d)
+                                let shortest = List.minBy (fun (d: DependencyEffect, _) -> d.Steps.Length, d.RuleId)
+
+                                let d, payload =
+                                    match resolved |> List.filter (fun (_, p) -> p |> Option.exists (fun p -> p.Kind <> PayloadKind.Dynamic)) with
+                                    | [] -> shortest resolved
+                                    | known -> shortest known
+
+                                logged declared via category d payload)
+
+                            true
+                        | None -> false
+
+                    for edge in edges |> List.filter (fun _ -> not dispatched) do
                         match sinkOf ctx.Set ctx.Matcher edge with
                         | Some hit ->
                             // A direct call to a primitive.
@@ -243,34 +310,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                     let via = edge.Target.Type.Assembly
 
                                     if isLogCall then
-                                        match unit.Value with
-                                        | Some u ->
-                                            let site =
-                                                { Caller = m.Ref
-                                                  Offset = ins.Offset
-                                                  Point = point
-                                                  Logger = edge.Target }
-
-                                            let key = (u.Id, category, d.RuleId, d.Primitive, payload, via)
-
-                                            match logGroups.TryGetValue key with
-                                            | true, g ->
-                                                if not (g.Sites |> Seq.exists (fun s -> s.Caller.Key = m.Ref.Key && s.Offset = ins.Offset)) then
-                                                    g.Sites.Add site
-
-                                                if d.Steps.Length < g.Effect.Steps.Length then
-                                                    g.Effect <- d
-                                                    g.EffectSite <- site
-                                            | _ ->
-                                                logGroups[key] <-
-                                                    { Unit = u.Id
-                                                      Category = category
-                                                      Payload = payload
-                                                      ViaAssembly = via
-                                                      Sites = ResizeArray [ site ]
-                                                      Effect = d
-                                                      EffectSite = site }
-                                        | None -> if seen.Add((ins.Offset, category)) then unattributed category m point
+                                        logged edge.Target via category d payload
                                     else
                                         let steps = step $"{m.Ref.Display} calls {edge.Target.Display}" m.Ref point :: dependencySteps d category
                                         add category d.RuleId d.Primitive (Some via) payload (confidenceOf d.Steps) steps)

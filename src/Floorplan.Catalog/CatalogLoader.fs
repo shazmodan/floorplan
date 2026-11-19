@@ -70,6 +70,13 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
     if members.IsEmpty then
         fail $"{context}: no members."
 
+    let dispatch = str e "dispatch"
+
+    match dispatch with
+    | Some _ when k <> Logger -> fail $"{context}: only loggers dispatch."
+    | Some d when not (d.Contains "::") -> fail $"{context}: dispatch names a member as \"Type::Member\"."
+    | _ -> ()
+
     { Id = id
       Assembly = defaultArg (str e "assembly") ""
       Type = required e "type" context
@@ -105,6 +112,7 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
       WhenFirstParameter = str e "whenFirstParameter"
       BlindSpot = str e "blindSpot"
       ComparesTo = str e "comparesTo"
+      Dispatch = dispatch
       Source = source }
 
 /// A catalog document as written, before `extends` is resolved.

@@ -83,6 +83,47 @@ let tests =
                   "a route reaching a later log call of the group has the group's effects"
           }
 
+          test "Microsoft.Extensions.Logging calls reach the provider's sinks, once per unit" {
+              let m = csharpModel.Force()
+
+              let logged =
+                  m.ExitPoints
+                  |> List.filter (fun x -> x.Unit = "CSharp.Effects:CSharp.Effects.Shipping" && x.Member.EndsWith "Parcels::Ship")
+
+              Expect.isTrue
+                  (logged |> List.forall (fun x -> x.ViaAssembly = Some "Serilog.Extensions.Logging"))
+                  "through the Serilog provider the container is configured with"
+
+              let write = logged |> List.find (fun x -> x.Category = EffectCategory.FilesystemWrite)
+
+              let calls =
+                  write.Evidence.Steps
+                  |> List.filter (fun s -> s.Description.Contains " logs through ")
+                  |> List.map (fun s -> s.Location |> Option.map (fun l -> l.StartLine))
+
+              Expect.equal calls [ Some 21; Some 22 ] "both log calls, in one exit point"
+
+              Expect.exists
+                  write.Evidence.Steps
+                  (fun s -> s.Description = "Microsoft.Extensions.Logging.ILogger::Log calls Serilog.Extensions.Logging.SerilogLogger::Log")
+                  "the library hands the call to the logger the provider made"
+
+              Expect.containsAll
+                  (logged |> List.map (fun x -> x.Category))
+                  [ EffectCategory.FilesystemWrite; EffectCategory.FilesystemRead ]
+                  "the file sink's effects"
+
+              // In ASP.NET Core the logging library is part of the shared framework, and its code is not followed.
+              Expect.exists
+                  m.ExitPoints
+                  (fun x ->
+                      x.Unit = "CSharp.Endpoints:CSharp.Endpoints.Shipping"
+                      && x.Member.EndsWith "Parcels::Ship"
+                      && x.Category = EffectCategory.FilesystemWrite
+                      && x.ViaAssembly = Some "Serilog.Extensions.Logging")
+                  "also where the logging library is part of the shared framework"
+          }
+
           test "effects in C#: every category, behind lambdas, interfaces, a container, async methods and iterators" {
               let m = csharpModel.Force()
 

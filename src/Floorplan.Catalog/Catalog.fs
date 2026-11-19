@@ -60,6 +60,10 @@ type Rule =
       BlindSpot: string option
       /// For comparisons: the value the request part is compared with.
       ComparesTo: string option
+      /// For loggers whose library hands each call on to the loggers its providers make, e.g.
+      /// Microsoft.Extensions.Logging: the interface member those loggers implement ("Type::Member"). A log
+      /// call reaches what every constructed implementation of it reaches; callback rules make them reachable.
+      Dispatch: string option
       /// The catalog that defined the rule.
       Source: string }
 
