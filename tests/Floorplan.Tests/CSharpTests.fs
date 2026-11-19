@@ -40,6 +40,49 @@ let tests =
               Golden.check "csharp.exit-points.txt" (ExitPointTests.render (csharpModelNet10.Force()))
           }
 
+          test "what a logger's sinks do is one exit point per unit, listing its log calls" {
+              let m = csharpModel.Force()
+
+              let logged (unitName: string) =
+                  m.ExitPoints
+                  |> List.filter (fun x ->
+                      x.Unit = $"CSharp.Effects:CSharp.Effects.{unitName}" && x.ViaAssembly = Some "Serilog")
+
+              let writes = logged "Logging" |> List.filter (fun x -> x.Category = EffectCategory.FilesystemWrite)
+              Expect.equal writes.Length 1 "one file write for the unit's four log calls"
+              let write = writes.Head
+              Expect.equal write.Member "CSharp.Effects.Logging.Orders::Place" "shown at the first log call"
+
+              let calls =
+                  write.Evidence.Steps
+                  |> List.filter (fun s -> s.Description.Contains " logs through ")
+                  |> List.map (fun s -> s.Member, s.Location |> Option.map (fun l -> l.StartLine))
+
+              Expect.equal
+                  calls
+                  [ "CSharp.Effects.Logging.Orders::Place", Some 18
+                    "CSharp.Effects.Logging.Orders::Place", Some 19
+                    "CSharp.Effects.Logging.Orders::Cancel", Some 22
+                    "CSharp.Effects.Logging.Orders::Shutdown", Some 24 ]
+                  "every log call, in source order"
+
+              Expect.equal (logged "Logging").Length 4 "the file, the directory, the console and the clock, once each"
+              Expect.equal (logged "Billing").Length 4 "and once for the other unit that logs"
+
+              Expect.exists
+                  m.ExitPoints
+                  (fun x -> x.Member = "CSharp.Effects.Logging.Setup::Create" && x.Payload |> Option.exists (fun p -> p.Value = Some "logs/app.log"))
+                  "configuring the logger is the application's own call, with its file"
+
+              let entry = m.EntryPoints |> List.find (fun e -> e.HandlerMember.EndsWith "Audit::Cancelled")
+              let trace = m.Traces |> List.find (fun t -> t.EntryPointId = entry.Id)
+
+              Expect.exists
+                  (trace.ExitPointIds |> List.map (fun id -> m.ExitPoints |> List.find (fun x -> x.Id = id)))
+                  (fun x -> x.Category = EffectCategory.FilesystemWrite && x.Member.EndsWith "Audit::Started")
+                  "a route reaching a later log call of the group has the group's effects"
+          }
+
           test "effects in C#: every category, behind lambdas, interfaces, a container, async methods and iterators" {
               let m = csharpModel.Force()
 

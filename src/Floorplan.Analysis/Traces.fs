@@ -17,7 +17,17 @@ let compute (program: EffectAnalysis.Program) (entries: EntryPoint list) (exits:
         |> Seq.map (fun (d, ms) -> d, ms |> Seq.map (fun m -> m.Ref) |> Seq.toList)
         |> dict
 
-    let exitsByMember = exits |> List.groupBy (fun x -> x.Member) |> dict
+    // The user members whose calls are the exit point: its own, and for the log calls grouped into one exit point
+    // (ExitPoints), every member the evidence names in user code.
+    let exitsByMember =
+        exits
+        |> List.collect (fun x ->
+            x.Member :: [ for s in x.Evidence.Steps do if set.IsUser s.Assembly then yield s.Member ]
+            |> List.distinct
+            |> List.map (fun m -> m, x))
+        |> List.groupBy fst
+        |> List.map (fun (m, xs) -> m, List.map snd xs)
+        |> dict
     let cache = Dictionary<string, Set<string>>()
 
     /// Members of user methods reachable from a method, itself included.

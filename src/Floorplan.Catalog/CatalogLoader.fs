@@ -38,6 +38,7 @@ let private kind (text: string) context =
     | "callback" -> Callback
     | "metadata" -> Metadata
     | "constant" -> Constant
+    | "logger" -> Logger
     | other -> fail $"{context}: unknown kind \"{other}\"."
 
 let private requestPart (text: string) context =

@@ -72,11 +72,15 @@ string, so the call shows its whole SQL ending in `OFFSET @Offset ROWS FETCH NEX
 
 ### Noise
 
-- **Logging.** Every Serilog call (83) reaches the rolling file sink's `File::Delete` and
+- **Logging (fixed 2026-11-19).** Every Serilog call (83) reached the rolling file sink's `File::Delete` and
   `Directory::Exists`, the console sink and the clock, through `ILogEventSink.Emit`. The paths are real and the
-  sinks are configured, but one result per log call says nothing about the call. File reads and writes are shown
-  by default at medium confidence: 166 of the 294 exit points the site shows by default.
+  sinks are configured, but one result per log call says nothing about the call. File reads and writes were shown
+  by default at medium confidence: 166 of the 294 exit points the site showed by default. Log calls are now
+  catalog rules of a new kind, `logger` (Serilog's `ILogger` and `Log`), and what a unit's log calls reach is one
+  exit point per effect, shown at the unit's first log call, with every log call in its evidence; an entry point
+  reaching any of them has it in its trace. Configuring the logger (`WriteTo.File("logs/logs")`) stays an exit point of
+  its own. After: Serilog gives 85 exit points instead of 341 (one per effect for each of the 24 units that log, and
+  9 `ForContext` calls reaching the clock), 38 of them shown by default instead of 166; the site shows 166 exit
+  points by default instead of 294.
 - **Library internals.** Dapper (`Guid.NewGuid` naming its generated methods), Autofac (callback ids) and Quartz
   report nondeterminism at every call. These categories are hidden by default.
-
-Proposals for both are in `TODO.md`.

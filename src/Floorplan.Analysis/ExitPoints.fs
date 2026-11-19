@@ -26,6 +26,23 @@ type Found =
     { ExitPoint: ExitPoint
       SortKey: string * string * int * int * string }
 
+/// A log call: a call site whose declared target matches a catalog logger rule.
+type private LogSite =
+    { Caller: MethodRef
+      Offset: int
+      Point: SourcePoint option
+      Logger: MethodRef }
+
+/// The log calls of one unit that reach the same effect, and the shortest route there.
+type private LogGroup =
+    { Unit: string
+      Category: EffectCategory
+      Payload: Payload option
+      ViaAssembly: string
+      Sites: ResizeArray<LogSite>
+      mutable Effect: DependencyEffect
+      mutable EffectSite: LogSite }
+
 let private step (description: string) (m: MethodRef) (point: SourcePoint option) =
     { Description = description
       Member = m.Display
@@ -80,6 +97,37 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
     let diagnostics = ResizeArray<Diagnostic>()
     let projectId = ctx.Project.ProjectId
 
+    // What a logger's sinks do is the same at every log call: one exit point per unit and effect, listing the calls.
+    let logGroups = Dictionary<string * EffectCategory * string * string * Payload option * string, LogGroup>()
+
+    let sortKey (unitId: string) (location: Location option) (offset: int) (category: EffectCategory) (ruleId: string) =
+        (unitId,
+         (match location with Some l -> l.File | None -> ""),
+         (match location with Some l -> l.StartLine | None -> 0),
+         offset,
+         categoryName category + ruleId)
+
+    let unattributed (category: EffectCategory) (m: MethodDef) (point: SourcePoint option) =
+        diagnostics.Add
+            { Severity = DiagnosticSeverity.Warning
+              Code = "exit-point.unattributed"
+              Message = $"A {categoryName category} call in {m.Ref.Display} could not be attributed to a unit."
+              ProjectId = Some projectId
+              Location = point |> Option.map Attribution.toLocation }
+
+    let dependencySteps (d: DependencyEffect) (category: EffectCategory) =
+        [ yield!
+              d.Steps
+              |> List.map (fun s ->
+                  { Description = $"{s.Caller} calls {s.Declared}"
+                    Member = s.Caller
+                    Assembly = s.CallerAssembly
+                    Location = None })
+          { Description = $"{d.Primitive} is a {categoryName category} primitive (rule {d.RuleId})"
+            Member = d.Primitive
+            Assembly = d.PrimitiveAssembly
+            Location = None } ]
+
     for t in assembly.Types do
         for m in t.Methods do
             match m.Body.Value with
@@ -91,6 +139,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                 for (index, ins, declared, edges) in callSites ctx m body do
                     let point = Instruction.pointAt body.Instructions index
                     let isNewObj = match ins.Op with NewObj _ -> true | _ -> false
+                    let isLogCall = (ctx.Matcher.Logger declared).IsSome
 
                     let unit = lazy (ctx.Attributor.Attribute(projectId, m.Ref, point))
 
@@ -113,19 +162,8 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                           ViaAssembly = via
                                           Confidence = confidence
                                           Evidence = { Steps = steps } }
-                                      SortKey =
-                                        (u.Id,
-                                         (match location with Some l -> l.File | None -> ""),
-                                         (match location with Some l -> l.StartLine | None -> 0),
-                                         ins.Offset,
-                                         categoryName category + ruleId) }
-                            | None ->
-                                diagnostics.Add
-                                    { Severity = DiagnosticSeverity.Warning
-                                      Code = "exit-point.unattributed"
-                                      Message = $"A {categoryName category} call in {m.Ref.Display} could not be attributed to a unit."
-                                      ProjectId = Some projectId
-                                      Location = point |> Option.map Attribution.toLocation }
+                                      SortKey = sortKey u.Id location ins.Offset category ruleId }
+                            | None -> unattributed category m point
 
                     // Blind spots: the analysis cannot follow these calls.
                     let knownDynamic (rule: Rule) =
@@ -202,21 +240,79 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                         | [] -> shortest resolved
                                         | known -> shortest known
 
-                                    let steps =
-                                        [ step $"{m.Ref.Display} calls {edge.Target.Display}" m.Ref point
-                                          yield!
-                                              d.Steps
-                                              |> List.map (fun s ->
-                                                  { Description = $"{s.Caller} calls {s.Declared}"
-                                                    Member = s.Caller
-                                                    Assembly = s.CallerAssembly
-                                                    Location = None })
-                                          { Description = $"{d.Primitive} is a {categoryName category} primitive (rule {d.RuleId})"
-                                            Member = d.Primitive
-                                            Assembly = d.PrimitiveAssembly
-                                            Location = None } ]
+                                    let via = edge.Target.Type.Assembly
 
-                                    add category d.RuleId d.Primitive (Some edge.Target.Type.Assembly) payload (confidenceOf d.Steps) steps)
+                                    if isLogCall then
+                                        match unit.Value with
+                                        | Some u ->
+                                            let site =
+                                                { Caller = m.Ref
+                                                  Offset = ins.Offset
+                                                  Point = point
+                                                  Logger = edge.Target }
+
+                                            let key = (u.Id, category, d.RuleId, d.Primitive, payload, via)
+
+                                            match logGroups.TryGetValue key with
+                                            | true, g ->
+                                                if not (g.Sites |> Seq.exists (fun s -> s.Caller.Key = m.Ref.Key && s.Offset = ins.Offset)) then
+                                                    g.Sites.Add site
+
+                                                if d.Steps.Length < g.Effect.Steps.Length then
+                                                    g.Effect <- d
+                                                    g.EffectSite <- site
+                                            | _ ->
+                                                logGroups[key] <-
+                                                    { Unit = u.Id
+                                                      Category = category
+                                                      Payload = payload
+                                                      ViaAssembly = via
+                                                      Sites = ResizeArray [ site ]
+                                                      Effect = d
+                                                      EffectSite = site }
+                                        | None -> if seen.Add((ins.Offset, category)) then unattributed category m point
+                                    else
+                                        let steps = step $"{m.Ref.Display} calls {edge.Target.Display}" m.Ref point :: dependencySteps d category
+                                        add category d.RuleId d.Primitive (Some via) payload (confidenceOf d.Steps) steps)
                             | _ -> ()
+
+    for g in logGroups.Values do
+        let location (s: LogSite) = s.Point |> Option.map Attribution.toLocation
+
+        let sites =
+            g.Sites
+            |> Seq.sortBy (fun s ->
+                match location s with
+                | Some l -> l.File, l.StartLine, s.Offset
+                | None -> "", 0, s.Offset)
+            |> Seq.toList
+
+        let first = sites.Head
+        let d = g.Effect
+        let calls = if sites.Length = 1 then "1 log call" else $"{sites.Length} log calls"
+
+        let steps =
+            (sites |> List.map (fun s -> step $"{s.Caller.Display} logs through {s.Logger.Display}" s.Caller s.Point))
+            @ [ { Description =
+                    $"Every log call reaches what the logger is configured with ({calls} in this unit); the shortest route, from {g.EffectSite.Logger.Display}:"
+                  Member = g.EffectSite.Logger.Display
+                  Assembly = g.ViaAssembly
+                  Location = None } ]
+            @ dependencySteps d g.Category
+
+        found.Add
+            { ExitPoint =
+                { Id = ""
+                  Category = g.Category
+                  Unit = g.Unit
+                  Member = first.Caller.Display
+                  Location = location first
+                  RuleId = d.RuleId
+                  Primitive = d.Primitive
+                  Payload = g.Payload
+                  ViaAssembly = Some g.ViaAssembly
+                  Confidence = confidenceOf d.Steps
+                  Evidence = { Steps = steps } }
+              SortKey = sortKey g.Unit (location first) first.Offset g.Category d.RuleId }
 
     List.ofSeq found, List.ofSeq diagnostics

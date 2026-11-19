@@ -75,6 +75,12 @@ Also new, outside the recognizer:
   a dynamic value to the page (`@ViewBag.Title`). Fixture: `CSharp.Controllers/Pages.cs` and its view (GitHub
   issue 2). After a run the console prints three warnings of each kind and how many more there are; the site
   and the JSON model list them all.
+- **Log calls** (F# and C#): a call matching a catalog rule of kind `logger` (Serilog's `ILogger` and `Log`) reaches
+  whatever sinks the logger is configured with, the same at every call. What a unit's log calls reach is one exit
+  point per effect, shown at its first log call, with all of them in the evidence; traces follow every one of them.
+  Configuring the logger is the application's own call and is reported as before. Fixtures:
+  `CSharp.Effects/Logging.cs`, `CSharp.Endpoints/Audit.cs`. `Microsoft.Extensions.Logging` has no rule: in the
+  fixture its calls reach no sink, so a rule could not be tested.
 - **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
   built assembly (a dependency, like a package), with the application's handlers passed as method groups in a
   record. Same routes as the F# `Routing.Delegated`.
