@@ -4,8 +4,9 @@ Work that is known and not yet done. Remove an item when its branch is merged.
 
 ## Next
 
-- **EF Core writes are not seen.** `DbContext.SaveChanges*` reaches no primitive (EF runs commands through its
-  own service container). A catalog rule for it is one case of the catalog-rule fallback below.
+- **EF Core queries run by enumerating them are not seen** (`foreach`, `ToList()` over a `DbSet`): they are
+  LINQ calls, the same as over a list. `FromSql*`/`SqlQuery*` SQL is not shown either (the query runs later), and
+  an interpolated `ExecuteSql` is dynamic (`FormattableStringFactory.Create` is not read as a template).
 - **`[LoggerMessage]` and `LoggerMessage.Define` log calls are not grouped.** They call `ILogger.Log` through a
   delegate the framework makes, so no `logger` rule matches them. NLog and log4net have no rules either.
 - **Serilog's `ForContext` reaches the clock.** On mmddd, 9 `ForContext` calls (which create a logger, not log) are

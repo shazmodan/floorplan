@@ -75,6 +75,24 @@
     { "id": "database.dbbatch", "assembly": "System.Data.Common", "type": "System.Data.Common.DbBatch",
       "members": ["ExecuteNonQuery", "ExecuteNonQueryAsync", "ExecuteReader", "ExecuteReaderAsync", "ExecuteScalar", "ExecuteScalarAsync"],
       "includeDerivedTypes": true, "kind": "sink", "category": "database" },
+    // Entity Framework Core runs its commands through its own service container, which is not followed, so these
+    // calls are the database: saving changes, raw SQL, bulk deletes and updates, and the calls that run a query.
+    // A query run by enumerating it (foreach, ToList) is not seen. These name a library, not the platform; EF Core
+    // versions are not tied to .NET versions, and ExecuteDelete/ExecuteUpdate moved type after EF Core 8.
+    { "id": "database.ef-context", "assembly": "Microsoft.EntityFrameworkCore", "type": "Microsoft.EntityFrameworkCore.DbContext",
+      "members": ["SaveChanges", "SaveChangesAsync", "Find", "FindAsync"], "includeDerivedTypes": true, "kind": "sink", "category": "database" },
+    { "id": "database.ef-set", "assembly": "Microsoft.EntityFrameworkCore", "type": "Microsoft.EntityFrameworkCore.DbSet`1",
+      "members": ["Find", "FindAsync"], "includeDerivedTypes": true, "kind": "sink", "category": "database" },
+    { "id": "database.ef-query", "assembly": "Microsoft.EntityFrameworkCore", "type": "Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions",
+      "members": ["AnyAsync", "AllAsync", "CountAsync", "LongCountAsync", "ElementAtAsync", "ElementAtOrDefaultAsync", "FirstAsync", "FirstOrDefaultAsync",
+                  "LastAsync", "LastOrDefaultAsync", "SingleAsync", "SingleOrDefaultAsync", "MinAsync", "MaxAsync", "SumAsync", "AverageAsync", "ContainsAsync",
+                  "ToListAsync", "ToArrayAsync", "ToDictionaryAsync", "ToHashSetAsync", "ForEachAsync", "Load", "LoadAsync",
+                  "ExecuteDelete", "ExecuteDeleteAsync", "ExecuteUpdate", "ExecuteUpdateAsync"],
+      "kind": "sink", "category": "database" },
+    { "id": "database.ef-bulk", "assembly": "Microsoft.EntityFrameworkCore.Relational", "type": "Microsoft.EntityFrameworkCore.RelationalQueryableExtensions",
+      "members": ["ExecuteDelete", "ExecuteDeleteAsync", "ExecuteUpdate", "ExecuteUpdateAsync"], "kind": "sink", "category": "database" },
+    { "id": "database.ef-sql", "assembly": "Microsoft.EntityFrameworkCore.Relational", "type": "Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions",
+      "members": ["ExecuteSql*"], "kind": "sink", "category": "database", "payload": [{ "argument": 1, "role": "sql" }] },
     { "id": "database.dataadapter", "assembly": "System.Data.Common", "type": "System.Data.Common.DbDataAdapter",
       "members": ["Fill", "Update"], "includeDerivedTypes": true, "kind": "sink", "category": "database" },
     { "id": "database.dbdatasource", "assembly": "System.Data.Common", "type": "System.Data.Common.DbDataSource",

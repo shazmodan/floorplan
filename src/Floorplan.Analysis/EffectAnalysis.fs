@@ -89,7 +89,7 @@ let private mvidOf (path: string) =
         ""
 
 let private cacheKey (assembly: string) (mvid: string) (catalog: string) =
-    Caching.hash [ "summaries-v12"; assembly; mvid; catalog ]
+    Caching.hash [ "summaries-v13"; assembly; mvid; catalog ]
 
 /// The cache key under which an assembly keeps what a callback member reaches through its implementations there.
 let private callbackKey (assembly: string) (callback: string) = $"[{assembly}]callback:{callback}"

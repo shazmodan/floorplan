@@ -91,6 +91,13 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
     let chosen = Dictionary<struct (string * string), Witness * Values.Origin>()
     let flows = Dictionary<string, DataFlow.Flow option>()
 
+    // A log call in a dependency through a library that dispatches to its providers' loggers (Microsoft's): what
+    // the sinks do is the logging configuration's, not the dependency's. It is not followed, just as where the
+    // library is part of the shared framework; a log call in the application reaches the sinks itself.
+    let followed (e: CallEdge) =
+        e.Kind <> Initializer
+        && not (matcher.Logger e.Declared |> Option.exists (fun r -> r.Dispatch.IsSome))
+
     let witnesses (m: MethodRef) =
         match best.TryGetValue m.Key with
         | true, d -> d
@@ -105,7 +112,7 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
         let queue = Queue<MethodRef * string>()
 
         for m in methods do
-            for e in graph.Callees m |> List.filter (fun e -> e.Kind <> Initializer) do
+            for e in graph.Callees m |> List.filter followed do
                 match sinkOf set matcher e with
                 | Some hit ->
                     let w = witnesses m
@@ -204,7 +211,7 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
 
             let candidates =
                 graph.Callees m
-                |> List.filter (fun e -> e.Kind <> Initializer)
+                |> List.filter followed
                 |> List.choose (fun e ->
                     match sinkOf set matcher e with
                     | Some hit when hit.Rule.Id = ruleId -> Some { Distance = 1; Edge = e; Hit = hit }
