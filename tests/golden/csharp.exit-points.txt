@@ -55,6 +55,10 @@ environment | CSharp.Effects:CSharp.Effects.Billing | CSharp.Effects.Billing.Inv
 filesystem-read | CSharp.Effects:CSharp.Effects.Billing | CSharp.Effects.Billing.Invoices::Send | System.IO.Directory::Exists | via Serilog | dynamic:- | CSharp/CSharp.Effects/Logging.cs:32
 filesystem-write | CSharp.Effects:CSharp.Effects.Billing | CSharp.Effects.Billing.Invoices::Send | System.IO.File::Delete | via Serilog | template:{…}/{…} | CSharp/CSharp.Effects/Logging.cs:32
 nondeterminism | CSharp.Effects:CSharp.Effects.Billing | CSharp.Effects.Billing.Invoices::Send | System.DateTimeOffset::get_Now | via Serilog | - | CSharp/CSharp.Effects/Logging.cs:32
+environment | CSharp.Effects:CSharp.Effects.Labels | CSharp.Effects.Labels.Printer::Print | System.Console::get_Out | via Serilog.Extensions.Logging | - | CSharp/CSharp.Effects/LoggerMessages.cs:13
+filesystem-read | CSharp.Effects:CSharp.Effects.Labels | CSharp.Effects.Labels.Printer::Print | System.IO.Directory::Exists | via Serilog.Extensions.Logging | dynamic:- | CSharp/CSharp.Effects/LoggerMessages.cs:13
+filesystem-write | CSharp.Effects:CSharp.Effects.Labels | CSharp.Effects.Labels.Printer::Print | System.IO.File::Delete | via Serilog.Extensions.Logging | template:{…}/{…} | CSharp/CSharp.Effects/LoggerMessages.cs:13
+nondeterminism | CSharp.Effects:CSharp.Effects.Labels | CSharp.Effects.Labels.Printer::Print | System.DateTime::get_UtcNow | via Serilog.Extensions.Logging | - | CSharp/CSharp.Effects/LoggerMessages.cs:13
 filesystem-read | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Setup::Create | System.IO.Directory::Exists | via Serilog.Sinks.File | dynamic:- | CSharp/CSharp.Effects/Logging.cs:11
 filesystem-write | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Setup::Create | System.IO.File::Open | via Serilog.Sinks.File | literal:logs/app.log | CSharp/CSharp.Effects/Logging.cs:11
 nondeterminism | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Setup::Create | System.DateTime::get_UtcNow | via Serilog.Sinks.File | - | CSharp/CSharp.Effects/Logging.cs:11

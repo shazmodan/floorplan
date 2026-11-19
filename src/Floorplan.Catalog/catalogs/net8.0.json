@@ -439,6 +439,12 @@
       "dispatch": "Microsoft.Extensions.Logging.ILogger::Log" },
     { "id": "logger.microsoft-interface", "assembly": "Microsoft.Extensions.Logging.Abstractions", "type": "Microsoft.Extensions.Logging.ILogger",
       "members": ["Log"], "includeDerivedTypes": true, "kind": "logger", "dispatch": "Microsoft.Extensions.Logging.ILogger::Log" },
+    // LoggerMessage.Define makes a delegate that calls ILogger.Log: invoking it is the log call. A [LoggerMessage]
+    // method's body is generated (it invokes such a delegate, or calls ILogger.Log): calling it is the log call.
+    { "id": "logger.microsoft-define", "assembly": "Microsoft.Extensions.Logging.Abstractions", "type": "Microsoft.Extensions.Logging.LoggerMessage",
+      "members": ["Define"], "kind": "logger", "logCall": "delegate", "dispatch": "Microsoft.Extensions.Logging.ILogger::Log" },
+    { "id": "logger.microsoft-generated", "assembly": "Microsoft.Extensions.Logging.Abstractions", "type": "Microsoft.Extensions.Logging.LoggerMessageAttribute",
+      "members": ["*"], "kind": "logger", "logCall": "attribute", "dispatch": "Microsoft.Extensions.Logging.ILogger::Log" },
     { "id": "callback.microsoft-logger-provider", "assembly": "Microsoft.Extensions.Logging.Abstractions", "type": "Microsoft.Extensions.Logging.ILoggerProvider",
       "members": ["CreateLogger"], "includeDerivedTypes": true, "kind": "callback" },
     { "id": "callback.microsoft-logger", "assembly": "Microsoft.Extensions.Logging.Abstractions", "type": "Microsoft.Extensions.Logging.ILogger",

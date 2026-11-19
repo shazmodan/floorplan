@@ -29,6 +29,17 @@ type RuleKind =
     /// SQL they run in `Payload` (FromSqlRaw).
     | Query
 
+/// How the log calls of a logger rule are made.
+[<RequireQualifiedAccess>]
+type LogCall =
+    /// A call to one of the members logs.
+    | Direct
+    /// The members make a delegate that logs when it is invoked (LoggerMessage.Define): invoking it is the log call.
+    | Delegate
+    /// The rule's type is an attribute: a call to a method it marks logs ([LoggerMessage], whose body a source
+    /// generator writes). Members are not used.
+    | Attribute
+
 /// Which argument of a matched call carries something worth showing: a URL, SQL text, a path, a route template,
 /// a handler. Argument 0 is the first declared parameter; for instance methods `this` is not counted.
 /// With `Property`, the payload is a property of the receiver instead (a command's SQL text), or of argument
@@ -68,6 +79,8 @@ type Rule =
       /// Microsoft.Extensions.Logging: the interface member those loggers implement ("Type::Member"). A log
       /// call reaches what every constructed implementation of it reaches; callback rules make them reachable.
       Dispatch: string option
+      /// For loggers: how a log call is made.
+      LogCall: LogCall
       /// The catalog that defined the rule.
       Source: string }
 

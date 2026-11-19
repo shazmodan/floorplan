@@ -333,15 +333,21 @@ let private readAttributes (asm: string) (attributes: Mono.Collections.Generic.C
     attributes
     |> Seq.choose (fun a ->
         try
-            Some
-                { Type = typeRef asm a.AttributeType
-                  Arguments = a.ConstructorArguments |> Seq.map (fun x -> attributeValue x.Value) |> Seq.toList
-                  Named =
-                    Seq.append a.Properties a.Fields
-                    |> Seq.map (fun n -> n.Name, attributeValue n.Argument.Value)
-                    |> Seq.toList }
+            let t = typeRef asm a.AttributeType
+
+            try
+                Some
+                    { Type = t
+                      Arguments = a.ConstructorArguments |> Seq.map (fun x -> attributeValue x.Value) |> Seq.toList
+                      Named =
+                        Seq.append a.Properties a.Fields
+                        |> Seq.map (fun n -> n.Name, attributeValue n.Argument.Value)
+                        |> Seq.toList }
+            with _ ->
+                // A blob that cannot be read (an enum argument whose type is in an assembly that is not there, as
+                // [LoggerMessage(Level = LogLevel.Warning)] in a dependency-free read): the attribute, without them.
+                Some { Type = t; Arguments = []; Named = [] }
         with _ ->
-            // An attribute whose blob cannot be read (a type in an assembly that is not there) is left out.
             None)
     |> Seq.toList
 

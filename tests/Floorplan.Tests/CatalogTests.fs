@@ -150,6 +150,20 @@ let tests =
               Expect.equal rule.Dispatch (Some "Microsoft.Extensions.Logging.ILogger::Log") "dispatch"
           }
 
+          test "a logger rule says how its log calls are made" {
+              let net8 = CatalogLoader.loadBuiltIn "net8.0"
+              let logCall id = (net8.Rules |> List.find (fun r -> r.Id = id)).LogCall
+              Expect.equal (logCall "logger.microsoft") LogCall.Direct "a call to the member"
+              Expect.equal (logCall "logger.microsoft-define") LogCall.Delegate "invoking the delegate it makes"
+              Expect.equal (logCall "logger.microsoft-generated") LogCall.Attribute "a call to a method it marks"
+
+              let notLogger = """{ "name": "bad", "rules": [ { "id": "x", "type": "T", "members": ["M"], "kind": "sink", "category": "database", "logCall": "delegate" } ] }"""
+
+              Expect.throwsC
+                  (fun () -> CatalogLoader.parse "bad" notLogger |> ignore)
+                  (fun e -> Expect.stringContains e.Message "only loggers have a logCall" "message")
+          }
+
           test "a query rule names a type whose values are queries, or the calls that make one" {
               let net8 = CatalogLoader.loadBuiltIn "net8.0"
               let matcher = Matcher(net8, fun t -> Set.singleton t.FullName)
