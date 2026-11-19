@@ -77,8 +77,9 @@
       "includeDerivedTypes": true, "kind": "sink", "category": "database" },
     // Entity Framework Core runs its commands through its own service container, which is not followed, so these
     // calls are the database: saving changes, raw SQL, bulk deletes and updates, and the calls that run a query.
-    // A query run by enumerating it (foreach, ToList) is not seen. These name a library, not the platform; EF Core
-    // versions are not tied to .NET versions, and ExecuteDelete/ExecuteUpdate moved type after EF Core 8.
+    // A query run by enumerating it (foreach, ToList) is found through the query rules below. These name a library,
+    // not the platform; EF Core versions are not tied to .NET versions, and ExecuteDelete/ExecuteUpdate moved type
+    // after EF Core 8.
     { "id": "database.ef-context", "assembly": "Microsoft.EntityFrameworkCore", "type": "Microsoft.EntityFrameworkCore.DbContext",
       "members": ["SaveChanges", "SaveChangesAsync", "Find", "FindAsync"], "includeDerivedTypes": true, "kind": "sink", "category": "database" },
     { "id": "database.ef-set", "assembly": "Microsoft.EntityFrameworkCore", "type": "Microsoft.EntityFrameworkCore.DbSet`1",
@@ -93,6 +94,14 @@
       "members": ["ExecuteDelete", "ExecuteDeleteAsync", "ExecuteUpdate", "ExecuteUpdateAsync"], "kind": "sink", "category": "database" },
     { "id": "database.ef-sql", "assembly": "Microsoft.EntityFrameworkCore.Relational", "type": "Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions",
       "members": ["ExecuteSql*"], "kind": "sink", "category": "database", "payload": [{ "argument": 1, "role": "sql" }] },
+    // Queries: enumerating one (foreach, ToList, First, Count, ...) runs it on the database. A DbSet is one, and so
+    // is every query built on it with LINQ; FromSql* and SqlQuery* make one from SQL, which is the payload.
+    { "id": "database.ef-set-query", "assembly": "Microsoft.EntityFrameworkCore", "type": "Microsoft.EntityFrameworkCore.DbSet`1",
+      "members": ["*"], "kind": "query", "category": "database" },
+    { "id": "database.ef-sql-query", "assembly": "Microsoft.EntityFrameworkCore.Relational", "type": "Microsoft.EntityFrameworkCore.RelationalQueryableExtensions",
+      "members": ["FromSql*"], "kind": "query", "category": "database", "payload": [{ "argument": 1, "role": "sql" }] },
+    { "id": "database.ef-raw-query", "assembly": "Microsoft.EntityFrameworkCore.Relational", "type": "Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions",
+      "members": ["SqlQuery*"], "kind": "query", "category": "database", "payload": [{ "argument": 1, "role": "sql" }] },
     { "id": "database.dataadapter", "assembly": "System.Data.Common", "type": "System.Data.Common.DbDataAdapter",
       "members": ["Fill", "Update"], "includeDerivedTypes": true, "kind": "sink", "category": "database" },
     { "id": "database.dbdatasource", "assembly": "System.Data.Common", "type": "System.Data.Common.DbDataSource",

@@ -148,4 +148,22 @@ let tests =
               let net8 = CatalogLoader.loadBuiltIn "net8.0"
               let rule = net8.Rules |> List.find (fun r -> r.Id = "logger.microsoft")
               Expect.equal rule.Dispatch (Some "Microsoft.Extensions.Logging.ILogger::Log") "dispatch"
+          }
+
+          test "a query rule names a type whose values are queries, or the calls that make one" {
+              let net8 = CatalogLoader.loadBuiltIn "net8.0"
+              let matcher = Matcher(net8, fun t -> Set.singleton t.FullName)
+
+              Expect.equal
+                  (matcher.QueryType "Microsoft.EntityFrameworkCore.DbSet`1" |> Option.map (fun r -> r.Id))
+                  (Some "database.ef-set-query")
+                  "a DbSet is a query"
+
+              Expect.isNone (matcher.QueryType "System.Collections.Generic.List`1") "a list is not"
+
+              let noCategory = """{ "name": "bad", "rules": [ { "id": "x", "type": "T", "members": ["*"], "kind": "query" } ] }"""
+
+              Expect.throwsC
+                  (fun () -> CatalogLoader.parse "bad" noCategory |> ignore)
+                  (fun e -> Expect.stringContains e.Message "need a category" "message")
           } ]

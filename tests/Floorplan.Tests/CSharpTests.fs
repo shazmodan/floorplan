@@ -137,10 +137,34 @@ let tests =
               for name in [ "Add"; "AddAsync"; "Purge"; "Rename"; "Archive"; "ListAsync"; "FindAsync" ] do
                   Expect.isSome (database name) $"{name} calls the database"
 
-              Expect.equal
-                  ((database "Purge").Value.Payload |> Option.bind (fun p -> p.Value))
-                  (Some "DELETE FROM Orders WHERE Id < 0")
-                  "raw SQL is the payload"
+              let sql (memberName: string) =
+                  (database memberName).Value.Payload |> Option.bind (fun p -> p.Value)
+
+              Expect.equal (sql "Purge") (Some "DELETE FROM Orders WHERE Id < 0") "raw SQL is the payload"
+              Expect.equal (sql "Rename") (Some "UPDATE Orders SET Name = {…} WHERE Id = {…}") "an interpolated one is a template"
+
+              // A query runs when it is enumerated: foreach, ToList, First, Count, through Where and AsNoTracking.
+              for name, primitive in
+                  [ "All", "System.Linq.Enumerable::ToList"
+                    "Count", "System.Linq.Queryable::Count"
+                    "Named", "System.Linq.Queryable::FirstOrDefault"
+                    "Names", "System.Collections.Generic.IEnumerable`1::GetEnumerator"
+                    "Raw", "System.Linq.Enumerable::ToList"
+                    "Ids", "System.Linq.Enumerable::ToList" ] do
+                  Expect.equal ((database name) |> Option.map (fun x -> x.Primitive)) (Some primitive) $"{name} runs a query"
+
+              Expect.isTrue
+                  (ordering
+                   |> List.exists (fun x ->
+                       x.Member = "CSharp.Effects.Ordering.OrderStore/<Stream>d__13::MoveNext"
+                       && x.Primitive = "System.Collections.Generic.IAsyncEnumerable`1::GetAsyncEnumerator"))
+                  "await foreach runs a query"
+
+              Expect.isNone (database "Local") "LINQ over a list is not a query"
+
+              Expect.equal (sql "Raw") (Some "SELECT * FROM Orders") "FromSqlRaw's SQL, where the query runs"
+              Expect.equal (sql "Ids") (Some "SELECT Id FROM Orders") "SqlQueryRaw's SQL"
+              Expect.equal (sql "RawAsync") (Some "SELECT * FROM Orders WHERE Id = {…}") "FromSql's, run by ToListAsync"
 
               // EF logs through Microsoft.Extensions.Logging, which reaches the application's Serilog sinks: that is the
               // logging configuration's effect, not EF's.

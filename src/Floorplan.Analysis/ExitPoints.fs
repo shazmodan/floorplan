@@ -99,6 +99,12 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
     let diagnostics = ResizeArray<Diagnostic>()
     let projectId = ctx.Project.ProjectId
 
+    // The SQL a query runs, when the call that made it has it (FromSqlRaw's argument).
+    let queryPayload (flow: DataFlow.Flow) (q: Queries.QueryOrigin) =
+        match q.Maker, q.Rule.Payload with
+        | Some(offset, maker), spec :: _ -> Some((evaluatorOf flow).Payload(offset, Values.operandIndex maker false spec.Argument, spec.Role))
+        | _ -> None
+
     // What a logger's sinks do is the same at every log call: one exit point per unit and effect, listing the calls.
     let logGroups = Dictionary<string * EffectCategory * string * string * Payload option * string, LogGroup>()
 
@@ -251,10 +257,39 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                             true
                         | None -> false
 
+                    // A call that enumerates a query runs it on the database (Entity Framework Core's DbSet<T>).
+                    let ran =
+                        if isLogCall then
+                            None
+                        else
+                            flow.Value
+                            |> Option.bind (fun f -> Queries.enumerated ctx.Matcher f m ins.Offset declared isNewObj |> Option.map (fun q -> f, q))
+
+                    match ran with
+                    | Some(f, q) ->
+                        add
+                            q.Rule.Category.Value
+                            q.Rule.Id
+                            declared.Display
+                            None
+                            (queryPayload f q)
+                            Confidence.High
+                            [ step $"{m.Ref.Display} calls {declared.Display}" m.Ref point
+                              step $"{declared.Display} enumerates a query, from {q.Description}, which runs it on the database (rule {q.Rule.Id})" declared None ]
+                    | None -> ()
+
                     for edge in edges |> List.filter (fun _ -> not dispatched) do
                         match sinkOf ctx.Set ctx.Matcher edge with
                         | Some hit ->
-                            // A direct call to a primitive.
+                            // A direct call to a primitive. Without a payload of its own, a call that runs a query
+                            // (ToListAsync) shows the SQL the query was made from.
+                            let ofQuery () =
+                                flow.Value
+                                |> Option.bind (fun f ->
+                                    Queries.ofFirstOperand ctx.Matcher f m ins.Offset
+                                    |> Option.filter (fun q -> q.Rule.Category = Some hit.Category)
+                                    |> Option.bind (queryPayload f))
+
                             let payload =
                                 hit.Rule.Payload
                                 |> List.tryHead
@@ -271,6 +306,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                             evaluator.PropertyPayload(ins.Offset, property, spec.ConstructorArgument, spec.Role)
                                         | Some _ -> Values.Evaluator.ToPayload(Values.Hole, spec.Role)
                                         | None -> evaluator.Payload(ins.Offset, Values.operandIndex declared isNewObj spec.Argument, spec.Role)))
+                                |> Option.orElseWith (fun () -> if hit.Rule.Payload.IsEmpty then ofQuery () else None)
 
                             add
                                 hit.Category
