@@ -108,10 +108,13 @@ Also new, outside the recognizer:
   enumerates a query runs it: `foreach` and `await foreach` (`GetEnumerator`, `GetAsyncEnumerator`), a LINQ call
   that returns something other than a sequence (`ToList()`, `First()`, `Count()`), or a collection made from it.
   The query is followed back through the calls that build on it unrun (`Where`, `OrderBy`, `Include`,
-  `AsNoTracking`) to a `DbSet` value (a property, a field, a parameter, `Set<T>()`) or a `FromSql*` call, within
-  one method: a query returned from another method (a repository's `IQueryable<T>`) is not seen. A call that
-  runs a query and has no payload of its own (`ToListAsync`) shows the SQL of the `FromSql*` it was made from.
-  Fixture: `CSharp.Effects/EntityFramework.cs`.
+  `AsNoTracking`) to a `DbSet` value (a property, a field, a parameter, `Set<T>()`) or a `FromSql*` call, and
+  into the methods called on the way that return a sequence (a repository's `IQueryable<T> All() => db.Orders`,
+  directly or through an interface, an extension method that adds a `Where`), up to four calls deep, with their
+  parameters standing for what each call passes. A call that runs a query and has no payload of its own
+  (`ToListAsync`) shows the SQL of the `FromSql*` it was made from, worked out at the calls that returned it.
+  A query passed into a method and enumerated there is not seen, nor one enumerated inside a dependency.
+  Fixture: `CSharp.Effects/EntityFramework.cs` (`CSharp.Effects.Reporting` for queries across methods).
 - **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
   built assembly (a dependency, like a package), with the application's handlers passed as method groups in a
   record. Same routes as the F# `Routing.Delegated`.

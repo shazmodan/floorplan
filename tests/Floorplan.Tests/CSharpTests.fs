@@ -212,6 +212,30 @@ let tests =
                   "no sink effects from EF's own log calls"
           }
 
+          test "Entity Framework Core: a query returned from another method runs where it is enumerated" {
+              let m = csharpModel.Force()
+
+              let database (memberName: string) =
+                  m.ExitPoints
+                  |> List.tryFind (fun x ->
+                      x.Member = $"CSharp.Effects.Reporting.OrderReports::{memberName}" && x.Category = EffectCategory.Database)
+
+              for name in [ "All"; "Count"; "Named"; "Cancelled" ] do
+                  Expect.isSome (database name) $"{name} runs a query a repository returns"
+
+              Expect.isNone (database "Local") "a list made into a queryable is not a query"
+
+              Expect.equal
+                  ((database "Cancelled").Value.Payload |> Option.bind (fun p -> p.Value))
+                  (Some "SELECT * FROM Orders WHERE Cancelled = 1")
+                  "the SQL the caller passes to the repository's FromSqlRaw"
+
+              Expect.exists
+                  (database "Count").Value.Evidence.Steps
+                  (fun s -> s.Description.Contains "returned by CSharp.Effects.Reporting.OrderRepository::All")
+                  "through the interface, the implementation that returns the query"
+          }
+
           test "effects in C#: every category, behind lambdas, interfaces, a container, async methods and iterators" {
               let m = csharpModel.Force()
 
