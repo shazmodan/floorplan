@@ -205,6 +205,26 @@ let tests =
                   "routes (GitHub issue 3: an override of Controller.OnActionExecuting is not an action)"
           }
 
+          test "a conventional route alone also maps attribute routes, and does not reach them" {
+              let m = csharpModel.Force()
+
+              let routes =
+                  entries m "CSharp.Conventional"
+                  |> List.map (fun e -> defaultArg e.HttpMethod "*", defaultArg e.Route "-", e.HandlerMember.Split("::")[1])
+                  |> List.sort
+
+              // As the application serves them (checked with requests): /Route/Main is a 404.
+              Expect.equal
+                  routes
+                  [ "*", "/", "Main"
+                    "*", "/Apa", "A01"
+                    "*", "/Bepa", "A02"
+                    "*", "/Home/Index/{id?}", "Index"
+                    "GET", "/r/Derpa", "A15"
+                    "POST", "/Herpa", "A04" ]
+                  "routes"
+          }
+
           test "ViewBag in controllers and Razor views is not a blind spot; other dynamic values are" {
               let m = csharpModel.Force()
 

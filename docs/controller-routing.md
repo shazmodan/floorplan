@@ -25,7 +25,8 @@ How MVC's rules are followed:
   inheritance, an override of a `[NonAction]` method is not an action either (`OnActionExecuting` and the other
   filter methods of `Controller`), nor is an override of an `object` method, or `Dispose()`. `[ActionName]` renames an action for
   routing and for the `[action]` token.
-- **Attribute routes** (with `MapControllers`) combine the controller's `[Route]`, its own or inherited from a
+- **Attribute routes** (mapped by `MapControllers`, and by the conventional mappings too: `MapControllerRoute`
+  creates the same endpoints, `tests/fixtures/CSharp/CSharp.Conventional`) combine the controller's `[Route]`, its own or inherited from a
   base controller, with the action's template; an action template starting with `/` or `~/` stands alone.
   `[controller]`, `[action]` and `[area]` are replaced by the controller name (without `Controller`), the method
   name and the controller's `[Area]`. Each verb attribute gives its own entry, so an action with `[HttpGet]` and

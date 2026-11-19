@@ -526,8 +526,11 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
     if mapping.IsEmpty then
         []
     else
-        let attributeMapping = mapping |> List.tryFind (fun r -> hasRole "controllers" r.Rule)
-        let attributeRouting = attributeMapping.IsSome
+        // Any controller mapping maps the attribute routes: MapControllerRoute and the other conventional mappings
+        // create the same endpoint data source as MapControllers, which has an endpoint for every attribute routed
+        // action. MapControllers is preferred as the evidence when there is one.
+        let mapControllers = mapping |> List.tryFind (fun r -> hasRole "controllers" r.Rule)
+        let attributeMapping = mapControllers |> Option.orElse (List.tryHead mapping)
         let pointOf (r: PlatformRouting.Registration) = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
 
         let operandText (r: PlatformRouting.Registration) (role: string) =
@@ -845,7 +848,7 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
 
                 // (method, route, how it was routed, the registration that maps it)
                 let routes =
-                    if routed && attributeRouting then
+                    if routed then
                         // Every (methods, action template) the attributes declare; no verb attribute means any method.
                         let declared =
                             match actionVerbs with
@@ -864,9 +867,6 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                         |> List.distinct
                         |> List.collect (fun (methods, route) ->
                             methodsOf methods |> List.map (fun m -> m, route, "its routing attributes", attributeMapping.Value))
-                    elif routed then
-                        // Attribute routes without MapControllers: MVC does not map them.
-                        []
                     else
                         let methods = actionVerbs |> List.collect fst |> List.distinct
 
@@ -891,7 +891,7 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                                 | None, _ -> [ None, "a conventional route whose pattern is not a constant", r ])
                             |> List.distinctBy (fun (route, _, _) -> route)
 
-                        match byConvention, attributeMapping with
+                        match byConvention, mapControllers with
                         | [], Some r -> methodsOf methods |> List.map (fun m -> m, None, "no route: it has no routing attributes and no conventional route reaches it", r)
                         | [], None -> []
                         | rs, _ -> rs |> List.collect (fun (route, how, r) -> methodsOf methods |> List.map (fun m -> m, route, how, r))
