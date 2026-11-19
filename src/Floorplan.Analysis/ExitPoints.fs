@@ -175,11 +175,44 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                         | _ -> None)
             | [] -> None
 
-    // The SQL a query runs, when the call that made it has it (FromSqlRaw's argument).
-    let queryPayload (flow: DataFlow.Flow) (q: Queries.QueryOrigin) =
+    // The SQL a query runs, when the call that made it has it (FromSqlRaw's argument): in the method that made it,
+    // then at each call that returned the query, for what was a parameter there.
+    let queryPayload (q: Queries.QueryOrigin) =
         match q.Maker, q.Rule.Payload with
-        | Some(offset, maker), spec :: _ -> Some((evaluatorOf flow).Payload(offset, Values.operandIndex maker false spec.Argument, spec.Role))
+        | Some(flow, offset, maker), spec :: _ ->
+            let made = (evaluatorOf flow).Operand(offset, Values.operandIndex maker false spec.Argument)
+
+            let value =
+                q.Calls
+                |> List.fold (fun v (caller, call) -> (evaluatorOf caller).Resolve(Values.Origin.ofSymbolic v, call, false)) made
+
+            Some(Values.Evaluator.ToPayload(value, spec.Role))
         | _ -> None
+
+    // Following a query into the methods that return it: bodies outside the shared framework, read once.
+    let bodies = Dictionary<string, (MethodDef * DataFlow.Flow) option>()
+
+    let queries: Queries.Context =
+        { Matcher = ctx.Matcher
+          Body =
+            fun m ->
+                match bodies.TryGetValue m.Key with
+                | true, b -> b
+                | _ ->
+                    let b =
+                        match ctx.Set.Origin m.Type.Assembly with
+                        | Framework -> None
+                        | _ ->
+                            ctx.Set.TryMethod m
+                            |> Option.bind (fun (def, _) -> DataFlow.ofMethod def |> Option.map (fun f -> def, f))
+
+                    bodies[m.Key] <- b
+                    b
+          Targets =
+            fun caller offset ->
+                ctx.Graph.Callees caller
+                |> List.filter (fun e -> e.Offset = offset && (e.Kind = Direct || e.Kind = Virtual))
+                |> List.map (fun e -> e.Target) }
 
     // What a logger's sinks do is the same at every log call: one exit point per unit and effect, listing the calls.
     let logGroups = Dictionary<string * EffectCategory * string * string * Payload option * string, LogGroup>()
@@ -362,16 +395,16 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                             None
                         else
                             flow.Value
-                            |> Option.bind (fun f -> Queries.enumerated ctx.Matcher f m ins.Offset declared isNewObj |> Option.map (fun q -> f, q))
+                            |> Option.bind (fun f -> Queries.enumerated queries f m ins.Offset declared isNewObj)
 
                     match ran with
-                    | Some(f, q) ->
+                    | Some q ->
                         add
                             q.Rule.Category.Value
                             q.Rule.Id
                             declared.Display
                             None
-                            (queryPayload f q)
+                            (queryPayload q)
                             Confidence.High
                             [ step $"{m.Ref.Display} calls {declared.Display}" m.Ref point
                               step $"{declared.Display} enumerates a query, from {q.Description}, which runs it on the database (rule {q.Rule.Id})" declared None ]
@@ -385,9 +418,9 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                             let ofQuery () =
                                 flow.Value
                                 |> Option.bind (fun f ->
-                                    Queries.ofFirstOperand ctx.Matcher f m ins.Offset
+                                    Queries.ofFirstOperand queries f m ins.Offset
                                     |> Option.filter (fun q -> q.Rule.Category = Some hit.Category)
-                                    |> Option.bind (queryPayload f))
+                                    |> Option.bind queryPayload)
 
                             let payload =
                                 hit.Rule.Payload

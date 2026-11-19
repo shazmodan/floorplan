@@ -76,3 +76,42 @@ namespace CSharp.Effects.Ordering
         public List<Order> Local(List<Order> orders) => orders.Where(o => o.Id > 0).ToList();
     }
 }
+
+// Queries made in one method and run in another: a repository returns them, an extension method builds on them.
+namespace CSharp.Effects.Reporting
+{
+    using CSharp.Effects.Ordering;
+
+    public interface IOrders
+    {
+        IQueryable<Order> All();
+    }
+
+    public class OrderRepository(ShopContext db) : IOrders
+    {
+        public IQueryable<Order> All() => db.Orders;
+
+        public IQueryable<Order> Matching(string sql) => db.Orders.FromSqlRaw(sql);
+
+        public static IOrders Create(ShopContext db) => new OrderRepository(db);
+    }
+
+    public static class OrderQueries
+    {
+        public static IQueryable<Order> Named(this IQueryable<Order> orders, string name) => orders.Where(o => o.Name == name);
+    }
+
+    public class OrderReports(OrderRepository repository, IOrders orders)
+    {
+        public List<Order> All() => repository.All().ToList();
+
+        public int Count() => orders.All().Count();
+
+        public Order? Named(string name) => repository.All().Named(name).FirstOrDefault();
+
+        public List<Order> Cancelled() => repository.Matching("SELECT * FROM Orders WHERE Cancelled = 1").ToList();
+
+        // A list made into a queryable is not a query.
+        public List<Order> Local(List<Order> list) => list.AsQueryable().Named("x").ToList();
+    }
+}
