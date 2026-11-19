@@ -33,3 +33,6 @@ paket-files/
 Thumbs.db
 .DS_Store
 *.actual
+
+# Local projects to try Floorplan on
+/demo_project/
