@@ -69,6 +69,9 @@ type Matcher(catalog: Catalog, supertypes: TypeRef -> Set<string>) =
     member this.BlindSpot(m: MethodRef) =
         this.Match m |> List.tryFind (fun r -> r.Kind = BlindSpot)
 
+    member this.Logger(m: MethodRef) =
+        this.Match m |> List.tryFind (fun r -> r.Kind = Logger)
+
     member this.Comparison(m: MethodRef) =
         this.Match m |> List.tryFind (fun r -> r.Kind = RuleKind.Comparison)
 

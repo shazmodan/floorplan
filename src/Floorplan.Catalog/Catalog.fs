@@ -21,6 +21,9 @@ type RuleKind =
     | Metadata
     /// A static field of the platform with a known value, e.g. HttpMethods.Get = "GET" (ComparesTo holds it).
     | Constant
+    /// A log call, e.g. Serilog's ILogger.Information. What the logger's sinks do is the logging configuration's
+    /// effect, the same at every call: it is reported once for each unit that logs, not at every call.
+    | Logger
 
 /// Which argument of a matched call carries something worth showing: a URL, SQL text, a path, a route template,
 /// a handler. Argument 0 is the first declared parameter; for instance methods `this` is not counted.

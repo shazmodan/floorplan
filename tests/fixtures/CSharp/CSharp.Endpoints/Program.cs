@@ -9,6 +9,8 @@ app.MapPost("/api/orders", Api.CreateOrder);
 app.MapDelete("/api/orders/{id:int}", async (int id) => await Api.DeleteOrderAsync(id));
 app.MapMethods("/health", new[] { "GET", "HEAD" }, () => "ok");
 
+app.MapPost("/api/audit", CSharp.Endpoints.Auditing.Audit.Cancelled);
+
 Admin.Map(app.MapGroup("/admin"));
 app.MapGet(Environment.GetEnvironmentVariable("STATUS_PREFIX") + "/status", () => "up");
 

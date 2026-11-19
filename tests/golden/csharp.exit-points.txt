@@ -51,10 +51,29 @@ database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::QueryPage | S
 nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::QueryPage | System.Guid::NewGuid | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:49
 http-out | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.Net.Http.HttpClient::SendAsync | via Flurl.Http | dynamic:- | CSharp/CSharp.Effects/Wrapped.cs:58
 nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::FetchUsers | System.DateTime::get_UtcNow | via Flurl.Http | - | CSharp/CSharp.Effects/Wrapped.cs:58
-environment | CSharp.Endpoints: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via - | literal:STATUS_PREFIX | CSharp/CSharp.Endpoints/Program.cs:13
+environment | CSharp.Effects:CSharp.Effects.Billing | CSharp.Effects.Billing.Invoices::Send | System.Console::get_Out | via Serilog | - | CSharp/CSharp.Effects/Logging.cs:32
+filesystem-read | CSharp.Effects:CSharp.Effects.Billing | CSharp.Effects.Billing.Invoices::Send | System.IO.Directory::Exists | via Serilog | dynamic:- | CSharp/CSharp.Effects/Logging.cs:32
+filesystem-write | CSharp.Effects:CSharp.Effects.Billing | CSharp.Effects.Billing.Invoices::Send | System.IO.File::Delete | via Serilog | template:{…}/{…} | CSharp/CSharp.Effects/Logging.cs:32
+nondeterminism | CSharp.Effects:CSharp.Effects.Billing | CSharp.Effects.Billing.Invoices::Send | System.DateTimeOffset::get_Now | via Serilog | - | CSharp/CSharp.Effects/Logging.cs:32
+filesystem-read | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Setup::Create | System.IO.Directory::Exists | via Serilog.Sinks.File | dynamic:- | CSharp/CSharp.Effects/Logging.cs:11
+filesystem-write | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Setup::Create | System.IO.File::Open | via Serilog.Sinks.File | literal:logs/app.log | CSharp/CSharp.Effects/Logging.cs:11
+nondeterminism | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Setup::Create | System.DateTime::get_UtcNow | via Serilog.Sinks.File | - | CSharp/CSharp.Effects/Logging.cs:11
+nondeterminism | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Setup::Create | System.DateTime::get_UtcNow | via Serilog.Sinks.Console | - | CSharp/CSharp.Effects/Logging.cs:11
+environment | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Orders::Place | System.Console::get_Out | via Serilog | - | CSharp/CSharp.Effects/Logging.cs:18
+filesystem-read | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Orders::Place | System.IO.Directory::Exists | via Serilog | dynamic:- | CSharp/CSharp.Effects/Logging.cs:18
+filesystem-write | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Orders::Place | System.IO.File::Delete | via Serilog | template:{…}/{…} | CSharp/CSharp.Effects/Logging.cs:18
+nondeterminism | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Orders::Place | System.DateTimeOffset::get_Now | via Serilog | - | CSharp/CSharp.Effects/Logging.cs:18
+environment | CSharp.Endpoints: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via - | literal:STATUS_PREFIX | CSharp/CSharp.Endpoints/Program.cs:15
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::GetOrder | System.IO.File::ReadAllText | via - | template:orders/{…}.json | CSharp/CSharp.Endpoints/Api.cs:8
 nondeterminism | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::CreateOrder | System.Guid::NewGuid | via - | - | CSharp/CSharp.Endpoints/Api.cs:12
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::CreateOrder | System.IO.File::WriteAllText | via - | template:orders/{…}.json | CSharp/CSharp.Endpoints/Api.cs:12
+filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::.cctor | System.IO.Directory::Exists | via Serilog.Sinks.File | dynamic:- | CSharp/CSharp.Endpoints/Audit.cs:9
+filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::.cctor | System.IO.File::Open | via Serilog.Sinks.File | literal:logs/audit.log | CSharp/CSharp.Endpoints/Audit.cs:9
+nondeterminism | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::.cctor | System.DateTime::get_UtcNow | via Serilog.Sinks.File | - | CSharp/CSharp.Endpoints/Audit.cs:9
+environment | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.Console::get_Out | via Serilog | - | CSharp/CSharp.Endpoints/Audit.cs:11
+filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.IO.Directory::Exists | via Serilog | dynamic:- | CSharp/CSharp.Endpoints/Audit.cs:11
+filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.IO.File::Delete | via Serilog | template:{…}/{…} | CSharp/CSharp.Endpoints/Audit.cs:11
+nondeterminism | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.DateTimeOffset::get_Now | via Serilog | - | CSharp/CSharp.Endpoints/Audit.cs:11
 -- diagnostics
 blind-spot.dynamic | CSharp.Controllers.PagesController::Describe calls Microsoft.CSharp.RuntimeBinder.Binder::Convert (dynamic). What happens behind it is not analyzed.
 blind-spot.dynamic | CSharp.Controllers.PagesController::Describe calls Microsoft.CSharp.RuntimeBinder.Binder::GetMember (dynamic). What happens behind it is not analyzed.

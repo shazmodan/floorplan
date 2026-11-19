@@ -4,10 +4,6 @@ Work that is known and not yet done. Remove an item when its branch is merged.
 
 ## Next
 
-- **Logging noise.** On a real C# solution every Serilog call reports the file sink's file reads and writes,
-  the console and the clock (`docs/phase-2-review.md`), over half of what the site shows. Proposal: report effects
-  reached through a logging library's logger (Serilog's `ILogger`, `Microsoft.Extensions.Logging.ILogger`) once
-  per sink, as configuration of the application, instead of at every log call.
 - **EF Core writes are not seen.** `DbContext.SaveChanges*` reaches no primitive (EF runs commands through its
   own service container). A catalog rule for it is one case of the catalog-rule fallback below.
 

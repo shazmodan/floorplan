@@ -394,6 +394,14 @@
     { "id": "blind-spot.expression-compile", "type": "System.Linq.Expressions.LambdaExpression", "members": ["Compile"], "includeDerivedTypes": true,
       "kind": "blind-spot", "blindSpot": "code generation" },
     { "id": "blind-spot.delegate-dynamic-invoke", "type": "System.Delegate", "members": ["DynamicInvoke"], "kind": "blind-spot", "blindSpot": "reflection" },
-    { "id": "blind-spot.dynamic", "type": "Microsoft.CSharp.RuntimeBinder.Binder", "members": ["*"], "kind": "blind-spot", "blindSpot": "dynamic" }
+    { "id": "blind-spot.dynamic", "type": "Microsoft.CSharp.RuntimeBinder.Binder", "members": ["*"], "kind": "blind-spot", "blindSpot": "dynamic" },
+
+    // ---------------- logging ----------------
+    // Log calls. These name logging libraries, not the platform: a log call reaches every sink the logger is
+    // configured with, so its effects belong to the configuration, and are reported once per unit that logs.
+    { "id": "logger.serilog", "assembly": "Serilog", "type": "Serilog.ILogger",
+      "members": ["Write", "Verbose", "Debug", "Information", "Warning", "Error", "Fatal"], "includeDerivedTypes": true, "kind": "logger" },
+    { "id": "logger.serilog-static", "assembly": "Serilog", "type": "Serilog.Log",
+      "members": ["Write", "Verbose", "Debug", "Information", "Warning", "Error", "Fatal"], "kind": "logger" }
   ]
 }
