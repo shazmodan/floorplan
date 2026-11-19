@@ -124,6 +124,35 @@ let tests =
                   "also where the logging library is part of the shared framework"
           }
 
+          test "Entity Framework Core: saving, raw SQL, bulk deletes and the calls that run a query reach the database" {
+              let m = csharpModel.Force()
+
+              let ordering =
+                  m.ExitPoints |> List.filter (fun x -> x.Unit = "CSharp.Effects:CSharp.Effects.Ordering")
+
+              let database (memberName: string) =
+                  ordering
+                  |> List.tryFind (fun x -> x.Member = $"CSharp.Effects.Ordering.OrderStore::{memberName}" && x.Category = EffectCategory.Database)
+
+              for name in [ "Add"; "AddAsync"; "Purge"; "Rename"; "Archive"; "ListAsync"; "FindAsync" ] do
+                  Expect.isSome (database name) $"{name} calls the database"
+
+              Expect.equal
+                  ((database "Purge").Value.Payload |> Option.bind (fun p -> p.Value))
+                  (Some "DELETE FROM Orders WHERE Id < 0")
+                  "raw SQL is the payload"
+
+              // EF logs through Microsoft.Extensions.Logging, which reaches the application's Serilog sinks: that is the
+              // logging configuration's effect, not EF's.
+              Expect.isEmpty
+                  (ordering
+                   |> List.filter (fun x ->
+                       x.Category = EffectCategory.FilesystemWrite
+                       || x.Category = EffectCategory.FilesystemRead
+                       || x.Category = EffectCategory.Environment))
+                  "no sink effects from EF's own log calls"
+          }
+
           test "effects in C#: every category, behind lambdas, interfaces, a container, async methods and iterators" {
               let m = csharpModel.Force()
 

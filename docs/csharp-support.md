@@ -91,7 +91,16 @@ Also new, outside the recognizer:
   constructs the logger. Only Serilog's provider is tested: fixtures `CSharp.Effects/MicrosoftLogging.cs` (a
   console app with a container) and `CSharp.Endpoints/Shipping.cs` (ASP.NET Core). The source-generated
   `[LoggerMessage]` methods and `LoggerMessage.Define` call `ILogger.Log` from a delegate the framework makes,
-  and are not yet recognized as log calls.
+  and are not yet recognized as log calls. A dependency's own log calls through `Microsoft.Extensions.Logging`
+  (Entity Framework Core logs every save) are not followed for effects, as where the library is part of the
+  shared framework: what the sinks do belongs to the logging configuration, and shows at the application's log
+  calls.
+- **Entity Framework Core** runs its commands through its own service container, which the call graph does not
+  follow, so the catalog names its calls to the database directly (`database.ef-*`, the first sink rules on a
+  library rather than the platform): `SaveChanges`, `Find`, `ExecuteSql*` (with the SQL of `ExecuteSqlRaw` as
+  the payload; an interpolated one stays dynamic), `ExecuteDelete`/`ExecuteUpdate`, and the async calls that run
+  a query (`ToListAsync`, `FirstOrDefaultAsync`, ...). A query run by enumerating it (`foreach`, `ToList()`) is
+  not seen. Fixture: `CSharp.Effects/EntityFramework.cs`.
 - **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
   built assembly (a dependency, like a package), with the application's handlers passed as method groups in a
   record. Same routes as the F# `Routing.Delegated`.
