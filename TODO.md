@@ -6,6 +6,12 @@ Work that is known and not yet done. Remove an item when its branch is merged.
 
 - **EF Core writes are not seen.** `DbContext.SaveChanges*` reaches no primitive (EF runs commands through its
   own service container). A catalog rule for it is one case of the catalog-rule fallback below.
+- **Log calls through `Microsoft.Extensions.Logging` are not grouped.** Only Serilog has `logger` rules
+  (`net8.0.json`). In the `CSharp.Effects` fixture a `LogInformation` call with Serilog as the provider reached no
+  sink, so there was nothing to group and no rule could be tested; find why that path is not followed, then add the
+  rule. NLog and log4net have no rules either.
+- **Serilog's `ForContext` reaches the clock.** On mmddd, 9 `ForContext` calls (which create a logger, not log) are
+  still one nondeterminism exit point each. Hidden by default; low priority.
 
 ## Later, if wanted (from docs/library-payloads-plan.md)
 
