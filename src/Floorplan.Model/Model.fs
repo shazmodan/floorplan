@@ -78,6 +78,8 @@ type EffectCategory =
     | Native
     | Environment
     | Nondeterminism
+    /// Inbound only: work the host starts by itself, not on a request (a hosted service).
+    | Background
 
 /// One step of the evidence behind a result: a call, a comparison or a lookup.
 type EvidenceStep =
@@ -312,7 +314,8 @@ module EffectCategory =
           EffectCategory.Process
           EffectCategory.Native
           EffectCategory.Environment
-          EffectCategory.Nondeterminism ]
+          EffectCategory.Nondeterminism
+          EffectCategory.Background ]
 
     /// The catalog's spelling, e.g. "filesystem-read".
     let name =
@@ -327,6 +330,7 @@ module EffectCategory =
         | EffectCategory.Native -> "native"
         | EffectCategory.Environment -> "environment"
         | EffectCategory.Nondeterminism -> "nondeterminism"
+        | EffectCategory.Background -> "background"
 
     let tryParse (text: string) = all |> List.tryFind (fun c -> name c = text)
 

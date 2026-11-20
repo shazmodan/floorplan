@@ -7,4 +7,5 @@
   <Project Path="CSharp.Middleware/CSharp.Middleware.csproj" />
   <Project Path="CSharp.Switch/CSharp.Switch.csproj" />
   <Project Path="CSharp.Table/CSharp.Table.csproj" />
+  <Project Path="CSharp.Worker/CSharp.Worker.csproj" />
 </Solution>
