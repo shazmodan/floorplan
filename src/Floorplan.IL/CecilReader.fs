@@ -315,12 +315,13 @@ let private readBody (asm: string) (method: MethodDefinition) : Floorplan.IL.Met
 let private hasAttribute (name: string) (attributes: Mono.Collections.Generic.Collection<CustomAttribute>) =
     attributes |> Seq.exists (fun a -> a.AttributeType.Name = name)
 
-let rec private attributeValue (v: obj) : AttributeValue =
+let rec private attributeValue (asm: string) (v: obj) : AttributeValue =
     match v with
     | :? string as s -> AttributeValue.Text s
     | :? bool as b -> AttributeValue.Flag b
-    | :? CustomAttributeArgument as a -> attributeValue a.Value
-    | :? (CustomAttributeArgument[]) as items -> AttributeValue.Many(items |> Array.map (fun a -> attributeValue a.Value) |> Array.toList)
+    | :? CustomAttributeArgument as a -> attributeValue asm a.Value
+    | :? (CustomAttributeArgument[]) as items -> AttributeValue.Many(items |> Array.map (fun a -> attributeValue asm a.Value) |> Array.toList)
+    | :? TypeReference as t -> AttributeValue.TypeOf(typeRef asm t)
     | null -> AttributeValue.Other
     | :? int as n -> AttributeValue.Number(int64 n)
     | :? int64 as n -> AttributeValue.Number n
@@ -338,10 +339,10 @@ let private readAttributes (asm: string) (attributes: Mono.Collections.Generic.C
             try
                 Some
                     { Type = t
-                      Arguments = a.ConstructorArguments |> Seq.map (fun x -> attributeValue x.Value) |> Seq.toList
+                      Arguments = a.ConstructorArguments |> Seq.map (fun x -> attributeValue asm x.Value) |> Seq.toList
                       Named =
                         Seq.append a.Properties a.Fields
-                        |> Seq.map (fun n -> n.Name, attributeValue n.Argument.Value)
+                        |> Seq.map (fun n -> n.Name, attributeValue asm n.Argument.Value)
                         |> Seq.toList }
             with _ ->
                 // A blob that cannot be read (an enum argument whose type is in an assembly that is not there, as

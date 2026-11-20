@@ -1141,3 +1141,188 @@ let backgroundEntries (ctx: AppContext) : EntryPoint list =
                         { Steps =
                             [ step $"{r.Caller.Ref.Display} registers hosted service {service.FullName} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
                               step $"The host calls {declared.Ref.Display}, which {handler.Display} implements (rule {rule.Id})" handler point ] } })))
+
+// ---- gRPC services ----
+
+/// The value a static field is given by its type's static constructor: what the constructor stores in it.
+let private staticInit (set: AssemblySet) (f: FieldRef) : (Flow * Values) option =
+    match set.TryType f.Type with
+    | Some(t, _) ->
+        t.Methods
+        |> List.tryFind (fun m -> m.IsConstructor && m.IsStatic)
+        |> Option.bind DataFlow.ofMethod
+        |> Option.bind (fun flow ->
+            flow.Body.Instructions
+            |> Array.tryPick (fun ins ->
+                match ins.Op with
+                | StSFld g when g.Key = f.Key -> flow.OperandsAt ins.Offset |> List.tryLast |> Option.map (fun v -> flow, v)
+                | _ -> None))
+    | None -> None
+
+/// The string the values are: a constant, or a static field its static constructor sets to one.
+let rec private constantText (set: AssemblySet) (flow: Flow) (depth: int) (values: Values) : string option =
+    match Set.toList values with
+    | [ Pushed o ] ->
+        match flow.InstructionAt o with
+        | Some { Op = LdStr s } -> Some s
+        | Some { Op = LdSFld f } when depth < 4 -> staticInit set f |> Option.bind (fun (fl, v) -> constantText set fl (depth + 1) v)
+        | _ -> None
+    | _ -> None
+
+/// The methods a delegate among the values is made from (`new UnaryServerMethod(impl.SayHello)`).
+let private delegateTargets (flow: Flow) (values: Values) : MethodRef list =
+    values
+    |> Set.toList
+    |> List.choose (function
+        | Pushed o ->
+            match flow.InstructionAt o with
+            | Some { Op = NewObj _ } ->
+                match flow.OperandsAt o with
+                | [ _; fn ] ->
+                    fn
+                    |> Set.toList
+                    |> List.tryPick (function
+                        | Pushed f ->
+                            match flow.InstructionAt f with
+                            | Some { Op = (LdFtn m | LdVirtFtn m) } -> Some m
+                            | _ -> None
+                        | _ -> None)
+                | _ -> None
+            | _ -> None
+        | _ -> None)
+
+/// gRPC services mapped by a registration whose rule has a "grpc-service-type" payload (MapGrpcService<T>()).
+/// The library binds a service by reflection: an attribute on the service's generated base class names the type
+/// and the static method that binds it (`[BindServiceMethod(typeof(Greeter), "BindService")]`), and that method, in
+/// the application's own assembly, adds each method with a descriptor made in its type's static constructor from
+/// the service's and the method's names, and a delegate to the base class's method. Each method the service
+/// overrides is an entry point at `POST /{service}/{method}`.
+let grpcEntries (ctx: AppContext) : EntryPoint list =
+    let set = ctx.Program.Set
+    let rules = ctx.Matcher.Catalog.Rules
+
+    let specOf (role: string) =
+        rules
+        |> List.tryPick (fun r -> r.Payload |> List.tryFind (fun p -> p.Role = role) |> Option.map (fun p -> r, p))
+
+    let generic (name: string) =
+        match name.IndexOf '<' with
+        | -1 -> name
+        | i -> name.Substring(0, i)
+
+    // The static methods that bind a service (overloads for each binder), from the attribute on a class it derives
+    // from, and that class.
+    let bindMethods (service: TypeRef) =
+        match specOf "grpc-bind-type", specOf "grpc-bind-method" with
+        | Some(rule, typeSpec), Some(_, methodSpec) ->
+            (service :: set.BaseChain service)
+            |> List.tryPick (fun t ->
+                set.TryType t
+                |> Option.bind (fun (def, _) ->
+                    def.Attributes
+                    |> List.tryFind (fun a -> a.Type.FullName = rule.Type)
+                    |> Option.bind (fun a ->
+                        match List.tryItem typeSpec.Argument a.Arguments, List.tryItem methodSpec.Argument a.Arguments with
+                        | Some(AttributeValue.TypeOf bindType), Some(AttributeValue.Text name) ->
+                            set.TryType bindType
+                            |> Option.map (fun (bt, _) -> bt.Methods |> List.filter (fun m -> m.IsStatic && m.Ref.Name = name), t)
+                        | _ -> None)))
+        | _ -> None
+
+    match specOf "grpc-method-descriptor", specOf "grpc-handler", specOf "grpc-service-name", specOf "grpc-method-name" with
+    | Some(addRule, descriptorSpec), Some(_, handlerSpec), Some(descriptorRule, serviceNameSpec), Some(_, methodNameSpec) ->
+        PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
+        |> List.filter (fun r -> hasRole "grpc-service-type" r.Rule)
+        |> List.collect (fun r ->
+            let spec = r.Rule.Payload |> List.find (fun p -> p.Role = "grpc-service-type")
+            let registrationPoint = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
+
+            match List.tryItem spec.Argument r.Declared.TypeArguments |> Option.map (fun s -> s, bindMethods s) with
+            | Some(service, Some(binds, generatedBase)) ->
+                binds
+                |> List.collect (fun bind ->
+                    match DataFlow.ofMethod bind with
+                    | None -> []
+                    | Some flow ->
+                        flow.Body.Instructions
+                        |> Array.toList
+                        |> List.choose (fun ins ->
+                            match ins.Op with
+                            | Call added
+                            | CallVirt added when generic added.Type.FullName = addRule.Type && List.contains added.Name addRule.Members ->
+                                let operand (s: PayloadSpec) = List.tryItem (Values.operandIndex added false s.Argument) (flow.OperandsAt ins.Offset)
+
+                                // The descriptor: a static field made by the descriptor type's constructor.
+                                let names =
+                                    match operand descriptorSpec |> Option.map Set.toList with
+                                    | Some [ Pushed o ] ->
+                                        match flow.InstructionAt o with
+                                        | Some { Op = LdSFld f } ->
+                                            match staticInit set f with
+                                            | Some(cctor, made) ->
+                                                match Set.toList made with
+                                                | [ Pushed n ] ->
+                                                    match cctor.InstructionAt n with
+                                                    | Some { Op = NewObj ctor } when generic ctor.Type.FullName = descriptorRule.Type ->
+                                                        let args = cctor.OperandsAt n
+                                                        let text (s: PayloadSpec) = List.tryItem s.Argument args |> Option.bind (constantText set cctor 0)
+
+                                                        match text serviceNameSpec, text methodNameSpec with
+                                                        | Some s, Some m -> Some(s, m)
+                                                        | _ -> None
+                                                    | _ -> None
+                                                | _ -> None
+                                            | None -> None
+                                        | _ -> None
+                                    | _ -> None
+
+                                let handlers =
+                                    operand handlerSpec
+                                    |> Option.map (delegateTargets flow)
+                                    |> Option.defaultValue []
+                                    |> List.choose (fun m -> set.Implementation(service, m))
+                                    // Not overridden: the generated base class answers that the method is unimplemented.
+                                    |> List.filter (fun impl -> impl.Type.FullName <> generatedBase.FullName)
+
+                                match names, handlers with
+                                | Some(serviceName, methodName), handler :: _ -> Some(serviceName, methodName, handler)
+                                | _ -> None
+                            | _ -> None)
+                        |> List.choose (fun (serviceName, methodName, handler) ->
+                            let point = firstPoint set handler
+
+                            let projectId =
+                                match set.Origin handler.Type.Assembly with
+                                | User pid -> pid
+                                | _ -> ctx.Project.ProjectId
+
+                            ctx.Program.Attributor.Attribute(projectId, handler, point)
+                            |> Option.map (fun unit ->
+                                let route = $"/{serviceName}/{methodName}"
+                                let location = registrationPoint |> Option.map Attribution.toLocation
+
+                                { Id = ""
+                                  ApplicationId = ctx.Project.ProjectId
+                                  HandlerUnit = unit.Id
+                                  HandlerMember = handler.Display
+                                  Location = point |> Option.map Attribution.toLocation
+                                  Category = EffectCategory.HttpIn
+                                  Predicates =
+                                    { Part = RequestPart.Method
+                                      Operator = PredicateOperator.Equals
+                                      Index = None
+                                      Value = "POST"
+                                      Location = location }
+                                    :: PlatformRouting.templatePredicates route location
+                                  HttpMethod = Some "POST"
+                                  Route = Some route
+                                  Completeness = Completeness.Complete
+                                  Forms = [ RouteForm.PlatformRouting ]
+                                  Evidence =
+                                    { Steps =
+                                        [ step $"{r.Caller.Ref.Display} maps gRPC service {service.FullName} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
+                                          step $"{bind.Ref.Display}, named by an attribute of {generatedBase.FullName}, binds method {methodName} of service {serviceName} (rule {addRule.Id})" bind.Ref None
+                                          step $"{handler.Display} implements it" handler point ] } })))
+                |> List.distinctBy (fun e -> e.Route, e.HandlerMember)
+            | _ -> [])
+    | _ -> []
