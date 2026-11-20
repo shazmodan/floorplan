@@ -78,8 +78,13 @@ Also new, outside the recognizer:
 - **Log calls** (F# and C#): a call matching a catalog rule of kind `logger` (Serilog's `ILogger` and `Log`) reaches
   whatever sinks the logger is configured with, the same at every call. What a unit's log calls reach is one exit
   point per effect, shown at its first log call, with all of them in the evidence; traces follow every one of them.
-  Configuring the logger is the application's own call and is reported as before. Fixtures:
-  `CSharp.Effects/Logging.cs`, `CSharp.Endpoints/Audit.cs`.
+  Configuring the logger is the application's own call and is reported as before. A library's log of its own
+  workings, written only when the application turns it on, is not followed in the library's code: catalog rules
+  of kind `self-log` name Serilog's `SelfLog.WriteLine`, NLog's `InternalLogger` log methods and log4net's
+  `LogLog.Debug`. So making a logger (Serilog's `ForContext`) is no exit point, and a log call's clock is the log
+  event's timestamp. Turning such a log on is followed (NLog's `internalLogFile` setting); log4net's warnings and
+  errors go to the console by default, and are followed too. Fixtures: `CSharp.Effects/Logging.cs`,
+  `CSharp.Endpoints/Audit.cs`.
 - **Log calls through `Microsoft.Extensions.Logging`** are grouped the same way. The library hands each call on to
   the loggers its providers make, and its own code is not followed: in ASP.NET Core it is part of the shared
   framework, and elsewhere the container builds its loggers. The `logger.microsoft` rules name the member those

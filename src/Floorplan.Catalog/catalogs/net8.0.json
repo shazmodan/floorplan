@@ -449,6 +449,14 @@
       "members": ["CreateLogger"], "includeDerivedTypes": true, "kind": "callback" },
     { "id": "callback.microsoft-logger", "assembly": "Microsoft.Extensions.Logging.Abstractions", "type": "Microsoft.Extensions.Logging.ILogger",
       "members": ["Log"], "includeDerivedTypes": true, "kind": "callback" },
+    // Libraries' logs of their own workings, written only when the application turns them on: Serilog's SelfLog
+    // (SelfLog.Enable), NLog's InternalLogger (internalLogLevel, InternalLogger.LogFile), log4net's debug messages
+    // (log4net.Internal.Debug). Their calls in the libraries' code are not followed. log4net's warnings and errors
+    // go to the console unless it is told to be quiet, and are followed.
+    { "id": "self-log.serilog", "assembly": "Serilog", "type": "Serilog.Debugging.SelfLog", "members": ["WriteLine"], "kind": "self-log" },
+    { "id": "self-log.nlog", "assembly": "NLog", "type": "NLog.Common.InternalLogger",
+      "members": ["Trace", "Debug", "Info", "Warn", "Error", "Fatal", "Log"], "kind": "self-log" },
+    { "id": "self-log.log4net-debug", "assembly": "log4net", "type": "log4net.Util.LogLog", "members": ["Debug"], "kind": "self-log" },
     // NLog: its Logger is a class, and its code is followed to the targets it is configured with.
     { "id": "logger.nlog", "assembly": "NLog", "type": "NLog.Logger",
       "members": ["Trace", "Debug", "Info", "Warn", "Error", "Fatal", "Log"], "includeDerivedTypes": true, "kind": "logger" },

@@ -31,4 +31,17 @@ namespace CSharp.Effects.Billing
     {
         public void Send(string id) => log.Error("Could not send {Id}", id);
     }
+
+    // Loggers made for a context: making one is not a log call, and logging through it is.
+    public class Refunds(Serilog.ILogger log)
+    {
+        private readonly Serilog.ILogger forType = Log.ForContext<Refunds>();
+
+        public void Refund(string id)
+        {
+            var scoped = log.ForContext("RefundId", id);
+            scoped.Information("Refunding");
+            forType.Warning("Refunded {Id}", id);
+        }
+    }
 }

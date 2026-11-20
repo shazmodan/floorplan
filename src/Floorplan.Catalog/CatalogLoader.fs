@@ -41,6 +41,7 @@ let private kind (text: string) context =
     | "logger" -> Logger
     | "query" -> Query
     | "configured" -> Configured
+    | "self-log" -> SelfLog
     | other -> fail $"{context}: unknown kind \"{other}\"."
 
 let private requestPart (text: string) context =

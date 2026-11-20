@@ -58,11 +58,9 @@ nondeterminism | CSharp.Effects:CSharp.Effects.Billing | CSharp.Effects.Billing.
 environment | CSharp.Effects:CSharp.Effects.Labels | CSharp.Effects.Labels.Printer::Print | System.Console::get_Out | via Serilog.Extensions.Logging | - | CSharp/CSharp.Effects/LoggerMessages.cs:13
 filesystem-read | CSharp.Effects:CSharp.Effects.Labels | CSharp.Effects.Labels.Printer::Print | System.IO.Directory::Exists | via Serilog.Extensions.Logging | dynamic:- | CSharp/CSharp.Effects/LoggerMessages.cs:13
 filesystem-write | CSharp.Effects:CSharp.Effects.Labels | CSharp.Effects.Labels.Printer::Print | System.IO.File::Delete | via Serilog.Extensions.Logging | template:{…}/{…} | CSharp/CSharp.Effects/LoggerMessages.cs:13
-nondeterminism | CSharp.Effects:CSharp.Effects.Labels | CSharp.Effects.Labels.Printer::Print | System.DateTime::get_UtcNow | via Serilog.Extensions.Logging | - | CSharp/CSharp.Effects/LoggerMessages.cs:13
+nondeterminism | CSharp.Effects:CSharp.Effects.Labels | CSharp.Effects.Labels.Printer::Print | System.DateTimeOffset::get_Now | via Serilog.Extensions.Logging | - | CSharp/CSharp.Effects/LoggerMessages.cs:13
 filesystem-read | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Setup::Create | System.IO.Directory::Exists | via Serilog.Sinks.File | dynamic:- | CSharp/CSharp.Effects/Logging.cs:11
 filesystem-write | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Setup::Create | System.IO.File::Open | via Serilog.Sinks.File | literal:logs/app.log | CSharp/CSharp.Effects/Logging.cs:11
-nondeterminism | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Setup::Create | System.DateTime::get_UtcNow | via Serilog.Sinks.File | - | CSharp/CSharp.Effects/Logging.cs:11
-nondeterminism | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Setup::Create | System.DateTime::get_UtcNow | via Serilog.Sinks.Console | - | CSharp/CSharp.Effects/Logging.cs:11
 environment | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Orders::Place | System.Console::get_Out | via Serilog | - | CSharp/CSharp.Effects/Logging.cs:18
 filesystem-read | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Orders::Place | System.IO.Directory::Exists | via Serilog | dynamic:- | CSharp/CSharp.Effects/Logging.cs:18
 filesystem-write | CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging.Orders::Place | System.IO.File::Delete | via Serilog | template:{…}/{…} | CSharp/CSharp.Effects/Logging.cs:18
@@ -85,7 +83,6 @@ database | CSharp.Effects:CSharp.Effects.Ordering | CSharp.Effects.Ordering.Orde
 database | CSharp.Effects:CSharp.Effects.Ordering | CSharp.Effects.Ordering.OrderStore::Ids | System.Linq.Enumerable::ToList | via - | literal:SELECT Id FROM Orders | CSharp/CSharp.Effects/EntityFramework.cs:73
 filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.IO.FileSystemWatcher::set_EnableRaisingEvents | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:16
 nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:16
-nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:16
 filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.IO.FileSystemWatcher::set_EnableRaisingEvents | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:16
 nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:16
 process | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Diagnostics.Process::GetCurrentProcess | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:16
@@ -94,13 +91,13 @@ environment | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Set
 filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.IO.Directory::Exists | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:17
 filesystem-write | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.IO.Directory::CreateDirectory | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:17
 http-out | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Net.WebRequest::BeginGetResponse | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
-nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
+nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.DateTime::get_UtcNow | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
 process | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Diagnostics.Process::GetCurrentProcess | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
 environment | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.Console::get_Out | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
 filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.IO.File::Exists | via NLog | literal: | CSharp/CSharp.Effects/OtherLoggers.cs:23
 filesystem-write | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.IO.Directory::CreateDirectory | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:23
 http-out | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.Net.WebRequest::BeginGetResponse | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
-nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
+nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.DateTime::get_UtcNow | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
 process | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.Diagnostics.Process::GetCurrentProcess | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
 filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.IO.Directory::Exists | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:27
 filesystem-write | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.IO.Directory::CreateDirectory | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:27
@@ -117,12 +114,10 @@ database | CSharp.Effects:CSharp.Effects.Reporting | CSharp.Effects.Reporting.Or
 database | CSharp.Effects:CSharp.Effects.Reporting | CSharp.Effects.Reporting.OrderReports::Cancelled | System.Linq.Enumerable::ToList | via - | literal:SELECT * FROM Orders WHERE Cancelled = 1 | CSharp/CSharp.Effects/EntityFramework.cs:112
 filesystem-read | CSharp.Effects:CSharp.Effects.Shipping | CSharp.Effects.Shipping.Setup/<>c::<Create>b__0_0 | System.IO.Directory::Exists | via Serilog.Sinks.File | dynamic:- | CSharp/CSharp.Effects/MicrosoftLogging.cs:13
 filesystem-write | CSharp.Effects:CSharp.Effects.Shipping | CSharp.Effects.Shipping.Setup/<>c::<Create>b__0_0 | System.IO.File::Open | via Serilog.Sinks.File | literal:logs/shipping.log | CSharp/CSharp.Effects/MicrosoftLogging.cs:13
-nondeterminism | CSharp.Effects:CSharp.Effects.Shipping | CSharp.Effects.Shipping.Setup/<>c::<Create>b__0_0 | System.DateTime::get_UtcNow | via Serilog.Sinks.File | - | CSharp/CSharp.Effects/MicrosoftLogging.cs:13
-nondeterminism | CSharp.Effects:CSharp.Effects.Shipping | CSharp.Effects.Shipping.Setup/<>c::<Create>b__0_0 | System.DateTime::get_UtcNow | via Serilog.Extensions.Logging | - | CSharp/CSharp.Effects/MicrosoftLogging.cs:13
 environment | CSharp.Effects:CSharp.Effects.Shipping | CSharp.Effects.Shipping.Parcels::Ship | System.Console::get_Out | via Serilog.Extensions.Logging | - | CSharp/CSharp.Effects/MicrosoftLogging.cs:21
 filesystem-read | CSharp.Effects:CSharp.Effects.Shipping | CSharp.Effects.Shipping.Parcels::Ship | System.IO.Directory::Exists | via Serilog.Extensions.Logging | dynamic:- | CSharp/CSharp.Effects/MicrosoftLogging.cs:21
 filesystem-write | CSharp.Effects:CSharp.Effects.Shipping | CSharp.Effects.Shipping.Parcels::Ship | System.IO.File::Delete | via Serilog.Extensions.Logging | template:{…}/{…} | CSharp/CSharp.Effects/MicrosoftLogging.cs:21
-nondeterminism | CSharp.Effects:CSharp.Effects.Shipping | CSharp.Effects.Shipping.Parcels::Ship | System.DateTime::get_UtcNow | via Serilog.Extensions.Logging | - | CSharp/CSharp.Effects/MicrosoftLogging.cs:21
+nondeterminism | CSharp.Effects:CSharp.Effects.Shipping | CSharp.Effects.Shipping.Parcels::Ship | System.DateTimeOffset::get_Now | via Serilog.Extensions.Logging | - | CSharp/CSharp.Effects/MicrosoftLogging.cs:21
 environment | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Setup::Configure | System.Console::get_Error | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:38
 filesystem-read | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Setup::Configure | System.IO.File::Exists | via log4net | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:38
 filesystem-write | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Setup::Configure | System.IO.FileInfo::Open | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:38
@@ -142,19 +137,16 @@ nondeterminism | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::Creat
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::CreateOrder | System.IO.File::WriteAllText | via - | template:orders/{…}.json | CSharp/CSharp.Endpoints/Api.cs:12
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::.cctor | System.IO.Directory::Exists | via Serilog.Sinks.File | dynamic:- | CSharp/CSharp.Endpoints/Audit.cs:9
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::.cctor | System.IO.File::Open | via Serilog.Sinks.File | literal:logs/audit.log | CSharp/CSharp.Endpoints/Audit.cs:9
-nondeterminism | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::.cctor | System.DateTime::get_UtcNow | via Serilog.Sinks.File | - | CSharp/CSharp.Endpoints/Audit.cs:9
 environment | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.Console::get_Out | via Serilog | - | CSharp/CSharp.Endpoints/Audit.cs:11
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.IO.Directory::Exists | via Serilog | dynamic:- | CSharp/CSharp.Endpoints/Audit.cs:11
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.IO.File::Delete | via Serilog | template:{…}/{…} | CSharp/CSharp.Endpoints/Audit.cs:11
 nondeterminism | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.DateTimeOffset::get_Now | via Serilog | - | CSharp/CSharp.Endpoints/Audit.cs:11
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Setup::Configure | System.IO.Directory::Exists | via Serilog.Sinks.File | dynamic:- | CSharp/CSharp.Endpoints/Shipping.cs:11
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Setup::Configure | System.IO.File::Open | via Serilog.Sinks.File | literal:logs/shipping.log | CSharp/CSharp.Endpoints/Shipping.cs:11
-nondeterminism | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Setup::Configure | System.DateTime::get_UtcNow | via Serilog.Sinks.File | - | CSharp/CSharp.Endpoints/Shipping.cs:11
-nondeterminism | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Setup::Configure | System.DateTime::get_UtcNow | via Serilog.Extensions.Logging | - | CSharp/CSharp.Endpoints/Shipping.cs:11
 environment | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.Console::get_Out | via Serilog.Extensions.Logging | - | CSharp/CSharp.Endpoints/Shipping.cs:18
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.IO.Directory::Exists | via Serilog.Extensions.Logging | dynamic:- | CSharp/CSharp.Endpoints/Shipping.cs:18
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.IO.File::Delete | via Serilog.Extensions.Logging | template:{…}/{…} | CSharp/CSharp.Endpoints/Shipping.cs:18
-nondeterminism | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.DateTime::get_UtcNow | via Serilog.Extensions.Logging | - | CSharp/CSharp.Endpoints/Shipping.cs:18
+nondeterminism | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.DateTimeOffset::get_Now | via Serilog.Extensions.Logging | - | CSharp/CSharp.Endpoints/Shipping.cs:18
 -- diagnostics
 configured.unresolved | log4net.config names "Contoso.Logging.MissingAppender, Contoso.Logging" (rule configured.log4net-appender), which is not a type the analysis can read. What it does is not analyzed.
 blind-spot.dynamic | CSharp.Controllers.PagesController::Describe calls Microsoft.CSharp.RuntimeBinder.Binder::Convert (dynamic). What happens behind it is not analyzed.

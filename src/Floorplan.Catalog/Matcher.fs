@@ -107,6 +107,10 @@ type Matcher(catalog: Catalog, supertypes: TypeRef -> Set<string>) =
         | true, r -> Some r
         | _ -> None
 
+    /// A self-log rule for a call of `m`: a library's log of its own workings, off unless turned on.
+    member this.SelfLog(m: MethodRef) =
+        this.Match m |> List.tryFind (fun r -> r.Kind = SelfLog)
+
     member this.Comparison(m: MethodRef) =
         this.Match m |> List.tryFind (fun r -> r.Kind = RuleKind.Comparison)
 

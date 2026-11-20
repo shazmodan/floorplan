@@ -31,6 +31,10 @@ type RuleKind =
     /// Objects a library makes by reflection from an XML configuration file, e.g. NLog's targets: each type its
     /// `Configuration` names in a configuration file in the output folder is constructed, as if in code.
     | Configured
+    /// A library's log of its own workings, written only when the application turns it on (Serilog's SelfLog,
+    /// NLog's InternalLogger): a call to it in a library's code is not followed. Turning it on is the
+    /// application's own call, and an exit point there.
+    | SelfLog
 
 /// How the log calls of a logger rule are made.
 [<RequireQualifiedAccess>]
