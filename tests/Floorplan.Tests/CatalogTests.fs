@@ -188,6 +188,11 @@ let tests =
               Expect.equal (nlog.Xml |> Option.map (fun x -> x.Root, x.TypeAttribute)) (Some("nlog", "type")) "xsi:type, by its local name"
               Expect.equal (nlog.Json |> Option.map (fun j -> j.Section, j.TypeProperty)) (Some("NLog", "type")) "appsettings.json"
               Expect.equal nlog.Alias (Some "NLog.Targets.TargetAttribute") "named by the alias its attribute gives"
+              Expect.equal nlog.Names ConfiguredName.Type "NLog's targets are types"
+
+              let serilog = (net8.Rules |> List.find (fun r -> r.Id = "configured.serilog-sink")).Configuration.Value
+              Expect.equal serilog.Names ConfiguredName.Method "Serilog's sinks are the methods that add them"
+              Expect.equal (serilog.Json |> Option.map (fun j -> j.TypeProperty)) (Some "Name") "by their Name"
 
               let missing = """{ "name": "bad", "rules": [ { "id": "x", "type": "T", "kind": "configured" } ] }"""
 

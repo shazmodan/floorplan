@@ -63,13 +63,23 @@ type JsonConfiguration =
       Properties: string list
       TypeProperty: string }
 
-/// Where configuration files name a configured rule's types. A value is a type's full name, optionally
-/// assembly-qualified, or else an alias: the first argument of the attribute `Alias` on a type assignable to the
-/// rule's type, compared ignoring case.
+/// What a configured rule's configuration names.
+[<RequireQualifiedAccess>]
+type ConfiguredName =
+    /// Types, each constructed.
+    | Type
+    /// Methods of the rule's type, or extension methods on it, by name ignoring case, each called: Serilog's sinks
+    /// (`"WriteTo": [{ "Name": "File" }]` calls `WriteTo.File`).
+    | Method
+
+/// Where configuration files name a configured rule's types or methods. A type is named by its full name,
+/// optionally assembly-qualified, or else by an alias: the first argument of the attribute `Alias` on a type
+/// assignable to the rule's type, compared ignoring case.
 type ConfigurationSpec =
     { Xml: XmlConfiguration option
       Json: JsonConfiguration option
-      Alias: string option }
+      Alias: string option
+      Names: ConfiguredName }
 
 /// Which argument of a matched call carries something worth showing: a URL, SQL text, a path, a route template,
 /// a handler. Argument 0 is the first declared parameter; for instance methods `this` is not counted.

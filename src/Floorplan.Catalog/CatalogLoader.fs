@@ -110,10 +110,18 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
             if xml.IsNone && json.IsNone then
                 fail $"{context}: a configuration is XML, JSON or both."
 
+            let names =
+                match str c "names" with
+                | None
+                | Some "types" -> ConfiguredName.Type
+                | Some "methods" -> ConfiguredName.Method
+                | Some other -> fail $"{context}: unknown names \"{other}\"."
+
             Some
                 { Xml = xml
                   Json = json
-                  Alias = str c "alias" }
+                  Alias = str c "alias"
+                  Names = names }
         | _ when k = Configured -> fail $"{context}: configured rules need a configuration."
         | _ -> None
 

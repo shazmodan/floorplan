@@ -13,9 +13,16 @@ open Floorplan.Model
 open Floorplan.IL
 open Floorplan.Catalog
 
-/// A type a configuration file names.
+/// What the library makes of what a configuration file names.
+type Made =
+    /// A type it constructs.
+    | Constructed of TypeRef
+    /// A method it calls.
+    | Called of MethodRef
+
+/// A type or method a configuration file names.
 type ConfiguredType =
-    { Type: TypeRef
+    { Made: Made
       Rule: Rule
       /// The configuration file, and the value that named the type.
       File: string
@@ -88,18 +95,30 @@ let private jsonValues (doc: JsonDocument) (spec: JsonConfiguration) =
         |> Option.map (fun p -> p.Value.GetString().Trim())
         |> Option.filter (fun v -> v <> "")
 
-    // Objects named by one of the properties, as the property's value or as values of its object.
+    // An element of a list or map of named things: an object with the property, or a plain name.
+    let element (e: JsonElement) =
+        match e.ValueKind with
+        | JsonValueKind.Object -> typeOf e
+        | JsonValueKind.String -> Some(e.GetString().Trim()) |> Option.filter (fun v -> v <> "")
+        | _ -> None
+
+    // Objects named by one of the properties, as the property's value or as elements of its object or array.
     let rec walk (e: JsonElement) : string list =
         match e.ValueKind with
         | JsonValueKind.Object ->
             [ for p in e.EnumerateObject() do
-                  if spec.Properties |> List.exists (same p.Name) && p.Value.ValueKind = JsonValueKind.Object then
-                      match typeOf p.Value with
-                      | Some t -> yield t
-                      | None ->
-                          for inner in p.Value.EnumerateObject() do
-                              if inner.Value.ValueKind = JsonValueKind.Object then
-                                  yield! typeOf inner.Value |> Option.toList
+                  if spec.Properties |> List.exists (same p.Name) then
+                      match p.Value.ValueKind with
+                      | JsonValueKind.Object ->
+                          match typeOf p.Value with
+                          | Some t -> yield t
+                          | None ->
+                              for inner in p.Value.EnumerateObject() do
+                                  yield! element inner.Value |> Option.toList
+                      | JsonValueKind.Array ->
+                          for inner in p.Value.EnumerateArray() do
+                              yield! element inner |> Option.toList
+                      | _ -> ()
 
                   yield! walk p.Value ]
         | JsonValueKind.Array -> [ for x in e.EnumerateArray() do yield! walk x ]
@@ -174,6 +193,27 @@ type Resolver(set: AssemblySet) =
                 |> Option.map snd
             | None -> None)
 
+    /// The methods a name calls: methods of the rule's type, and extension methods on it, of that name.
+    member _.ResolveMethods(rule: Rule, value: string) : MethodRef list =
+        let named (m: MethodDef) = String.Equals(m.Ref.Name, value, StringComparison.OrdinalIgnoreCase)
+
+        assembliesFor rule
+        |> List.collect (fun a ->
+            a.Types
+            |> List.collect (fun t ->
+                if t.Ref.FullName = rule.Type then
+                    t.Methods |> List.filter (fun m -> named m && not m.IsStatic && m.IsPublic)
+                else
+                    t.Methods
+                    |> List.filter (fun m ->
+                        named m
+                        && m.IsStatic
+                        && m.IsPublic
+                        && (match m.Ref.ParameterTypes with
+                            | first :: _ -> first = rule.Type
+                            | [] -> false))))
+        |> List.map (fun m -> m.Ref)
+
     /// The types named in the configuration files of these folders, and a warning for each value that names no
     /// type the analysis can read.
     member this.Find(rules: Rule list, folders: string list) : ConfiguredType list * Diagnostic list =
@@ -210,24 +250,29 @@ type Resolver(set: AssemblySet) =
                                   for value in jsonValues doc spec -> file, rule, value
                           | None -> () ]
 
+        let made (rule: Rule) (value: string) =
+            match rule.Configuration.Value.Names with
+            | ConfiguredName.Type -> this.Resolve(rule, value) |> Option.toList |> List.map Constructed
+            | ConfiguredName.Method -> this.ResolveMethods(rule, value) |> List.map Called
+
         let found =
-            (fromXml @ fromJson) |> List.map (fun (file, rule, value) -> file, rule, value, this.Resolve(rule, value))
+            (fromXml @ fromJson) |> List.map (fun (file, rule, value) -> file, rule, value, made rule value)
 
         let types =
             found
-            |> List.choose (fun (file, rule, value, t) ->
-                t |> Option.map (fun t -> { Type = t; Rule = rule; File = file; Named = value }))
-            |> List.distinctBy (fun c -> c.Type)
+            |> List.collect (fun (file, rule, value, ms) ->
+                ms |> List.map (fun m -> { Made = m; Rule = rule; File = file; Named = value }))
+            |> List.distinctBy (fun c -> c.Made)
 
         let unresolved =
             found
-            |> List.filter (fun (_, _, _, t) -> t.IsNone)
+            |> List.filter (fun (_, _, _, ms) -> ms.IsEmpty)
             |> List.distinctBy (fun (file, _, value, _) -> file, value)
             |> List.map (fun (file, rule, value, _) ->
                 { Severity = DiagnosticSeverity.Warning
                   Code = "configured.unresolved"
                   Message =
-                    $"{Path.GetFileName file} names \"{value}\" (rule {rule.Id}), which is not a type the analysis can read. What it does is not analyzed."
+                    $"{Path.GetFileName file} names \"{value}\" (rule {rule.Id}), which is nothing the analysis can read. What it does is not analyzed."
                   ProjectId = None
                   Location = None })
 

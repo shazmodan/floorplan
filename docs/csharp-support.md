@@ -116,8 +116,12 @@ Also new, outside the recognizer:
   NLog.Extensions.Logging reads (targets under `"targets"`, wrapped ones under `"target"`, keys in any case).
   NLog's `xsi:type` or `"type"` names a target by the alias its `[Target]` attribute gives it, log4net's `type` by
   its type name. Each type is an info diagnostic (`configured.type`), and a name that is no type the analysis can
-  read a warning (`configured.unresolved`). Configuration loaded from elsewhere at run time is not read. Getting a
-  logger (`LogManager.GetCurrentClassLogger()`,
+  read a warning (`configured.unresolved`). Serilog's sinks and enrichers in the `"Serilog"` section of
+  `appsettings.json` (Serilog.Settings.Configuration) are named by the methods that add them (`"WriteTo": [{
+  "Name": "File" }]` calls `WriteTo.File`): the rules `configured.serilog-sink` and `configured.serilog-enricher`
+  say `"names": "methods"`, and every public method of that name on `LoggerSinkConfiguration` (or extension
+  method on it) in Serilog or an assembly that references it is analyzed as called. Configuration loaded from
+  elsewhere at run time is not read. Getting a logger (`LogManager.GetCurrentClassLogger()`,
   `LogManager.GetLogger`) loads the configuration, and stays an exit point of its own. Fixture:
   `CSharp.Effects/OtherLoggers.cs`, with `nlog.config`, `log4net.config` and `appsettings.json`.
 - **Entity Framework Core** runs its commands through its own service container, which the call graph does not

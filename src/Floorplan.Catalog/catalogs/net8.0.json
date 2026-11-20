@@ -430,6 +430,13 @@
       "members": ["Write", "Verbose", "Debug", "Information", "Warning", "Error", "Fatal"], "includeDerivedTypes": true, "kind": "logger" },
     { "id": "logger.serilog-static", "assembly": "Serilog", "type": "Serilog.Log",
       "members": ["Write", "Verbose", "Debug", "Information", "Warning", "Error", "Fatal"], "kind": "logger" },
+    // Serilog's sinks and enrichers named in the "Serilog" section of appsettings.json (Serilog.Settings.Configuration)
+    // are added by calling the method of that name by reflection ("WriteTo": [{ "Name": "File" }] calls
+    // WriteTo.File): each is analyzed as called, so the log calls reach the sinks it adds.
+    { "id": "configured.serilog-sink", "assembly": "Serilog", "type": "Serilog.Configuration.LoggerSinkConfiguration", "kind": "configured",
+      "configuration": { "json": { "section": "Serilog", "properties": ["WriteTo", "AuditTo", "configure"], "typeProperty": "Name" }, "names": "methods" } },
+    { "id": "configured.serilog-enricher", "assembly": "Serilog", "type": "Serilog.Configuration.LoggerEnrichmentConfiguration", "kind": "configured",
+      "configuration": { "json": { "section": "Serilog", "properties": ["Enrich"], "typeProperty": "Name" }, "names": "methods" } },
     // Microsoft.Extensions.Logging hands every log call on to the loggers its providers make (Serilog's, the
     // console's, ...). In ASP.NET Core it is part of the shared framework and its code is not followed; elsewhere
     // the container builds its loggers. Either way, a log call reaches what each constructed ILogger.Log reaches,
