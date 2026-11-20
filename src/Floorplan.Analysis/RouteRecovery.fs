@@ -56,8 +56,9 @@ type Recovery(ctx: AppContext) =
     let evaluator (flow: Flow) =
         Values.Evaluator(flow, ctx.Program.Recognizers, Values.constantReturn set)
 
-    /// The constant operand `index` of the instruction at `offset`. `captured` holds the constants a closure was
-    /// created with, by field: in the closure's own code, a read of one of its fields is that constant.
+    /// The constant operand `index` of the instruction at `offset`. `captured` holds constants known from the
+    /// caller: those a closure was created with, by field (in the closure's own code, a read of one of its fields
+    /// is that constant), and the constant arguments of a call, as `#index` (a read of that argument).
     let constantIn (captured: Map<string, string>) (flow: Flow) (offset: int) (index: int) : string option =
         match List.tryItem index (flow.OperandsAt offset) with
         | Some values ->
@@ -70,7 +71,9 @@ type Recovery(ctx: AppContext) =
                     match (evaluator flow).Operand(offset, index) with
                     | Values.Text t -> Some t
                     | Values.Param(0, [ field ]) -> captured.TryFind field
+                    | Values.Param(i, []) -> captured.TryFind("#" + string i)
                     | _ -> None
+            | [ Argument i ] -> captured.TryFind("#" + string i)
             | _ -> None
         | None -> None
 
@@ -261,8 +264,15 @@ type Recovery(ctx: AppContext) =
                     | None -> noCondition
                 | Call x
                 | CallVirt x when ctx.Methods.ContainsKey x.Key ->
-                    // A helper returning bool or an option (an active pattern): its own conditions for success.
-                    match successOf ctx.Methods[x.Key] Map.empty (depth + 1) with
+                    // A helper returning bool or an option (an active pattern): its own conditions for success,
+                    // with the constants it is called with (the method a closure passes on to a shared matcher).
+                    let arguments =
+                        flow.OperandsAt offset
+                        |> List.indexed
+                        |> List.choose (fun (j, _) -> constantIn captured flow offset j |> Option.map (fun c -> "#" + string j, c))
+                        |> Map.ofList
+
+                    match successOf ctx.Methods[x.Key] arguments (depth + 1) with
                     | Some ps -> { noCondition with WhenTrue = ps }
                     | None -> noCondition
                 | Ceq -> { noCondition with WhenTrue = comparison captured m flow offset 0 1 PredicateOperator.Equals location }
