@@ -89,7 +89,7 @@ let private mvidOf (path: string) =
         ""
 
 let private cacheKey (assembly: string) (mvid: string) (catalog: string) =
-    Caching.hash [ "summaries-v17"; assembly; mvid; catalog ]
+    Caching.hash [ "summaries-v18"; assembly; mvid; catalog ]
 
 /// The cache key under which an assembly keeps what a callback member reaches through its implementations there.
 let private callbackKey (assembly: string) (callback: string) = $"[{assembly}]callback:{callback}"
@@ -191,7 +191,9 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
             |> Seq.map (fun m -> m.Ref)
         )
 
-        g.AddConstructed(fst configured |> List.map (fun c -> c.Type))
+        let made = fst configured |> List.map (fun c -> c.Made)
+        g.AddConstructed(made |> List.choose (function Configured.Constructed t -> Some t | _ -> None))
+        g.AddRoots(made |> List.choose (function Configured.Called m -> Some m | _ -> None))
         g
 
     let graph =
@@ -211,16 +213,21 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                 |> Seq.exists (fun e ->
                     cachedAssemblies.Contains e.Target.Type.Assembly && not (analyzed.Contains e.Target.Key))
 
-            // A type configured now that the cached run did not construct: what reaches it is not in the cache.
+            // A type configured now that the cached run did not construct, or a method it did not call: what
+            // reaches it is not in the cache.
             let configuredMiss =
                 fst configured
                 |> List.exists (fun c ->
-                    cachedAssemblies.Contains c.Type.Assembly
-                    && match set.TryType c.Type with
-                       | Some(def, _) ->
-                           def.Methods
-                           |> List.exists (fun m -> m.IsConstructor && not m.IsStatic && m.Ref.ParameterCount = 0 && not (analyzed.Contains m.Ref.Key))
-                       | None -> false)
+                    match c.Made with
+                    | Configured.Constructed t ->
+                        cachedAssemblies.Contains t.Assembly
+                        && match set.TryType t with
+                           | Some(def, _) ->
+                               def.Methods
+                               |> List.exists (fun m ->
+                                   m.IsConstructor && not m.IsStatic && m.Ref.ParameterCount = 0 && not (analyzed.Contains m.Ref.Key))
+                           | None -> false
+                    | Configured.Called m -> cachedAssemblies.Contains m.Type.Assembly && not (analyzed.Contains m.Key))
 
             if miss || configuredMiss then
                 cached.Clear()
@@ -248,7 +255,11 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
              { Severity = DiagnosticSeverity.Info
                Code = "configured.type"
                Message =
-                 $"{IO.Path.GetFileName c.File} names \"{c.Named}\": {c.Type.FullName} is analyzed as constructed (rule {c.Rule.Id})."
+                 match c.Made with
+                 | Configured.Constructed t ->
+                     $"{IO.Path.GetFileName c.File} names \"{c.Named}\": {t.FullName} is analyzed as constructed (rule {c.Rule.Id})."
+                 | Configured.Called m ->
+                     $"{IO.Path.GetFileName c.File} names \"{c.Named}\": {m.Display} is analyzed as called (rule {c.Rule.Id})."
                ProjectId = None
                Location = None }))
         @ snd configured

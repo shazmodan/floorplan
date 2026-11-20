@@ -8,4 +8,8 @@
     <!-- Compiled as packages are: optimized, so async state machines are structs started through the builder. -->
     <Optimize>true</Optimize>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- A Serilog sink of its own, which CSharp.Effects adds from appsettings.json. -->
+    <PackageReference Include="Serilog" Version="3.1.1" />
+  </ItemGroup>
 </Project>

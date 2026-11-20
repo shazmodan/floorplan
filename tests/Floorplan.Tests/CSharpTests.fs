@@ -260,7 +260,7 @@ let tests =
               Expect.equal (logCalls "CSharp.Effects:CSharp.Effects.Storage" "log4net") [ Some 47; Some 48 ] "log4net: both log calls"
           }
 
-          test "NLog targets and log4net appenders named in configuration files (XML, appsettings.json) are constructed" {
+          test "NLog targets, log4net appenders and Serilog sinks named in configuration files (XML, appsettings.json) are made" {
               let m = csharpModel.Force()
 
               let reaches (unitId: string) (via: string) (category: EffectCategory) =
@@ -275,6 +275,14 @@ let tests =
               Expect.isTrue (reaches "CSharp.Effects:CSharp.Effects.Storage" "log4net" EffectCategory.Network) "log4net's UdpAppender, from log4net.config"
               Expect.isTrue (reaches "CSharp.Effects:CSharp.Effects.Packing" "NLog" EffectCategory.Network) "NLog's Network target, from appsettings.json"
 
+              Expect.exists
+                  m.ExitPoints
+                  (fun x ->
+                      x.Unit = "CSharp.Effects:CSharp.Effects.Logging"
+                      && x.Primitive = "System.IO.File::AppendAllText"
+                      && x.Evidence.Steps |> List.exists (fun s -> s.Description.Contains " logs through "))
+                  "Serilog's sink from appsettings.json, added by calling WriteTo.Audit"
+
               let configured =
                   m.Diagnostics |> List.filter (fun d -> d.Code = "configured.type") |> List.map (fun d -> d.Message)
 
@@ -284,6 +292,16 @@ let tests =
                     "log4net.config", "log4net.Appender.UdpAppender"
                     "appsettings.json", "NLog.Targets.NetworkTarget" ] do
                   Expect.exists configured (fun d -> d.StartsWith file && d.Contains $": {typeName} is analyzed as constructed") typeName
+
+              Expect.exists
+                  configured
+                  (fun d -> d.StartsWith "appsettings.json" && d.Contains ": CSharp.Wrappers.AuditSinkExtensions::Audit is analyzed as called")
+                  "a Serilog sink, by the method that adds it"
+
+              Expect.exists
+                  m.Diagnostics
+                  (fun d -> d.Code = "configured.unresolved" && d.Message.Contains "\"Contoso\"")
+                  "a sink no method adds is a warning"
 
               Expect.exists
                   m.Diagnostics
