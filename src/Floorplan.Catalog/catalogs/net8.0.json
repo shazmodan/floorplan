@@ -464,12 +464,14 @@
       "members": ["Trace", "Debug", "Info", "Warn", "Error", "Fatal"], "includeDerivedTypes": true, "kind": "logger" },
     { "id": "logger.nlog-base", "assembly": "NLog", "type": "NLog.ILoggerBase",
       "members": ["Log"], "includeDerivedTypes": true, "kind": "logger" },
-    // NLog's targets named in an XML configuration (nlog.config, or an <nlog> section of app.config) are made by
-    // reflection: each is constructed as if in code, so the log calls reach it. xsi:type names a target by the
-    // alias its [Target] attribute gives it.
+    // NLog's targets named in a configuration file (nlog.config, an <nlog> section of app.config, or the "NLog"
+    // section of appsettings.json that NLog.Extensions.Logging reads) are made by reflection: each is constructed
+    // as if in code, so the log calls reach it. Its type names a target by the alias its [Target] attribute gives.
     { "id": "configured.nlog-target", "assembly": "NLog", "type": "NLog.Targets.Target", "kind": "configured",
-      "configuration": { "root": "nlog", "elements": ["target", "wrapper-target", "compound-target", "default-wrapper"],
-                         "typeAttribute": "type", "alias": "NLog.Targets.TargetAttribute" } },
+      "configuration": {
+        "xml": { "root": "nlog", "elements": ["target", "wrapper-target", "compound-target", "default-wrapper"], "typeAttribute": "type" },
+        "json": { "section": "NLog", "properties": ["targets", "target", "default-wrapper"], "typeProperty": "type" },
+        "alias": "NLog.Targets.TargetAttribute" } },
     // log4net: its loggers are made by reflection (the repository type is created with Activator) and through a
     // delegate, which are not followed. Every log call ends at the appenders the repository is configured with: a
     // log call reaches what each constructed appender's DoAppend reaches, which the callback links. Appenders named
@@ -480,6 +482,6 @@
     { "id": "callback.log4net-appender", "assembly": "log4net", "type": "log4net.Appender.IAppender",
       "members": ["DoAppend"], "includeDerivedTypes": true, "kind": "callback" },
     { "id": "configured.log4net-appender", "assembly": "log4net", "type": "log4net.Appender.IAppender", "kind": "configured",
-      "configuration": { "root": "log4net", "elements": ["appender"], "typeAttribute": "type" } }
+      "configuration": { "xml": { "root": "log4net", "elements": ["appender"], "typeAttribute": "type" } } }
   ]
 }

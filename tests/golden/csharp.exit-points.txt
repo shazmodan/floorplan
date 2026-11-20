@@ -91,17 +91,20 @@ environment | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Set
 filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.IO.Directory::Exists | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:17
 filesystem-write | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.IO.Directory::CreateDirectory | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:17
 http-out | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Net.WebRequest::BeginGetResponse | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
+network | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Net.Dns::GetHostEntry | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:17
 nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.DateTime::get_UtcNow | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
 process | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Diagnostics.Process::GetCurrentProcess | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
 environment | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.Console::get_Out | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
 filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.IO.File::Exists | via NLog | literal: | CSharp/CSharp.Effects/OtherLoggers.cs:23
 filesystem-write | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.IO.Directory::CreateDirectory | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:23
 http-out | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.Net.WebRequest::BeginGetResponse | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
+network | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.Net.Dns::GetHostEntry | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:23
 nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.DateTime::get_UtcNow | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
 process | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.Diagnostics.Process::GetCurrentProcess | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
 filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.IO.Directory::Exists | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:27
 filesystem-write | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.IO.Directory::CreateDirectory | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:27
 http-out | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.Net.WebRequest::BeginGetResponse | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:27
+network | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.Net.Dns::GetHostEntry | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:27
 nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:27
 database | CSharp.Effects:CSharp.Effects.Printing | CSharp.Effects.Printing.OrderPrinting::Print | System.Collections.Generic.IEnumerable`1::GetEnumerator | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:166
 database | CSharp.Effects:CSharp.Effects.Printing | CSharp.Effects.Printing.OrderPrinting::Shipped | System.Linq.Enumerable::ToList | via - | literal:SELECT * FROM Orders WHERE Shipped = 1 | CSharp/CSharp.Effects/EntityFramework.cs:168

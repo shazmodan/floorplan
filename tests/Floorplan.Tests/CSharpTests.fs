@@ -260,7 +260,7 @@ let tests =
               Expect.equal (logCalls "CSharp.Effects:CSharp.Effects.Storage" "log4net") [ Some 47; Some 48 ] "log4net: both log calls"
           }
 
-          test "NLog targets and log4net appenders named in XML configuration files are constructed" {
+          test "NLog targets and log4net appenders named in configuration files (XML, appsettings.json) are constructed" {
               let m = csharpModel.Force()
 
               let reaches (unitId: string) (via: string) (category: EffectCategory) =
@@ -273,12 +273,17 @@ let tests =
 
               Expect.isTrue (reaches "CSharp.Effects:CSharp.Effects.Packing" "NLog" EffectCategory.HttpOut) "NLog's WebService target, from nlog.config"
               Expect.isTrue (reaches "CSharp.Effects:CSharp.Effects.Storage" "log4net" EffectCategory.Network) "log4net's UdpAppender, from log4net.config"
+              Expect.isTrue (reaches "CSharp.Effects:CSharp.Effects.Packing" "NLog" EffectCategory.Network) "NLog's Network target, from appsettings.json"
 
               let configured =
                   m.Diagnostics |> List.filter (fun d -> d.Code = "configured.type") |> List.map (fun d -> d.Message)
 
-              for typeName in [ "NLog.Targets.Wrappers.AsyncTargetWrapper"; "NLog.Targets.WebServiceTarget"; "log4net.Appender.UdpAppender" ] do
-                  Expect.exists configured (fun d -> d.Contains $": {typeName} is analyzed as constructed") typeName
+              for file, typeName in
+                  [ "nlog.config", "NLog.Targets.Wrappers.AsyncTargetWrapper"
+                    "nlog.config", "NLog.Targets.WebServiceTarget"
+                    "log4net.config", "log4net.Appender.UdpAppender"
+                    "appsettings.json", "NLog.Targets.NetworkTarget" ] do
+                  Expect.exists configured (fun d -> d.StartsWith file && d.Contains $": {typeName} is analyzed as constructed") typeName
 
               Expect.exists
                   m.Diagnostics

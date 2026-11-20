@@ -79,15 +79,40 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
             if k <> Configured then
                 fail $"{context}: only configured rules have a configuration."
 
-            let elements = strings c "elements"
+            let xml =
+                match c.TryGetProperty "xml" with
+                | true, x when x.ValueKind = JsonValueKind.Object ->
+                    let elements = strings x "elements"
 
-            if elements.IsEmpty then
-                fail $"{context}: a configuration names its elements."
+                    if elements.IsEmpty then
+                        fail $"{context}: an XML configuration names its elements."
+
+                    Some
+                        { Root = required x "root" context
+                          Elements = elements
+                          TypeAttribute = required x "typeAttribute" context }
+                | _ -> None
+
+            let json =
+                match c.TryGetProperty "json" with
+                | true, j when j.ValueKind = JsonValueKind.Object ->
+                    let properties = strings j "properties"
+
+                    if properties.IsEmpty then
+                        fail $"{context}: a JSON configuration names its properties."
+
+                    Some
+                        { Section = required j "section" context
+                          Properties = properties
+                          TypeProperty = required j "typeProperty" context }
+                | _ -> None
+
+            if xml.IsNone && json.IsNone then
+                fail $"{context}: a configuration is XML, JSON or both."
 
             Some
-                { Root = required c "root" context
-                  Elements = elements
-                  TypeAttribute = required c "typeAttribute" context
+                { Xml = xml
+                  Json = json
                   Alias = str c "alias" }
         | _ when k = Configured -> fail $"{context}: configured rules need a configuration."
         | _ -> None
