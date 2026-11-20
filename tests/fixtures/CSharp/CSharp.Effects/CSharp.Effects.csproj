@@ -23,9 +23,9 @@
     <PackageReference Include="NLog" Version="5.3.4" />
     <PackageReference Include="log4net" Version="2.0.17" />
   </ItemGroup>
-  <!-- Logging configured from XML, found next to the assembly as the libraries find it at run time. -->
+  <!-- Logging configured in files, found next to the assembly as the libraries find them at run time. -->
   <ItemGroup>
-    <None Update="nlog.config;log4net.config" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="nlog.config;log4net.config;appsettings.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <!-- The wrapper library is referenced as a built assembly, not as a project: it is a dependency, like a package,
        and not part of the solution under analysis. Built as CSharp.Delegated builds its routing library. -->

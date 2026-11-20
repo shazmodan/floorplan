@@ -107,17 +107,19 @@ Also new, outside the recognizer:
   class whose code is followed to the targets it is configured with. log4net makes its loggers by reflection and
   through a delegate, which are not followed, so its rule dispatches to the appenders instead
   (`"dispatch": "log4net.Appender.IAppender::DoAppend"`, with a callback rule): a log call reaches what each
-  constructed appender's `DoAppend` reaches. Targets and appenders named in an XML configuration file are made
-  by reflection; catalog rules of a new kind, `configured`, say where a configuration names them
+  constructed appender's `DoAppend` reaches. Targets and appenders named in a configuration file are made by
+  reflection; catalog rules of a new kind, `configured`, say where a configuration names them
   (`configured.nlog-target`, `configured.log4net-appender`), and each type named is analyzed as constructed, as
   if in code. The files read are the `*.config` files in the project's output folder, where the library finds
   them at run time (`nlog.config`, `log4net.config`, an `<nlog>` or `<log4net>` section of `App.dll.config`), and
-  `*.xml` files named after the configuration. NLog's `xsi:type` names a target by the alias its `[Target]`
-  attribute gives it, log4net's `type` by its type name. Each type is an info diagnostic (`configured.type`), and
-  a name that is no type the analysis can read a warning (`configured.unresolved`). Configuration in
-  `appsettings.json` (NLog.Extensions.Logging) or loaded from elsewhere at run time is not read. Getting a logger (`LogManager.GetCurrentClassLogger()`,
+  `*.xml` files named after the configuration; and the `appsettings*.json` files there, for the `"NLog"` section
+  NLog.Extensions.Logging reads (targets under `"targets"`, wrapped ones under `"target"`, keys in any case).
+  NLog's `xsi:type` or `"type"` names a target by the alias its `[Target]` attribute gives it, log4net's `type` by
+  its type name. Each type is an info diagnostic (`configured.type`), and a name that is no type the analysis can
+  read a warning (`configured.unresolved`). Configuration loaded from elsewhere at run time is not read. Getting a
+  logger (`LogManager.GetCurrentClassLogger()`,
   `LogManager.GetLogger`) loads the configuration, and stays an exit point of its own. Fixture:
-  `CSharp.Effects/OtherLoggers.cs`, with `nlog.config` and `log4net.config`.
+  `CSharp.Effects/OtherLoggers.cs`, with `nlog.config`, `log4net.config` and `appsettings.json`.
 - **Entity Framework Core** runs its commands through its own service container, which the call graph does not
   follow, so the catalog names its calls to the database directly (`database.ef-*`, the first sink rules on a
   library rather than the platform): `SaveChanges`, `Find`, `ExecuteSql*` (with its SQL as the payload; an

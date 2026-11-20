@@ -185,8 +185,8 @@ let tests =
           test "a configured rule says where an XML configuration names its types" {
               let net8 = CatalogLoader.loadBuiltIn "net8.0"
               let nlog = (net8.Rules |> List.find (fun r -> r.Id = "configured.nlog-target")).Configuration.Value
-              Expect.equal nlog.Root "nlog" "the configuration's element"
-              Expect.equal nlog.TypeAttribute "type" "xsi:type, by its local name"
+              Expect.equal (nlog.Xml |> Option.map (fun x -> x.Root, x.TypeAttribute)) (Some("nlog", "type")) "xsi:type, by its local name"
+              Expect.equal (nlog.Json |> Option.map (fun j -> j.Section, j.TypeProperty)) (Some("NLog", "type")) "appsettings.json"
               Expect.equal nlog.Alias (Some "NLog.Targets.TargetAttribute") "named by the alias its attribute gives"
 
               let missing = """{ "name": "bad", "rules": [ { "id": "x", "type": "T", "kind": "configured" } ] }"""
@@ -196,7 +196,7 @@ let tests =
                   (fun e -> Expect.stringContains e.Message "configured rules need a configuration" "message")
 
               let notConfigured =
-                  """{ "name": "bad", "rules": [ { "id": "x", "type": "T", "members": ["M"], "kind": "callback", "configuration": { "root": "r", "elements": ["e"], "typeAttribute": "type" } } ] }"""
+                  """{ "name": "bad", "rules": [ { "id": "x", "type": "T", "members": ["M"], "kind": "callback", "configuration": { "xml": { "root": "r", "elements": ["e"], "typeAttribute": "type" } } } ] }"""
 
               Expect.throwsC
                   (fun () -> CatalogLoader.parse "bad" notConfigured |> ignore)

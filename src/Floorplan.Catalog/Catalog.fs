@@ -47,15 +47,28 @@ type LogCall =
     /// generator writes). Members are not used.
     | Attribute
 
-/// Where a configured rule's types are named in an XML configuration file: in elements named `Elements` under
-/// the element `Root` (the document's root, or a child of a `<configuration>` root as in app.config), in their
-/// attribute `TypeAttribute` (of any namespace, so `xsi:type` too). A value is a type's full name, optionally
+/// Where an XML configuration file names a configured rule's types: in elements named `Elements` under the
+/// element `Root` (the document's root, or a child of a `<configuration>` root as in app.config), in their
+/// attribute `TypeAttribute` (of any namespace, so `xsi:type` too).
+type XmlConfiguration =
+    { Root: string
+      Elements: string list
+      TypeAttribute: string }
+
+/// Where a JSON configuration file (appsettings.json) names a configured rule's types: under the top-level
+/// property `Section`, in objects that are the value of a property named in `Properties`, or a value of such a
+/// property's object (a map of names to objects), in their string property `TypeProperty`.
+type JsonConfiguration =
+    { Section: string
+      Properties: string list
+      TypeProperty: string }
+
+/// Where configuration files name a configured rule's types. A value is a type's full name, optionally
 /// assembly-qualified, or else an alias: the first argument of the attribute `Alias` on a type assignable to the
 /// rule's type, compared ignoring case.
 type ConfigurationSpec =
-    { Root: string
-      Elements: string list
-      TypeAttribute: string
+    { Xml: XmlConfiguration option
+      Json: JsonConfiguration option
       Alias: string option }
 
 /// Which argument of a matched call carries something worth showing: a URL, SQL text, a path, a route template,

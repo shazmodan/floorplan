@@ -1,11 +1,12 @@
-/// Objects a library makes by reflection from an XML configuration file (catalog rules of kind `configured`):
-/// NLog's targets in nlog.config, log4net's appenders in log4net.config. The configuration files are those in a
-/// project's output folder, where the library finds them at run time. Each type they name is constructed, as if in
-/// code, so the virtual calls the library makes on it reach it.
+/// Objects a library makes by reflection from a configuration file (catalog rules of kind `configured`): NLog's
+/// targets in nlog.config or appsettings.json, log4net's appenders in log4net.config. The configuration files are
+/// those in a project's output folder, where the library finds them at run time. Each type they name is
+/// constructed, as if in code, so the virtual calls the library makes on it reach it.
 module Floorplan.Analysis.Configured
 
 open System
 open System.IO
+open System.Text.Json
 open System.Xml
 open System.Xml.Linq
 open Floorplan.Model
@@ -22,49 +23,95 @@ type ConfiguredType =
 
 /// The XML files in a folder that can hold a library's configuration: `*.config` (nlog.config, app.config as
 /// `App.dll.config`, web.config), and `*.xml` files named after a configuration's root (log4net.xml).
-let private candidates (folder: string) (roots: string list) =
-    if not (Directory.Exists folder) then
-        []
-    else
-        let named (f: string) =
-            let n = Path.GetFileName(f).ToLowerInvariant()
-            roots |> List.exists (fun r -> n.Contains(r.ToLowerInvariant()))
+let private xmlFiles (folder: string) (roots: string list) =
+    let named (f: string) =
+        let n = Path.GetFileName(f).ToLowerInvariant()
+        roots |> List.exists (fun r -> n.Contains(r.ToLowerInvariant()))
 
-        Directory.EnumerateFiles folder
-        |> Seq.filter (fun f ->
-            let ext = Path.GetExtension(f).ToLowerInvariant()
-            ext = ".config" || (ext = ".xml" && named f))
-        |> Seq.sort
-        |> Seq.toList
+    Directory.EnumerateFiles folder
+    |> Seq.filter (fun f ->
+        let ext = Path.GetExtension(f).ToLowerInvariant()
+        ext = ".config" || (ext = ".xml" && named f))
+    |> Seq.sort
+    |> Seq.toList
 
-let private load (file: string) =
+/// The JSON files in a folder that hold an application's settings: appsettings.json and its per-environment
+/// variants (appsettings.Production.json).
+let private jsonFiles (folder: string) =
+    Directory.EnumerateFiles(folder, "appsettings*.json") |> Seq.sort |> Seq.toList
+
+let private loadXml (file: string) =
     try
         let settings = XmlReaderSettings(DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null)
         use reader = XmlReader.Create(file, settings)
-        Ok(XDocument.Load reader)
+        Some(XDocument.Load reader)
     with
     | :? XmlException
     | :? IOException
-    | :? UnauthorizedAccessException as e -> Error e.Message
+    | :? UnauthorizedAccessException -> None
 
-/// The element a configuration lives in: the root itself, or a child of a <configuration> root.
-let private sections (doc: XDocument) (root: string) =
-    match doc.Root with
-    | null -> []
-    | r when r.Name.LocalName = root -> [ r ]
-    | r when r.Name.LocalName = "configuration" -> r.Elements() |> Seq.filter (fun e -> e.Name.LocalName = root) |> Seq.toList
+/// The type values an XML configuration names, in document order.
+let private xmlValues (doc: XDocument) (spec: XmlConfiguration) =
+    // The element a configuration lives in: the root itself, or a child of a <configuration> root.
+    let sections =
+        match doc.Root with
+        | null -> []
+        | r when r.Name.LocalName = spec.Root -> [ r ]
+        | r when r.Name.LocalName = "configuration" ->
+            r.Elements() |> Seq.filter (fun e -> e.Name.LocalName = spec.Root) |> Seq.toList
+        | _ -> []
+
+    [ for section in sections do
+          for e in section.Descendants() do
+              if spec.Elements |> List.contains e.Name.LocalName then
+                  match e.Attributes() |> Seq.tryFind (fun a -> a.Name.LocalName = spec.TypeAttribute) with
+                  | Some a when a.Value.Trim() <> "" -> yield a.Value.Trim()
+                  | _ -> () ]
+
+let private loadJson (file: string) =
+    try
+        let text = File.ReadAllText file
+        Some(JsonDocument.Parse(text, JsonDocumentOptions(CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true)))
+    with
+    | :? JsonException
+    | :? IOException
+    | :? UnauthorizedAccessException -> None
+
+/// The type values a JSON configuration names, in document order. Configuration keys ignore case, as
+/// Microsoft.Extensions.Configuration's do.
+let private jsonValues (doc: JsonDocument) (spec: JsonConfiguration) =
+    let same (a: string) (b: string) = String.Equals(a, b, StringComparison.OrdinalIgnoreCase)
+
+    let typeOf (o: JsonElement) =
+        o.EnumerateObject()
+        |> Seq.tryFind (fun p -> same p.Name spec.TypeProperty && p.Value.ValueKind = JsonValueKind.String)
+        |> Option.map (fun p -> p.Value.GetString().Trim())
+        |> Option.filter (fun v -> v <> "")
+
+    // Objects named by one of the properties, as the property's value or as values of its object.
+    let rec walk (e: JsonElement) : string list =
+        match e.ValueKind with
+        | JsonValueKind.Object ->
+            [ for p in e.EnumerateObject() do
+                  if spec.Properties |> List.exists (same p.Name) && p.Value.ValueKind = JsonValueKind.Object then
+                      match typeOf p.Value with
+                      | Some t -> yield t
+                      | None ->
+                          for inner in p.Value.EnumerateObject() do
+                              if inner.Value.ValueKind = JsonValueKind.Object then
+                                  yield! typeOf inner.Value |> Option.toList
+
+                  yield! walk p.Value ]
+        | JsonValueKind.Array -> [ for x in e.EnumerateArray() do yield! walk x ]
+        | _ -> []
+
+    match doc.RootElement.ValueKind with
+    | JsonValueKind.Object ->
+        doc.RootElement.EnumerateObject()
+        |> Seq.filter (fun p -> same p.Name spec.Section)
+        |> Seq.collect (fun p -> walk p.Value)
+        |> Seq.toList
     | _ -> []
-
-/// The type values a configuration section names, in document order.
-let private named (section: XElement) (spec: ConfigurationSpec) =
-    section.Descendants()
-    |> Seq.filter (fun e -> spec.Elements |> List.contains e.Name.LocalName)
-    |> Seq.choose (fun e ->
-        e.Attributes()
-        |> Seq.tryFind (fun a -> a.Name.LocalName = spec.TypeAttribute)
-        |> Option.map (fun a -> a.Value.Trim()))
-    |> Seq.filter (fun v -> v <> "")
-    |> Seq.toList
 
 /// Finds the types configuration files name, for the configured rules of the catalogs in use.
 type Resolver(set: AssemblySet) =
@@ -131,41 +178,57 @@ type Resolver(set: AssemblySet) =
     /// type the analysis can read.
     member this.Find(rules: Rule list, folders: string list) : ConfiguredType list * Diagnostic list =
         let rules = rules |> List.filter (fun r -> r.Kind = Configured && r.Configuration.IsSome) |> List.distinctBy (fun r -> r.Id)
+        let xmlRules = rules |> List.choose (fun r -> r.Configuration.Value.Xml |> Option.map (fun x -> r, x))
+        let jsonRules = rules |> List.choose (fun r -> r.Configuration.Value.Json |> Option.map (fun j -> r, j))
+        let folders = folders |> List.distinct |> List.filter Directory.Exists
 
-        if rules.IsEmpty then
-            [], []
-        else
-            let roots = rules |> List.map (fun r -> r.Configuration.Value.Root) |> List.distinct
+        let fromXml =
+            if xmlRules.IsEmpty then
+                []
+            else
+                let roots = xmlRules |> List.map (fun (_, x) -> x.Root) |> List.distinct
 
-            let found =
-                [ for folder in List.distinct folders do
-                      for file in candidates folder roots do
-                          match load file with
-                          | Error _ -> ()
-                          | Ok doc ->
-                              for rule in rules do
-                                  let spec = rule.Configuration.Value
+                [ for folder in folders do
+                      for file in xmlFiles folder roots do
+                          match loadXml file with
+                          | Some doc ->
+                              for (rule, spec) in xmlRules do
+                                  for value in xmlValues doc spec -> file, rule, value
+                          | None -> () ]
 
-                                  for section in sections doc spec.Root do
-                                      for value in named section spec ->
-                                          file, rule, value, this.Resolve(rule, value) ]
+        let fromJson =
+            if jsonRules.IsEmpty then
+                []
+            else
+                [ for folder in folders do
+                      for file in jsonFiles folder do
+                          match loadJson file with
+                          | Some doc ->
+                              use doc = doc
 
-            let types =
-                found
-                |> List.choose (fun (file, rule, value, t) ->
-                    t |> Option.map (fun t -> { Type = t; Rule = rule; File = file; Named = value }))
-                |> List.distinctBy (fun c -> c.Type)
+                              for (rule, spec) in jsonRules do
+                                  for value in jsonValues doc spec -> file, rule, value
+                          | None -> () ]
 
-            let unresolved =
-                found
-                |> List.filter (fun (_, _, _, t) -> t.IsNone)
-                |> List.distinctBy (fun (file, _, value, _) -> file, value)
-                |> List.map (fun (file, rule, value, _) ->
-                    { Severity = DiagnosticSeverity.Warning
-                      Code = "configured.unresolved"
-                      Message =
-                        $"{Path.GetFileName file} names \"{value}\" (rule {rule.Id}), which is not a type the analysis can read. What it does is not analyzed."
-                      ProjectId = None
-                      Location = None })
+        let found =
+            (fromXml @ fromJson) |> List.map (fun (file, rule, value) -> file, rule, value, this.Resolve(rule, value))
 
-            types, unresolved
+        let types =
+            found
+            |> List.choose (fun (file, rule, value, t) ->
+                t |> Option.map (fun t -> { Type = t; Rule = rule; File = file; Named = value }))
+            |> List.distinctBy (fun c -> c.Type)
+
+        let unresolved =
+            found
+            |> List.filter (fun (_, _, _, t) -> t.IsNone)
+            |> List.distinctBy (fun (file, _, value, _) -> file, value)
+            |> List.map (fun (file, rule, value, _) ->
+                { Severity = DiagnosticSeverity.Warning
+                  Code = "configured.unresolved"
+                  Message =
+                    $"{Path.GetFileName file} names \"{value}\" (rule {rule.Id}), which is not a type the analysis can read. What it does is not analyzed."
+                  ProjectId = None
+                  Location = None })
+
+        types, unresolved
