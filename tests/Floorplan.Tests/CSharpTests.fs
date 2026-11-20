@@ -259,6 +259,43 @@ let tests =
                   "through the interface, the implementation that returns the query"
           }
 
+          test "Entity Framework Core: a query passed to a method that enumerates it runs at the call" {
+              let m = csharpModel.Force()
+
+              let database (memberName: string) =
+                  m.ExitPoints
+                  |> List.filter (fun x ->
+                      x.Member = $"CSharp.Effects.Printing.OrderPrinting::{memberName}" && x.Category = EffectCategory.Database)
+
+              for name, primitive in
+                  [ "Print", "System.Collections.Generic.IEnumerable`1::GetEnumerator"
+                    "Shipped", "System.Linq.Enumerable::ToList"
+                    "Again", "System.Collections.Generic.IEnumerable`1::GetEnumerator"
+                    "Summarize", "System.Linq.Enumerable::ToList"
+                    "Counted", "System.Collections.Generic.IEnumerable`1::GetEnumerator" ] do
+                  Expect.equal (database name |> List.map (fun x -> x.Primitive)) [ primitive ] $"{name} runs the query it passes"
+
+              Expect.isEmpty (database "Local") "a list passed in is not a query"
+
+              Expect.equal
+                  ((database "Shipped").Head.Payload |> Option.bind (fun p -> p.Value))
+                  (Some "SELECT * FROM Orders WHERE Shipped = 1")
+                  "the SQL of the query passed"
+
+              Expect.exists
+                  (database "Again").Head.Evidence.Steps
+                  (fun s -> s.Description = "CSharp.Effects.Printing.Printer::Again passes it to CSharp.Effects.Printing.Printer::Print as parameter orders")
+                  "through the method that passes it on"
+
+              Expect.equal ((database "Counted").Head.ViaAssembly) (Some "CSharp.Wrappers") "enumerated in a dependency"
+
+              // The methods that enumerate their parameter have no query of their own.
+              Expect.isEmpty
+                  (m.ExitPoints
+                   |> List.filter (fun x -> x.Member.StartsWith "CSharp.Effects.Printing.Printer::" || x.Member.StartsWith "CSharp.Effects.Printing.Summary::"))
+                  "nothing where the parameter is enumerated"
+          }
+
           test "effects in C#: every category, behind lambdas, interfaces, a container, async methods and iterators" {
               let m = csharpModel.Force()
 

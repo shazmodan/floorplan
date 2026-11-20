@@ -214,6 +214,8 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                 |> List.filter (fun e -> e.Offset = offset && (e.Kind = Direct || e.Kind = Virtual))
                 |> List.map (fun e -> e.Target) }
 
+    let enumeratedParameters = Queries.enumeratedParameters queries
+
     // What a logger's sinks do is the same at every log call: one exit point per unit and effect, listing the calls.
     let logGroups = Dictionary<string * EffectCategory * string * string * Payload option * string, LogGroup>()
 
@@ -408,7 +410,53 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                             Confidence.High
                             [ step $"{m.Ref.Display} calls {declared.Display}" m.Ref point
                               step $"{declared.Display} enumerates a query, from {q.Description}, which runs it on the database (rule {q.Rule.Id})" declared None ]
-                    | None -> ()
+                    | None ->
+                        // A call that passes a query to a method that enumerates it runs the query: an exit point
+                        // here, at each such call, as the method has no query of its own.
+                        let passed =
+                            if isLogCall then
+                                None
+                            else
+                                flow.Value
+                                |> Option.bind (fun f ->
+                                    let operands = f.OperandsAt ins.Offset
+
+                                    edges
+                                    |> List.map (fun e -> e.Target)
+                                    |> List.distinctBy (fun t -> t.Key)
+                                    |> List.tryPick (fun target ->
+                                        enumeratedParameters target
+                                        |> List.tryPick (fun p ->
+                                            List.tryItem (if isNewObj then p.Argument - 1 else p.Argument) operands
+                                            |> Option.bind (Queries.ofValues queries f m)
+                                            |> Option.map (fun q -> target, p, q))))
+
+                        match passed with
+                        | Some(target, p, q) ->
+                            let via =
+                                match ctx.Set.Origin target.Type.Assembly with
+                                | Dependency -> Some target.Type.Assembly
+                                | _ -> None
+
+                            let calledName = snd p.Path.Head
+                            let enumerating, enumeratedName = List.last p.Path
+
+                            let passedOn =
+                                List.pairwise p.Path
+                                |> List.map (fun ((from, _), (into, name)) -> step $"{from.Display} passes it to {into.Display} as parameter {name}" from None)
+
+                            add
+                                q.Rule.Category.Value
+                                q.Rule.Id
+                                p.Enumerator.Display
+                                via
+                                (queryPayload q)
+                                Confidence.High
+                                [ step $"{m.Ref.Display} calls {target.Display}, passing a query from {q.Description} as parameter {calledName}" m.Ref point
+                                  yield! passedOn
+                                  step $"{enumerating.Display} calls {p.Enumerator.Display}" enumerating None
+                                  step $"{p.Enumerator.Display} enumerates parameter {enumeratedName} of {enumerating.Display}, which runs the query on the database (rule {q.Rule.Id})" p.Enumerator None ]
+                        | None -> ()
 
                     for edge in edges |> List.filter (fun _ -> not dispatched) do
                         match sinkOf ctx.Set ctx.Matcher edge with
