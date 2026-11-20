@@ -40,6 +40,35 @@ let tests =
               Golden.check "csharp.exit-points.txt" (ExitPointTests.render (csharpModelNet10.Force()))
           }
 
+          test "SignalR: each hub method clients can invoke is an entry point at the hub's pattern" {
+              let m = csharpModel.Force()
+
+              let hub =
+                  entries m "CSharp.Endpoints"
+                  |> List.filter (fun e -> e.HandlerMember.StartsWith "CSharp.Endpoints.Chat.")
+                  |> List.map (fun e -> e.HandlerMember, e.Route, e.Completeness)
+                  |> List.sort
+
+              Expect.equal
+                  hub
+                  [ "CSharp.Endpoints.Chat.ChatHub::LeaveRoom", Some "/hubs/chat", Completeness.Partial
+                    "CSharp.Endpoints.Chat.ChatHub::Send", Some "/hubs/chat", Completeness.Partial
+                    "CSharp.Endpoints.Chat.RoomHub::Ping", Some "/hubs/chat", Completeness.Partial ]
+                  "public methods, inherited ones too; not the platform's OnConnectedAsync, nor private ones"
+
+              let leave = entries m "CSharp.Endpoints" |> List.find (fun e -> e.HandlerMember.EndsWith "::LeaveRoom")
+              Expect.exists leave.Evidence.Steps (fun s -> s.Description.Contains "invoke as \"leave\"") "[HubMethodName]"
+
+              // The trace of a hub method reaches what it does.
+              let send = entries m "CSharp.Endpoints" |> List.find (fun e -> e.HandlerMember.EndsWith "::Send")
+              let trace = m.Traces |> List.find (fun t -> t.EntryPointId = send.Id)
+
+              Expect.exists
+                  (m.ExitPoints |> List.filter (fun x -> List.contains x.Id trace.ExitPointIds))
+                  (fun x -> x.Primitive = "System.IO.File::AppendAllTextAsync")
+                  "Send writes the chat log"
+          }
+
           test "what a logger's sinks do is one exit point per unit, listing its log calls" {
               let m = csharpModel.Force()
 
@@ -453,7 +482,12 @@ let tests =
 
               Expect.isFalse (endpoints |> List.exists (fun e -> e.HandlerMember.Contains "library function")) "no library responses"
 
-              let keys = endpoints |> List.map (fun e -> e.HttpMethod, e.Route)
+              // A hub's methods share its route: the invocation's target chooses among them.
+              let keys =
+                  endpoints
+                  |> List.filter (fun e -> not (e.HandlerMember.StartsWith "CSharp.Endpoints.Chat."))
+                  |> List.map (fun e -> e.HttpMethod, e.Route)
+
               Expect.equal keys (List.distinct keys) "one entry per method and route"
 
               let byRoute route =

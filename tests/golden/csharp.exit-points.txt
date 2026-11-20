@@ -139,7 +139,7 @@ nondeterminism | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.
 environment | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Shelves::Store | System.Console::get_Error | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:47
 network | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Shelves::Store | System.Net.Sockets.UdpClient::SendAsync | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:47
 nondeterminism | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Shelves::Store | System.DateTime::get_UtcNow | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:47
-environment | CSharp.Endpoints: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via - | literal:STATUS_PREFIX | CSharp/CSharp.Endpoints/Program.cs:15
+environment | CSharp.Endpoints: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via - | literal:STATUS_PREFIX | CSharp/CSharp.Endpoints/Program.cs:16
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::GetOrder | System.IO.File::ReadAllText | via - | template:orders/{…}.json | CSharp/CSharp.Endpoints/Api.cs:8
 nondeterminism | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::CreateOrder | System.Guid::NewGuid | via - | - | CSharp/CSharp.Endpoints/Api.cs:12
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::CreateOrder | System.IO.File::WriteAllText | via - | template:orders/{…}.json | CSharp/CSharp.Endpoints/Api.cs:12
@@ -149,6 +149,7 @@ environment | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Audi
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.IO.Directory::Exists | via Serilog | dynamic:- | CSharp/CSharp.Endpoints/Audit.cs:11
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.IO.File::AppendAllText | via Serilog | dynamic:- | CSharp/CSharp.Endpoints/Audit.cs:11
 nondeterminism | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.DateTimeOffset::get_Now | via Serilog | - | CSharp/CSharp.Endpoints/Audit.cs:11
+filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Chat | CSharp.Endpoints.Chat.ChatHub/<Send>d__0::MoveNext | System.IO.File::AppendAllTextAsync | via - | literal:chat.log | CSharp/CSharp.Endpoints/Chat.cs:16
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Setup::Configure | System.IO.Directory::Exists | via Serilog.Sinks.File | dynamic:- | CSharp/CSharp.Endpoints/Shipping.cs:11
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Setup::Configure | System.IO.File::Open | via Serilog.Sinks.File | literal:logs/shipping.log | CSharp/CSharp.Endpoints/Shipping.cs:11
 environment | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.Console::get_Out | via Serilog.Extensions.Logging | - | CSharp/CSharp.Endpoints/Shipping.cs:18

@@ -346,6 +346,13 @@
     // MapControllers maps the actions of every controller with attribute routes. The attribute rules below are
     // read from the declarations of controllers and actions, not from calls: the constructor arguments are the
     // attribute's arguments.
+    // SignalR: MapHub<THub>(endpoints, pattern) maps a hub. Clients connect at the pattern and invoke the hub's public
+    // methods by name; "hub-type" is the index of the type argument that is the hub. [HubMethodName] renames one.
+    { "id": "http-in.map-hub", "assembly": "Microsoft.AspNetCore.SignalR", "type": "Microsoft.AspNetCore.Builder.HubEndpointRouteBuilderExtensions",
+      "members": ["MapHub"], "kind": "registration", "category": "http-in",
+      "payload": [{ "argument": 1, "role": "route-template" }, { "argument": 0, "role": "hub-type" }] },
+    { "id": "http-in.signalr-hub-method-name", "assembly": "Microsoft.AspNetCore.SignalR.Core", "type": "Microsoft.AspNetCore.SignalR.HubMethodNameAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "hub-method-name" }] },
     { "id": "http-in.map-controllers", "assembly": "Microsoft.AspNetCore.Mvc.Core", "type": "Microsoft.AspNetCore.Builder.ControllerEndpointRouteBuilderExtensions",
       "members": ["MapControllers"], "kind": "registration", "category": "http-in", "payload": [{ "argument": 0, "role": "controllers" }] },
     // Conventional routes: MapControllerRoute(endpoints, name, pattern, defaults, ...), MapAreaControllerRoute(endpoints,

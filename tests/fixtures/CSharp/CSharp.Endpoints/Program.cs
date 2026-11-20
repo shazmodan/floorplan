@@ -12,6 +12,7 @@ app.MapMethods("/health", new[] { "GET", "HEAD" }, () => "ok");
 app.MapPost("/api/audit", CSharp.Endpoints.Auditing.Audit.Cancelled);
 
 Admin.Map(app.MapGroup("/admin"));
+app.MapHub<CSharp.Endpoints.Chat.ChatHub>("/hubs/chat");
 app.MapGet(Environment.GetEnvironmentVariable("STATUS_PREFIX") + "/status", () => "up");
 
 app.Run();
