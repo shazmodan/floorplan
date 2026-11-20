@@ -9,8 +9,6 @@ Work that is known and not yet done. Remove an item when its branch is merged.
   enumerated in a lambda, or by a framework method (`string.Join`, `List<T>.AddRange`).
 - **NLog configured in appsettings.json is not read** (NLog.Extensions.Logging's "NLog" section): only XML
   configuration files in the output folder are.
-- **Serilog's `ForContext` reaches the clock.** On mmddd, 9 `ForContext` calls (which create a logger, not log) are
-  still one nondeterminism exit point each. Hidden by default; low priority.
 
 ## Later, if wanted (from docs/library-payloads-plan.md)
 

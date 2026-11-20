@@ -212,6 +212,31 @@ let tests =
                   "no sink effects from EF's own log calls"
           }
 
+          test "a library's log of its own workings is not followed: Serilog's ForContext makes a logger, and logs nothing" {
+              let m = csharpModel.Force()
+
+              Expect.isEmpty
+                  (m.ExitPoints |> List.filter (fun x -> x.Member.StartsWith "CSharp.Effects.Billing.Refunds::"))
+                  "ForContext, and the log calls grouped with the unit's others"
+
+              Expect.isFalse
+                  (m.ExitPoints
+                   |> List.exists (fun x ->
+                       x.Evidence.Steps
+                       |> List.exists (fun s ->
+                           System.Text.RegularExpressions.Regex.IsMatch(
+                               s.Description,
+                               @"calls (Serilog\.Debugging\.SelfLog::WriteLine|NLog\.Common\.InternalLogger::(Trace|Debug|Info|Warn|Error|Fatal|Log))$"
+                           ))))
+                  "no route through Serilog's SelfLog or NLog's InternalLogger (turning it on, as configured, is followed)"
+
+              // log4net's warnings and errors go to the console unless it is told to be quiet.
+              Expect.exists
+                  m.ExitPoints
+                  (fun x -> x.ViaAssembly = Some "log4net" && x.Primitive = "System.Console::get_Error")
+                  "log4net's own errors are still followed"
+          }
+
           test "NLog and log4net log calls are grouped, once per unit and effect" {
               let m = csharpModel.Force()
 
