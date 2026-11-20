@@ -56,7 +56,10 @@ type Recovery(ctx: AppContext) =
     let evaluator (flow: Flow) =
         Values.Evaluator(flow, ctx.Program.Recognizers, Values.constantReturn set)
 
-    let constant (flow: Flow) (offset: int) (index: int) : string option =
+    /// The constant operand `index` of the instruction at `offset`. `captured` holds constants known from the
+    /// caller: those a closure was created with, by field (in the closure's own code, a read of one of its fields
+    /// is that constant), and the constant arguments of a call, as `#index` (a read of that argument).
+    let constantIn (captured: Map<string, string>) (flow: Flow) (offset: int) (index: int) : string option =
         match List.tryItem index (flow.OperandsAt offset) with
         | Some values ->
             match Set.toList values with
@@ -67,9 +70,104 @@ type Recovery(ctx: AppContext) =
                 | _ ->
                     match (evaluator flow).Operand(offset, index) with
                     | Values.Text t -> Some t
+                    | Values.Param(0, [ field ]) -> captured.TryFind field
+                    | Values.Param(i, []) -> captured.TryFind("#" + string i)
                     | _ -> None
+            | [ Argument i ] -> captured.TryFind("#" + string i)
             | _ -> None
         | None -> None
+
+    let constant = constantIn Map.empty
+
+    let initializers = Dictionary<string, MethodDef list>()
+
+    /// Methods of an assembly that store a static field: its initializers.
+    let initializersOf (f: FieldRef) =
+        match initializers.TryGetValue f.Key with
+        | true, ms -> ms
+        | _ ->
+            let ms =
+                match set.TryLoad f.Type.Assembly with
+                | Some a ->
+                    a.Types
+                    |> List.collect (fun t -> t.Methods)
+                    |> List.filter (fun m ->
+                        match m.Body.Value with
+                        | Some b -> b.Instructions |> Array.exists (fun i -> i.Op = StSFld f)
+                        | None -> false)
+                | None -> []
+
+            initializers[f.Key] <- ms
+            ms
+
+    /// The closure a function value is, with the constants it captured, by field: a closure created here, or one
+    /// held in a static field, as F# keeps a module-level function value such as `let (|GET|_|) = matcher "GET"`
+    /// (read through its property getter).
+    let rec closureOf (flow: Flow) (values: Values) (depth: int) : (TypeRef * Map<string, string>) option =
+        match Set.toList values with
+        | [ Pushed o ] when depth < 4 ->
+            match flow.InstructionAt o with
+            | Some { Op = NewObj ctor } when set.IsUser ctor.Type.Assembly ->
+                // The constructor stores its arguments into the closure's fields.
+                let captured =
+                    match set.TryMethod ctor |> Option.bind (fun (def, _) -> DataFlow.ofMethod def) with
+                    | Some ctorFlow ->
+                        ctorFlow.Body.Instructions
+                        |> Array.choose (fun ins ->
+                            match ins.Op, ctorFlow.OperandsAt ins.Offset with
+                            | StFld field, [ target; stored ] when target = Set.singleton (Argument 0) ->
+                                match Set.toList stored with
+                                | [ Argument i ] when i > 0 ->
+                                    constant flow o (i - 1) |> Option.map (fun c -> Values.memberOfField field.Name, c)
+                                | _ -> None
+                            | _ -> None)
+                        |> Map.ofArray
+                    | None -> Map.empty
+
+                Some(ctor.Type, captured)
+            | Some { Op = LdSFld f } when set.IsUser f.Type.Assembly -> staticClosure f depth
+            | Some { Op = Call getter } when getter.ParameterCount = 0 && not getter.HasThis && set.IsUser getter.Type.Assembly ->
+                match set.TryMethod getter with
+                | Some(def, _) ->
+                    match def.Body.Value |> Option.map (fun b -> b.Instructions |> Array.filter (fun i -> i.Op <> Nop)) with
+                    | Some [| { Op = LdSFld f }; { Op = Ret } |] -> staticClosure f depth
+                    | _ -> None
+                | None -> None
+            | _ -> None
+        | _ -> None
+
+    and staticClosure (f: FieldRef) (depth: int) =
+        // Only a field every initializer sets to the same closure.
+        let found =
+            initializersOf f
+            |> List.collect (fun init ->
+                match DataFlow.ofMethod init with
+                | Some initFlow ->
+                    initFlow.Body.Instructions
+                    |> Array.filter (fun i -> i.Op = StSFld f)
+                    |> Array.toList
+                    |> List.map (fun i ->
+                        match initFlow.OperandsAt i.Offset with
+                        | [ v ] -> closureOf initFlow v (depth + 1)
+                        | _ -> None)
+                | None -> [ None ])
+            |> List.distinct
+
+        match found with
+        | [ Some c ] -> Some c
+        | _ -> None
+
+    /// The Invoke method a closure of type `closure` runs for a call to `invoke`.
+    let invokeOf (closure: TypeRef) (invoke: MethodRef) =
+        match set.TryType closure with
+        | Some(def, _) ->
+            def.Methods
+            |> List.tryFind (fun m ->
+                m.Ref.Name = "Invoke" && not m.IsAbstract && m.Ref.ParameterCount = invoke.ParameterCount && m.Body.Value.IsSome)
+        | None -> None
+
+    let isFunctionInvoke (m: MethodRef) =
+        m.Name = "Invoke" && m.HasThis && m.Type.FullName.StartsWith "Microsoft.FSharp.Core.FSharpFunc`"
 
     let predicate (location: Location option) (part: RequestPart, index: int option) (op: PredicateOperator) (value: string) =
         { Part = part
@@ -84,11 +182,11 @@ type Recovery(ctx: AppContext) =
         || (m.Type.FullName = "Microsoft.AspNetCore.Http.PathString" && (m.Name = "Equals" || m.Name = "op_Equality"))
 
     /// A comparison between two operands of the instruction at `offset`: one request value, one constant.
-    let comparison (m: MethodDef) (flow: Flow) (offset: int) (left: int) (right: int) (op: PredicateOperator) (location: Location option) =
+    let comparison (captured: Map<string, string>) (m: MethodDef) (flow: Flow) (offset: int) (left: int) (right: int) (op: PredicateOperator) (location: Location option) =
         let tags = ctx.Taint.OperandTags m.Ref offset
 
         let attempt (tagged: int) (literal: int) =
-            match List.tryItem tagged tags |> Option.bind describe, constant flow offset literal with
+            match List.tryItem tagged tags |> Option.bind describe, constantIn captured flow offset literal with
             | Some subject, Some value -> Some(predicate location subject op value)
             | _ -> None
 
@@ -96,7 +194,7 @@ type Recovery(ctx: AppContext) =
         | Some p -> [ p ]
         | None -> attempt right left |> Option.toList
 
-    let rec conditionOf (m: MethodDef) (flow: Flow) (depth: int) (values: Values) : Condition =
+    let rec conditionOf (captured: Map<string, string>) (m: MethodDef) (flow: Flow) (depth: int) (values: Values) : Condition =
         match Set.toList values with
         | [ Pushed offset ] when depth < 6 ->
             match flow.InstructionAt offset with
@@ -118,7 +216,7 @@ type Recovery(ctx: AppContext) =
                     | _ -> noCondition
                 | Call x
                 | CallVirt x when isEquality x && (flow.OperandsAt offset).Length >= 2 ->
-                    { noCondition with WhenTrue = comparison m flow offset 0 1 PredicateOperator.Equals location }
+                    { noCondition with WhenTrue = comparison captured m flow offset 0 1 PredicateOperator.Equals location }
                 | Call x
                 | CallVirt x when x.Type.FullName = "System.String" && (x.Name = "StartsWith" || x.Name = "EndsWith" || x.Name = "Contains") ->
                     let op =
@@ -127,12 +225,12 @@ type Recovery(ctx: AppContext) =
                         | "EndsWith" -> PredicateOperator.EndsWith
                         | _ -> PredicateOperator.Contains
 
-                    { noCondition with WhenTrue = comparison m flow offset 0 1 op location }
+                    { noCondition with WhenTrue = comparison captured m flow offset 0 1 op location }
                 | Call x
                 | CallVirt x when x.Type.FullName = "Microsoft.AspNetCore.Http.PathString" && x.Name = "StartsWithSegments" ->
-                    { noCondition with WhenTrue = comparison m flow offset 0 1 PredicateOperator.StartsWith location }
+                    { noCondition with WhenTrue = comparison captured m flow offset 0 1 PredicateOperator.StartsWith location }
                 | Call x when x.Type.FullName = "System.Text.RegularExpressions.Regex" && x.Name = "IsMatch" && not x.HasThis ->
-                    { noCondition with WhenTrue = comparison m flow offset 0 1 PredicateOperator.Matches location }
+                    { noCondition with WhenTrue = comparison captured m flow offset 0 1 PredicateOperator.Matches location }
                 | CallVirt x
                 | Call x when x.Type.FullName = "System.Text.RegularExpressions.Regex" && x.Name = "IsMatch" && x.HasThis ->
                     // new Regex(pattern).IsMatch(input): the pattern is the constructor's argument.
@@ -152,13 +250,32 @@ type Recovery(ctx: AppContext) =
                     match pattern, subject with
                     | Some p, Some s -> { noCondition with WhenTrue = [ predicate location s PredicateOperator.Matches p ] }
                     | _ -> noCondition
-                | Call x
-                | CallVirt x when ctx.Methods.ContainsKey x.Key ->
-                    // A helper returning bool or an option (an active pattern): its own conditions for success.
-                    match successOf ctx.Methods[x.Key] (depth + 1) with
+                | CallVirt x when isFunctionInvoke x ->
+                    // A function value applied, such as an active pattern made by partial application: the
+                    // conditions under which the closure it holds succeeds, with the constants it captured.
+                    let closure =
+                        flow.OperandsAt offset
+                        |> List.tryHead
+                        |> Option.bind (fun receiver -> closureOf flow receiver 0)
+                        |> Option.bind (fun (t, captured) -> invokeOf t x |> Option.map (fun invoke -> invoke, captured))
+
+                    match closure |> Option.bind (fun (invoke, inner) -> successOf invoke inner (depth + 1)) with
                     | Some ps -> { noCondition with WhenTrue = ps }
                     | None -> noCondition
-                | Ceq -> { noCondition with WhenTrue = comparison m flow offset 0 1 PredicateOperator.Equals location }
+                | Call x
+                | CallVirt x when ctx.Methods.ContainsKey x.Key ->
+                    // A helper returning bool or an option (an active pattern): its own conditions for success,
+                    // with the constants it is called with (the method a closure passes on to a shared matcher).
+                    let arguments =
+                        flow.OperandsAt offset
+                        |> List.indexed
+                        |> List.choose (fun (j, _) -> constantIn captured flow offset j |> Option.map (fun c -> "#" + string j, c))
+                        |> Map.ofList
+
+                    match successOf ctx.Methods[x.Key] arguments (depth + 1) with
+                    | Some ps -> { noCondition with WhenTrue = ps }
+                    | None -> noCondition
+                | Ceq -> { noCondition with WhenTrue = comparison captured m flow offset 0 1 PredicateOperator.Equals location }
                 | _ ->
                     // A list's tail is null exactly when the list has ended: the segment count is known.
                     let tags = ctx.Taint.ResultTags m.Ref offset
@@ -183,8 +300,8 @@ type Recovery(ctx: AppContext) =
                 match many |> List.filter (fun v -> constantOf v <> Some impossible) with
                 | [ Pushed o as only ] ->
                     let index = Instruction.indexOfOffset flow.Body.Instructions o
-                    let own = if constantOf only = Some(1 - impossible) then [] else pick (conditionOf m flow (depth + 1) (Set.singleton only))
-                    own @ (if index >= 0 then pathPredicates m index else [])
+                    let own = if constantOf only = Some(1 - impossible) then [] else pick (conditionOf captured m flow (depth + 1) (Set.singleton only))
+                    own @ (if index >= 0 then pathPredicatesIn captured m index else [])
                 | _ -> []
 
             { WhenTrue = side 0 (fun c -> c.WhenTrue)
@@ -192,7 +309,7 @@ type Recovery(ctx: AppContext) =
         | _ -> noCondition
 
     /// Predicates implied by taking successor `direction` of the conditional branch at `index`.
-    and branchPredicates (m: MethodDef) (flow: Flow) (index: int) (direction: int) : Predicate list =
+    and branchPredicates (captured: Map<string, string>) (m: MethodDef) (flow: Flow) (index: int) (direction: int) : Predicate list =
         let ins = flow.Body.Instructions[index]
         let operands = flow.OperandsAt ins.Offset
 
@@ -200,17 +317,17 @@ type Recovery(ctx: AppContext) =
 
         match ins.Op, operands with
         | BrTrue _, [ v ] ->
-            let c = conditionOf m flow 0 v
+            let c = conditionOf captured m flow 0 v
             if direction = 1 then c.WhenTrue else c.WhenFalse
         | BrFalse _, [ v ] ->
-            let c = conditionOf m flow 0 v
+            let c = conditionOf captured m flow 0 v
             if direction = 1 then c.WhenFalse else c.WhenTrue
-        | BrCmp(Eq, _), [ _; _ ] -> if direction = 1 then comparison m flow ins.Offset 0 1 PredicateOperator.Equals location else []
-        | BrCmp(NotEq, _), [ _; _ ] -> if direction = 0 then comparison m flow ins.Offset 0 1 PredicateOperator.Equals location else []
+        | BrCmp(Eq, _), [ _; _ ] -> if direction = 1 then comparison captured m flow ins.Offset 0 1 PredicateOperator.Equals location else []
+        | BrCmp(NotEq, _), [ _; _ ] -> if direction = 0 then comparison captured m flow ins.Offset 0 1 PredicateOperator.Equals location else []
         | _ -> []
 
     /// Predicates that hold whenever the instruction at `target` runs: one per request-data branch deciding it.
-    and pathPredicates (m: MethodDef) (target: int) : Predicate list =
+    and pathPredicatesIn (captured: Map<string, string>) (m: MethodDef) (target: int) : Predicate list =
         match flowOf m with
         | None -> []
         | Some flow ->
@@ -220,19 +337,23 @@ type Recovery(ctx: AppContext) =
             |> List.collect (fun (b, _) ->
                 if ControlFlow.isControlledBy cfg b target then
                     match ControlFlow.directionTo cfg b target with
-                    | Some d -> branchPredicates m flow b d
+                    | Some d -> branchPredicates captured m flow b d
                     | None -> []
                 else
                     [])
             |> List.distinct
 
     /// The conditions under which a helper returns true or a value (not null), common to all its successes.
-    and successOf (m: MethodDef) (depth: int) : Predicate list option =
-        match summaries.TryGetValue m.Ref.Key with
+    and successOf (m: MethodDef) (captured: Map<string, string>) (depth: int) : Predicate list option =
+        let key =
+            if captured.IsEmpty then m.Ref.Key
+            else m.Ref.Key + "|" + (captured |> Map.toList |> List.map (fun (k, v) -> k + "=" + v) |> String.concat ",")
+
+        match summaries.TryGetValue key with
         | true, s -> s
         | _ when depth > 4 -> None
         | _ ->
-            summaries[m.Ref.Key] <- None
+            summaries[key] <- None
 
             let result =
                 match flowOf m with
@@ -257,8 +378,8 @@ type Recovery(ctx: AppContext) =
                                 if failure then
                                     None
                                 else
-                                    let returned = (conditionOf m flow (depth + 1) v).WhenTrue
-                                    Some(Set.ofList (pathPredicates m i @ returned))
+                                    let returned = (conditionOf captured m flow (depth + 1) v).WhenTrue
+                                    Some(Set.ofList (pathPredicatesIn captured m i @ returned))
                             | _ -> None)
                         |> Array.toList
 
@@ -266,8 +387,10 @@ type Recovery(ctx: AppContext) =
                     | [] -> None
                     | first :: rest -> Some(rest |> List.fold Set.intersect first |> Set.toList)
 
-            summaries[m.Ref.Key] <- result
+            summaries[key] <- result
             result
+
+    let pathPredicates (m: MethodDef) (target: int) = pathPredicatesIn Map.empty m target
 
     /// Callers of a method within the application, with the call instruction index.
     let callSites (m: MethodRef) =

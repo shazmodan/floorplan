@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Request.fs" />
+    <Compile Include="Session.fs" />
+    <Compile Include="Router.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+</Project>

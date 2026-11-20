@@ -153,8 +153,14 @@ let trackedHandlers (ctx: AppContext) : FoundHandler list =
     let isUser (m: MethodRef) = ctx.Methods.ContainsKey m.Key
     let unwrap = PlatformRouting.unwrap set isUser 0
 
+    // Structural equality, hashing and comparison the compiler generates for records and unions branch on
+    // every field, request data included, but route nothing.
+    let structural (m: MethodDef) =
+        m.IsCompilerGenerated && (m.Ref.Name = "Equals" || m.Ref.Name = "GetHashCode" || m.Ref.Name = "CompareTo")
+
     let guarded =
         ctx.Methods.Values
+        |> Seq.filter (fun m -> not (structural m))
         |> Seq.collect (fun m ->
             guardedCalls ctx m
             |> List.map (fun (i, t, guards) ->
@@ -180,14 +186,39 @@ let trackedHandlers (ctx: AppContext) : FoundHandler list =
     let dispatching =
         ctx.Methods.Values |> Seq.filter (fun m -> not (taintedBranches ctx m).IsEmpty) |> Seq.map (fun m -> m.Ref.Key) |> Set.ofSeq
 
+    // The methods that create each closure: a source read in a lambda serves the method that made the lambda.
+    let creators =
+        lazy
+            (ctx.Methods.Values
+             |> Seq.collect (fun m ->
+                 m.Body.Value.Value.Instructions
+                 |> Seq.choose (fun i ->
+                     match i.Op with
+                     | NewObj ctor when ctor.Type <> m.Ref.Type -> Some(ctor.Type.FullName, m.Ref.Key)
+                     | _ -> None))
+             |> Seq.distinct
+             |> Seq.groupBy fst
+             |> Seq.map (fun (t, ms) -> t, ms |> Seq.map snd |> List.ofSeq)
+             |> Map.ofSeq)
+
     let receivers =
         ctx.Taint.Sources
         |> List.filter (fun s -> ctx.Methods.ContainsKey s.Method.Key)
         |> List.distinctBy (fun s -> s.Method.Key)
         |> List.collect (fun s ->
-            // Everything downstream of the source, through calls that pass request data along.
-            let downstream = HashSet<string>([ s.Method.Key ])
-            let stack = Stack<string>([ s.Method.Key ])
+            // Everything downstream of the source, through calls that pass request data along, and of the
+            // methods creating the closure the source is read in.
+            let closureCreators =
+                match set.TryType s.Method.Type with
+                | Some(t, _) when
+                    t.IsCompilerGenerated
+                    || set.BaseChain t.Ref |> List.exists (fun b -> b.FullName.StartsWith "Microsoft.FSharp.Core.FSharpFunc`")
+                    ->
+                    creators.Force() |> Map.tryFind s.Method.Type.FullName |> Option.defaultValue []
+                | _ -> []
+
+            let downstream = HashSet<string>(s.Method.Key :: closureCreators)
+            let stack = Stack<string>(s.Method.Key :: closureCreators)
 
             while stack.Count > 0 do
                 let k = stack.Pop()

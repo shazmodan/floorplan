@@ -290,6 +290,17 @@ let tests =
                   "routes"
           }
 
+          test "form A, active patterns made by partial application, over a path nested in a record (issue #17)" {
+              let m = routingModel.Force()
+
+              Expect.equal
+                  (routes m "Routing.Records")
+                  [ "DELETE", "/Session/{id}", "Routing.Records.Session::remove", Completeness.Complete
+                    "GET", "/Session", "Routing.Records.Session::show", Completeness.Complete
+                    "POST", "/Session", "Routing.Records.Session::create", Completeness.Complete ]
+                  "routes"
+          }
+
           test "form B, table lookup: dictionary and map entries" {
               let m = routingModel.Force()
 
