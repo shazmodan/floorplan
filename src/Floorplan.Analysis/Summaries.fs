@@ -31,6 +31,7 @@ let nativeRule =
       ComparesTo = None
       Dispatch = None
       LogCall = LogCall.Direct
+      Configuration = None
       Source = "built-in" }
 
 /// Whether a call edge is itself an effect.

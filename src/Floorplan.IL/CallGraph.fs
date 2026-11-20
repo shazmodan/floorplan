@@ -313,6 +313,22 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: s
 
         drain ()
 
+    /// Types made outside the code (by reflection, from a configuration file): each is instantiated, so virtual
+    /// calls reach its implementations, and its parameterless constructor is a root.
+    member _.AddConstructed(types: TypeRef seq) =
+        for t in types do
+            instantiate t
+
+            match set.TryType t with
+            | Some(def, _) ->
+                for ctor in def.Methods |> List.filter (fun c -> c.IsConstructor && not c.IsStatic && c.Ref.ParameterCount = 0) do
+                    if not (stopAt t.Assembly) && reachable.Add ctor.Ref.Key then
+                        methodsByKey[ctor.Ref.Key] <- ctor.Ref
+                        work.Enqueue ctor.Ref
+            | None -> ()
+
+        drain ()
+
     member _.Callees(m: MethodRef) : CallEdge list =
         match callees.TryGetValue m.Key with
         | true, l -> List.ofSeq l

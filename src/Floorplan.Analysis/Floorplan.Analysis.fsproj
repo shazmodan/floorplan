@@ -12,6 +12,7 @@
     <Compile Include="ExitPoints.fs" />
     <Compile Include="Taint.fs" />
     <Compile Include="PlatformRouting.fs" />
+    <Compile Include="Configured.fs" />
     <Compile Include="EffectAnalysis.fs" />
     <Compile Include="EntryPoints.fs" />
     <Compile Include="RouteRecovery.fs" />

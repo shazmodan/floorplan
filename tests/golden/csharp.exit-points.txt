@@ -93,15 +93,18 @@ nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.
 environment | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Console::get_Out | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
 filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.IO.Directory::Exists | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:17
 filesystem-write | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.IO.Directory::CreateDirectory | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:17
+http-out | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Net.WebRequest::BeginGetResponse | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
 nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
 process | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Diagnostics.Process::GetCurrentProcess | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
 environment | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.Console::get_Out | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
 filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.IO.File::Exists | via NLog | literal: | CSharp/CSharp.Effects/OtherLoggers.cs:23
 filesystem-write | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.IO.Directory::CreateDirectory | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:23
+http-out | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.Net.WebRequest::BeginGetResponse | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
 nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
 process | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.Diagnostics.Process::GetCurrentProcess | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
 filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.IO.Directory::Exists | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:27
 filesystem-write | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.IO.Directory::CreateDirectory | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:27
+http-out | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.Net.WebRequest::BeginGetResponse | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:27
 nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:27
 database | CSharp.Effects:CSharp.Effects.Printing | CSharp.Effects.Printing.OrderPrinting::Print | System.Collections.Generic.IEnumerable`1::GetEnumerator | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:149
 database | CSharp.Effects:CSharp.Effects.Printing | CSharp.Effects.Printing.OrderPrinting::Shipped | System.Linq.Enumerable::ToList | via - | literal:SELECT * FROM Orders WHERE Shipped = 1 | CSharp/CSharp.Effects/EntityFramework.cs:151
@@ -131,6 +134,7 @@ filesystem-write | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storag
 http-out | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Shelves::.cctor | System.Net.WebRequest::GetResponseAsync | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:43
 nondeterminism | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Shelves::.cctor | System.DateTime::get_UtcNow | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:43
 environment | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Shelves::Store | System.Console::get_Error | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:47
+network | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Shelves::Store | System.Net.Sockets.UdpClient::SendAsync | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:47
 nondeterminism | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Shelves::Store | System.DateTime::get_UtcNow | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:47
 environment | CSharp.Endpoints: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via - | literal:STATUS_PREFIX | CSharp/CSharp.Endpoints/Program.cs:15
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::GetOrder | System.IO.File::ReadAllText | via - | template:orders/{…}.json | CSharp/CSharp.Endpoints/Api.cs:8
@@ -152,6 +156,7 @@ filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.IO.File::Delete | via Serilog.Extensions.Logging | template:{…}/{…} | CSharp/CSharp.Endpoints/Shipping.cs:18
 nondeterminism | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.DateTime::get_UtcNow | via Serilog.Extensions.Logging | - | CSharp/CSharp.Endpoints/Shipping.cs:18
 -- diagnostics
+configured.unresolved | log4net.config names "Contoso.Logging.MissingAppender, Contoso.Logging" (rule configured.log4net-appender), which is not a type the analysis can read. What it does is not analyzed.
 blind-spot.dynamic | CSharp.Controllers.PagesController::Describe calls Microsoft.CSharp.RuntimeBinder.Binder::Convert (dynamic). What happens behind it is not analyzed.
 blind-spot.dynamic | CSharp.Controllers.PagesController::Describe calls Microsoft.CSharp.RuntimeBinder.Binder::GetMember (dynamic). What happens behind it is not analyzed.
 blind-spot.reflection | CSharp.Effects.Hidden::Plugin calls System.Type::GetType (reflection). What happens behind it is not analyzed.

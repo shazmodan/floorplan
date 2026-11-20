@@ -28,6 +28,9 @@ type RuleKind =
     /// members "*", every value of the type is one; otherwise the results of calls to the members are, with the
     /// SQL they run in `Payload` (FromSqlRaw).
     | Query
+    /// Objects a library makes by reflection from an XML configuration file, e.g. NLog's targets: each type its
+    /// `Configuration` names in a configuration file in the output folder is constructed, as if in code.
+    | Configured
 
 /// How the log calls of a logger rule are made.
 [<RequireQualifiedAccess>]
@@ -39,6 +42,17 @@ type LogCall =
     /// The rule's type is an attribute: a call to a method it marks logs ([LoggerMessage], whose body a source
     /// generator writes). Members are not used.
     | Attribute
+
+/// Where a configured rule's types are named in an XML configuration file: in elements named `Elements` under
+/// the element `Root` (the document's root, or a child of a `<configuration>` root as in app.config), in their
+/// attribute `TypeAttribute` (of any namespace, so `xsi:type` too). A value is a type's full name, optionally
+/// assembly-qualified, or else an alias: the first argument of the attribute `Alias` on a type assignable to the
+/// rule's type, compared ignoring case.
+type ConfigurationSpec =
+    { Root: string
+      Elements: string list
+      TypeAttribute: string
+      Alias: string option }
 
 /// Which argument of a matched call carries something worth showing: a URL, SQL text, a path, a route template,
 /// a handler. Argument 0 is the first declared parameter; for instance methods `this` is not counted.
@@ -81,6 +95,8 @@ type Rule =
       Dispatch: string option
       /// For loggers: how a log call is made.
       LogCall: LogCall
+      /// For configured rules: where the configuration names the types.
+      Configuration: ConfigurationSpec option
       /// The catalog that defined the rule.
       Source: string }
 
