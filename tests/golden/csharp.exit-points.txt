@@ -156,6 +156,11 @@ environment | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Ship
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.IO.Directory::Exists | via Serilog.Extensions.Logging | dynamic:- | CSharp/CSharp.Endpoints/Shipping.cs:18
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.IO.File::AppendAllText | via Serilog.Extensions.Logging | dynamic:- | CSharp/CSharp.Endpoints/Shipping.cs:18
 nondeterminism | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.DateTimeOffset::get_Now | via Serilog.Extensions.Logging | - | CSharp/CSharp.Endpoints/Shipping.cs:18
+filesystem-read | CSharp.Worker:CSharp.Worker.Cleanup | CSharp.Worker.Cleanup.Sweeper/<ExecuteAsync>d__0::MoveNext | System.IO.Directory::GetFiles | via - | literal:tmp | CSharp/CSharp.Worker/Program.cs:19
+filesystem-write | CSharp.Worker:CSharp.Worker.Cleanup | CSharp.Worker.Cleanup.Sweeper/<ExecuteAsync>d__0::MoveNext | System.IO.File::Delete | via - | dynamic:- | CSharp/CSharp.Worker/Program.cs:20
+filesystem-write | CSharp.Worker:CSharp.Worker.Cleanup | CSharp.Worker.Cleanup.Archiver::ExecuteAsync | System.IO.File::WriteAllTextAsync | via - | literal:archive.txt | CSharp/CSharp.Worker/Program.cs:30
+http-out | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::StartAsync | System.Net.Http.HttpClient::GetAsync | via - | dynamic:- | CSharp/CSharp.Worker/Program.cs:41
+filesystem-write | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::StopAsync | System.IO.File::AppendAllText | via - | literal:heartbeat.log | CSharp/CSharp.Worker/Program.cs:45
 -- diagnostics
 configured.unresolved | log4net.config names "Contoso.Logging.MissingAppender, Contoso.Logging" (rule configured.log4net-appender), which is nothing the analysis can read. What it does is not analyzed.
 configured.unresolved | appsettings.json names "Contoso" (rule configured.serilog-sink), which is nothing the analysis can read. What it does is not analyzed.

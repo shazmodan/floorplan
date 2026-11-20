@@ -430,6 +430,20 @@
     { "id": "blind-spot.delegate-dynamic-invoke", "type": "System.Delegate", "members": ["DynamicInvoke"], "kind": "blind-spot", "blindSpot": "reflection" },
     { "id": "blind-spot.dynamic", "type": "Microsoft.CSharp.RuntimeBinder.Binder", "members": ["*"], "kind": "blind-spot", "blindSpot": "dynamic" },
 
+    // ---------------- background ----------------
+    // The generic host starts each hosted service it is given, not on a request: AddHostedService<T>() registers T
+    // ("hosted-service-type" is the index of the type argument), and the host calls the members of the callback
+    // rules of category background that T implements: IHostedService's StartAsync and StopAsync, a
+    // BackgroundService's ExecuteAsync. Each is an entry point of its own.
+    { "id": "background.add-hosted-service", "assembly": "Microsoft.Extensions.Hosting.Abstractions",
+      "type": "Microsoft.Extensions.DependencyInjection.ServiceCollectionHostedServiceExtensions",
+      "members": ["AddHostedService"], "kind": "registration", "category": "background",
+      "payload": [{ "argument": 0, "role": "hosted-service-type" }] },
+    { "id": "background.hosted-service", "assembly": "Microsoft.Extensions.Hosting.Abstractions", "type": "Microsoft.Extensions.Hosting.IHostedService",
+      "members": ["StartAsync", "StopAsync"], "includeDerivedTypes": true, "kind": "callback", "category": "background" },
+    { "id": "background.background-service", "assembly": "Microsoft.Extensions.Hosting.Abstractions", "type": "Microsoft.Extensions.Hosting.BackgroundService",
+      "members": ["ExecuteAsync"], "includeDerivedTypes": true, "kind": "callback", "category": "background" },
+
     // ---------------- logging ----------------
     // Log calls. These name logging libraries, not the platform: a log call reaches every sink the logger is
     // configured with, so its effects belong to the configuration, and are reported once per unit that logs.

@@ -1083,3 +1083,61 @@ let hubEntries (ctx: AppContext) : EntryPoint list =
                         { Steps =
                             [ step $"{r.Caller.Ref.Display} maps hub {hub.FullName} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
                               step $"{handler.Display} is a method of the hub, which clients invoke as \"{name}\" over its connection" handler point ] } })))
+
+// ---- Hosted services ----
+
+/// Work the host starts by itself: a registration whose rule has a "hosted-service-type" payload
+/// (AddHostedService<T>()) names the service by its type argument, and the callback rules of category background
+/// on the service's base types name the members the host calls (IHostedService.StartAsync, a BackgroundService's
+/// ExecuteAsync). Each such member the application implements is an entry point.
+let backgroundEntries (ctx: AppContext) : EntryPoint list =
+    let set = ctx.Program.Set
+
+    PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
+    |> List.filter (fun r -> hasRole "hosted-service-type" r.Rule)
+    |> List.collect (fun r ->
+        let spec = r.Rule.Payload |> List.find (fun p -> p.Role = "hosted-service-type")
+        let registrationPoint = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
+
+        match List.tryItem spec.Argument r.Declared.TypeArguments with
+        | None -> []
+        | Some service ->
+            ctx.Matcher.Callbacks service
+            |> List.filter (fun rule -> rule.Category = Some EffectCategory.Background)
+            |> List.collect (fun rule ->
+                match set.TryType { Assembly = rule.Assembly; FullName = rule.Type } with
+                | None -> []
+                | Some(declaring, _) ->
+                    declaring.Methods
+                    |> List.filter (fun d -> rule.Members |> List.exists (fun p -> Matcher.MemberMatches p d.Ref.Name))
+                    |> List.choose (fun d -> set.Implementation(service, d.Ref) |> Option.map (fun impl -> rule, d, impl)))
+            |> List.filter (fun (_, _, impl) ->
+                match set.Origin impl.Type.Assembly with
+                | User _ -> true
+                | _ -> false)
+            |> List.distinctBy (fun (_, _, impl) -> impl.Key)
+            |> List.choose (fun (rule, declared, handler) ->
+                let point = firstPoint set handler
+
+                let projectId =
+                    match set.Origin handler.Type.Assembly with
+                    | User pid -> pid
+                    | _ -> ctx.Project.ProjectId
+
+                ctx.Program.Attributor.Attribute(projectId, handler, point)
+                |> Option.map (fun unit ->
+                    { Id = ""
+                      ApplicationId = ctx.Project.ProjectId
+                      HandlerUnit = unit.Id
+                      HandlerMember = handler.Display
+                      Location = point |> Option.map Attribution.toLocation
+                      Category = EffectCategory.Background
+                      Predicates = []
+                      HttpMethod = None
+                      Route = None
+                      Completeness = Completeness.Complete
+                      Forms = [ RouteForm.PlatformRouting ]
+                      Evidence =
+                        { Steps =
+                            [ step $"{r.Caller.Ref.Display} registers hosted service {service.FullName} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
+                              step $"The host calls {declared.Ref.Display}, which {handler.Display} implements (rule {rule.Id})" handler point ] } })))

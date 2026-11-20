@@ -74,7 +74,7 @@
   var CATEGORY_LABEL = {
     "http-in": "HTTP in", "http-out": "HTTP out", "network": "Network", "database": "Database",
     "filesystem-read": "File read", "filesystem-write": "File write", "process": "Process",
-    "native": "Native", "environment": "Environment", "nondeterminism": "Nondeterminism"
+    "native": "Native", "environment": "Environment", "nondeterminism": "Nondeterminism", "background": "Background"
   };
   // Presentation defaults come from the model (--show changes them).
   var HIDDEN_BY_DEFAULT = {};
@@ -894,6 +894,7 @@
   function routeLabel(e) {
     if (e.route) return (e.httpMethod ? e.httpMethod + " " : "") + e.route;
     if (e.predicates.length) return (e.httpMethod ? e.httpMethod + " " : "") + e.predicates.map(predicateText).join(", ");
+    if (e.category === "background") return "(started by the host)";
     return "(unresolved)";
   }
   function predicateText(p) {

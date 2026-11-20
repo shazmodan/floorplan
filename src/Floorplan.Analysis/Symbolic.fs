@@ -1399,7 +1399,9 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                         | Ref id ->
                             match s.Heap.TryFind id with
                             | Some o ->
+                                // The host's calls of a hosted service are background work, not a request pipeline.
                                 matcher.Callbacks o.Type
+                                |> List.filter (fun rule -> rule.Category <> Some EffectCategory.Background)
                                 |> List.collect (fun rule -> rule.Members)
                                 |> List.choose (fun memberName ->
                                     set.Implementation(o.Type, { m with Name = memberName; ParameterTypes = []; Key = ""; LocalKey = ""; HasThis = true }))

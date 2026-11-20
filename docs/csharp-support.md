@@ -154,6 +154,14 @@ Also new, outside the recognizer:
   `OnDisconnectedAsync`, `Dispose`). Each is an entry point at the pattern (with a route group's prefix), partial,
   as the invocation's target, not the HTTP method, chooses the handler; `[HubMethodName]` gives the name clients
   invoke it by (`http-in.signalr-hub-method-name`), shown in the evidence. Fixture: `CSharp.Endpoints/Chat.cs`.
+- **Hosted services**: background work the generic host starts by itself is an entry point of category
+  `background`. `AddHostedService<T>()` is a registration (`background.add-hosted-service`) whose
+  `"hosted-service-type"` payload is the index of the type argument that is the service, and callback rules of
+  category `background` name what the host calls: `IHostedService.StartAsync` and `StopAsync`
+  (`background.hosted-service`), a `BackgroundService`'s `ExecuteAsync` (`background.background-service`). Each
+  such member the application implements is an entry point, with no route; its trace is what the work does. A
+  hosted service the application never registers is not one. Fixture: `CSharp.Worker` (Microsoft.Extensions.Hosting
+  as a package, on the Worker SDK).
 - **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
   built assembly (a dependency, like a package), with the application's handlers passed as method groups in a
   record. Same routes as the F# `Routing.Delegated`.

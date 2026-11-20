@@ -15,7 +15,8 @@ writes a static website to `./floorplan-out` that shows:
 2. **The flow**: the module graph cut down to where requests enter and side-effects leave. Each module that
    handles requests carries a card of its routes, each module with side-effects a card per kind (database, file,
    outbound HTTP...), and the modules between them are drawn with their dependencies.
-3. **Entry points**: inbound HTTP routes and the module that handles each one, with how complete each route is.
+3. **Entry points**: inbound HTTP routes and the module that handles each one, with how complete each route is,
+   and the background work the host starts by itself (hosted services).
 4. **Exit points**: outbound HTTP, database, file, process and other side-effects, the module each belongs to,
    and the dependency it goes through.
 5. **Traces**: the side-effects each entry point can cause.

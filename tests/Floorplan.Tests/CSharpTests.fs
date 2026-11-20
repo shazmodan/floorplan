@@ -69,6 +69,30 @@ let tests =
                   "Send writes the chat log"
           }
 
+          test "hosted services: what the host starts is background work, an entry point of its own" {
+              let m = csharpModel.Force()
+
+              let worker =
+                  entries m "CSharp.Worker"
+                  |> List.map (fun e -> e.HandlerMember, e.Category, e.Route, e.Completeness)
+                  |> List.sort
+
+              Expect.equal
+                  worker
+                  [ "CSharp.Worker.Cleanup.Sweeper::ExecuteAsync", EffectCategory.Background, None, Completeness.Complete
+                    "CSharp.Worker.Monitoring.Heartbeat::StartAsync", EffectCategory.Background, None, Completeness.Complete
+                    "CSharp.Worker.Monitoring.Heartbeat::StopAsync", EffectCategory.Background, None, Completeness.Complete ]
+                  "a BackgroundService's ExecuteAsync, an IHostedService's StartAsync and StopAsync; not a service never registered"
+
+              let traced (handler: string) =
+                  let e = entries m "CSharp.Worker" |> List.find (fun e -> e.HandlerMember = handler)
+                  let t = m.Traces |> List.find (fun t -> t.EntryPointId = e.Id)
+                  m.ExitPoints |> List.filter (fun x -> List.contains x.Id t.ExitPointIds) |> List.map (fun x -> x.Category)
+
+              Expect.contains (traced "CSharp.Worker.Cleanup.Sweeper::ExecuteAsync") EffectCategory.FilesystemWrite "the sweep deletes files"
+              Expect.contains (traced "CSharp.Worker.Monitoring.Heartbeat::StartAsync") EffectCategory.HttpOut "the heartbeat calls out"
+          }
+
           test "what a logger's sinks do is one exit point per unit, listing its log calls" {
               let m = csharpModel.Force()
 
