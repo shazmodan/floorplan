@@ -146,6 +146,14 @@ Also new, outside the recognizer:
   an argument count as well: `String.Join`, `String.Concat`, and the `System.Collections.Generic` methods that
   take a sequence (`AddRange`, `UnionWith`). Fixture: `CSharp.Effects/EntityFramework.cs`
   (`CSharp.Effects.Reporting` for queries across methods, `CSharp.Effects.Printing` for queries passed in).
+- **SignalR hubs**: `MapHub<THub>(pattern)` is a registration (`http-in.map-hub`) whose `"hub-type"` payload is
+  the index of the type argument that is the hub. SignalR is part of the shared framework, which is not followed,
+  and invokes hub methods by name through reflection, so they are read from the hub's declaration, as MVC actions
+  are: its public instance methods and those of its base classes outside the framework, except constructors,
+  accessors, generic methods and overrides of the framework's virtual methods (`OnConnectedAsync`,
+  `OnDisconnectedAsync`, `Dispose`). Each is an entry point at the pattern (with a route group's prefix), partial,
+  as the invocation's target, not the HTTP method, chooses the handler; `[HubMethodName]` gives the name clients
+  invoke it by (`http-in.signalr-hub-method-name`), shown in the evidence. Fixture: `CSharp.Endpoints/Chat.cs`.
 - **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
   built assembly (a dependency, like a package), with the application's handlers passed as method groups in a
   record. Same routes as the F# `Routing.Delegated`.

@@ -981,3 +981,105 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                                 [ step $"{registration.Caller.Ref.Display} maps controllers with {registration.Declared.Display} (rule {registration.Rule.Id})" registration.Caller.Ref (pointOf registration)
                                   step $"{action.Ref.Display} is an action of controller {controller.Ref.FullName}, routed by {how}" action.Ref point ]
                                 @ conventions } })))
+
+// ---- SignalR hubs ----
+
+/// Hubs mapped by a registration whose rule has a "hub-type" payload (MapHub<THub>(pattern)): the type argument
+/// at that index is the hub, and its clients invoke its public methods by name over the connection the pattern
+/// accepts. One entry point per hub method, at the pattern: the HTTP method does not choose the handler, the
+/// invocation's target does, so the route is partial.
+let hubEntries (ctx: AppContext) : EntryPoint list =
+    let set = ctx.Program.Set
+
+    // The hub's methods clients can invoke: its public instance methods, and those of its base classes outside the
+    // shared framework, except constructors, accessors, generic methods and overrides of the framework's
+    // virtual methods (OnConnectedAsync, OnDisconnectedAsync, Dispose).
+    let hubMethods (hub: TypeRef) =
+        let chain = hub :: set.BaseChain hub
+        let user = chain |> List.filter (fun t -> set.Origin t.Assembly <> Framework)
+
+        let frameworkVirtuals =
+            chain
+            |> List.filter (fun t -> set.Origin t.Assembly = Framework)
+            |> List.choose set.TryType
+            |> List.collect (fun (t, _) -> t.Methods |> List.filter (fun m -> m.IsVirtual) |> List.map (fun m -> m.Ref.Name))
+            |> Set.ofList
+
+        user
+        |> List.choose set.TryType
+        |> List.collect (fun (t, _) ->
+            t.Methods
+            |> List.filter (fun m ->
+                m.IsPublic
+                && not m.IsStatic
+                && not m.IsConstructor
+                && not m.IsSpecialName
+                && m.Ref.GenericArity = 0
+                && not (m.IsVirtual && frameworkVirtuals.Contains m.Ref.Name)))
+        |> List.distinctBy (fun m -> m.Ref.Name, m.Ref.ParameterTypes)
+
+    // The name a client invokes a method by: [HubMethodName("...")] when the catalog names that attribute.
+    let invokedAs (m: MethodDef) =
+        m.Attributes
+        |> List.tryPick (fun a -> attributeRules ctx.Matcher a |> List.tryPick (fun r -> textArgument r "hub-method-name" a))
+        |> Option.defaultValue m.Ref.Name
+
+    PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
+    |> List.filter (fun r -> hasRole "hub-type" r.Rule)
+    |> List.collect (fun r ->
+        let hubSpec = r.Rule.Payload |> List.find (fun p -> p.Role = "hub-type")
+
+        match List.tryItem hubSpec.Argument r.Declared.TypeArguments with
+        | None -> []
+        | Some hub ->
+            let evaluator = Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set)
+            let registrationPoint = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
+            let location = registrationPoint |> Option.map Attribution.toLocation
+
+            let route =
+                let template =
+                    r.Rule.Payload
+                    |> List.tryFind (fun p -> p.Role = "route-template")
+                    |> Option.map (fun ts -> evaluator.Operand(r.Offset, Values.operandIndex r.Declared false ts.Argument))
+
+                let prefix =
+                    match r.Flow.OperandsAt r.Offset with
+                    | builder :: _ -> PlatformRouting.prefixOf ctx.Matcher evaluator r.Flow r.Caller.Ref 0 builder
+                    | [] -> Some []
+
+                match template, prefix with
+                | Some(Values.Text t), Some p -> Some(PlatformRouting.normalizeRoute (p @ [ t ]))
+                | _ -> None
+
+            hubMethods hub
+            |> List.choose (fun m ->
+                let handler = m.Ref
+                let point = firstPoint set handler
+
+                let projectId =
+                    match set.Origin handler.Type.Assembly with
+                    | User pid -> pid
+                    | _ -> ctx.Project.ProjectId
+
+                ctx.Program.Attributor.Attribute(projectId, handler, point)
+                |> Option.map (fun unit ->
+                    let name = invokedAs m
+
+                    { Id = ""
+                      ApplicationId = ctx.Project.ProjectId
+                      HandlerUnit = unit.Id
+                      HandlerMember = handler.Display
+                      Location = point |> Option.map Attribution.toLocation
+                      Category = EffectCategory.HttpIn
+                      Predicates =
+                        match route with
+                        | Some route -> PlatformRouting.templatePredicates route location
+                        | None -> []
+                      HttpMethod = None
+                      Route = route
+                      Completeness = if route.IsSome then Completeness.Partial else Completeness.Unresolved
+                      Forms = if route.IsSome then [ RouteForm.PlatformRouting ] else []
+                      Evidence =
+                        { Steps =
+                            [ step $"{r.Caller.Ref.Display} maps hub {hub.FullName} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
+                              step $"{handler.Display} is a method of the hub, which clients invoke as \"{name}\" over its connection" handler point ] } })))

@@ -99,7 +99,7 @@ let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoin
 
         let recovery = Recovery ctx
 
-        let platform = platformEntries ctx @ controllerEntries ctx
+        let platform = platformEntries ctx @ controllerEntries ctx @ hubEntries ctx
 
         let tables =
             tableEntries ctx recovery
