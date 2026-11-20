@@ -235,6 +235,49 @@ let tests =
               Expect.equal (logCalls "CSharp.Effects:CSharp.Effects.Storage" "log4net") [ Some 47; Some 48 ] "log4net: both log calls"
           }
 
+          test "NLog targets and log4net appenders named in XML configuration files are constructed" {
+              let m = csharpModel.Force()
+
+              let reaches (unitId: string) (via: string) (category: EffectCategory) =
+                  m.ExitPoints
+                  |> List.exists (fun x ->
+                      x.Unit = unitId
+                      && x.ViaAssembly = Some via
+                      && x.Category = category
+                      && x.Evidence.Steps |> List.exists (fun s -> s.Description.Contains " logs through "))
+
+              Expect.isTrue (reaches "CSharp.Effects:CSharp.Effects.Packing" "NLog" EffectCategory.HttpOut) "NLog's WebService target, from nlog.config"
+              Expect.isTrue (reaches "CSharp.Effects:CSharp.Effects.Storage" "log4net" EffectCategory.Network) "log4net's UdpAppender, from log4net.config"
+
+              let configured =
+                  m.Diagnostics |> List.filter (fun d -> d.Code = "configured.type") |> List.map (fun d -> d.Message)
+
+              for typeName in [ "NLog.Targets.Wrappers.AsyncTargetWrapper"; "NLog.Targets.WebServiceTarget"; "log4net.Appender.UdpAppender" ] do
+                  Expect.exists configured (fun d -> d.Contains $": {typeName} is analyzed as constructed") typeName
+
+              Expect.exists
+                  m.Diagnostics
+                  (fun d -> d.Code = "configured.unresolved" && d.Message.Contains "Contoso.Logging.MissingAppender")
+                  "a type the analysis cannot read is a warning"
+          }
+
+          test "a warm summary cache keeps what configured types reach" {
+              let dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "floorplan-cache-" + string (System.Guid.NewGuid()))
+              let store = Caching.Store(Some dir)
+              let solution = Fixtures.csharp.Force()
+
+              let logged (m: AnalysisModel) =
+                  m.ExitPoints
+                  |> List.filter (fun x -> x.ViaAssembly = Some "NLog" || x.ViaAssembly = Some "log4net")
+                  |> List.map (fun x -> x.Category, x.Member, x.Primitive, x.ViaAssembly, x.Location)
+
+              let cold = Pipeline.buildModel ignore store [] [] solution
+              let warm = Pipeline.buildModel ignore store [] [] solution
+              Expect.equal (logged warm) (logged cold) "same log effects"
+              Expect.equal (logged cold) (logged (csharpModel.Force())) "as without a cache"
+              try System.IO.Directory.Delete(dir, true) with _ -> ()
+          }
+
           test "Entity Framework Core: a query returned from another method runs where it is enumerated" {
               let m = csharpModel.Force()
 

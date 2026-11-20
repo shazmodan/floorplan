@@ -40,6 +40,7 @@ let private kind (text: string) context =
     | "constant" -> Constant
     | "logger" -> Logger
     | "query" -> Query
+    | "configured" -> Configured
     | other -> fail $"{context}: unknown kind \"{other}\"."
 
 let private requestPart (text: string) context =
@@ -68,8 +69,27 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
 
     let members = strings e "members"
 
-    if members.IsEmpty then
+    if members.IsEmpty && k <> Configured then
         fail $"{context}: no members."
+
+    let configuration =
+        match e.TryGetProperty "configuration" with
+        | true, c when c.ValueKind = JsonValueKind.Object ->
+            if k <> Configured then
+                fail $"{context}: only configured rules have a configuration."
+
+            let elements = strings c "elements"
+
+            if elements.IsEmpty then
+                fail $"{context}: a configuration names its elements."
+
+            Some
+                { Root = required c "root" context
+                  Elements = elements
+                  TypeAttribute = required c "typeAttribute" context
+                  Alias = str c "alias" }
+        | _ when k = Configured -> fail $"{context}: configured rules need a configuration."
+        | _ -> None
 
     let dispatch = str e "dispatch"
 
@@ -124,6 +144,7 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
       ComparesTo = str e "comparesTo"
       Dispatch = dispatch
       LogCall = logCall
+      Configuration = configuration
       Source = source }
 
 /// A catalog document as written, before `extends` is resolved.

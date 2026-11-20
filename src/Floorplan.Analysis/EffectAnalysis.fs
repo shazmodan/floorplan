@@ -89,7 +89,7 @@ let private mvidOf (path: string) =
         ""
 
 let private cacheKey (assembly: string) (mvid: string) (catalog: string) =
-    Caching.hash [ "summaries-v15"; assembly; mvid; catalog ]
+    Caching.hash [ "summaries-v16"; assembly; mvid; catalog ]
 
 /// The cache key under which an assembly keeps what a callback member reaches through its implementations there.
 let private callbackKey (assembly: string) (callback: string) = $"[{assembly}]callback:{callback}"
@@ -166,6 +166,20 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
         |> List.choose (fun p ->
             set.TryLoad(IO.Path.GetFileNameWithoutExtension p.AssemblyPath) |> Option.map (fun a -> p, a))
 
+    // Configured rules of every catalog in use, and the output folders whose configuration files name types.
+    let configuredRules =
+        input.Projects
+        |> List.collect (fun p -> (catalogFor p).Catalog.Rules)
+        |> List.filter (fun r -> r.Kind = Configured)
+
+    let outputFolders =
+        input.Projects |> List.map (fun p -> IO.Path.GetDirectoryName p.AssemblyPath)
+
+    let findConfigured () =
+        Configured.Resolver(set).Find(configuredRules, outputFolders)
+
+    let mutable configured = findConfigured ()
+
     let buildGraph () =
         let g = CallGraph(set, recognizers, cachedAssemblies.Contains, callbacks)
 
@@ -177,6 +191,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
             |> Seq.map (fun m -> m.Ref)
         )
 
+        g.AddConstructed(fst configured |> List.map (fun c -> c.Type))
         g
 
     let graph =
@@ -196,11 +211,23 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                 |> Seq.exists (fun e ->
                     cachedAssemblies.Contains e.Target.Type.Assembly && not (analyzed.Contains e.Target.Key))
 
-            if miss then
+            // A type configured now that the cached run did not construct: what reaches it is not in the cache.
+            let configuredMiss =
+                fst configured
+                |> List.exists (fun c ->
+                    cachedAssemblies.Contains c.Type.Assembly
+                    && match set.TryType c.Type with
+                       | Some(def, _) ->
+                           def.Methods
+                           |> List.exists (fun m -> m.IsConstructor && not m.IsStatic && m.Ref.ParameterCount = 0 && not (analyzed.Contains m.Ref.Key))
+                       | None -> false)
+
+            if miss || configuredMiss then
                 cached.Clear()
                 cachedAssemblies.Clear()
                 (set :> IDisposable).Dispose()
                 set <- newSet ()
+                configured <- findConfigured ()
                 buildGraph ()
             else
                 g
@@ -212,6 +239,19 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
 
     member _.Set = set
     member _.Graph = graph
+
+    /// What the configuration files name, for people: an info diagnostic for each type constructed, and a warning
+    /// for each value that names no type the analysis can read.
+    member _.ConfiguredDiagnostics: Diagnostic list =
+        (fst configured
+         |> List.map (fun c ->
+             { Severity = DiagnosticSeverity.Info
+               Code = "configured.type"
+               Message =
+                 $"{IO.Path.GetFileName c.File} names \"{c.Named}\": {c.Type.FullName} is analyzed as constructed (rule {c.Rule.Id})."
+               ProjectId = None
+               Location = None }))
+        @ snd configured
     member _.Users = userList
     member _.Recognizers = recognizers
     member _.Producers = producers
@@ -499,5 +539,5 @@ let exitPoints (program: Program) (input: AnalysisInput) : EffectResult =
               Location = None })
 
     { ExitPoints = found
-      Diagnostics = fallback @ missing @ (perProject |> List.collect snd |> List.distinct)
+      Diagnostics = fallback @ missing @ program.ConfiguredDiagnostics @ (perProject |> List.collect snd |> List.distinct)
       Catalogs = catalogs }
