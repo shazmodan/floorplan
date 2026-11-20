@@ -115,3 +115,48 @@ namespace CSharp.Effects.Reporting
         public List<Order> Local(List<Order> list) => list.AsQueryable().Named("x").ToList();
     }
 }
+
+// Queries passed to a method that enumerates them: they run at the call that passes them.
+namespace CSharp.Effects.Printing
+{
+    using CSharp.Effects.Ordering;
+    using CSharp.Wrappers;
+
+    public static class Printer
+    {
+        public static int Print(IEnumerable<Order> orders)
+        {
+            var n = 0;
+
+            foreach (var _ in orders)
+                n++;
+
+            return n;
+        }
+
+        public static List<string> Names(IQueryable<Order> orders) => orders.Where(o => o.Id > 0).Select(o => o.Name).ToList();
+
+        public static int Again(IEnumerable<Order> orders) => Print(orders);
+    }
+
+    public class Summary(IEnumerable<Order> orders)
+    {
+        public List<Order> Items { get; } = orders.ToList();
+    }
+
+    public class OrderPrinting(ShopContext db)
+    {
+        public int Print() => Printer.Print(db.Orders);
+
+        public List<string> Shipped() => Printer.Names(db.Orders.FromSqlRaw("SELECT * FROM Orders WHERE Shipped = 1"));
+
+        public int Again() => Printer.Again(db.Orders.Where(o => o.Id > 3));
+
+        public Summary Summarize() => new Summary(db.Orders);
+
+        public int Counted() => Sequences.CountAll(db.Orders);
+
+        // A list is not a query.
+        public int Local(List<Order> list) => Printer.Print(list);
+    }
+}

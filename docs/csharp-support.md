@@ -121,8 +121,11 @@ Also new, outside the recognizer:
   directly or through an interface, an extension method that adds a `Where`), up to four calls deep, with their
   parameters standing for what each call passes. A call that runs a query and has no payload of its own
   (`ToListAsync`) shows the SQL of the `FromSql*` it was made from, worked out at the calls that returned it.
-  A query passed into a method and enumerated there is not seen, nor one enumerated inside a dependency.
-  Fixture: `CSharp.Effects/EntityFramework.cs` (`CSharp.Effects.Reporting` for queries across methods).
+  A query passed to a method that enumerates the parameter (an `IEnumerable<T>` or `IQueryable<T>`), itself or
+  through the methods it passes it on to, runs at the call that passes it, which is the exit point: in user code
+  or in a dependency, not in an async method or iterator (the parameter is kept in its state machine), a lambda,
+  or the shared framework (`string.Join`, `AddRange`). Fixture: `CSharp.Effects/EntityFramework.cs`
+  (`CSharp.Effects.Reporting` for queries across methods, `CSharp.Effects.Printing` for queries passed in).
 - **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
   built assembly (a dependency, like a package), with the application's handlers passed as method groups in a
   record. Same routes as the F# `Routing.Delegated`.

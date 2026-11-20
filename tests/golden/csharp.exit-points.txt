@@ -103,6 +103,11 @@ process | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::
 filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.IO.Directory::Exists | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:27
 filesystem-write | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.IO.Directory::CreateDirectory | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:27
 nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:27
+database | CSharp.Effects:CSharp.Effects.Printing | CSharp.Effects.Printing.OrderPrinting::Print | System.Collections.Generic.IEnumerable`1::GetEnumerator | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:149
+database | CSharp.Effects:CSharp.Effects.Printing | CSharp.Effects.Printing.OrderPrinting::Shipped | System.Linq.Enumerable::ToList | via - | literal:SELECT * FROM Orders WHERE Shipped = 1 | CSharp/CSharp.Effects/EntityFramework.cs:151
+database | CSharp.Effects:CSharp.Effects.Printing | CSharp.Effects.Printing.OrderPrinting::Again | System.Collections.Generic.IEnumerable`1::GetEnumerator | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:153
+database | CSharp.Effects:CSharp.Effects.Printing | CSharp.Effects.Printing.OrderPrinting::Summarize | System.Linq.Enumerable::ToList | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:155
+database | CSharp.Effects:CSharp.Effects.Printing | CSharp.Effects.Printing.OrderPrinting::Counted | System.Collections.Generic.IEnumerable`1::GetEnumerator | via CSharp.Wrappers | - | CSharp/CSharp.Effects/EntityFramework.cs:157
 database | CSharp.Effects:CSharp.Effects.Reporting | CSharp.Effects.Reporting.OrderReports::All | System.Linq.Enumerable::ToList | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:106
 database | CSharp.Effects:CSharp.Effects.Reporting | CSharp.Effects.Reporting.OrderReports::Count | System.Linq.Queryable::Count | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:108
 database | CSharp.Effects:CSharp.Effects.Reporting | CSharp.Effects.Reporting.OrderReports::Named | System.Linq.Queryable::FirstOrDefault | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:110

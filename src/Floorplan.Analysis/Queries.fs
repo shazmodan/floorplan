@@ -2,9 +2,10 @@
 /// DbSet<T>, the result of FromSqlRaw), LINQ builds on them, and a call that enumerates one runs it on the
 /// database. The query is followed back through the method's data flow, and into the methods it calls that
 /// return a sequence (a repository's `IQueryable<T> All() => db.Orders`), with their parameters standing for what
-/// the call passes.
+/// the call passes. A query passed to a method that enumerates the parameter it is passed as runs at that call.
 module Floorplan.Analysis.Queries
 
+open System.Collections.Generic
 open Floorplan.IL
 open Floorplan.IL.DataFlow
 open Floorplan.Catalog
@@ -173,35 +174,156 @@ and private returned (ctx: Context) (frame: Frame) (depth: int) (offset: int) (c
 
 let private top (m: MethodDef) (flow: Flow) = { Def = m; Flow = flow; Caller = None }
 
-/// The query that a call enumerates, and so runs: `foreach` over it (GetEnumerator), a LINQ call that returns
+/// Whether a call enumerates its first operand: `foreach` over it (GetEnumerator), a LINQ call that returns
 /// something other than a sequence (ToList, First, Count, Any), or a collection made from it.
+let private enumerates (declared: MethodRef) (isNewObj: bool) =
+    if isNewObj then
+        // new List<T>(query), new HashSet<T>(query), ...
+        declared.Type.Namespace = "System.Collections.Generic"
+        && (match declared.ParameterTypes with
+            | first :: _ -> generic first = "System.Collections.Generic.IEnumerable`1"
+            | [] -> false)
+    elif declared.HasThis then
+        (declared.Name = "GetEnumerator" || declared.Name = "GetAsyncEnumerator") && declared.ParameterCount <= 1
+    else
+        linq.Contains declared.Type.FullName
+        && declared.ParameterCount > 0
+        && not (deferred.Contains(generic declared.ReturnType))
+
+/// The query that a call enumerates, and so runs.
 let enumerated (ctx: Context) (flow: Flow) (m: MethodDef) (offset: int) (declared: MethodRef) (isNewObj: bool) : QueryOrigin option =
-    let source =
+    if enumerates declared isNewObj then
         match flow.OperandsAt offset with
-        | first :: _ -> Some first
+        | first :: _ -> origin ctx (top m flow) 0 first
         | [] -> None
-
-    let enumerates =
-        if isNewObj then
-            // new List<T>(query), new HashSet<T>(query), ...
-            declared.Type.Namespace = "System.Collections.Generic"
-            && (match declared.ParameterTypes with
-                | first :: _ -> generic first = "System.Collections.Generic.IEnumerable`1"
-                | [] -> false)
-        elif declared.HasThis then
-            (declared.Name = "GetEnumerator" || declared.Name = "GetAsyncEnumerator") && declared.ParameterCount <= 1
-        else
-            linq.Contains declared.Type.FullName
-            && declared.ParameterCount > 0
-            && not (deferred.Contains(generic declared.ReturnType))
-
-    if enumerates then
-        source |> Option.bind (origin ctx (top m flow) 0)
     else
         None
+
+/// The query the values a method uses are, if any.
+let ofValues (ctx: Context) (flow: Flow) (m: MethodDef) (values: Values) : QueryOrigin option = origin ctx (top m flow) 0 values
 
 /// The query a call's first operand is (an EF Core call that runs a query, such as ToListAsync), if any.
 let ofFirstOperand (ctx: Context) (flow: Flow) (m: MethodDef) (offset: int) : QueryOrigin option =
     match flow.OperandsAt offset with
-    | first :: _ -> origin ctx (top m flow) 0 first
+    | first :: _ -> ofValues ctx flow m first
     | [] -> None
+
+/// A parameter that a method enumerates, so that a query passed to it runs there:
+/// `void Print(IEnumerable<Order> orders) { foreach (var o in orders) ... }`, or a method it passes the parameter to.
+type EnumeratedParameter =
+    { /// The parameter's argument index: 0 is `this` in an instance method.
+      Argument: int
+      /// The call that enumerates it.
+      Enumerator: MethodRef
+      /// The method called and its parameter's name, then each method the parameter is passed on to, ending with
+      /// the one that enumerates it.
+      Path: (MethodRef * string) list }
+
+/// Whether a method's parameter at an argument index is a sequence a query could be passed as (IEnumerable<T>,
+/// IQueryable<T>), and not of a type a query rule names, whose enumeration is found in the method itself.
+let private sequenceParameter (ctx: Context) (m: MethodRef) (i: int) =
+    let index = if m.HasThis then i - 1 else i
+
+    index >= 0
+    && match List.tryItem index m.ParameterTypes with
+       | Some t -> deferred.Contains(generic t) && (ctx.Matcher.QueryType(generic t)).IsNone
+       | None -> false
+
+let private hasSequenceParameter (ctx: Context) (m: MethodRef) =
+    let first = if m.HasThis then 1 else 0
+    List.init m.ParameterCount (fun i -> i + first) |> List.exists (sequenceParameter ctx m)
+
+let private parameterName (m: MethodDef) (i: int) =
+    let index = if m.IsStatic then i else i - 1
+
+    List.tryItem index m.ParameterNames
+    |> Option.filter (fun n -> n <> "")
+    |> Option.defaultValue $"argument {index}"
+
+/// The method's parameter that the values are, as is or through LINQ that builds on it unrun (Where, OrderBy).
+let rec private parameterOf (flow: Flow) (depth: int) (values: Values) : int option =
+    if depth > maxDepth then
+        None
+    else
+        values
+        |> Set.toList
+        |> List.tryPick (function
+            | Argument i -> Some i
+            | Pushed offset ->
+                let source () =
+                    match flow.OperandsAt offset with
+                    | first :: _ -> parameterOf flow (depth + 1) first
+                    | [] -> None
+
+                match flow.InstructionAt offset with
+                | Some { Op = (Call called | CallVirt called) } when deferred.Contains(generic called.ReturnType) -> source ()
+                | Some { Op = (CastClass _ | IsInst _) } -> source ()
+                | _ -> None
+            | _ -> None)
+
+/// The sequence parameters each method enumerates, worked out from its body (outside the shared framework) and
+/// the bodies of the methods it passes them to. Each method is read once.
+let enumeratedParameters (ctx: Context) : MethodRef -> EnumeratedParameter list =
+    let known = Dictionary<string, EnumeratedParameter list>()
+
+    let rec ofMethod (m: MethodRef) =
+        match known.TryGetValue m.Key with
+        | true, r -> r
+        | _ when not (hasSequenceParameter ctx m) -> []
+        | _ ->
+            // A method that passes the parameter back to itself adds nothing on the way round.
+            known[m.Key] <- []
+
+            let r =
+                match ctx.Body m with
+                | Some(def, flow) -> inBody def flow
+                | None -> []
+
+            known[m.Key] <- r
+            r
+
+    and inBody (def: MethodDef) (flow: Flow) =
+        let parameter (values: Values) =
+            parameterOf flow 0 values |> Option.filter (sequenceParameter ctx def.Ref)
+
+        let here (i: int) = def.Ref, parameterName def i
+
+        flow.Body.Instructions
+        |> Array.toList
+        |> List.collect (fun ins ->
+            let call =
+                match ins.Op with
+                | Call d
+                | CallVirt d -> Some(d, false)
+                | NewObj d -> Some(d, true)
+                | _ -> None
+
+            match call with
+            | None -> []
+            | Some(declared, isNewObj) ->
+                let operands = flow.OperandsAt ins.Offset
+
+                if enumerates declared isNewObj then
+                    match operands |> List.tryHead |> Option.bind parameter with
+                    | Some i ->
+                        [ { Argument = i
+                            Enumerator = declared
+                            Path = [ here i ] } ]
+                    | None -> []
+                else
+                    let targets =
+                        match ctx.Targets def.Ref ins.Offset with
+                        | [] -> [ declared ]
+                        | ts -> ts
+
+                    targets
+                    |> List.collect ofMethod
+                    |> List.choose (fun p ->
+                        let operand = if isNewObj then p.Argument - 1 else p.Argument
+
+                        List.tryItem operand operands
+                        |> Option.bind parameter
+                        |> Option.map (fun i -> { p with Argument = i; Path = here i :: p.Path })))
+        |> List.distinctBy (fun p -> p.Argument)
+
+    ofMethod

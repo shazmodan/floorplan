@@ -4,9 +4,9 @@ Work that is known and not yet done. Remove an item when its branch is merged.
 
 ## Next
 
-- **An EF Core query passed into a method and enumerated there is not seen** (`void Print(IEnumerable<Order>
-  orders) { foreach ... }` called with `db.Orders`): the enumerating call's method has no query of its own, and
-  each caller would need its own exit point. Queries enumerated inside a dependency are not seen either.
+- **An EF Core query passed to an async method or iterator that enumerates it is not seen**: the parameter is kept
+  in the state machine's field, which the summary of enumerated parameters does not follow. Nor are queries
+  enumerated in a lambda, or by a framework method (`string.Join`, `List<T>.AddRange`).
 - **NLog and log4net configured from XML are not seen**: the targets and appenders a configuration file names are
   made by reflection, so log calls reach nothing. Only ones made in code are followed.
 - **Serilog's `ForContext` reaches the clock.** On mmddd, 9 `ForContext` calls (which create a logger, not log) are
