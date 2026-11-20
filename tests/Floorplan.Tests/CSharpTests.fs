@@ -69,6 +69,28 @@ let tests =
                   "Send writes the chat log"
           }
 
+          test "gRPC: each method a service overrides is POST /{service}/{method}, read from the generated binding" {
+              let m = csharpModel.Force()
+
+              let services =
+                  entries m "CSharp.Grpc"
+                  |> List.filter (fun e -> e.HandlerMember.StartsWith "CSharp.Grpc.")
+                  |> List.map (fun e -> e.HttpMethod, e.Route, e.Completeness, e.HandlerMember)
+
+              Expect.equal
+                  services
+                  [ Some "POST", Some "/shop.inventory.Stock/Reserve", Completeness.Complete, "CSharp.Grpc.Inventory.StockService::Reserve" ]
+                  "Reserve is implemented; Release is left to the generated base class, which answers unimplemented"
+
+              let reserve = entries m "CSharp.Grpc" |> List.find (fun e -> e.HandlerMember.EndsWith "::Reserve")
+              let trace = m.Traces |> List.find (fun t -> t.EntryPointId = reserve.Id)
+
+              Expect.exists
+                  (m.ExitPoints |> List.filter (fun x -> List.contains x.Id trace.ExitPointIds))
+                  (fun x -> x.Primitive = "System.IO.File::AppendAllTextAsync")
+                  "Reserve writes the reservations log"
+          }
+
           test "hosted services: what the host starts is background work, an entry point of its own" {
               let m = csharpModel.Force()
 

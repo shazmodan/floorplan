@@ -172,6 +172,8 @@ type AttributeValue =
     | Number of int64
     | Flag of bool
     | Many of AttributeValue list
+    /// A type, `typeof(T)`.
+    | TypeOf of TypeRef
     | Other
 
 /// A custom attribute as declared: its type, constructor arguments and named (property or field) arguments.

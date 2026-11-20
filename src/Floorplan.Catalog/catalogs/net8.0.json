@@ -346,6 +346,22 @@
     // MapControllers maps the actions of every controller with attribute routes. The attribute rules below are
     // read from the declarations of controllers and actions, not from calls: the constructor arguments are the
     // attribute's arguments.
+    // gRPC (Grpc.AspNetCore, a package): MapGrpcService<TService>() maps a service ("grpc-service-type" is the index of
+    // the type argument). The library binds it by reflection: [BindServiceMethod(bindType, bindMethodName)] on a class
+    // the service derives from names the static method that binds it, generated into the application, which calls
+    // ServiceBinderBase.AddMethod(descriptor, handler) for each method, with a Method<TRequest, TResponse> made from
+    // the service's and the method's names. Each method the service overrides is POST /{service}/{method}.
+    { "id": "http-in.map-grpc-service", "assembly": "Grpc.AspNetCore.Server", "type": "Microsoft.AspNetCore.Builder.GrpcEndpointRouteBuilderExtensions",
+      "members": ["MapGrpcService"], "kind": "registration", "category": "http-in", "payload": [{ "argument": 0, "role": "grpc-service-type" }] },
+    { "id": "http-in.grpc-bind-service-method", "assembly": "Grpc.Core.Api", "type": "Grpc.Core.BindServiceMethodAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in",
+      "payload": [{ "argument": 0, "role": "grpc-bind-type" }, { "argument": 1, "role": "grpc-bind-method" }] },
+    { "id": "http-in.grpc-add-method", "assembly": "Grpc.Core.Api", "type": "Grpc.Core.ServiceBinderBase",
+      "members": ["AddMethod"], "kind": "metadata", "category": "http-in",
+      "payload": [{ "argument": 0, "role": "grpc-method-descriptor" }, { "argument": 1, "role": "grpc-handler" }] },
+    { "id": "http-in.grpc-method", "assembly": "Grpc.Core.Api", "type": "Grpc.Core.Method`2",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in",
+      "payload": [{ "argument": 1, "role": "grpc-service-name" }, { "argument": 2, "role": "grpc-method-name" }] },
     // SignalR: MapHub<THub>(endpoints, pattern) maps a hub. Clients connect at the pattern and invoke the hub's public
     // methods by name; "hub-type" is the index of the type argument that is the hub. [HubMethodName] renames one.
     { "id": "http-in.map-hub", "assembly": "Microsoft.AspNetCore.SignalR", "type": "Microsoft.AspNetCore.Builder.HubEndpointRouteBuilderExtensions",

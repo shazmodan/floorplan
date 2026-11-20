@@ -154,6 +154,17 @@ Also new, outside the recognizer:
   `OnDisconnectedAsync`, `Dispose`). Each is an entry point at the pattern (with a route group's prefix), partial,
   as the invocation's target, not the HTTP method, chooses the handler; `[HubMethodName]` gives the name clients
   invoke it by (`http-in.signalr-hub-method-name`), shown in the evidence. Fixture: `CSharp.Endpoints/Chat.cs`.
+- **gRPC services** (Grpc.AspNetCore): `MapGrpcService<TService>()` is a registration
+  (`http-in.map-grpc-service`) whose `"grpc-service-type"` payload is the index of the type argument that is the
+  service. The library binds a service by reflection, so the binding is read the way it does it, from code in the
+  application's own assembly that Grpc.Tools generates: `[BindServiceMethod(typeof(Stock), "BindService")]` on the
+  service's generated base class names the type and the static method that binds it (`http-in.grpc-bind-service-method`,
+  read from the attribute's `typeof` argument); each overload of that method calls `AddMethod(descriptor, handler)`
+  (`http-in.grpc-add-method`) with a descriptor its type's static constructor makes, `new Method<TRequest,
+  TResponse>(type, serviceName, methodName, ...)` (`http-in.grpc-method`), and a delegate to the base class's
+  method. Each method the service overrides is an entry point at `POST /{serviceName}/{methodName}`, complete;
+  one it leaves to the generated base class (which answers that it is unimplemented) is not. Grpc.AspNetCore's own
+  catch-all for unknown services and methods stays an entry point of the library. Fixture: `CSharp.Grpc`.
 - **Hosted services**: background work the generic host starts by itself is an entry point of category
   `background`. `AddHostedService<T>()` is a registration (`background.add-hosted-service`) whose
   `"hosted-service-type"` payload is the index of the type argument that is the service, and callback rules of
