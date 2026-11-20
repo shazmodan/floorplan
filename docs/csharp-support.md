@@ -134,9 +134,11 @@ Also new, outside the recognizer:
   parameters standing for what each call passes. A call that runs a query and has no payload of its own
   (`ToListAsync`) shows the SQL of the `FromSql*` it was made from, worked out at the calls that returned it.
   A query passed to a method that enumerates the parameter (an `IEnumerable<T>` or `IQueryable<T>`), itself or
-  through the methods it passes it on to, runs at the call that passes it, which is the exit point: in user code
-  or in a dependency, not in an async method or iterator (the parameter is kept in its state machine), a lambda,
-  or the shared framework (`string.Join`, `AddRange`). Fixture: `CSharp.Effects/EntityFramework.cs`
+  through the methods it passes it on to, or through a compiler-generated type it is stored in whose methods
+  enumerate the field (an async method's state machine, a lambda's closure), runs at the call that passes it,
+  which is the exit point: in user code or in a dependency, not in an iterator. Framework methods that enumerate
+  an argument count as well: `String.Join`, `String.Concat`, and the `System.Collections.Generic` methods that
+  take a sequence (`AddRange`, `UnionWith`). Fixture: `CSharp.Effects/EntityFramework.cs`
   (`CSharp.Effects.Reporting` for queries across methods, `CSharp.Effects.Printing` for queries passed in).
 - **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
   built assembly (a dependency, like a package), with the application's handlers passed as method groups in a

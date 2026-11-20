@@ -212,7 +212,15 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
             fun caller offset ->
                 ctx.Graph.Callees caller
                 |> List.filter (fun e -> e.Offset = offset && (e.Kind = Direct || e.Kind = Virtual))
-                |> List.map (fun e -> e.Target) }
+                |> List.map (fun e -> e.Target)
+          Generated =
+            fun t ->
+                match ctx.Set.Origin t.Assembly with
+                | Framework -> None
+                | _ ->
+                    match ctx.Set.TryType t with
+                    | Some(def, _) when def.IsCompilerGenerated -> Some(def.Methods |> List.map (fun m -> m.Ref))
+                    | _ -> None }
 
     let enumeratedParameters = Queries.enumeratedParameters queries
 
@@ -438,12 +446,15 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                 | Dependency -> Some target.Type.Assembly
                                 | _ -> None
 
-                            let calledName = snd p.Path.Head
-                            let enumerating, enumeratedName = List.last p.Path
+                            let calledName = p.Path.Head.Name
+                            let last = List.last p.Path
+                            let enumerating = last.Method
+                            let held (h: Queries.Hop) = if h.InField then $"field {h.Name}" else $"parameter {h.Name}"
 
                             let passedOn =
                                 List.pairwise p.Path
-                                |> List.map (fun ((from, _), (into, name)) -> step $"{from.Display} passes it to {into.Display} as parameter {name}" from None)
+                                |> List.map (fun (from, into) ->
+                                    step $"{from.Method.Display} passes it to {into.Method.Display} as {held into}" from.Method None)
 
                             add
                                 q.Rule.Category.Value
@@ -455,7 +466,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                 [ step $"{m.Ref.Display} calls {target.Display}, passing a query from {q.Description} as parameter {calledName}" m.Ref point
                                   yield! passedOn
                                   step $"{enumerating.Display} calls {p.Enumerator.Display}" enumerating None
-                                  step $"{p.Enumerator.Display} enumerates parameter {enumeratedName} of {enumerating.Display}, which runs the query on the database (rule {q.Rule.Id})" p.Enumerator None ]
+                                  step $"{p.Enumerator.Display} enumerates {held last} of {enumerating.Display}, which runs the query on the database (rule {q.Rule.Id})" p.Enumerator None ]
                         | None -> ()
 
                     for edge in edges |> List.filter (fun _ -> not dispatched) do

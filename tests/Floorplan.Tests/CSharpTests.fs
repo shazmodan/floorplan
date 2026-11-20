@@ -340,7 +340,12 @@ let tests =
                     "Shipped", "System.Linq.Enumerable::ToList"
                     "Again", "System.Collections.Generic.IEnumerable`1::GetEnumerator"
                     "Summarize", "System.Linq.Enumerable::ToList"
-                    "Counted", "System.Collections.Generic.IEnumerable`1::GetEnumerator" ] do
+                    "Counted", "System.Collections.Generic.IEnumerable`1::GetEnumerator"
+                    "PrintAsync", "System.Collections.Generic.IEnumerable`1::GetEnumerator"
+                    "Later", "System.Linq.Enumerable::ToList"
+                    "Listed", "System.String::Join"
+                    "Names", "System.String::Concat"
+                    "Added", "System.Collections.Generic.List`1::AddRange" ] do
                   Expect.equal (database name |> List.map (fun x -> x.Primitive)) [ primitive ] $"{name} runs the query it passes"
 
               Expect.isEmpty (database "Local") "a list passed in is not a query"
@@ -356,6 +361,11 @@ let tests =
                   "through the method that passes it on"
 
               Expect.equal ((database "Counted").Head.ViaAssembly) (Some "CSharp.Wrappers") "enumerated in a dependency"
+
+              Expect.exists
+                  (database "PrintAsync").Head.Evidence.Steps
+                  (fun s -> s.Description.Contains "passes it to CSharp.Effects.Printing.Printer/<PrintAsync>" && s.Description.EndsWith "as field orders")
+                  "kept in the async method's state machine"
 
               // The methods that enumerate their parameter have no query of their own.
               Expect.isEmpty
