@@ -137,6 +137,23 @@ namespace CSharp.Effects.Printing
         public static List<string> Names(IQueryable<Order> orders) => orders.Where(o => o.Id > 0).Select(o => o.Name).ToList();
 
         public static int Again(IEnumerable<Order> orders) => Print(orders);
+
+        // Kept in the async method's state machine, and in a lambda's closure.
+        public static async Task<int> PrintAsync(IEnumerable<Order> orders)
+        {
+            await Task.Yield();
+            var n = 0;
+
+            foreach (var _ in orders)
+                n++;
+
+            return n;
+        }
+
+        public static Task<List<Order>> Later(IEnumerable<Order> orders) => Task.Run(() => orders.ToList());
+
+        // Framework methods that enumerate an argument other than the first.
+        public static string Joined(IEnumerable<Order> orders) => string.Join(", ", orders.Select(o => o.Name));
     }
 
     public class Summary(IEnumerable<Order> orders)
@@ -155,6 +172,21 @@ namespace CSharp.Effects.Printing
         public Summary Summarize() => new Summary(db.Orders);
 
         public int Counted() => Sequences.CountAll(db.Orders);
+
+        public Task<int> PrintAsync() => Printer.PrintAsync(db.Orders);
+
+        public Task<List<Order>> Later() => Printer.Later(db.Orders.Where(o => o.Id > 5));
+
+        public string Listed() => Printer.Joined(db.Orders);
+
+        public string Names() => string.Concat(db.Orders.Select(o => o.Name));
+
+        public List<Order> Added()
+        {
+            var all = new List<Order>();
+            all.AddRange(db.Orders);
+            return all;
+        }
 
         // A list is not a query.
         public int Local(List<Order> list) => Printer.Print(list);

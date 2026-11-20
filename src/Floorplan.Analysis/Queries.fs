@@ -16,7 +16,10 @@ type Context =
       /// A method's definition and data flow, when its body is read (not the shared framework's).
       Body: MethodRef -> (MethodDef * Flow) option
       /// The methods a call at an offset of a method can run.
-      Targets: MethodRef -> int -> MethodRef list }
+      Targets: MethodRef -> int -> MethodRef list
+      /// The methods of a compiler-generated type outside the shared framework (an async method's state machine,
+      /// a lambda's closure); None for any other type.
+      Generated: TypeRef -> MethodRef list option }
 
 /// Where an enumerated query comes from.
 type QueryOrigin =
@@ -174,30 +177,47 @@ and private returned (ctx: Context) (frame: Frame) (depth: int) (offset: int) (c
 
 let private top (m: MethodDef) (flow: Flow) = { Def = m; Flow = flow; Caller = None }
 
-/// Whether a call enumerates its first operand: `foreach` over it (GetEnumerator), a LINQ call that returns
-/// something other than a sequence (ToList, First, Count, Any), or a collection made from it.
-let private enumerates (declared: MethodRef) (isNewObj: bool) =
+let private sequenceType = "System.Collections.Generic.IEnumerable`1"
+
+/// The operand a call enumerates, if it enumerates one: `foreach` over it (GetEnumerator), a LINQ call that
+/// returns something other than a sequence (ToList, First, Count, Any), a collection made from it or added to
+/// (new List<T>(query), AddRange, UnionWith), or a string joined from it (String.Join, String.Concat).
+let private enumeratedOperand (declared: MethodRef) (isNewObj: bool) : int option =
+    let sequenceParameter () =
+        declared.ParameterTypes |> List.tryFindIndex (fun t -> generic t = sequenceType)
+
     if isNewObj then
         // new List<T>(query), new HashSet<T>(query), ...
-        declared.Type.Namespace = "System.Collections.Generic"
-        && (match declared.ParameterTypes with
-            | first :: _ -> generic first = "System.Collections.Generic.IEnumerable`1"
-            | [] -> false)
+        if declared.Type.Namespace = "System.Collections.Generic"
+           && (match declared.ParameterTypes with
+               | first :: _ -> generic first = sequenceType
+               | [] -> false) then
+            Some 0
+        else
+            None
     elif declared.HasThis then
-        (declared.Name = "GetEnumerator" || declared.Name = "GetAsyncEnumerator") && declared.ParameterCount <= 1
+        if (declared.Name = "GetEnumerator" || declared.Name = "GetAsyncEnumerator") && declared.ParameterCount <= 1 then
+            Some 0
+        elif declared.Type.Namespace = "System.Collections.Generic" then
+            // AddRange, InsertRange, UnionWith, SetEquals, ...: the receiver is operand 0.
+            sequenceParameter () |> Option.map (fun i -> i + 1)
+        else
+            None
+    elif linq.Contains declared.Type.FullName then
+        if declared.ParameterCount > 0 && not (deferred.Contains(generic declared.ReturnType)) then Some 0 else None
+    elif declared.Type.FullName = "System.String" && (declared.Name = "Join" || declared.Name = "Concat") then
+        sequenceParameter ()
     else
-        linq.Contains declared.Type.FullName
-        && declared.ParameterCount > 0
-        && not (deferred.Contains(generic declared.ReturnType))
+        None
 
 /// The query that a call enumerates, and so runs.
 let enumerated (ctx: Context) (flow: Flow) (m: MethodDef) (offset: int) (declared: MethodRef) (isNewObj: bool) : QueryOrigin option =
-    if enumerates declared isNewObj then
-        match flow.OperandsAt offset with
-        | first :: _ -> origin ctx (top m flow) 0 first
-        | [] -> None
-    else
-        None
+    match enumeratedOperand declared isNewObj with
+    | Some i ->
+        match List.tryItem i (flow.OperandsAt offset) with
+        | Some operand -> origin ctx (top m flow) 0 operand
+        | None -> None
+    | None -> None
 
 /// The query the values a method uses are, if any.
 let ofValues (ctx: Context) (flow: Flow) (m: MethodDef) (values: Values) : QueryOrigin option = origin ctx (top m flow) 0 values
@@ -208,6 +228,13 @@ let ofFirstOperand (ctx: Context) (flow: Flow) (m: MethodDef) (offset: int) : Qu
     | first :: _ -> ofValues ctx flow m first
     | [] -> None
 
+/// A method on the way from a call to the enumeration, and what it holds the sequence in: a parameter, or a field
+/// of a compiler-generated type (an async method's state machine, a lambda's closure) it is stored in.
+type Hop =
+    { Method: MethodRef
+      Name: string
+      InField: bool }
+
 /// A parameter that a method enumerates, so that a query passed to it runs there:
 /// `void Print(IEnumerable<Order> orders) { foreach (var o in orders) ... }`, or a method it passes the parameter to.
 type EnumeratedParameter =
@@ -215,9 +242,9 @@ type EnumeratedParameter =
       Argument: int
       /// The call that enumerates it.
       Enumerator: MethodRef
-      /// The method called and its parameter's name, then each method the parameter is passed on to, ending with
-      /// the one that enumerates it.
-      Path: (MethodRef * string) list }
+      /// The method called and its parameter, then each method the parameter is passed on to, ending with the one
+      /// that enumerates it.
+      Path: Hop list }
 
 /// Whether a method's parameter at an argument index is a sequence a query could be passed as (IEnumerable<T>,
 /// IQueryable<T>), and not of a type a query rule names, whose enumeration is found in the method itself.
@@ -240,38 +267,56 @@ let private parameterName (m: MethodDef) (i: int) =
     |> Option.filter (fun n -> n <> "")
     |> Option.defaultValue $"argument {index}"
 
-/// The method's parameter that the values are, as is or through LINQ that builds on it unrun (Where, OrderBy).
-let rec private parameterOf (flow: Flow) (depth: int) (values: Values) : int option =
+/// Where a method holds a sequence it uses.
+type private Held =
+    | InParameter of int
+    /// A field of `this`.
+    | InField of FieldRef
+
+/// Where the values are held, as is or through LINQ that builds on them unrun (Where, OrderBy).
+let rec private heldIn (flow: Flow) (depth: int) (values: Values) : Held option =
     if depth > maxDepth then
         None
     else
         values
         |> Set.toList
         |> List.tryPick (function
-            | Argument i -> Some i
+            | Argument i -> Some(InParameter i)
             | Pushed offset ->
                 let source () =
                     match flow.OperandsAt offset with
-                    | first :: _ -> parameterOf flow (depth + 1) first
+                    | first :: _ -> heldIn flow (depth + 1) first
                     | [] -> None
 
                 match flow.InstructionAt offset with
                 | Some { Op = (Call called | CallVirt called) } when deferred.Contains(generic called.ReturnType) -> source ()
                 | Some { Op = (CastClass _ | IsInst _) } -> source ()
+                | Some { Op = LdFld f } ->
+                    match flow.OperandsAt offset with
+                    | [ receiver ] when receiver.Contains(Argument 0) -> Some(InField f)
+                    | _ -> None
                 | _ -> None
             | _ -> None)
 
-/// The sequence parameters each method enumerates, worked out from its body (outside the shared framework) and
-/// the bodies of the methods it passes them to. Each method is read once.
-let enumeratedParameters (ctx: Context) : MethodRef -> EnumeratedParameter list =
-    let known = Dictionary<string, EnumeratedParameter list>()
+/// A sequence a method enumerates, and how.
+type private Use =
+    { Held: Held
+      Enumerator: MethodRef
+      Path: Hop list }
 
-    let rec ofMethod (m: MethodRef) =
+/// The sequence parameters each method enumerates, worked out from its body (outside the shared framework) and
+/// the bodies of the methods it passes them to, or of the compiler-generated types it stores them in (an async
+/// method's state machine, a lambda's closure) whose methods enumerate the field. Each method is read once.
+let enumeratedParameters (ctx: Context) : MethodRef -> EnumeratedParameter list =
+    let known = Dictionary<string, Use list>()
+    let generatedTypes = Dictionary<string, Use list>()
+
+    let rec ofMethod (m: MethodRef) : Use list =
         match known.TryGetValue m.Key with
         | true, r -> r
-        | _ when not (hasSequenceParameter ctx m) -> []
+        | _ when not (hasSequenceParameter ctx m) && (ctx.Generated m.Type).IsNone -> []
         | _ ->
-            // A method that passes the parameter back to itself adds nothing on the way round.
+            // A method that passes the sequence back to itself adds nothing on the way round.
             known[m.Key] <- []
 
             let r =
@@ -282,15 +327,52 @@ let enumeratedParameters (ctx: Context) : MethodRef -> EnumeratedParameter list 
             known[m.Key] <- r
             r
 
-    and inBody (def: MethodDef) (flow: Flow) =
-        let parameter (values: Values) =
-            parameterOf flow 0 values |> Option.filter (sequenceParameter ctx def.Ref)
+    // The fields of a compiler-generated type that its methods enumerate.
+    and ofGenerated (t: TypeRef) : Use list =
+        match generatedTypes.TryGetValue t.FullName with
+        | true, r -> r
+        | _ ->
+            generatedTypes[t.FullName] <- []
 
-        let here (i: int) = def.Ref, parameterName def i
+            let r =
+                match ctx.Generated t with
+                | Some methods ->
+                    methods
+                    |> List.collect ofMethod
+                    |> List.filter (fun u ->
+                        match u.Held with
+                        | InField f -> f.Type.FullName = t.FullName
+                        | InParameter _ -> false)
+                | None -> []
+
+            generatedTypes[t.FullName] <- r
+            r
+
+    and inBody (def: MethodDef) (flow: Flow) : Use list =
+        let generated = (ctx.Generated def.Ref.Type).IsSome
+
+        let held (values: Values) =
+            heldIn flow 0 values
+            |> Option.filter (function
+                | InParameter i -> sequenceParameter ctx def.Ref i
+                | InField f -> generated && not def.IsStatic && deferred.Contains(generic f.FieldType))
+
+        let hop (h: Held) =
+            match h with
+            | InParameter i -> { Method = def.Ref; Name = parameterName def i; InField = false }
+            | InField f -> { Method = def.Ref; Name = f.Name; InField = true }
+
+        // A use further on, of what an operand holds here.
+        let onward (operand: Values option) (further: Use) =
+            operand
+            |> Option.bind held
+            |> Option.map (fun h -> { further with Held = h; Path = hop h :: further.Path })
 
         flow.Body.Instructions
         |> Array.toList
         |> List.collect (fun ins ->
+            let operands = flow.OperandsAt ins.Offset
+
             let call =
                 match ins.Op with
                 | Call d
@@ -298,32 +380,44 @@ let enumeratedParameters (ctx: Context) : MethodRef -> EnumeratedParameter list 
                 | NewObj d -> Some(d, true)
                 | _ -> None
 
-            match call with
-            | None -> []
-            | Some(declared, isNewObj) ->
-                let operands = flow.OperandsAt ins.Offset
+            match ins.Op, call with
+            | StFld f, _ when (ctx.Generated f.Type).IsSome ->
+                // Kept in a state machine or closure, whose methods may enumerate it.
+                ofGenerated f.Type
+                |> List.filter (fun u ->
+                    match u.Held with
+                    | InField g -> g.Key = f.Key
+                    | InParameter _ -> false)
+                |> List.choose (onward (List.tryLast operands))
+            | _, Some(declared, isNewObj) when (enumeratedOperand declared isNewObj).IsSome ->
+                match List.tryItem (enumeratedOperand declared isNewObj).Value operands |> Option.bind held with
+                | Some h ->
+                    [ { Held = h
+                        Enumerator = declared
+                        Path = [ hop h ] } ]
+                | None -> []
+            | _, Some(declared, isNewObj) ->
+                let targets =
+                    match ctx.Targets def.Ref ins.Offset with
+                    | [] -> [ declared ]
+                    | ts -> ts
 
-                if enumerates declared isNewObj then
-                    match operands |> List.tryHead |> Option.bind parameter with
-                    | Some i ->
-                        [ { Argument = i
-                            Enumerator = declared
-                            Path = [ here i ] } ]
-                    | None -> []
-                else
-                    let targets =
-                        match ctx.Targets def.Ref ins.Offset with
-                        | [] -> [ declared ]
-                        | ts -> ts
+                targets
+                |> List.collect ofMethod
+                |> List.choose (fun u ->
+                    match u.Held with
+                    | InParameter i -> onward (List.tryItem (if isNewObj then i - 1 else i) operands) u
+                    | InField _ -> None)
+            | _ -> [])
+        |> List.distinctBy (fun u -> u.Held)
 
-                    targets
-                    |> List.collect ofMethod
-                    |> List.choose (fun p ->
-                        let operand = if isNewObj then p.Argument - 1 else p.Argument
-
-                        List.tryItem operand operands
-                        |> Option.bind parameter
-                        |> Option.map (fun i -> { p with Argument = i; Path = here i :: p.Path })))
-        |> List.distinctBy (fun p -> p.Argument)
-
-    ofMethod
+    fun m ->
+        ofMethod m
+        |> List.choose (fun u ->
+            match u.Held with
+            | InParameter i ->
+                Some
+                    { Argument = i
+                      Enumerator = u.Enumerator
+                      Path = u.Path }
+            | InField _ -> None)
