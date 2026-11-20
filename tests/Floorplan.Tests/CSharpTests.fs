@@ -212,6 +212,29 @@ let tests =
                   "no sink effects from EF's own log calls"
           }
 
+          test "NLog and log4net log calls are grouped, once per unit and effect" {
+              let m = csharpModel.Force()
+
+              let logCalls (unitId: string) (via: string) =
+                  let logged =
+                      m.ExitPoints
+                      |> List.filter (fun x -> x.Unit = unitId && x.ViaAssembly = Some via && x.Evidence.Steps |> List.exists (fun s -> s.Description.Contains " logs through "))
+
+                  Expect.isNonEmpty logged $"{unitId}: the log calls reach the configured targets"
+
+                  Expect.equal
+                      (logged |> List.countBy (fun x -> x.Category) |> List.filter (fun (_, n) -> n > 1))
+                      []
+                      $"{unitId}: one exit point per effect"
+
+                  logged.Head.Evidence.Steps
+                  |> List.filter (fun s -> s.Description.Contains " logs through ")
+                  |> List.map (fun s -> s.Location |> Option.map (fun l -> l.StartLine))
+
+              Expect.equal (logCalls "CSharp.Effects:CSharp.Effects.Packing" "NLog") [ Some 27; Some 28 ] "NLog: both log calls"
+              Expect.equal (logCalls "CSharp.Effects:CSharp.Effects.Storage" "log4net") [ Some 47; Some 48 ] "log4net: both log calls"
+          }
+
           test "Entity Framework Core: a query returned from another method runs where it is enumerated" {
               let m = csharpModel.Force()
 

@@ -448,6 +448,22 @@
     { "id": "callback.microsoft-logger-provider", "assembly": "Microsoft.Extensions.Logging.Abstractions", "type": "Microsoft.Extensions.Logging.ILoggerProvider",
       "members": ["CreateLogger"], "includeDerivedTypes": true, "kind": "callback" },
     { "id": "callback.microsoft-logger", "assembly": "Microsoft.Extensions.Logging.Abstractions", "type": "Microsoft.Extensions.Logging.ILogger",
-      "members": ["Log"], "includeDerivedTypes": true, "kind": "callback" }
+      "members": ["Log"], "includeDerivedTypes": true, "kind": "callback" },
+    // NLog: its Logger is a class, and its code is followed to the targets it is configured with.
+    { "id": "logger.nlog", "assembly": "NLog", "type": "NLog.Logger",
+      "members": ["Trace", "Debug", "Info", "Warn", "Error", "Fatal", "Log"], "includeDerivedTypes": true, "kind": "logger" },
+    { "id": "logger.nlog-interface", "assembly": "NLog", "type": "NLog.ILogger",
+      "members": ["Trace", "Debug", "Info", "Warn", "Error", "Fatal"], "includeDerivedTypes": true, "kind": "logger" },
+    { "id": "logger.nlog-base", "assembly": "NLog", "type": "NLog.ILoggerBase",
+      "members": ["Log"], "includeDerivedTypes": true, "kind": "logger" },
+    // log4net: its loggers are made by reflection (the repository type is created with Activator) and through a
+    // delegate, which are not followed. Every log call ends at the appenders the repository is configured with: a
+    // log call reaches what each constructed appender's DoAppend reaches, which the callback links. Appenders made
+    // from an XML configuration are made by reflection too, and are not seen.
+    { "id": "logger.log4net", "assembly": "log4net", "type": "log4net.ILog",
+      "members": ["Debug", "Info", "Warn", "Error", "Fatal", "DebugFormat", "InfoFormat", "WarnFormat", "ErrorFormat", "FatalFormat"],
+      "includeDerivedTypes": true, "kind": "logger", "dispatch": "log4net.Appender.IAppender::DoAppend" },
+    { "id": "callback.log4net-appender", "assembly": "log4net", "type": "log4net.Appender.IAppender",
+      "members": ["DoAppend"], "includeDerivedTypes": true, "kind": "callback" }
   ]
 }

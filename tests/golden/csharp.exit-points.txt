@@ -83,6 +83,26 @@ database | CSharp.Effects:CSharp.Effects.Ordering | CSharp.Effects.Ordering.Orde
 database | CSharp.Effects:CSharp.Effects.Ordering | CSharp.Effects.Ordering.OrderStore::Raw | System.Linq.Enumerable::ToList | via - | literal:SELECT * FROM Orders | CSharp/CSharp.Effects/EntityFramework.cs:69
 database | CSharp.Effects:CSharp.Effects.Ordering | CSharp.Effects.Ordering.OrderStore::RawAsync | Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions::ToListAsync | via - | template:SELECT * FROM Orders WHERE Id = {…} | CSharp/CSharp.Effects/EntityFramework.cs:71
 database | CSharp.Effects:CSharp.Effects.Ordering | CSharp.Effects.Ordering.OrderStore::Ids | System.Linq.Enumerable::ToList | via - | literal:SELECT Id FROM Orders | CSharp/CSharp.Effects/EntityFramework.cs:73
+filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.IO.FileSystemWatcher::set_EnableRaisingEvents | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:16
+nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:16
+nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:16
+filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.IO.FileSystemWatcher::set_EnableRaisingEvents | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:16
+nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:16
+process | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Diagnostics.Process::GetCurrentProcess | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:16
+nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:16
+environment | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Console::get_Out | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
+filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.IO.Directory::Exists | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:17
+filesystem-write | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.IO.Directory::CreateDirectory | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:17
+nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
+process | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Diagnostics.Process::GetCurrentProcess | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
+environment | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.Console::get_Out | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
+filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.IO.File::Exists | via NLog | literal: | CSharp/CSharp.Effects/OtherLoggers.cs:23
+filesystem-write | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.IO.Directory::CreateDirectory | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:23
+nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
+process | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::.cctor | System.Diagnostics.Process::GetCurrentProcess | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:23
+filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.IO.Directory::Exists | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:27
+filesystem-write | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.IO.Directory::CreateDirectory | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:27
+nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Boxes::Pack | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:27
 database | CSharp.Effects:CSharp.Effects.Reporting | CSharp.Effects.Reporting.OrderReports::All | System.Linq.Enumerable::ToList | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:106
 database | CSharp.Effects:CSharp.Effects.Reporting | CSharp.Effects.Reporting.OrderReports::Count | System.Linq.Queryable::Count | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:108
 database | CSharp.Effects:CSharp.Effects.Reporting | CSharp.Effects.Reporting.OrderReports::Named | System.Linq.Queryable::FirstOrDefault | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:110
@@ -95,6 +115,18 @@ environment | CSharp.Effects:CSharp.Effects.Shipping | CSharp.Effects.Shipping.P
 filesystem-read | CSharp.Effects:CSharp.Effects.Shipping | CSharp.Effects.Shipping.Parcels::Ship | System.IO.Directory::Exists | via Serilog.Extensions.Logging | dynamic:- | CSharp/CSharp.Effects/MicrosoftLogging.cs:21
 filesystem-write | CSharp.Effects:CSharp.Effects.Shipping | CSharp.Effects.Shipping.Parcels::Ship | System.IO.File::Delete | via Serilog.Extensions.Logging | template:{…}/{…} | CSharp/CSharp.Effects/MicrosoftLogging.cs:21
 nondeterminism | CSharp.Effects:CSharp.Effects.Shipping | CSharp.Effects.Shipping.Parcels::Ship | System.DateTime::get_UtcNow | via Serilog.Extensions.Logging | - | CSharp/CSharp.Effects/MicrosoftLogging.cs:21
+environment | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Setup::Configure | System.Console::get_Error | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:38
+filesystem-read | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Setup::Configure | System.IO.File::Exists | via log4net | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:38
+filesystem-write | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Setup::Configure | System.IO.FileInfo::Open | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:38
+http-out | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Setup::Configure | System.Net.WebRequest::GetResponseAsync | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:38
+nondeterminism | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Setup::Configure | System.DateTime::get_UtcNow | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:38
+environment | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Shelves::.cctor | System.Console::get_Error | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:43
+filesystem-read | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Shelves::.cctor | System.IO.File::Exists | via log4net | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:43
+filesystem-write | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Shelves::.cctor | System.IO.FileInfo::Open | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:43
+http-out | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Shelves::.cctor | System.Net.WebRequest::GetResponseAsync | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:43
+nondeterminism | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Shelves::.cctor | System.DateTime::get_UtcNow | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:43
+environment | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Shelves::Store | System.Console::get_Error | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:47
+nondeterminism | CSharp.Effects:CSharp.Effects.Storage | CSharp.Effects.Storage.Shelves::Store | System.DateTime::get_UtcNow | via log4net | - | CSharp/CSharp.Effects/OtherLoggers.cs:47
 environment | CSharp.Endpoints: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via - | literal:STATUS_PREFIX | CSharp/CSharp.Endpoints/Program.cs:15
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::GetOrder | System.IO.File::ReadAllText | via - | template:orders/{…}.json | CSharp/CSharp.Endpoints/Api.cs:8
 nondeterminism | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::CreateOrder | System.Guid::NewGuid | via - | - | CSharp/CSharp.Endpoints/Api.cs:12
