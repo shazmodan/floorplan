@@ -1487,7 +1487,23 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                                     Some(made, text made queue)
                                 | _ -> None)
                             |> Option.orElse (tiedTo o)
-                        | Some { Op = NewObj _ } -> tiedTo o
+                        | Some { Op = NewObj ctor } ->
+                            // Made by a constructor that names it (new FileSystemWatcher(path)), or tied to it later.
+                            ctx.Matcher.Match ctor
+                            |> List.tryPick (fun rule ->
+                                match specOf rule "message-queue", specOf rule "message-consumer" with
+                                | Some queue, None when rule.Kind = Registration ->
+                                    let made: PlatformRouting.Registration =
+                                        { Caller = r.Caller
+                                          Offset = o
+                                          Index = r.Caller.Body.Value.Value.Instructions |> Array.findIndex (fun i -> i.Offset = o)
+                                          Rule = rule
+                                          Declared = ctor
+                                          Flow = r.Flow }
+
+                                    Some(made, text made queue)
+                                | _ -> None)
+                            |> Option.orElse (tiedTo o)
                         | _ -> None)
                 )
 
@@ -1500,13 +1516,18 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
             |> Option.map (fun unit ->
                 let queue = source |> Option.bind snd
                 let category = defaultArg r.Rule.Category EffectCategory.Network
-                let calledWhen = if category = EffectCategory.Background then "each time it fires" else "for each message received"
+                let calledWhen =
+                    match category with
+                    | EffectCategory.Background -> "each time it fires"
+                    | EffectCategory.FilesystemRead -> "when a file it watches changes"
+                    | _ -> "for each message received"
 
                 let queueStep =
                     match source with
                     | Some(q, name) ->
-                        let named = match name with Some n -> $"queue \"{n}\"" | None -> "a queue whose name is not a constant"
-                        [ step $"{q.Caller.Ref.Display} reads it from {named} with {q.Declared.Display} (rule {q.Rule.Id})" q.Caller.Ref (Instruction.pointAt q.Caller.Body.Value.Value.Instructions q.Index) ]
+                        let noun, verb = if category = EffectCategory.FilesystemRead then "path", "watches" else "queue", "reads it from"
+                        let named = match name with Some n -> $"{noun} \"{n}\"" | None -> $"a {noun} that is not a constant"
+                        [ step $"{q.Caller.Ref.Display} {verb} {named} with {q.Declared.Display} (rule {q.Rule.Id})" q.Caller.Ref (Instruction.pointAt q.Caller.Body.Value.Value.Instructions q.Index) ]
                     | None -> []
 
                 { Id = ""
