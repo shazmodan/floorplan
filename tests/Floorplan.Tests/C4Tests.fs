@@ -132,6 +132,26 @@ let tests =
                   "a global namespace has its label"
           }
 
+          test "layout: every element of every view is a box of its own, no two overlapping, every relationship drawn" {
+              for m in [ ExitPointTests.shopModel.Force(); CSharpTests.csharpModel.Force() ] do
+                  for v in m.Architecture.Views do
+                      let nodes = v.Layout.Nodes
+
+                      Expect.equal (nodes |> List.map (fun n -> n.Id) |> List.sort) (List.sort v.Elements) $"{v.Id}: a box per element"
+                      Expect.isTrue (nodes |> List.forall (fun n -> n.Members.IsEmpty)) $"{v.Id}: no cycle collapsed"
+
+                      for a in nodes do
+                          for b in nodes do
+                              if a.Id < b.Id then
+                                  let apart = a.X + a.Width <= b.X || b.X + b.Width <= a.X || a.Y + a.Height <= b.Y || b.Y + b.Height <= a.Y
+                                  Expect.isTrue apart $"{v.Id}: {a.Id} and {b.Id} overlap"
+
+                      Expect.equal
+                          (v.Layout.Edges |> List.map (fun e -> e.From, e.To) |> List.sort)
+                          (v.Relationships |> List.map (fun r -> r.From, r.To) |> List.distinct |> List.sort)
+                          $"{v.Id}: a line per pair of related elements"
+          }
+
           test "system context of the C# fixtures: client libraries name the systems they reach" {
               let m = CSharpTests.csharpModel.Force()
               let systems = named m C4Kind.ExternalSystem
