@@ -30,9 +30,12 @@ network | CSharp.Clients:CSharp.Clients.Chat | CSharp.Clients.Chat.Room::Say | M
 database | CSharp.Clients:CSharp.Clients.Documents | CSharp.Clients.Documents.Store::Save | MongoDB.Driver.IMongoCollection`1::InsertOneAsync | via - | - | CSharp/CSharp.Clients/Program.cs:45
 database | CSharp.Clients:CSharp.Clients.Documents | CSharp.Clients.Documents.Store::Named | MongoDB.Driver.IAsyncCursorSourceExtensions::ToListAsync | via - | - | CSharp/CSharp.Clients/Program.cs:47
 database | CSharp.Clients:CSharp.Clients.Documents | CSharp.Clients.Documents.Store::Forget | MongoDB.Driver.IMongoCollectionExtensions::DeleteOneAsync | via - | - | CSharp/CSharp.Clients/Program.cs:49
-filesystem-read | CSharp.Clients:CSharp.Clients.Files | CSharp.Clients.Files.Archive/<Keep>d__2::MoveNext | System.IO.File::OpenRead | via - | dynamic:- | CSharp/CSharp.Clients/Program.cs:100
-http-out | CSharp.Clients:CSharp.Clients.Files | CSharp.Clients.Files.Archive/<Keep>d__2::MoveNext | Azure.Storage.Blobs.BlobContainerClient::UploadBlobAsync | via - | template:archive/{…} | CSharp/CSharp.Clients/Program.cs:101
-http-out | CSharp.Clients:CSharp.Clients.Files | CSharp.Clients.Files.Archive::Fetch | Azure.Storage.Blobs.Specialized.BlobBaseClient::DownloadContentAsync | via - | - | CSharp/CSharp.Clients/Program.cs:105
+filesystem-read | CSharp.Clients:CSharp.Clients.Files | CSharp.Clients.Files.Archive/<Keep>d__2::MoveNext | System.IO.File::OpenRead | via - | dynamic:- | CSharp/CSharp.Clients/Program.cs:117
+http-out | CSharp.Clients:CSharp.Clients.Files | CSharp.Clients.Files.Archive/<Keep>d__2::MoveNext | Azure.Storage.Blobs.BlobContainerClient::UploadBlobAsync | via - | template:archive/{…} | CSharp/CSharp.Clients/Program.cs:118
+http-out | CSharp.Clients:CSharp.Clients.Files | CSharp.Clients.Files.Archive::Fetch | Azure.Storage.Blobs.Specialized.BlobBaseClient::DownloadContentAsync | via - | - | CSharp/CSharp.Clients/Program.cs:122
+network | CSharp.Clients:CSharp.Clients.Notifications | CSharp.Clients.Notifications.Mail/<Smtp>d__0::MoveNext | MailKit.MailService::ConnectAsync | via - | literal:smtp.example.org | CSharp/CSharp.Clients/Program.cs:102
+network | CSharp.Clients:CSharp.Clients.Notifications | CSharp.Clients.Notifications.Mail/<Smtp>d__0::MoveNext | MailKit.MailTransport::SendAsync | via - | - | CSharp/CSharp.Clients/Program.cs:103
+http-out | CSharp.Clients:CSharp.Clients.Notifications | CSharp.Clients.Notifications.Mail::Grid | SendGrid.BaseClient::SendEmailAsync | via - | - | CSharp/CSharp.Clients/Program.cs:107
 environment | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.Environment::GetEnvironmentVariable | via AWSSDK.S3 | literal:AWS_DEFAULTS_MODE | CSharp/CSharp.Cloud/Program.cs:10
 filesystem-read | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.IO.File::Exists | via AWSSDK.S3 | template:{…}/endpoints.json | CSharp/CSharp.Cloud/Program.cs:10
 filesystem-write | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.IO.File::Open | via AWSSDK.S3 | template:{…}/endpoints.json | CSharp/CSharp.Cloud/Program.cs:10

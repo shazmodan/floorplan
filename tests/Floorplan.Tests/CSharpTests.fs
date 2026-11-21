@@ -266,6 +266,13 @@ let tests =
                     EffectCategory.HttpOut, "ICatalogApi::GetProduct", Some "/products/{id}" ]
                   "Refit: a call to a method marked with a verb is an HTTP call to its path"
 
+              Expect.equal
+                  (calls "Notifications.Mail")
+                  [ EffectCategory.HttpOut, "BaseClient::SendEmailAsync", None
+                    EffectCategory.Network, "MailService::ConnectAsync", Some "smtp.example.org"
+                    EffectCategory.Network, "MailTransport::SendAsync", None ]
+                  "email: MailKit's connection and send, SendGrid's request"
+
               // A SignalR client: the server invokes the handlers On registers; InvokeAsync calls a hub method.
               Expect.equal
                   (calls "Chat.Room")

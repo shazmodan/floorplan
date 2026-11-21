@@ -91,6 +91,23 @@ namespace CSharp.Clients.Chat
     }
 }
 
+namespace CSharp.Clients.Notifications
+{
+    // Email: MailKit over SMTP, SendGrid over HTTP.
+    public static class Mail
+    {
+        public static async Task Smtp(MimeKit.MimeMessage message)
+        {
+            using var smtp = new MailKit.Net.Smtp.SmtpClient();
+            await smtp.ConnectAsync("smtp.example.org", 587);
+            await smtp.SendAsync(message);
+        }
+
+        public static Task<SendGrid.Response> Grid(SendGrid.Helpers.Mail.SendGridMessage message) =>
+            new SendGrid.SendGridClient("key").SendEmailAsync(message);
+    }
+}
+
 namespace CSharp.Clients.Files
 {
     public class Archive(BlobContainerClient container)
