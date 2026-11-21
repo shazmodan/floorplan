@@ -246,7 +246,13 @@ Also new, outside the recognizer:
   interface method, `http-out.refit` on their base `HttpMethodAttribute`) make each call to such a method an HTTP
   call to its path. Email: MailKit sends on the connection `Connect` opened, which a call is not followed to, so
   `Connect` (with the host) and `Send` are network exit points (`network.mailkit-*`); SendGrid's `SendEmailAsync`
-  is an HTTP one (`http-out.sendgrid`). Fixture: `CSharp.Clients`.
+  is an HTTP one (`http-out.sendgrid`). A typed HTTP client's base address comes before its relative URLs:
+  `AddHttpClient<TClient>(c => c.BaseAddress = new Uri(...))` (`http-out.typed-client`, the `"typed-http-client"`
+  payload is the index of the type argument) gives the client type the constant its configuration delegate sets
+  `BaseAddress` to (`http-out.base-address`), and an HTTP call the client makes through the `HttpClient` it keeps
+  in a field (its constructor's parameter) has that address before a relative URL (`repos/{…}` is
+  `https://api.github.com/repos/{…}`). Named clients (`AddHttpClient("name", ...)` and `CreateClient("name")`) are not
+  joined. Fixture: `CSharp.Clients`.
 - **AWS and Azure Cosmos DB**: the AWS SDK for .NET and the Cosmos DB client send requests through pipelines of
   handlers of their own, past credential providers that read files, start processes and call the platform's
   crypto API, so a call showed as low- or medium-confidence HTTP among that noise. Sink rules name the operations:
