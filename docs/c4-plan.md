@@ -329,3 +329,12 @@ between components; they are lifted from the code level, so component views are 
 (F# modules) stay as they were. "handles requests" and "reaches out" on a code element no longer count "uses".
 Top-level statements appear as a `Program` code element, gRPC's generated message types as types of their
 namespace. 70 uses in the C# fixtures.
+
+### 2026-11-21: follow-ups the owner chose
+
+After items 10 and 9 the owner chose four follow-ups: small fixes, labels in dense views, DSL extras and uses
+between F# types. Each is a branch of its own, below.
+
+**Small fixes** (`claude/c4-small-fixes`): a component's description says "An F# module" (`article` picks "a" or
+"an" by how the word is said, letters by their names); a relationship's technology is dropped when it only
+repeats the name of the library system it reaches (`RabbitMQ.Client` to RabbitMQ.Client).
