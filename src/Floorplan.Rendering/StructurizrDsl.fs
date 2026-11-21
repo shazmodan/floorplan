@@ -16,6 +16,15 @@ open Floorplan.Model
 [<Literal>]
 let FileName = "workspace.dsl"
 
+/// The layout of the workspace's views, as Structurizr's JSON workspace format holds it.
+[<Literal>]
+let LayoutFileName = "workspace.json"
+
+/// Structurizr draws an element 450 by 300 by default; Floorplan's boxes are smaller, so its positions are
+/// scaled to keep the same gaps between boxes.
+let private scaleX = 450.0 / 240.0
+let private scaleY = 300.0 / 120.0
+
 /// A DSL string: the DSL has no escapes for quotes or line breaks.
 let private quoted (s: string) =
     let s = s.Replace("\r", " ").Replace("\n", " ").Replace("\"", "'")
@@ -169,6 +178,8 @@ let write (model: AnalysisModel) : string =
     line 1 "}"
     line 0 ""
     line 1 "views {"
+    line 2 $"// Each view is laid out as on Floorplan's website: the positions are in {LayoutFileName} beside this file,"
+    line 2 "// which Structurizr Lite merges in. Without it, add `autoLayout` to a view."
 
     for v in c4.Views do
         let keyword =
@@ -183,7 +194,6 @@ let write (model: AnalysisModel) : string =
             let included = v.Elements |> List.filter ident.ContainsKey |> List.map (fun id -> ident[id])
             line 2 $"{keyword} {ident[v.Scope]} {quoted (safe v.Id)} {{"
             line 3 ("include " + String.Join(" ", included))
-            line 3 "autoLayout tb"
             line 2 "}"
         | _ -> ()
 
@@ -207,3 +217,144 @@ let write (model: AnalysisModel) : string =
     line 1 "}"
     line 0 "}"
     sb.ToString()
+
+/// The layout of every view the workspace has, as a Structurizr JSON workspace: the elements by name and place in
+/// the model (Structurizr matches them to the DSL's by name), and each view's element positions.
+let writeLayout (model: AnalysisModel) : string =
+    let c4 = model.Architecture
+    let shown = c4.Elements |> List.filter (fun e -> e.Kind <> C4Kind.Code)
+    let ident = identifiers shown
+    let name = names shown
+    let number = shown |> List.mapi (fun i e -> e.Id, string (i + 1)) |> Map.ofList
+
+    let children (parent: string) =
+        shown |> List.filter (fun e -> e.Parent = Some parent)
+
+    // The relationships the views show, each between the elements a view shows (Structurizr's implied ones for
+    // the DSL's), for the bends of their lines.
+    let views = c4.Views |> List.filter (fun v -> v.Level <> C4Level.Code && number.ContainsKey v.Scope)
+
+    let relationships =
+        views
+        |> List.collect (fun v -> v.Relationships)
+        |> List.filter (fun r -> number.ContainsKey r.From && number.ContainsKey r.To)
+        |> List.distinctBy (fun r -> r.From, r.To, r.Description)
+
+    let relationshipId =
+        relationships |> List.mapi (fun i r -> (r.From, r.To, r.Description), $"r{i + 1}") |> Map.ofList
+
+    use stream = new System.IO.MemoryStream()
+    use w = new System.Text.Json.Utf8JsonWriter(stream, System.Text.Json.JsonWriterOptions(Indented = true))
+
+    let rec element (e: C4Element) =
+        w.WriteStartObject()
+        w.WriteString("id", number[e.Id])
+        w.WriteString("name", name[e.Id])
+        w.WriteString("description", e.Description)
+        e.Technology |> Option.iter (fun t -> if e.Kind = C4Kind.Container || e.Kind = C4Kind.Component then w.WriteString("technology", t))
+        w.WriteStartObject "properties"
+        w.WriteString("structurizr.dsl.identifier", ident[e.Id])
+        w.WriteEndObject()
+
+        match relationships |> List.filter (fun r -> r.From = e.Id) with
+        | [] -> ()
+        | rs ->
+            w.WriteStartArray "relationships"
+
+            for r in rs do
+                w.WriteStartObject()
+                w.WriteString("id", relationshipId[(r.From, r.To, r.Description)])
+                w.WriteString("sourceId", number[r.From])
+                w.WriteString("destinationId", number[r.To])
+                w.WriteString("description", r.Description)
+                w.WriteEndObject()
+
+            w.WriteEndArray()
+
+        match e.Kind, children e.Id with
+        | C4Kind.SoftwareSystem, parts
+        | C4Kind.Container, parts when not parts.IsEmpty ->
+            w.WriteStartArray(if e.Kind = C4Kind.SoftwareSystem then "containers" else "components")
+
+            for p in parts do
+                element p
+
+            w.WriteEndArray()
+        | _ -> ()
+
+        w.WriteEndObject()
+
+    let top = shown |> List.filter (fun e -> e.Parent.IsNone)
+
+    w.WriteStartObject()
+    w.WriteString("name", (top |> List.tryFind (fun e -> e.Kind = C4Kind.SoftwareSystem) |> Option.map (fun s -> s.Name) |> Option.defaultValue model.Solution.Name))
+    w.WriteStartObject "model"
+    w.WriteStartArray "people"
+
+    for e in top |> List.filter (fun e -> e.Kind = C4Kind.Person) do
+        element e
+
+    w.WriteEndArray()
+    w.WriteStartArray "softwareSystems"
+
+    for e in top |> List.filter (fun e -> e.Kind <> C4Kind.Person) do
+        element e
+
+    w.WriteEndArray()
+    w.WriteEndObject()
+    w.WriteStartObject "views"
+
+    for kind, level, scopeField in
+        [ "systemContextViews", C4Level.Context, "softwareSystemId"
+          "containerViews", C4Level.Containers, "softwareSystemId"
+          "componentViews", C4Level.Components, "containerId" ] do
+        w.WriteStartArray kind
+
+        for v in views |> List.filter (fun v -> v.Level = level) do
+            w.WriteStartObject()
+            w.WriteString("key", safe v.Id)
+            w.WriteString(scopeField, number[v.Scope])
+            w.WriteStartArray "elements"
+
+            for n in v.Layout.Nodes |> List.filter (fun n -> number.ContainsKey n.Id) do
+                w.WriteStartObject()
+                w.WriteString("id", number[n.Id])
+                w.WriteNumber("x", int (Math.Round(n.X * scaleX)))
+                w.WriteNumber("y", int (Math.Round(n.Y * scaleY)))
+                w.WriteEndObject()
+
+            w.WriteEndArray()
+            w.WriteStartArray "relationships"
+
+            for r in v.Relationships do
+                match relationshipId.TryFind((r.From, r.To, r.Description)) with
+                | None -> ()
+                | Some id ->
+                    w.WriteStartObject()
+                    w.WriteString("id", id)
+
+                    // The bends of the line the website draws, without its ends at the boxes.
+                    match v.Layout.Edges |> List.tryFind (fun e -> e.From = r.From && e.To = r.To) with
+                    | Some edge when edge.Points.Length > 2 ->
+                        w.WriteStartArray "vertices"
+
+                        for pt in edge.Points |> List.skip 1 |> List.take (edge.Points.Length - 2) do
+                            w.WriteStartObject()
+                            w.WriteNumber("x", int (Math.Round(pt.X * scaleX)))
+                            w.WriteNumber("y", int (Math.Round(pt.Y * scaleY)))
+                            w.WriteEndObject()
+
+                        w.WriteEndArray()
+                    | _ -> ()
+
+                    w.WriteEndObject()
+
+            w.WriteEndArray()
+            w.WriteEndObject()
+
+        w.WriteEndArray()
+
+    w.WriteEndObject()
+    w.WriteEndObject()
+    w.Flush()
+    Text.Encoding.UTF8.GetString(stream.ToArray()).Replace("\r\n", "\n") + "\n"

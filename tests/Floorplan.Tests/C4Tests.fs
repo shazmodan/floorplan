@@ -243,6 +243,38 @@ let tests =
                           Expect.isLessThanOrEqual row.Length C4.rowLength $"{v.Id}: a row of {row.Length}"
           }
 
+          test "Structurizr layout: every view of the DSL placed as on the website, its lines' bends included" {
+              for m in [ ExitPointTests.shopModel.Force(); CSharpTests.csharpModel.Force() ] do
+                  let dsl = StructurizrDsl.write m
+                  use doc = System.Text.Json.JsonDocument.Parse(StructurizrDsl.writeLayout m)
+                  let views = doc.RootElement.GetProperty "views"
+
+                  let keys =
+                      [ for kind in [ "systemContextViews"; "containerViews"; "componentViews" ] do
+                            for v in views.GetProperty(kind).EnumerateArray() do
+                                let elements = v.GetProperty("elements").EnumerateArray() |> List.ofSeq
+                                Expect.isNonEmpty elements "elements placed"
+                                Expect.isTrue (elements |> List.exists (fun e -> e.GetProperty("x").GetInt32() > 0)) "not all at the origin"
+                                yield v.GetProperty("key").GetString() ]
+
+                  let dslKeys =
+                      Regex.Matches(dsl, @"^\s+(systemContext|container|component) \S+ ""([^""]+)"" \{", RegexOptions.Multiline)
+                      |> Seq.map (fun x -> x.Groups[2].Value)
+                      |> List.ofSeq
+
+                  Expect.equal (List.sort keys) (List.sort dslKeys) "a layout per view of the DSL"
+                  Expect.isFalse (Regex.IsMatch(dsl, "^ *autoLayout", RegexOptions.Multiline)) "automatic layout would replace it"
+
+              use shop = System.Text.Json.JsonDocument.Parse(StructurizrDsl.writeLayout (ExitPointTests.shopModel.Force()))
+
+              let bends =
+                  shop.RootElement.GetProperty("views").GetProperty("containerViews").[0].GetProperty("relationships").EnumerateArray()
+                  |> Seq.filter (fun r -> r.TryGetProperty("vertices") |> fst)
+                  |> Seq.length
+
+              Expect.isGreaterThan bends 0 "lines routed around boxes keep their bends"
+          }
+
           test "system context of the C# fixtures: client libraries name the systems they reach" {
               let m = CSharpTests.csharpModel.Force()
               let systems = named m C4Kind.ExternalSystem

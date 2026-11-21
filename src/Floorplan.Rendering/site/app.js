@@ -437,6 +437,9 @@
         })),
         el("span", { class: "muted" }, "Level " + (levels.indexOf(v.level) + 1) + " of 4: " + C4_LEVEL[v.level] + ". Select an element for details; double-click one to open the level below." + (quiet ? " Labels show for the selected element's lines." : "")),
         el("span", { class: "spacer" }),
+        (window.FLOORPLAN_FILES || []).indexOf("workspace.dsl") >= 0
+          ? el("a", { class: "c4-dsl", href: "workspace.dsl", title: "The C4 model as a Structurizr DSL workspace; workspace.json beside it holds this layout" }, "Structurizr DSL")
+          : null,
         quiet ? el("label", { class: "c4-labels" }, el("input", { type: "checkbox", on: { change: function (ev) { canvas.world.classList.toggle("c4-quiet", !ev.target.checked); } } }), " All labels") : null,
         zoomButtons(canvas)),
       host

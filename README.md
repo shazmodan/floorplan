@@ -26,7 +26,8 @@ writes a static website to `./floorplan-out` that shows:
    application's components (the modules of its own project and of the libraries it references) and each
    component's code (its types, and in C# which types use which). Each element opens the level below, and each relationship lists the entry and
    exit points behind it. The site's folder also holds the model as a [Structurizr DSL](https://docs.structurizr.com/dsl)
-   workspace, `workspace.dsl`, to open in Structurizr or export to PlantUML or Mermaid with its tools.
+   workspace, `workspace.dsl`, to open in Structurizr or export to PlantUML or Mermaid with its tools; `workspace.json`
+   beside it holds the website's layout, which Structurizr Lite merges in.
 
 Floorplan knows no web framework. It reads the compiled code of the solution and its dependencies and follows it
 down to the .NET primitives that actually touch the network, the disk or a database. A versioned, data-driven

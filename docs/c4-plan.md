@@ -343,3 +343,13 @@ repeats the name of the library system it reaches (`RabbitMQ.Client` to RabbitMQ
 (`C4_QUIET_LABELS` in `app.js`; the C# fixtures' context and containers views) draws its labels only for the
 selected element's lines and the line under the pointer; an "All labels" box in the toolbar shows them all, and
 the hint under the trail says so. Smaller views are unchanged.
+
+**DSL extras** (`claude/c4-dsl-extras`): the site also writes `workspace.json`, a Structurizr JSON workspace that
+holds the layout of every view the DSL has (`StructurizrDsl.writeLayout`): the elements by name and place in the
+model, their positions scaled to Structurizr's 450 by 300 boxes, and each relationship's bends from the website's
+layout. The DSL's views lose `autoLayout`, which would replace it, and say so in a comment. Checked with
+Structurizr in Docker (`structurizr/structurizr local`, and `merge`): it matches elements by name, not id, and
+merges a `workspace.json` that is older than `workspace.dsl` into the parsed DSL, but takes a newer one as the
+whole workspace, so the site writes the JSON first (a rendering test checks the order). Without the JSON,
+Structurizr lays the views out itself. The Architecture page links to the DSL when the files are there
+(`window.FLOORPLAN_FILES` in `data.js`, not with `--single-file`).
