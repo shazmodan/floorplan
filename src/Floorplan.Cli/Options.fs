@@ -24,6 +24,7 @@ type AnalyzeArgs =
     | No_Build
     | No_Cache
     | Quiet
+    | Silent
 
     interface IArgParserTemplate with
         member a.Usage =
@@ -41,7 +42,8 @@ type AnalyzeArgs =
             | Show _ -> "show categories hidden by default (comma-separated, e.g. environment,nondeterminism)."
             | No_Build -> "do not build; analyze the assemblies already built."
             | No_Cache -> "do not read or write the analysis cache (FLOORPLAN_CACHE, default in local app data)."
-            | Quiet -> "print only errors."
+            | Quiet -> "print only errors and the path of the output."
+            | Silent -> "print nothing; the exit code says whether the run succeeded."
 
 type Command =
     | [<CliPrefix(CliPrefix.None)>] Analyze of ParseResults<AnalyzeArgs>
@@ -67,7 +69,9 @@ type AnalyzeOptions =
       Show: EffectCategory list
       Build: bool
       Cache: bool
-      Quiet: bool }
+      Quiet: bool
+      /// Nothing is printed, errors and the output's path included.
+      Silent: bool }
 
 let private splitList (values: string list) =
     values
@@ -98,7 +102,8 @@ let toOptions (args: ParseResults<AnalyzeArgs>) : Result<AnalyzeOptions, string>
               Show = categories |> List.choose snd
               Build = not (args.Contains No_Build)
               Cache = not (args.Contains No_Cache)
-              Quiet = args.Contains Quiet }
+              Quiet = args.Contains Quiet || args.Contains Silent
+              Silent = args.Contains Silent }
 
 let defaults =
     { Path = None
@@ -114,4 +119,5 @@ let defaults =
       Show = []
       Build = true
       Cache = true
-      Quiet = false }
+      Quiet = false
+      Silent = false }

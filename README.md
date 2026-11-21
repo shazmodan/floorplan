@@ -55,7 +55,8 @@ floorplan analyze [<path/to/App.sln>]    default: the solution in the current di
       [--show <category,...>]        include categories hidden by default (environment, nondeterminism)
       [--no-build]
       [--no-cache]                   do not use the analysis cache
-      [--quiet]
+      [--quiet]                      print only errors and the path of the output
+      [--silent]                     print nothing; the exit code says how the run went
 ```
 
 The website is plain HTML, CSS and JavaScript with no network access; it opens by double-clicking `index.html`.
@@ -63,7 +64,7 @@ The exit code is 1 when some project could not be analyzed; the others are still
 
 While it runs, Floorplan writes each step to stderr with the time since the start: each project built, loaded,
 compiled and analyzed. On a terminal, a spinner line under the steps shows how long the current one has taken.
-`--quiet` writes only the path of the output.
+`--quiet` writes only errors and the path of the output, `--silent` nothing at all.
 
 Results are cached per project and per dependency assembly in `FLOORPLAN_CACHE` (by default the local
 application data folder), so a second run is about twice as fast.

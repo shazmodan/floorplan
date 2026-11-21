@@ -52,6 +52,34 @@ let tests =
                   Expect.isTrue o.Build "builds"
           }
 
+          test "--silent prints nothing, --quiet only errors and the output's path" {
+              match parse [ "analyze"; "--silent" ], parse [ "analyze"; "--quiet" ], parse [ "analyze" ] with
+              | Ok silent, Ok quiet, Ok neither ->
+                  Expect.isTrue (silent.Silent && silent.Quiet) "silent is also quiet"
+                  Expect.isTrue (quiet.Quiet && not quiet.Silent) "quiet is not silent"
+                  Expect.isFalse (neither.Quiet || neither.Silent) "neither by default"
+              | _ -> failtest "did not parse"
+          }
+
+          test "a silent run writes nothing to stdout or stderr" {
+              let out = Path.Combine(Path.GetTempPath(), "floorplan-cli-" + string (Guid.NewGuid()))
+              let stdout, stderr = Console.Out, Console.Error
+              use captured = new StringWriter()
+              Console.SetOut captured
+              Console.SetError captured
+
+              let code =
+                  try
+                      Program.main [| "analyze"; Fixtures.path "Shop/Shop.slnx"; "-o"; out; "--no-build"; "--no-cache"; "--silent" |]
+                  finally
+                      Console.SetOut stdout
+                      Console.SetError stderr
+
+              Expect.equal code 0 "succeeded"
+              Expect.equal (string captured) "" "nothing printed"
+              Expect.isTrue (File.Exists(Path.Combine(out, "index.html"))) "the site is still written"
+          }
+
           test "rejects unknown categories" {
               match parse [ "analyze"; "--show"; "bogus" ] with
               | Error e -> Expect.stringContains e "bogus" "names the bad category"
