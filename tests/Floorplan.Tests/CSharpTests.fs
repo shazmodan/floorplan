@@ -30,7 +30,10 @@ let tests =
 
           test "golden: CSharp fixture on net10.0 gives the net8.0 results" {
               let m = csharpModelNet10.Force()
-              Expect.isTrue (m.Projects |> List.forall (fun p -> p.TargetFramework = "net10.0")) "every project on net10.0"
+              // CSharp.Functions targets net8.0 only: the Functions worker SDK it uses does not build for net10.0.
+              Expect.isTrue
+                  (m.Projects |> List.forall (fun p -> p.TargetFramework = "net10.0" || p.Name = "CSharp.Functions"))
+                  "every project that targets net10.0 on net10.0"
               Golden.check "csharp.entry-points.txt" (EntryPointTests.render m)
           }
 
