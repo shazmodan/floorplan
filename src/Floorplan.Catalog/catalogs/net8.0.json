@@ -447,6 +447,29 @@
     { "id": "blind-spot.dynamic", "type": "Microsoft.CSharp.RuntimeBinder.Binder", "members": ["*"], "kind": "blind-spot", "blindSpot": "dynamic" },
 
     // ---------------- messaging ----------------
+    // Sending a message. The libraries write it from their own loops (RabbitMQ's frame writer, Kafka's native
+    // library, a bus's transport), which a call is not followed to, so the catalog names the calls that send: the
+    // routing key or topic is the payload where the call has one.
+    { "id": "network.rabbitmq-publish", "assembly": "RabbitMQ.Client", "type": "RabbitMQ.Client.IModelExensions",
+      "members": ["BasicPublish"], "whenParameters": ["RabbitMQ.Client.IModel", "System.String"], "kind": "sink", "category": "network",
+      "payload": [{ "argument": 2, "role": "routing-key" }] },
+    { "id": "network.rabbitmq-publish-address", "assembly": "RabbitMQ.Client", "type": "RabbitMQ.Client.IModelExensions",
+      "members": ["BasicPublish"], "whenParameters": ["RabbitMQ.Client.IModel", "RabbitMQ.Client.PublicationAddress"], "kind": "sink", "category": "network" },
+    { "id": "network.rabbitmq-model-publish", "assembly": "RabbitMQ.Client", "type": "RabbitMQ.Client.IModel",
+      "members": ["BasicPublish"], "includeDerivedTypes": true, "kind": "sink", "category": "network",
+      "payload": [{ "argument": 1, "role": "routing-key" }] },
+    { "id": "network.kafka-produce", "assembly": "Confluent.Kafka", "type": "Confluent.Kafka.IProducer`2",
+      "members": ["Produce", "ProduceAsync"], "whenFirstParameter": "System.String", "includeDerivedTypes": true, "kind": "sink", "category": "network",
+      "payload": [{ "argument": 0, "role": "topic" }] },
+    { "id": "network.kafka-produce-partition", "assembly": "Confluent.Kafka", "type": "Confluent.Kafka.IProducer`2",
+      "members": ["Produce", "ProduceAsync"], "whenFirstParameter": "Confluent.Kafka.TopicPartition", "includeDerivedTypes": true, "kind": "sink", "category": "network" },
+    { "id": "network.servicebus-send", "assembly": "Azure.Messaging.ServiceBus", "type": "Azure.Messaging.ServiceBus.ServiceBusSender",
+      "members": ["SendMessageAsync", "SendMessagesAsync", "ScheduleMessageAsync", "ScheduleMessagesAsync"], "includeDerivedTypes": true, "kind": "sink", "category": "network" },
+    { "id": "network.masstransit-publish", "assembly": "MassTransit.Abstractions", "type": "MassTransit.IPublishEndpoint",
+      "members": ["Publish"], "includeDerivedTypes": true, "kind": "sink", "category": "network" },
+    { "id": "network.masstransit-send", "assembly": "MassTransit.Abstractions", "type": "MassTransit.ISendEndpoint",
+      "members": ["Send"], "includeDerivedTypes": true, "kind": "sink", "category": "network" },
+
     // Messaging libraries call a handler for each message they receive. "message-handler" is the delegate a
     // registration adds to a consumer; "message-queue" names the queue, on the call that makes the consumer or, with
     // "message-consumer", on one that ties a consumer to a queue (the consumer is whichever of its arguments it is).

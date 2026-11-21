@@ -144,6 +144,19 @@ let tests =
                   "GetOrder logs the read"
           }
 
+          test "sending a message is a network exit point, with the routing key where the call has one" {
+              let m = csharpModel.Force()
+
+              let sent (memberName: string) =
+                  m.ExitPoints
+                  |> List.filter (fun x -> x.Member = $"CSharp.Messaging.Publishing.Publisher::{memberName}" && x.Category = EffectCategory.Network)
+                  |> List.map (fun x -> x.Primitive, x.Payload |> Option.bind (fun p -> p.Value), x.Confidence)
+
+              Expect.equal (sent "Order") [ "RabbitMQ.Client.IModelExensions::BasicPublish", Some "orders", Confidence.High ] "RabbitMQ, to the routing key"
+              Expect.equal (sent "Payment") [ "Azure.Messaging.ServiceBus.ServiceBusSender::SendMessageAsync", None, Confidence.High ] "Service Bus"
+              Expect.equal (sent "Shipped") [ "MassTransit.IPublishEndpoint::Publish", None, Confidence.High ] "MassTransit"
+          }
+
           test "hosted services and timers: what the host or a timer starts is background work, an entry point of its own" {
               let m = csharpModel.Force()
 
