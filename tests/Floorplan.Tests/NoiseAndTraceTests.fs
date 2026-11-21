@@ -34,6 +34,20 @@ let tests =
               Expect.isFalse (list |> List.exists (fun x -> x.Category = EffectCategory.FilesystemWrite)) "list does not write"
           }
 
+          test "a call through a shared interface reaches only the implementations its own application constructs" {
+              let m = ExitPointTests.shopModel.Force()
+              let members (xs: ExitPoint list) = xs |> List.map (fun x -> x.Member)
+
+              // Shop.Core.Orders.announce calls INotifier.Notify; Shop.Web and Shop.Worker each make their own.
+              let create = traceOf m "::createOrder" |> members
+              Expect.contains create "Shop.Web.Handlers/FileNotifier::Shop.Core.Orders.INotifier.Notify" "the web notifier"
+              Expect.isFalse (create |> List.exists (fun x -> x.Contains "ProcessNotifier")) "not the worker's notifier"
+
+              let worker = traceOf m "Shop.Worker.Program::main" |> members
+              Expect.contains worker "Shop.Worker.Program/ProcessNotifier::Shop.Core.Orders.INotifier.Notify" "the worker notifier"
+              Expect.isFalse (worker |> List.exists (fun x -> x.Contains "FileNotifier")) "not the web's notifier"
+          }
+
           test "direct calls are high confidence; wrapper libraries are not low" {
               let m = ExitPointTests.effectsModel.Force()
 

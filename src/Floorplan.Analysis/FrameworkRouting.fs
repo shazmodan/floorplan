@@ -120,7 +120,7 @@ let private entry (ctx: AppContext) (hit: Hit) (forms: RouteForm list) (steps: E
 /// Whether anything reachable from the application, in its own code or in a dependency, registers a request
 /// handler with the platform or reads request data. Applications that do neither are not run symbolically.
 let private receivesRequests (ctx: AppContext) =
-    let graph = ctx.Program.Graph
+    let graph = ctx.Program.GraphFor ctx.Project
     let seen = System.Collections.Generic.HashSet<string>()
     let stack = System.Collections.Generic.Stack<MethodRef>()
 

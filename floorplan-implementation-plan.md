@@ -193,7 +193,7 @@ Each later catalog is a delta on the previous one. Users can pass `--catalog ext
 
 1. **Build the call graph** over user assemblies and dependency assemblies.
    - Direct calls: read from IL.
-   - Virtual and interface calls: resolved with rapid type analysis, meaning only types that are actually instantiated somewhere are candidates.
+   - Virtual and interface calls: resolved with rapid type analysis, meaning only types that are actually instantiated somewhere are candidates. Each project sees only the types that code in its own reference closure instantiates, so a shared library's interface call from one application does not reach another application's implementation.
    - F# closures: each lambda compiles to a class deriving from `FSharpFunc`. The construction site links the closure to its `Invoke` body.
    - Async, task and other state machines: the generated `MoveNext` method is linked back to the method that starts it.
 2. **Summarize dependencies.** For each method in a dependency DLL, compute which catalog categories it can reach. Summaries are cached on disk per assembly identity (MVID), so a NuGet package is analyzed once per machine.

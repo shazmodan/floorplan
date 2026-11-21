@@ -396,7 +396,7 @@ type Recovery(ctx: AppContext) =
     let callSites (m: MethodRef) =
         ctx.Methods.Values
         |> Seq.collect (fun c ->
-            ctx.Program.Graph.Callees c.Ref
+            (ctx.Program.GraphFor ctx.Project).Callees c.Ref
             |> List.filter (fun e -> e.Target.Key = m.Key && (e.Kind = Direct || e.Kind = Virtual || e.Kind = Deferred))
             |> List.map (fun e -> c, Instruction.indexOfOffset c.Body.Value.Value.Instructions e.Offset))
         |> Seq.filter (fun (_, i) -> i >= 0)

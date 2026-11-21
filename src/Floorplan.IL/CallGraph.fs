@@ -28,12 +28,19 @@ type CallEdge =
       Target: MethodRef
       Kind: EdgeKind }
 
+/// The call graph as built, over everything the roots reach; `CallGraph` is how it is read.
 /// `stopAt` names assemblies whose method bodies are not explored (their summaries come from a cache).
 /// `callbacks` are members the platform or a library calls on objects it is given, as (type, member names):
 /// e.g. ILoggerProvider.CreateLogger. Constructing a type outside the framework that has them links each such
 /// member to its implementation, as a virtual call made from the member itself.
-type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: string -> bool, callbacks: (string * string list) list) =
+type CallGraphCore(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: string -> bool, callbacks: (string * string list) list) =
     let callees = Dictionary<string, ResizeArray<CallEdge>>()
+    // The assemblies whose code constructs each instantiated type ("*" for a type made outside the code for no
+    // project in particular), and for each edge rapid type analysis resolved, the instantiated types it was
+    // resolved for. An edge a call makes whatever is instantiated is unconditional.
+    let madeIn = Dictionary<TypeRef, HashSet<string>>()
+    let resolvedFor = Dictionary<struct (string * int * string), HashSet<TypeRef>>()
+    let unconditional = HashSet<struct (string * int * string)>()
     let reachable = HashSet<string>()
     let methodsByKey = Dictionary<string, MethodRef>()
     let instantiated = HashSet<TypeRef>()
@@ -72,7 +79,16 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: s
         | Framework -> false
         | _ -> true
 
-    let addEdge (edge: CallEdge) =
+    let addEdgeVia (via: TypeRef option) (edge: CallEdge) =
+        let key = struct (edge.Caller.Key, edge.Offset, edge.Target.Key)
+
+        match via with
+        | None -> unconditional.Add key |> ignore
+        | Some t ->
+            match resolvedFor.TryGetValue key with
+            | true, ts -> ts.Add t |> ignore
+            | _ -> resolvedFor[key] <- HashSet [ t ]
+
         let list =
             match callees.TryGetValue edge.Caller.Key with
             | true, l -> l
@@ -88,6 +104,8 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: s
             methodsByKey[edge.Target.Key] <- edge.Target
             work.Enqueue edge.Target
 
+    let addEdge = addEdgeVia None
+
     let isFunctionInvoke (m: MethodRef) =
         CommonCodegen.isDelegateInvoke set m || recognizers |> List.exists (fun r -> r.IsFunctionInvoke m)
 
@@ -96,7 +114,8 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: s
         | Some(def, _) when not def.IsInterface && not def.IsAbstract ->
             match set.Implementation(t, declared) with
             | Some impl ->
-                addEdge
+                addEdgeVia
+                    (Some t)
                     { Caller = caller
                       Offset = offset
                       Declared = declared
@@ -185,11 +204,15 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: s
                                     if not (l |> Seq.exists (fun e -> e.Target.Key = impl.Key)) then
                                         l.Add edge
 
-                                    addEdge edge
+                                    addEdgeVia (Some t) edge
                                 | _ -> ()
                     | None -> ()
 
-    let instantiate (t: TypeRef) =
+    let instantiate (by: string) (t: TypeRef) =
+        match madeIn.TryGetValue t with
+        | true, s -> s.Add by |> ignore
+        | _ -> madeIn[t] <- HashSet [ by ]
+
         if instantiated.Add t then
             linkCallbacks t
 
@@ -242,14 +265,14 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: s
                     | StSFld f
                     | LdSFldA f -> initialize m ins.Offset f.Type
                     | NewObj ctor ->
-                        instantiate ctor.Type
+                        instantiate m.Type.Assembly ctor.Type
                         initialize m ins.Offset ctor.Type
                         direct ctor Direct
                         if analyzable ctor then linkDeferred ins.Offset ctor.Type
                     | InitObj t -> if set.Origin t.Assembly <> Framework then linkDeferred ins.Offset t
                     // A cached function object read from a static field, e.g. a capture-free closure instance.
                     | LdSFld f when set.Origin f.Type.Assembly <> Framework && f.FieldType.StartsWith f.Type.FullName ->
-                        instantiate f.Type
+                        instantiate m.Type.Assembly f.Type
                         initialize m ins.Offset f.Type
                         linkDeferred ins.Offset f.Type
                     | LdSFld f -> initialize m ins.Offset f.Type
@@ -313,11 +336,12 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: s
 
         drain ()
 
-    /// Types made outside the code (by reflection, from a configuration file): each is instantiated, so virtual
-    /// calls reach its implementations, and its parameterless constructor is a root.
-    member _.AddConstructed(types: TypeRef seq) =
+    /// Types made outside the code (by reflection, from a configuration file) on behalf of the assembly `by`, or
+    /// "*" for every one: each is instantiated, so virtual calls reach its implementations, and its parameterless
+    /// constructor is a root.
+    member _.AddConstructed(types: TypeRef seq, by: string) =
         for t in types do
-            instantiate t
+            instantiate by t
 
             match set.TryType t with
             | Some(def, _) ->
@@ -333,6 +357,22 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: s
         match callees.TryGetValue m.Key with
         | true, l -> List.ofSeq l
         | _ -> []
+
+    /// Whether code in an assembly `allowed` accepts constructs the type.
+    member _.IsMadeBy(t: TypeRef, allowed: string -> bool) =
+        match madeIn.TryGetValue t with
+        | true, s -> s |> Seq.exists (fun a -> a = "*" || allowed a)
+        | _ -> false
+
+    /// Whether an edge holds when only the types code in the assemblies `allowed` accepts constructs are
+    /// instantiated.
+    member this.Holds(edge: CallEdge, allowed: string -> bool) =
+        let key = struct (edge.Caller.Key, edge.Offset, edge.Target.Key)
+
+        unconditional.Contains key
+        || match resolvedFor.TryGetValue key with
+           | true, ts -> ts |> Seq.exists (fun t -> this.IsMadeBy(t, allowed))
+           | _ -> true
 
     member _.IsReachable(m: MethodRef) = reachable.Contains m.Key
 
@@ -351,6 +391,52 @@ type CallGraph(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: s
     /// Every edge from a callback member to an implementation.
     member _.CallbackEdges : CallEdge list = callbackEdges.Values |> Seq.concat |> Seq.toList
 
+/// The call graph, read whole or as one project sees it (`ForAssemblies`): there, a virtual call reaches only
+/// implementations in types that code in the project's reference closure constructs. One graph is built for the
+/// solution, and every project's view shares it.
+type CallGraph private (core: CallGraphCore, allowed: (string -> bool) option) =
+    let holds (e: CallEdge) =
+        match allowed with
+        | None -> true
+        | Some a -> core.Holds(e, a)
+
+    new(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: string -> bool, callbacks: (string * string list) list) =
+        CallGraph(CallGraphCore(set, recognizers, stopAt, callbacks), None)
+
     new(set: AssemblySet, recognizers: ICodegenRecognizer list, stopAt: string -> bool) = CallGraph(set, recognizers, stopAt, [])
 
     new(set: AssemblySet, recognizers: ICodegenRecognizer list) = CallGraph(set, recognizers, (fun _ -> false), [])
+
+    /// Adds methods as roots and explores everything reachable from them.
+    member _.AddRoots(roots: MethodRef seq) = core.AddRoots roots
+
+    /// Types made outside the code (by reflection, from a configuration file) on behalf of the assembly `by`, or
+    /// "*" for every one: each is instantiated, so virtual calls reach its implementations, and its parameterless
+    /// constructor is a root.
+    member _.AddConstructed(types: TypeRef seq, by: string) = core.AddConstructed(types, by)
+
+    member _.AddConstructed(types: TypeRef seq) = core.AddConstructed(types, "*")
+
+    /// The graph as a project sees it whose reference closure is the assemblies `allowed` accepts.
+    member _.ForAssemblies(allowed: string -> bool) = CallGraph(core, Some allowed)
+
+    member _.Callees(m: MethodRef) : CallEdge list = core.Callees m |> List.filter holds
+
+    /// Whether the whole graph reaches the method from its roots.
+    member _.IsReachable(m: MethodRef) = core.IsReachable m
+
+    /// Every method the whole graph reaches from its roots.
+    member _.ReachableMethods = core.ReachableMethods
+
+    member _.Instantiated =
+        match allowed with
+        | None -> core.Instantiated
+        | Some a -> core.Instantiated |> List.filter (fun t -> core.IsMadeBy(t, a))
+
+    member _.Set = core.Set
+
+    /// The implementations a callback member is linked to, by its display name ("Type::Member").
+    member _.CallbackTargets(callback: string) : CallEdge list = core.CallbackTargets callback |> List.filter holds
+
+    /// Every edge from a callback member to an implementation.
+    member _.CallbackEdges : CallEdge list = core.CallbackEdges |> List.filter holds
