@@ -101,6 +101,7 @@ let private entry (ctx: AppContext) (hit: Hit) (forms: RouteForm list) (steps: E
           HandlerMember = handlerName
           Location = point |> Option.map Attribution.toLocation
           Category = EffectCategory.HttpIn
+          RegisteredThrough = None
           Predicates = predicates
           HttpMethod = httpMethod
           Route = route

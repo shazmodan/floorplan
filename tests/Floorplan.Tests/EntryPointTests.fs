@@ -25,6 +25,7 @@ let render (model: AnalysisModel) =
         let route = defaultArg e.Route "-"
         let httpMethod = defaultArg e.HttpMethod "-"
         let forms = e.Forms |> List.map Json.unionName |> String.concat ","
+        let through = e.RegisteredThrough |> Option.map (fun t -> " | through " + t) |> Option.defaultValue ""
 
         // A lambda's class is named by the compiler, and compilers name it differently: keep only its module.
         let handlerMember =
@@ -32,7 +33,7 @@ let render (model: AnalysisModel) =
             System.Text.RegularExpressions.Regex.Replace(fsharp, @"/<>c(__DisplayClass[\d_]+)?::<.*>b__[\d_]+$", "/<lambda>")
 
         b.AppendLine(
-            $"{e.ApplicationId} | {Json.unionName e.Category} | {httpMethod} {route} | {Json.unionName e.Completeness} | {e.HandlerUnit} | {handlerMember} | forms [{forms}] | [{predicates}]"
+            $"{e.ApplicationId} | {Json.unionName e.Category} | {httpMethod} {route} | {Json.unionName e.Completeness} | {e.HandlerUnit} | {handlerMember} | forms [{forms}] | [{predicates}]{through}"
         )
         |> ignore
 

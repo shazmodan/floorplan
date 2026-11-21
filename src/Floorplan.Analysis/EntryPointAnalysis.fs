@@ -12,6 +12,7 @@ let private entryFor
     (ctx: AppContext)
     (handler: MethodRef)
     (category: EffectCategory)
+    (registeredThrough: string option)
     (predicates: Predicate list)
     (forms: RouteForm list)
     (steps: EvidenceStep list)
@@ -35,6 +36,7 @@ let private entryFor
           HandlerMember = handler.Display
           Location = point |> Option.map Attribution.toLocation
           Category = category
+          RegisteredThrough = registeredThrough
           Predicates = predicates
           HttpMethod = httpMethod
           Route = route
@@ -60,7 +62,7 @@ let private trackedEntries (ctx: AppContext) (recovery: Recovery) (handlers: Fou
                 let parameters = if h.Guards.IsEmpty then [] else recovery.Parameters(h.Caller, h.CallIndex, compared)
                 compared @ parameters)
             |> List.distinct
-            |> List.choose (fun predicates -> entryFor ctx h.Handler e.Category predicates [ RouteForm.ControlFlow ] e.Evidence.Steps))
+            |> List.choose (fun predicates -> entryFor ctx h.Handler e.Category e.RegisteredThrough predicates [ RouteForm.ControlFlow ] e.Evidence.Steps))
 
 /// For one handler: entries without any condition are dropped when another has some, and an entry whose
 /// conditions are all contained in another entry's adds nothing.
@@ -107,7 +109,7 @@ let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoin
         let tables =
             tableEntries ctx recovery
             |> List.choose (fun (handler, predicates, steps) ->
-                entryFor ctx handler EffectCategory.HttpIn predicates [ RouteForm.TableLookup ] steps)
+                entryFor ctx handler EffectCategory.HttpIn None predicates [ RouteForm.TableLookup ] steps)
 
         let known =
             (platform @ tables) |> List.map (fun e -> e.HandlerMember) |> Set.ofList
@@ -188,6 +190,7 @@ let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoin
                     ctx
                     main
                     EffectCategory.Background
+                    None
                     []
                     []
                     [ { Description = $"The process starts at {main.Display}: nothing in the application is started by a request, a host or a library"

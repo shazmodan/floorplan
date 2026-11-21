@@ -66,6 +66,7 @@ let private entry (handler: CodeUnit) (route: string) =
       HandlerMember = handler.Name + "::handle"
       Location = None
       Category = EffectCategory.HttpIn
+      RegisteredThrough = None
       Predicates = []
       HttpMethod = Some "GET"
       Route = Some route
