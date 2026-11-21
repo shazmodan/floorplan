@@ -204,8 +204,11 @@ Also new, outside the recognizer:
   (`network.redis-subscribe`); MongoDB's collection operations and the cursor methods that run a `Find` or an
   `Aggregate` (`database.mongodb-*`; `Find` itself only builds the query); and Azure Blob Storage's container and
   blob operations (`http-out.azure-blob*`, a blob's name as payload where the call takes one). An implicit
-  conversion from a string (`op_Implicit(string)`, as to a `RedisKey`) keeps the string's value. Fixture:
-  `CSharp.Clients`.
+  conversion from a string (`op_Implicit(string)`, as to a `RedisKey`) keeps the string's value. A sink rule can
+  also match by attribute (`"markedCalls": true`): its type is an attribute, and a call to a method it marks is
+  the effect, with the attribute's arguments as payload. Refit's verb attributes (`[Get("/products/{id}")]` on an
+  interface method, `http-out.refit` on their base `HttpMethodAttribute`) make each call to such a method an HTTP
+  call to its path. Fixture: `CSharp.Clients`.
 - **AWS and Azure Cosmos DB**: the AWS SDK for .NET and the Cosmos DB client send requests through pipelines of
   handlers of their own, past credential providers that read files, start processes and call the platform's
   crypto API, so a call showed as low- or medium-confidence HTTP among that noise. Sink rules name the operations:

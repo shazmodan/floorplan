@@ -180,6 +180,14 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
       Dispatch = dispatch
       LogCall = logCall
       Configuration = configuration
+      MarkedCalls =
+        match e.TryGetProperty "markedCalls" with
+        | true, v when v.ValueKind = JsonValueKind.True ->
+            if k <> Sink then
+                fail $"{context}: only sinks match marked calls."
+
+            true
+        | _ -> false
       Source = source }
 
 /// A catalog document as written, before `extends` is resolved.

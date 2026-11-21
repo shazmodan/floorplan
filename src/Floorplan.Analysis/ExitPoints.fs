@@ -255,10 +255,29 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
             Assembly = d.PrimitiveAssembly
             Location = None } ]
 
+    // Methods that implement an interface method an attribute marks as the effect (the implementation Refit's
+    // source generator writes): the effect is reported at the calls to the interface method, not again inside.
+    let markedImplementations (t: TypeDef) =
+        t.Interfaces
+        |> List.choose ctx.Set.TryType
+        |> List.collect (fun (i, _) ->
+            i.Methods
+            |> List.filter (fun im -> im.Attributes |> List.exists (fun a -> (ctx.Matcher.MarkingSink a.Type).IsSome))
+            |> List.collect (fun im ->
+                t.Methods
+                |> List.filter (fun m ->
+                    m.Overrides |> List.exists (fun o -> o.Key = im.Ref.Key)
+                    || (m.Ref.Name = im.Ref.Name && m.Ref.ParameterTypes = im.Ref.ParameterTypes))
+                |> List.map (fun m -> m.Ref.Key)))
+        |> Set.ofList
+
     for t in assembly.Types do
+        let implementsMarked = markedImplementations t
+
         for m in t.Methods do
             match m.Body.Value with
             | None -> ()
+            | Some _ when implementsMarked.Contains m.Ref.Key -> ()
             | Some body ->
                 let flow = lazy (DataFlow.ofMethod m)
 
@@ -467,6 +486,33 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                   yield! passedOn
                                   step $"{enumerating.Display} calls {p.Enumerator.Display}" enumerating None
                                   step $"{p.Enumerator.Display} enumerates {held last} of {enumerating.Display}, which runs the query on the database (rule {q.Rule.Id})" p.Enumerator None ]
+                        | None -> ()
+
+                    // A call to a method an attribute marks as the effect (Refit's [Get("/users/{id}")]): the attribute's
+                    // argument is the payload.
+                    if not isLogCall && ctx.Set.Origin declared.Type.Assembly <> Framework then
+                        match ctx.Set.TryMethod declared with
+                        | Some(def, _) ->
+                            def.Attributes
+                            |> List.tryPick (fun a -> ctx.Matcher.MarkingSink a.Type |> Option.map (fun r -> a, r))
+                            |> Option.iter (fun (a, rule) ->
+                                let payload =
+                                    rule.Payload
+                                    |> List.tryHead
+                                    |> Option.map (fun spec ->
+                                        match List.tryItem spec.Argument a.Arguments with
+                                        | Some(AttributeValue.Text t) -> Values.Evaluator.ToPayload(Values.Text t, spec.Role)
+                                        | _ -> Values.Evaluator.ToPayload(Values.Hole, spec.Role))
+
+                                add
+                                    rule.Category.Value
+                                    rule.Id
+                                    declared.Display
+                                    None
+                                    payload
+                                    Confidence.High
+                                    [ step $"{m.Ref.Display} calls {declared.Display}" m.Ref point
+                                      step $"{declared.Display} is marked {a.Type.FullName}, which makes a call to it a {categoryName rule.Category.Value} call (rule {rule.Id})" declared None ])
                         | None -> ()
 
                     for edge in edges |> List.filter (fun _ -> not dispatched) do

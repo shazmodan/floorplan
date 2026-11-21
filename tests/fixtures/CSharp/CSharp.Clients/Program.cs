@@ -50,6 +50,32 @@ namespace CSharp.Clients.Documents
     }
 }
 
+namespace CSharp.Clients.Catalog
+{
+    using Refit;
+
+    public record Product(string Id, string Name);
+
+    // Refit: each method the interface declares with a verb attribute is an HTTP call to its path.
+    public interface ICatalogApi
+    {
+        [Get("/products/{id}")]
+        Task<Product> GetProduct(string id);
+
+        [Post("/products")]
+        Task AddProduct([Body] Product product);
+    }
+
+    public class Products(ICatalogApi api)
+    {
+        public Task<Product> Find(string id) => api.GetProduct(id);
+
+        public Task Add(string name) => api.AddProduct(new Product(Guid.NewGuid().ToString(), name));
+
+        public static ICatalogApi Connect() => RestService.For<ICatalogApi>("https://catalog.example.org");
+    }
+}
+
 namespace CSharp.Clients.Files
 {
     public class Archive(BlobContainerClient container)
