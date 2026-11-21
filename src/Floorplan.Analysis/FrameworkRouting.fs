@@ -162,7 +162,7 @@ let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list =
     | None -> []
     | Some _ when not (receivesRequests ctx) -> []
     | Some main ->
-        let machine = Machine(set, ctx.Matcher, ctx.Program.Recognizers, defaultLimits)
+        let machine = Machine(set, ctx.Matcher, ctx.Program.Recognizers, defaultLimits, ctx.Program.SettingsFor ctx.Project)
         let args = List.replicate main.ParameterCount Unknown
         machine.Invoke(Registration, main, args, emptyState, 0) |> ignore
 

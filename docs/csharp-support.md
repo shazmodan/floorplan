@@ -332,8 +332,9 @@ Also new, outside the recognizer:
   `IOptionsMonitor<T>.CurrentValue`), and the binds that tie an options type to a section in the project's
   code (`Configure<T>(section)`, `AddOptions<T>().Bind(section)`, `BindConfiguration(path)`; a type bound to two
   sections is bound to neither). A key the files do not have, environment variables and other configuration
-  sources stay dynamic. Fixture: `CSharp.Messaging` (`CSharp.Messaging.Configured`), with `appsettings.json` and
-  `appsettings.Production.json`.
+  sources stay dynamic. The symbolic run that finds registrations reads them too, so a minimal API route named
+  in the configuration has its template. Fixtures: `CSharp.Messaging` (`CSharp.Messaging.Configured`), with
+  `appsettings.json` and `appsettings.Production.json`, and `CSharp.Endpoints` (`Configured.cs`).
 
 ## Not done yet
 
