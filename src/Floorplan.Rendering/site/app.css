@@ -291,6 +291,41 @@ ul.plain li { padding: 3px 0; }
 .evidence ol { padding-left: 20px; }
 .evidence li { margin: 6px 0; }
 
+/* Architecture (C4): the conventional colours of the notation, the same in both themes. */
+:root { --c4-person: #08427b; --c4-system: #1168bd; --c4-container: #438dd5; --c4-component: #85bbf0; --c4-code: #dbe9f8; --c4-external: #8a8a8a; }
+.c4-el .c4-shape, .c4-el .c4-head { stroke: rgba(0, 0, 0, 0.25); stroke-width: 1; }
+.c4-el text { pointer-events: none; fill: #ffffff; }
+.c4-el .c4-name { font-weight: 650; font-size: 13.5px; }
+.c4-el .c4-kind { font-size: 11px; opacity: 0.9; }
+.c4-el .c4-desc { font-size: 11.5px; }
+.c4-el .c4-open { font-size: 11px; opacity: 0.85; }
+.c4-person .c4-shape, .c4-person .c4-head { fill: var(--c4-person); }
+.c4-software-system .c4-shape { fill: var(--c4-system); }
+.c4-container .c4-shape { fill: var(--c4-container); }
+.c4-component .c4-shape { fill: var(--c4-component); }
+.c4-component text { fill: #0b2545; }
+.c4-code .c4-shape { fill: var(--c4-code); }
+.c4-code text { fill: #0b2545; }
+.c4-external-system .c4-shape { fill: var(--c4-external); }
+/* Elements of another container or component, shown whole around the view's scope. */
+.c4-outside.c4-container .c4-shape, .c4-outside.c4-component .c4-shape { stroke-dasharray: 5 3; }
+.c4-el:hover .c4-shape, .c4-el:focus .c4-shape { stroke: var(--accent); stroke-width: 2.5; }
+.c4-el.selected .c4-shape { stroke: var(--text); stroke-width: 3; }
+.c4-el.dim, .c4-rel.dim { opacity: 0.18; }
+.c4-boundary rect { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 8 4; }
+.c4-boundary text { fill: var(--muted); font-size: 13px; font-weight: 600; }
+.c4-rel text { fill: var(--text); font-size: 11.5px; paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
+.c4-rel text .tech { fill: var(--muted); font-size: 10.5px; }
+.c4-trail { display: inline-flex; gap: 2px; align-items: center; flex: none; }
+.c4-legend i.c4-swatch { width: 14px; height: 10px; border: none; border-radius: 2px; }
+.c4-legend i.c4-person { background: var(--c4-person); }
+.c4-legend i.c4-software-system { background: var(--c4-system); }
+.c4-legend i.c4-container { background: var(--c4-container); }
+.c4-legend i.c4-component { background: var(--c4-component); }
+.c4-legend i.c4-code { background: var(--c4-code); border: 1px solid var(--border); }
+.c4-legend i.c4-external-system { background: var(--c4-external); }
+.side ul.sources { margin: 2px 0 6px 10px; font-size: 12px; }
+
 @media (max-width: 640px) {
   .side { position: static; width: auto; margin: 8px; }
   .legend { display: none; }

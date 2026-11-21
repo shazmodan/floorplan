@@ -125,4 +125,32 @@ let tests =
                   Expect.stringContains flow "flow-unit" "unit nodes drawn"
                   Expect.stringContains flow "#/evidence/entry:" "routes link to their evidence"
                   Expect.stringContains flow "aria-current=\"page\">Flow" "Flow in the menu"
+          }
+
+          test "the architecture pages draw the four C4 levels in a headless browser" {
+              match Browser.find () with
+              | None -> skiptest "No Chromium-based browser found; set FLOORPLAN_BROWSER to run browser smoke tests."
+              | Some browser ->
+                  let model = ExitPointTests.shopModel.Force()
+                  let dir = tempDir ()
+                  let index = WebsiteRenderer.render model { Path = dir; SingleFile = false }
+
+                  let context = Browser.dumpDom browser index "#/architecture"
+                  Expect.stringContains context "aria-current=\"page\">Architecture" "Architecture in the menu"
+                  Expect.stringContains context "c4-el c4-software-system" "the system"
+                  Expect.stringContains context "c4-el c4-person" "the user"
+                  Expect.stringContains context "prices.example.org" "an external system"
+
+                  let containers = Browser.dumpDom browser index "#/architecture/containers"
+                  Expect.stringContains containers "c4-boundary" "the system's boundary"
+                  Expect.stringContains containers "Shop.Worker" "a container"
+                  Expect.stringContains containers "/api/orders" "the worker calls the web application"
+
+                  let components = Browser.dumpDom browser index "#/architecture/components%3AShop.Web"
+                  Expect.stringContains components "Shop.Web.Handlers" "a component"
+                  Expect.stringContains components "Shop.Web [Container]" "the container's boundary"
+
+                  let code = Browser.dumpDom browser index "#/architecture/code%3AShop.Web%7CShop.Web%3AShop.Web.Handlers"
+                  Expect.stringContains code "FileNotifier" "a type"
+                  Expect.stringContains code ">Shop.Web.Handlers</strong>" "the breadcrumb ends at the component"
           } ]
