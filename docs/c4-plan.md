@@ -32,7 +32,7 @@ stopped.
 | 4 | Level 3, components: the units of each container | `claude/c4-components` | done |
 | 5 | Level 4, code: the types and members of each component | `claude/c4-code` | done |
 | 6 | Diagram layout of every view | `claude/c4-layout` | done |
-| 7 | The website's Architecture pages | `claude/c4-website` | |
+| 7 | The website's Architecture pages | `claude/c4-website` | done |
 | 8 | Documentation, TODO, review on every fixture | `claude/c4-docs` | |
 
 ## Goal
@@ -216,4 +216,26 @@ have, so the edges that close a cycle (a depth-first search in a fixed order) ar
 drawn straight, from the top of their source to the bottom of their target. A test checks every view of both
 fixtures: a box per element, none collapsed or overlapping, a line per related pair. The goldens give each
 view's size.
+
+### 2026-11-21: iteration 7
+
+The website has an **Architecture** page (`#/architecture/<view id>`, the context view by default): each view
+drawn from its layout in C4's notation and colours (person, software system, container, component, code,
+external system), each box with its name, `[kind: technology]` and description, labelled relationship arrows
+("uses" between components is left unlabelled, the common case), a dashed boundary around the scope's parts, a
+breadcrumb through the levels and a legend. Selecting an element dims what it is not related to and opens a side
+panel: its tags, the level below, its unit's page, and what calls it and what it uses, each relationship with
+links to the entry and exit points behind it. Double-clicking (or Enter on the selected element) opens the level
+below. A browser test opens all four levels of Shop.
+
+Found on screenshots of Shop: drawing the boundary around the parts' bounding box took in people and external
+systems the layered layout had put in the same layers, and straight lines to rows placed by hand crossed other
+boxes. The layout of a view (iteration 6) now keeps the scope's parts in layers of their own with two invisible
+anchors: one above the parts nothing in the scope calls, one below the parts that call nothing in it, which
+every element below hangs from. Elements that mostly call into the parts sit above, the rest below, and the
+layered layout routes the lines around boxes. Relationships against that order are drawn straight. A view's
+relationships are now only those that touch its parts (a code view showed "uses" between other components).
+
+Left over: two relationship labels can overlap where lines meet (Shop's containers view, "reads files; writes
+files" and "sends HTTP requests" under Shop.Web).
 

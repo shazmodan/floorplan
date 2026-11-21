@@ -151,6 +151,7 @@
     { id: "projects", label: "Projects" },
     { id: "units", label: unitWord.many },
     { id: "flow", label: "Flow" },
+    { id: "architecture", label: "Architecture" },
     { id: "entry-points", label: "Entry points", count: function () { return D.entryPoints.length; } },
     { id: "exit-points", label: "Exit points", count: function () { return D.exitPoints.filter(visibleExit).length; } },
     { id: "diagnostics", label: "Diagnostics", count: function () { return D.diagnostics.filter(function (d) { return d.severity !== "info"; }).length; } }
@@ -181,7 +182,7 @@
   function route() {
     var r = parseRoute();
     var view = {
-      "overview": overview, "projects": projectGraph, "units": unitGraph, "flow": flowGraph, "unit": unitDetail,
+      "overview": overview, "projects": projectGraph, "units": unitGraph, "flow": flowGraph, "unit": unitDetail, "architecture": architecture,
       "entry-points": entryPoints, "exit-points": exitPoints, "evidence": evidence, "diagnostics": diagnostics
     }[r.view] || overview;
     var navId = r.view === "unit" ? "units" : (r.view === "evidence" ? null : r.view);
@@ -191,6 +192,222 @@
     main.focus({ preventScroll: true });
   }
   window.addEventListener("hashchange", route);
+
+  // ---------- Architecture (C4) ----------
+  // The C4 model of the solution (docs/c4-plan.md), in four levels: the system in its context, its containers
+  // (applications), each container's components (units) and each component's code (types). Every view is laid
+  // out by the core; a view of an element draws a boundary around the element's parts.
+  var C4 = D.architecture || { elements: [], relationships: [], views: [] };
+  var c4Elements = by(C4.elements, "id");
+  var c4Views = by(C4.views, "id");
+  var c4ViewOf = {};
+  C4.views.forEach(function (v) { if (v.level !== "context") c4ViewOf[v.scope] = v; });
+  var C4_KIND = {
+    "person": "Person", "software-system": "Software system", "external-system": "External system",
+    "container": "Container", "component": "Component", "code": "Code"
+  };
+  var C4_LEVEL = { "context": "System context", "containers": "Containers", "components": "Components", "code": "Code" };
+
+  // The views from the system down to this one: context, containers, a container's components, a component's code.
+  function c4Trail(v) {
+    var trail = [];
+    var scope = v.level === "context" ? null : c4Elements[v.scope];
+    if (v.level === "code" && scope) {
+      var container = c4Elements[scope.parent];
+      trail.unshift({ view: v, label: scope.name });
+      if (container && c4ViewOf[container.id]) trail.unshift({ view: c4ViewOf[container.id], label: container.name });
+    } else if (v.level === "components" && scope) {
+      trail.unshift({ view: v, label: scope.name });
+    }
+    if (v.level !== "context") trail.unshift({ view: c4Views["containers"], label: C4_LEVEL.containers });
+    trail.unshift({ view: c4Views["context"], label: C4_LEVEL.context });
+    return trail.filter(function (t) { return t.view; });
+  }
+
+  // Text wrapped to lines of at most `max` characters, at most `lines` of them.
+  function wrapText(text, max, lines) {
+    var words = String(text || "").split(/\s+/), out = [], line = "";
+    words.forEach(function (w) {
+      if (!w) return;
+      if ((line + " " + w).trim().length > max && line) { out.push(line); line = w; }
+      else line = (line + " " + w).trim();
+    });
+    if (line) out.push(line);
+    if (out.length > lines) { out = out.slice(0, lines); out[lines - 1] = nodeText(out[lines - 1] + " …", max * 7.2 + 16); }
+    return out;
+  }
+
+  function c4Link(viewId) { return "#/architecture/" + enc(viewId); }
+
+  function architecture(r) {
+    var v = c4Views[r.arg || "context"] || c4Views["context"];
+    var page = el("div", { class: "graph-page" });
+    if (!v) {
+      append(page, el("p", { class: "empty" }, "This model has no C4 views. Analyze the solution again with this version of Floorplan."));
+      main.appendChild(page);
+      return;
+    }
+    var g = v.layout;
+    var host = el("div", { class: "graph" });
+    var canvas = graphCanvas(g.width, g.height);
+    var side = el("div", { class: "side", hidden: true });
+    var nodes = by(g.nodes, "id");
+    var shown = {};
+    v.elements.forEach(function (id) { shown[id] = true; });
+
+    // The boundary of the view's scope, around the elements that are its parts.
+    var parts = v.level === "context" ? [] : g.nodes.filter(function (n) { var e = c4Elements[n.id]; return e && e.parent === v.scope; });
+    if (parts.length) {
+      var pad = 28, head = 30;
+      var x0 = Math.min.apply(null, parts.map(function (n) { return n.x; })) - pad;
+      var y0 = Math.min.apply(null, parts.map(function (n) { return n.y; })) - pad - head;
+      var x1 = Math.max.apply(null, parts.map(function (n) { return n.x + n.width; })) + pad;
+      var y1 = Math.max.apply(null, parts.map(function (n) { return n.y + n.height; })) + pad;
+      var scope = c4Elements[v.scope] || { name: v.scope, kind: "software-system" };
+      canvas.world.appendChild(svg("g", { class: "c4-boundary" },
+        svg("rect", { x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 10 }),
+        svg("text", { x: x0 + 12, y: y0 + 20, text: scope.name + " [" + (C4_KIND[scope.kind] || scope.kind) + "]" })));
+    }
+
+    var edgeEls = [], nodeEls = {};
+    var edgeOf = {};
+    g.edges.forEach(function (e) { edgeOf[e.from + ">" + e.to] = e; });
+    var relsByPair = groupBy(v.relationships, function (rel) { return rel.from + ">" + rel.to; });
+    Object.keys(relsByPair).forEach(function (key) {
+      var e = edgeOf[key];
+      if (!e) return;
+      var rels = relsByPair[key];
+      var p = e.points, mid = p.length % 2 === 0 ? { x: (p[p.length / 2 - 1].x + p[p.length / 2].x) / 2, y: (p[p.length / 2 - 1].y + p[p.length / 2].y) / 2 } : p[(p.length - 1) / 2];
+      // A dependency between components ("uses") is the common case: its arrow says it without a label.
+      var label = rels.map(function (rel) { return rel.description; }).filter(function (d) { return d !== "uses"; }).join("; ");
+      var tech = Array.from(new Set(rels.map(function (rel) { return rel.technology; }).filter(Boolean))).join(", ");
+      var lines = label ? wrapText(label, 30, 2) : [];
+      if (tech) lines.push("[" + nodeText(tech, 230) + "]");
+      var group = svg("g", { class: "c4-rel", "data-from": rels[0].from, "data-to": rels[0].to },
+        svg("path", { class: "g-edge", d: curve(p) }),
+        lines.length ? svg("text", { x: mid.x, y: mid.y - (lines.length - 1) * 7, "text-anchor": "middle" },
+          lines.map(function (t, i) { return svg("tspan", { x: mid.x, dy: i === 0 ? 0 : 14, class: i === lines.length - 1 && tech ? "tech" : null, text: t }); })) : null,
+        svg("title", { text: rels.map(function (rel) { return rel.description + (rel.technology ? " [" + rel.technology + "]" : "") + " — " + plural(rel.sources.length, "source"); }).join("\n") }));
+      edgeEls.push(group);
+      canvas.world.appendChild(group);
+    });
+
+    g.nodes.forEach(function (n) {
+      var e = c4Elements[n.id];
+      if (!e) return;
+      var kind = C4_KIND[e.kind] || e.kind;
+      var sub = "[" + kind + (e.technology ? ": " + e.technology : "") + "]";
+      var below = c4ViewOf[e.id];
+      var open = function () { if (below) location.hash = c4Link(below.id); };
+      var children = [];
+      if (e.kind === "person") {
+        children.push(svg("circle", { class: "c4-head", cx: n.x + n.width / 2, cy: n.y + 4, r: 18 }));
+        children.push(svg("rect", { class: "c4-shape", x: n.x, y: n.y + 16, width: n.width, height: n.height - 16, rx: 28 }));
+      } else {
+        children.push(svg("rect", { class: "c4-shape", x: n.x, y: n.y, width: n.width, height: n.height, rx: e.kind === "code" ? 4 : 10 }));
+      }
+      var top = n.y + (e.kind === "person" ? 40 : 24);
+      children.push(svg("text", { class: "c4-name", x: n.x + n.width / 2, y: top, "text-anchor": "middle", text: nodeText(e.name, n.width) }));
+      children.push(svg("text", { class: "c4-kind", x: n.x + n.width / 2, y: top + 17, "text-anchor": "middle", text: nodeText(sub, n.width) }));
+      wrapText(e.description, 34, e.kind === "person" ? 2 : 3).forEach(function (t, i) {
+        children.push(svg("text", { class: "c4-desc", x: n.x + n.width / 2, y: top + 38 + i * 15, "text-anchor": "middle", text: t }));
+      });
+      if (below) children.push(svg("text", { class: "c4-open", x: n.x + n.width - 10, y: n.y + n.height - 8, "text-anchor": "end", text: "open ›" }));
+      children.push(svg("title", { text: e.name + " " + sub + (e.description ? "\n" + e.description : "") + (below ? "\nDouble-click to open its " + C4_LEVEL[below.level].toLowerCase() + "." : "") }));
+      var node = svg("g", {
+        class: "g-node c4-el c4-" + e.kind + (e.parent === v.scope || n.id === v.scope ? "" : " c4-outside"),
+        tabindex: "0", role: "button", "aria-label": e.name + ", " + kind,
+        on: {
+          click: function () { select(n.id); },
+          dblclick: open,
+          keydown: function (ev) { if (ev.key === "Enter") { ev.preventDefault(); if (selected === n.id && below) open(); else select(n.id); } }
+        }
+      }, children);
+      nodeEls[n.id] = node;
+      canvas.world.appendChild(node);
+    });
+
+    var selected = null;
+    function select(id) {
+      selected = id;
+      Object.keys(nodeEls).forEach(function (k) {
+        var related = k === id || v.relationships.some(function (rel) { return (rel.from === id && rel.to === k) || (rel.to === id && rel.from === k); });
+        nodeEls[k].classList.toggle("selected", k === id);
+        nodeEls[k].classList.toggle("dim", id !== null && !related);
+      });
+      edgeEls.forEach(function (eEl) {
+        var on = eEl.getAttribute("data-from") === id || eEl.getAttribute("data-to") === id;
+        eEl.classList.toggle("dim", id !== null && !on);
+      });
+      renderSide(id);
+    }
+
+    function sourceLink(s) {
+      if (entryById[s]) return el("a", { class: "mono", href: "#/evidence/entry:" + enc(s) }, routeLabel(entryById[s]));
+      if (exitById[s]) {
+        var x = exitById[s];
+        var text = x.payload && x.payload.value ? x.payload.value : shortMember(x.primitive);
+        return el("a", { class: "mono", href: "#/evidence/exit:" + enc(s) }, (CATEGORY_LABEL[x.category] || x.category) + ": " + text);
+      }
+      if (units[s]) return unitLink(s);
+      if (projects[s]) return el("a", { href: "#/units?project=" + enc(s) }, projectName(s));
+      return el("span", { class: "mono" }, s);
+    }
+
+    function relList(title, rels, other) {
+      if (!rels.length) return null;
+      return [el("h4", null, title), el("ul", { class: "plain" }, rels.map(function (rel) {
+        var o = c4Elements[other(rel)];
+        return el("li", null, el("strong", null, o ? o.name : other(rel)), " — ", rel.description,
+          rel.technology ? el("span", { class: "muted" }, " [" + rel.technology + "]") : null,
+          el("ul", { class: "plain sources" }, rel.sources.slice(0, 6).map(function (s) { return el("li", null, sourceLink(s)); }),
+            rel.sources.length > 6 ? el("li", { class: "muted" }, "… and " + (rel.sources.length - 6) + " more") : null));
+      }))];
+    }
+
+    function renderSide(id) {
+      side.textContent = "";
+      var e = id && c4Elements[id];
+      if (!e) { side.hidden = true; return; }
+      side.hidden = false;
+      var below = c4ViewOf[e.id];
+      var unitSources = e.sources.filter(function (s) { return units[s]; });
+      append(side, [
+        el("h3", null, e.name),
+        el("p", { class: "muted" }, (C4_KIND[e.kind] || e.kind) + (e.technology ? " · " + e.technology : "")),
+        e.description ? el("p", null, e.description) : null,
+        e.tags.length ? el("p", null, e.tags.map(function (t) { return el("span", { class: "tag" }, t); })) : null,
+        el("p", null,
+          below ? el("a", { href: c4Link(below.id) }, "Open its " + C4_LEVEL[below.level].toLowerCase()) : null,
+          below && unitSources.length ? " · " : null,
+          unitSources.length ? el("a", { href: "#/unit/" + enc(unitSources[0]) }, "Open the " + kindLabel(units[unitSources[0]].kind).toLowerCase()) : null),
+        relList("Called by", v.relationships.filter(function (rel) { return rel.to === id; }), function (rel) { return rel.from; }),
+        relList("Uses", v.relationships.filter(function (rel) { return rel.from === id; }), function (rel) { return rel.to; })
+      ]);
+    }
+
+    canvas.svg.addEventListener("panend", function (ev) { if (!ev.detail.moved && selected) select(null); });
+
+    var trail = c4Trail(v);
+    var levels = ["context", "containers", "components", "code"];
+    append(page, [
+      el("div", { class: "toolbar" },
+        el("nav", { class: "c4-trail", "aria-label": "C4 levels" }, trail.map(function (t, i) {
+          return [i ? el("span", { class: "muted" }, " › ") : null,
+            t.view.id === v.id ? el("strong", { "aria-current": "page" }, t.label) : el("a", { href: c4Link(t.view.id) }, t.label)];
+        })),
+        el("span", { class: "muted" }, "Level " + (levels.indexOf(v.level) + 1) + " of 4: " + C4_LEVEL[v.level] + ". Select an element for details; double-click one to open the level below."),
+        el("span", { class: "spacer" }), zoomButtons(canvas)),
+      host
+    ]);
+    host.appendChild(canvas.svg);
+    host.appendChild(side);
+    host.appendChild(el("div", { class: "legend c4-legend" },
+      ["person", "software-system", "container", "component", "code", "external-system"].map(function (k) {
+        return el("span", null, el("i", { class: "c4-swatch c4-" + k }), C4_KIND[k]);
+      })));
+    main.appendChild(page);
+  }
 
   // ---------- Overview ----------
   function overview() {

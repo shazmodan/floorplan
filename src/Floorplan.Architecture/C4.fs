@@ -589,24 +589,61 @@ let private closingCycles (nodes: string list) (edges: (string * string) list) =
 
     closing
 
-/// A view laid out: people and callers above what they call, what is used below what uses it. A relationship
-/// that closes a cycle is drawn straight, from the top of its source to the bottom of its target.
-let private laidOut (view: C4View) : GraphLayout =
+/// A view laid out by the layered layout, used below what uses it, with the scope's parts (the system, a
+/// container's components, a component's types) in layers of their own, so a boundary drawn around them contains
+/// nothing else: the elements that mostly call into the parts above them, those the parts mostly use below them.
+/// Two invisible anchors hold the layers in that order: one above the parts nothing else in the scope calls, and
+/// one below the parts that call nothing else in it, which every element below hangs from. A relationship against
+/// that order (a part calling an element above it), or one closing a cycle among the parts, is drawn straight.
+let private laidOut (view: C4View) (parts: Set<string>) : GraphLayout =
     let pairs = view.Relationships |> List.map (fun r -> r.From, r.To) |> List.distinct
-    let closing = closingCycles view.Elements pairs
-    let nodes = view.Elements |> List.map (fun id -> Layered.node id boxWidth boxHeight)
+    let inside = view.Elements |> List.filter parts.Contains
+    let around = view.Elements |> List.filter (parts.Contains >> not)
+    let innerPairs = pairs |> List.filter (fun (a, b) -> parts.Contains a && parts.Contains b)
+    let closing = closingCycles inside innerPairs
+
+    let callsIn (id: string) = pairs |> List.filter (fun (a, b) -> a = id && parts.Contains b) |> List.length
+    let calledFrom (id: string) = pairs |> List.filter (fun (a, b) -> b = id && parts.Contains a) |> List.length
+    let above = around |> List.filter (fun id -> callsIn id > 0 && callsIn id >= calledFrom id) |> Set.ofList
+    let below = around |> List.filter (above.Contains >> not)
+
+    // Edges the layout routes: among the parts, without those closing a cycle; from above into the parts; from
+    // the parts to below.
+    let routed =
+        pairs
+        |> List.filter (fun (a, b) ->
+            (parts.Contains a && parts.Contains b && not (closing.Contains((a, b))))
+            || (above.Contains a && parts.Contains b)
+            || (parts.Contains a && not (parts.Contains b) && not (above.Contains b)))
+
+    let top = "\u0000top"
+    let bottom = "\u0000bottom"
+    let innerRouted = routed |> List.filter (fun (a, b) -> parts.Contains a && parts.Contains b)
+    let sources = inside |> List.filter (fun p -> not (innerRouted |> List.exists (fun (_, b) -> b = p)))
+    let sinks = inside |> List.filter (fun p -> not (innerRouted |> List.exists (fun (a, _) -> a = p)))
+
+    let anchors =
+        (sources |> List.map (fun p -> top, p))
+        @ (sinks |> List.map (fun p -> p, bottom))
+        @ (below |> List.map (fun b -> bottom, b))
 
     let graph =
         Layered.layout
             { Layered.defaults with LayerGap = 110.0; NodeGap = 48.0 }
-            nodes
-            (pairs |> List.filter (closing.Contains >> not) |> List.map (fun (a, b) -> Layered.edge a b))
+            ((view.Elements |> List.map (fun id -> Layered.node id boxWidth boxHeight))
+             @ [ Layered.node top 1.0 1.0; Layered.node bottom 1.0 1.0 ])
+            ((routed @ anchors) |> List.map (fun (a, b) -> Layered.edge a b))
 
-    let at = graph.Nodes |> List.map (fun n -> n.Id, n) |> Map.ofList
+    let nodes = graph.Nodes |> List.filter (fun n -> n.Id <> top && n.Id <> bottom)
+    let at = nodes |> List.map (fun n -> n.Id, n) |> Map.ofList
+    let routedSet = Set.ofList routed
 
-    let back =
+    let edges =
+        graph.Edges |> List.filter (fun e -> routedSet.Contains((e.From, e.To)))
+
+    let straight =
         pairs
-        |> List.filter closing.Contains
+        |> List.filter (routedSet.Contains >> not)
         |> List.choose (fun (a, b) ->
             match at.TryFind a, at.TryFind b with
             | Some s, Some t ->
@@ -614,11 +651,13 @@ let private laidOut (view: C4View) : GraphLayout =
                     { From = a
                       To = b
                       Points =
-                        [ { X = s.X + s.Width / 2.0; Y = s.Y }
-                          { X = t.X + t.Width / 2.0; Y = t.Y + t.Height } ] }
+                        if t.Y > s.Y then
+                            [ { X = s.X + s.Width / 2.0; Y = s.Y + s.Height }; { X = t.X + t.Width / 2.0; Y = t.Y } ]
+                        else
+                            [ { X = s.X + s.Width / 2.0; Y = s.Y }; { X = t.X + t.Width / 2.0; Y = t.Y + t.Height } ] }
             | _ -> None)
 
-    { graph with Edges = graph.Edges @ back }
+    { graph with Nodes = nodes; Edges = edges @ straight }
 
 /// The C4 model of the solution the analysis model describes.
 let derive (model: AnalysisModel) : C4Model =
@@ -631,16 +670,25 @@ let derive (model: AnalysisModel) : C4Model =
 
     let outside = ofKind [ C4Kind.Person; C4Kind.ExternalSystem ]
 
+    // A view of a scope: its parts (the system itself in its context) and the elements around them, with the
+    // relationships that touch the parts.
     let view (id: string) (level: C4Level) (scope: string) (shown: string list) =
+        let parts =
+            if level = C4Level.Context then
+                Set.singleton scope
+            else
+                shown |> List.filter (fun e -> byId[e].Parent = Some scope) |> Set.ofList
+
         let v =
             { Id = id
               Level = level
               Scope = scope
               Elements = shown
-              Relationships = lifted byId shown links
+              Relationships =
+                lifted byId shown links |> List.filter (fun r -> parts.Contains r.From || parts.Contains r.To)
               Layout = AnalysisModel.emptyGraph }
 
-        { v with Layout = laidOut v }
+        { v with Layout = laidOut v parts }
 
     let containers = ofKind [ C4Kind.Container ]
 
