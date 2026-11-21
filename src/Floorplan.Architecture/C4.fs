@@ -5,7 +5,9 @@
 module Floorplan.Architecture.C4
 
 open System
+open System.Collections.Generic
 open Floorplan.Model
+open Floorplan.Layout
 
 /// The id of the element that stands for the solution.
 [<Literal>]
@@ -559,6 +561,65 @@ let private lifted (elements: Map<string, C4Element>) (shown: string list) (link
         | _ -> None)
     |> merge
 
+/// The size of an element's box in a diagram: room for its name, its kind and technology, and its description.
+let boxWidth = 240.0
+let boxHeight = 120.0
+
+/// The edges that close a cycle, found by a depth-first search in a fixed order: without them the graph is
+/// acyclic, so the layout keeps every element a box of its own rather than collapsing a cycle into one.
+let private closingCycles (nodes: string list) (edges: (string * string) list) =
+    let out = edges |> List.groupBy fst |> List.map (fun (a, es) -> a, es |> List.map snd |> List.sort) |> Map.ofList
+    let state = Dictionary<string, int>() // 1 on the stack, 2 done
+    let closing = HashSet<string * string>()
+
+    let rec visit (n: string) =
+        state[n] <- 1
+
+        for m in out.TryFind n |> Option.defaultValue [] do
+            match state.TryGetValue m with
+            | true, 1 -> closing.Add((n, m)) |> ignore
+            | true, _ -> ()
+            | _ -> visit m
+
+        state[n] <- 2
+
+    for n in List.sort nodes do
+        if not (state.ContainsKey n) then
+            visit n
+
+    closing
+
+/// A view laid out: people and callers above what they call, what is used below what uses it. A relationship
+/// that closes a cycle is drawn straight, from the top of its source to the bottom of its target.
+let private laidOut (view: C4View) : GraphLayout =
+    let pairs = view.Relationships |> List.map (fun r -> r.From, r.To) |> List.distinct
+    let closing = closingCycles view.Elements pairs
+    let nodes = view.Elements |> List.map (fun id -> Layered.node id boxWidth boxHeight)
+
+    let graph =
+        Layered.layout
+            { Layered.defaults with LayerGap = 110.0; NodeGap = 48.0 }
+            nodes
+            (pairs |> List.filter (closing.Contains >> not) |> List.map (fun (a, b) -> Layered.edge a b))
+
+    let at = graph.Nodes |> List.map (fun n -> n.Id, n) |> Map.ofList
+
+    let back =
+        pairs
+        |> List.filter closing.Contains
+        |> List.choose (fun (a, b) ->
+            match at.TryFind a, at.TryFind b with
+            | Some s, Some t ->
+                Some
+                    { From = a
+                      To = b
+                      Points =
+                        [ { X = s.X + s.Width / 2.0; Y = s.Y }
+                          { X = t.X + t.Width / 2.0; Y = t.Y + t.Height } ] }
+            | _ -> None)
+
+    { graph with Edges = graph.Edges @ back }
+
 /// The C4 model of the solution the analysis model describes.
 let derive (model: AnalysisModel) : C4Model =
     let facts = factsOf model
@@ -571,12 +632,15 @@ let derive (model: AnalysisModel) : C4Model =
     let outside = ofKind [ C4Kind.Person; C4Kind.ExternalSystem ]
 
     let view (id: string) (level: C4Level) (scope: string) (shown: string list) =
-        { Id = id
-          Level = level
-          Scope = scope
-          Elements = shown
-          Relationships = lifted byId shown links
-          Layout = AnalysisModel.emptyGraph }
+        let v =
+            { Id = id
+              Level = level
+              Scope = scope
+              Elements = shown
+              Relationships = lifted byId shown links
+              Layout = AnalysisModel.emptyGraph }
+
+        { v with Layout = laidOut v }
 
     let containers = ofKind [ C4Kind.Container ]
 
@@ -643,7 +707,8 @@ let describe (c4: C4Model) : string list =
       for r in c4.Relationships do
           yield relationship r
       for v in c4.Views do
-          yield $"view {v.Id} | {Json.unionName v.Level} of {v.Scope} | {v.Elements.Length} elements"
+          yield
+              $"view {v.Id} | {Json.unionName v.Level} of {v.Scope} | {v.Elements.Length} elements | {v.Layout.Width:F0} x {v.Layout.Height:F0}"
 
           for r in v.Relationships do
               yield "  " + relationship r ]

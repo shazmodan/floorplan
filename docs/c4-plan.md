@@ -31,7 +31,7 @@ stopped.
 | 3 | Level 2, containers: applications, libraries, and links between applications | `claude/c4-containers` | done |
 | 4 | Level 3, components: the units of each container | `claude/c4-components` | done |
 | 5 | Level 4, code: the types and members of each component | `claude/c4-code` | done |
-| 6 | Diagram layout of every view | `claude/c4-layout` | |
+| 6 | Diagram layout of every view | `claude/c4-layout` | done |
 | 7 | The website's Architecture pages | `claude/c4-website` | |
 | 8 | Documentation, TODO, review on every fixture | `claude/c4-docs` | |
 
@@ -206,4 +206,14 @@ view `code:<component>` per component with code shows its types and the elements
 Dependencies are known between units only, so "uses" stays between components, and a code view shows what each
 type handles and reaches, not which types use which. A global namespace's component is named by its label,
 "(global namespace)". `csharp.c4.txt` is 839 lines.
+
+### 2026-11-21: iteration 6
+
+Every view has its layout (`C4View.Layout`), from `Layered.layout` with boxes of one size (`C4.boxWidth` 240 by
+`C4.boxHeight` 120, room for a name, a kind and technology, and a short description) and wider gaps than the unit
+graph, for relationship labels. The layered layout collapses a cycle into one node, which a C4 diagram cannot
+have, so the edges that close a cycle (a depth-first search in a fixed order) are left out of the layout and
+drawn straight, from the top of their source to the bottom of their target. A test checks every view of both
+fixtures: a box per element, none collapsed or overlapping, a line per related pair. The goldens give each
+view's size.
 

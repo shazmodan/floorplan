@@ -63,20 +63,20 @@ component:Shop.Worker|Shop.Worker:Shop.Worker.Program -> component:Shop.Worker|S
 component:Shop.Worker|Shop.Worker:Shop.Worker.Program -> component:Shop.Worker|Shop.Core:Shop.Core.Orders | uses | - | 1 sources
 component:Shop.Worker|Shop.Worker:Shop.Worker.Program -> component:Shop.Worker|Shop.Core:Util | uses | - | 1 sources
 person:user -> code:Shop.Web|Shop.Web:Shop.Web.Handlers|Shop.Web.Handlers | sends HTTP requests to | HTTP | 3 sources
-view context | context of system | 5 elements
+view context | context of system | 5 elements | 816 x 580
   person:user -> system | sends HTTP requests to | HTTP | 3 sources
   system -> external:filesystem | reads files | - | 2 sources
   system -> external:filesystem | writes files | - | 2 sources
   system -> external:http:prices.example.org | sends HTTP requests | HTTP | 1 sources
   system -> external:processes | starts or inspects processes | - | 2 sources
-view containers | containers of system | 6 elements
+view containers | containers of system | 6 elements | 672 x 580
   container:Shop.Web -> external:filesystem | reads files | - | 2 sources
   container:Shop.Web -> external:filesystem | writes files | - | 2 sources
   container:Shop.Web -> external:http:prices.example.org | sends HTTP requests | HTTP | 1 sources
   container:Shop.Worker -> container:Shop.Web | sends HTTP requests to /api/orders | HTTP | 1 sources
   container:Shop.Worker -> external:processes | starts or inspects processes | - | 2 sources
   person:user -> container:Shop.Web | sends HTTP requests to | HTTP | 3 sources
-view components:Shop.Web | components of container:Shop.Web | 13 elements
+view components:Shop.Web | components of container:Shop.Web | 13 elements | 1230 x 1040
   component:Shop.Web|Shop.Core:Shop.Core.Orders -> component:Shop.Web|Shop.Core:Shop.Core.Domain | uses | - | 1 sources
   component:Shop.Web|Shop.Core:Shop.Core.Orders -> component:Shop.Web|Shop.Core:Shop.Core.Orders.Validation | uses | - | 1 sources
   component:Shop.Web|Shop.Core:Shop.Core.Orders -> component:Shop.Web|Shop.Core:Util | uses | - | 1 sources
@@ -95,7 +95,7 @@ view components:Shop.Web | components of container:Shop.Web | 13 elements
   component:Shop.Web|Shop.Web:Shop.Web.Program -> component:Shop.Web|Shop.Web:Shop.Web.Handlers | uses | - | 1 sources
   container:Shop.Worker -> component:Shop.Web|Shop.Web:Shop.Web.Handlers | sends HTTP requests to /api/orders | HTTP | 1 sources
   person:user -> component:Shop.Web|Shop.Web:Shop.Web.Handlers | sends HTTP requests to | HTTP | 3 sources
-view components:Shop.Worker | components of container:Shop.Worker | 7 elements
+view components:Shop.Worker | components of container:Shop.Worker | 7 elements | 998 x 810
   component:Shop.Worker|Shop.Core:Shop.Core.Orders -> component:Shop.Worker|Shop.Core:Shop.Core.Domain | uses | - | 1 sources
   component:Shop.Worker|Shop.Core:Shop.Core.Orders -> component:Shop.Worker|Shop.Core:Shop.Core.Orders.Validation | uses | - | 1 sources
   component:Shop.Worker|Shop.Core:Shop.Core.Orders -> component:Shop.Worker|Shop.Core:Util | uses | - | 1 sources
@@ -106,26 +106,26 @@ view components:Shop.Worker | components of container:Shop.Worker | 7 elements
   component:Shop.Worker|Shop.Worker:Shop.Worker.Program -> component:Shop.Worker|Shop.Core:Util | uses | - | 1 sources
   component:Shop.Worker|Shop.Worker:Shop.Worker.Program -> container:Shop.Web | sends HTTP requests to /api/orders | HTTP | 1 sources
   component:Shop.Worker|Shop.Worker:Shop.Worker.Program -> external:processes | starts or inspects processes | - | 2 sources
-view code:Shop.Web|Shop.Core:Shop.Core.Domain | code of component:Shop.Web|Shop.Core:Shop.Core.Domain | 1 elements
-view code:Shop.Web|Shop.Core:Shop.Core.Orders | code of component:Shop.Web|Shop.Core:Shop.Core.Orders | 1 elements
-view code:Shop.Web|Shop.Core:Shop.Core.Orders.Validation | code of component:Shop.Web|Shop.Core:Shop.Core.Orders.Validation | 1 elements
-view code:Shop.Web|Shop.Core:Util | code of component:Shop.Web|Shop.Core:Util | 1 elements
-view code:Shop.Web|Shop.Data:Shop.Data.Repository | code of component:Shop.Web|Shop.Data:Shop.Data.Repository | 2 elements
+view code:Shop.Web|Shop.Core:Shop.Core.Domain | code of component:Shop.Web|Shop.Core:Shop.Core.Domain | 1 elements | 240 x 120
+view code:Shop.Web|Shop.Core:Shop.Core.Orders | code of component:Shop.Web|Shop.Core:Shop.Core.Orders | 1 elements | 240 x 120
+view code:Shop.Web|Shop.Core:Shop.Core.Orders.Validation | code of component:Shop.Web|Shop.Core:Shop.Core.Orders.Validation | 1 elements | 240 x 120
+view code:Shop.Web|Shop.Core:Util | code of component:Shop.Web|Shop.Core:Util | 1 elements | 240 x 120
+view code:Shop.Web|Shop.Data:Shop.Data.Repository | code of component:Shop.Web|Shop.Data:Shop.Data.Repository | 2 elements | 240 x 350
   code:Shop.Web|Shop.Data:Shop.Data.Repository|Shop.Data.Repository -> external:filesystem | reads files | - | 2 sources
-view code:Shop.Web|Shop.Data:Util | code of component:Shop.Web|Shop.Data:Util | 1 elements
-view code:Shop.Web|Shop.Storage:Shop.Storage | code of component:Shop.Web|Shop.Storage:Shop.Storage | 2 elements
+view code:Shop.Web|Shop.Data:Util | code of component:Shop.Web|Shop.Data:Util | 1 elements | 240 x 120
+view code:Shop.Web|Shop.Storage:Shop.Storage | code of component:Shop.Web|Shop.Storage:Shop.Storage | 2 elements | 240 x 350
   code:Shop.Web|Shop.Storage:Shop.Storage|Shop.Storage.Archive -> external:filesystem | writes files | - | 1 sources
-view code:Shop.Web|Shop.Web:Shop.Web.Handlers | code of component:Shop.Web|Shop.Web:Shop.Web.Handlers | 6 elements
+view code:Shop.Web|Shop.Web:Shop.Web.Handlers | code of component:Shop.Web|Shop.Web:Shop.Web.Handlers | 6 elements | 816 x 580
   code:Shop.Web|Shop.Web:Shop.Web.Handlers|Shop.Web.Handlers -> external:http:prices.example.org | sends HTTP requests | HTTP | 1 sources
   code:Shop.Web|Shop.Web:Shop.Web.Handlers|Shop.Web.Handlers/FileNotifier -> external:filesystem | writes files | - | 1 sources
   component:Shop.Worker|Shop.Worker:Shop.Worker.Program -> code:Shop.Web|Shop.Web:Shop.Web.Handlers|Shop.Web.Handlers | sends HTTP requests to /api/orders | HTTP | 1 sources
   person:user -> code:Shop.Web|Shop.Web:Shop.Web.Handlers|Shop.Web.Handlers | sends HTTP requests to | HTTP | 3 sources
-view code:Shop.Web|Shop.Web:Shop.Web.Program | code of component:Shop.Web|Shop.Web:Shop.Web.Program | 1 elements
-view code:Shop.Worker|Shop.Core:Shop.Core.Domain | code of component:Shop.Worker|Shop.Core:Shop.Core.Domain | 1 elements
-view code:Shop.Worker|Shop.Core:Shop.Core.Orders | code of component:Shop.Worker|Shop.Core:Shop.Core.Orders | 1 elements
-view code:Shop.Worker|Shop.Core:Shop.Core.Orders.Validation | code of component:Shop.Worker|Shop.Core:Shop.Core.Orders.Validation | 1 elements
-view code:Shop.Worker|Shop.Core:Util | code of component:Shop.Worker|Shop.Core:Util | 1 elements
-view code:Shop.Worker|Shop.Worker:Shop.Worker.Program | code of component:Shop.Worker|Shop.Worker:Shop.Worker.Program | 4 elements
+view code:Shop.Web|Shop.Web:Shop.Web.Program | code of component:Shop.Web|Shop.Web:Shop.Web.Program | 1 elements | 240 x 120
+view code:Shop.Worker|Shop.Core:Shop.Core.Domain | code of component:Shop.Worker|Shop.Core:Shop.Core.Domain | 1 elements | 240 x 120
+view code:Shop.Worker|Shop.Core:Shop.Core.Orders | code of component:Shop.Worker|Shop.Core:Shop.Core.Orders | 1 elements | 240 x 120
+view code:Shop.Worker|Shop.Core:Shop.Core.Orders.Validation | code of component:Shop.Worker|Shop.Core:Shop.Core.Orders.Validation | 1 elements | 240 x 120
+view code:Shop.Worker|Shop.Core:Util | code of component:Shop.Worker|Shop.Core:Util | 1 elements | 240 x 120
+view code:Shop.Worker|Shop.Worker:Shop.Worker.Program | code of component:Shop.Worker|Shop.Worker:Shop.Worker.Program | 4 elements | 600 x 350
   code:Shop.Worker|Shop.Worker:Shop.Worker.Program|Shop.Worker.Program -> component:Shop.Web|Shop.Web:Shop.Web.Handlers | sends HTTP requests to /api/orders | HTTP | 1 sources
   code:Shop.Worker|Shop.Worker:Shop.Worker.Program|Shop.Worker.Program -> external:processes | starts or inspects processes | - | 1 sources
   code:Shop.Worker|Shop.Worker:Shop.Worker.Program|Shop.Worker.Program/ProcessNotifier -> external:processes | starts or inspects processes | - | 1 sources
