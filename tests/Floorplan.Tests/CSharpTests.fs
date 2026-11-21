@@ -105,8 +105,10 @@ let tests =
               Expect.equal
                   consumers
                   [ Some "CSharp.Messaging.Shipping.OrderShipped", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Shipping.ShippedConsumer::Consume"
+                    Some "audit", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Refunds.Poller::Drain"
                     Some "orders", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Orders.Listener/<>c::<Start>b__0_0"
                     Some "payments", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Payments.Listener::Handle"
+                    Some "refunds", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Refunds.Poller::RunAsync"
                     Some "returns", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Orders.Listener::OnReturn" ]
                   "RabbitMQ's Received with BasicConsume (two overloads), Service Bus's ProcessMessageAsync with CreateProcessor, MassTransit's AddConsumer at its message type; not the error handler, nor a consumer never registered"
 

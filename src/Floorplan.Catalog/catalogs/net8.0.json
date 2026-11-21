@@ -487,6 +487,24 @@
     { "id": "network.rabbitmq-model-consume", "assembly": "RabbitMQ.Client", "type": "RabbitMQ.Client.IModel",
       "members": ["BasicConsume"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
       "payload": [{ "argument": 0, "role": "message-queue" }, { "argument": -1, "role": "message-consumer" }] },
+    // Receiving in a loop of the application's own: the method that calls the receiving member ("message-receive") is
+    // the handler. The queue is the call's own "message-queue" (BasicGet), or is named where the receiver is made
+    // (CreateReceiver) or subscribed (Kafka's Subscribe, which ties a consumer to a topic).
+    { "id": "network.rabbitmq-get", "assembly": "RabbitMQ.Client", "type": "RabbitMQ.Client.IModel",
+      "members": ["BasicGet"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
+      "payload": [{ "argument": -1, "role": "message-receive" }, { "argument": 0, "role": "message-queue" }] },
+    { "id": "network.servicebus-receive", "assembly": "Azure.Messaging.ServiceBus", "type": "Azure.Messaging.ServiceBus.ServiceBusReceiver",
+      "members": ["ReceiveMessageAsync", "ReceiveMessagesAsync"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
+      "payload": [{ "argument": -1, "role": "message-receive" }] },
+    { "id": "network.servicebus-create-receiver", "assembly": "Azure.Messaging.ServiceBus", "type": "Azure.Messaging.ServiceBus.ServiceBusClient",
+      "members": ["CreateReceiver"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
+      "payload": [{ "argument": 0, "role": "message-queue" }] },
+    { "id": "network.kafka-consume", "assembly": "Confluent.Kafka", "type": "Confluent.Kafka.IConsumer`2",
+      "members": ["Consume"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
+      "payload": [{ "argument": -1, "role": "message-receive" }] },
+    { "id": "network.kafka-subscribe", "assembly": "Confluent.Kafka", "type": "Confluent.Kafka.IConsumer`2",
+      "members": ["Subscribe"], "whenFirstParameter": "System.String", "includeDerivedTypes": true, "kind": "registration", "category": "network",
+      "payload": [{ "argument": 0, "role": "message-queue" }, { "argument": -1, "role": "message-consumer" }] },
     // MassTransit: AddConsumer<T>() registers a consumer ("consumer-type" is the index of the type argument), and the
     // bus calls its IConsumer<TMessage>.Consume for each message of that type.
     { "id": "network.masstransit-add-consumer", "assembly": "MassTransit", "type": "MassTransit.IRegistrationConfigurator",

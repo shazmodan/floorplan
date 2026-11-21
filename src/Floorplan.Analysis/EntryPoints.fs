@@ -1443,24 +1443,55 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                 |> List.map (fun made -> (r.Caller.Ref.Key, made), (r, text r queue))
             | _ -> [])
 
+    // The method an async method's state machine runs: MoveNext of `T/<Name>d__N` is T's Name.
+    let kickoff (m: MethodRef) =
+        let t = m.Type.FullName
+
+        match m.Name, t.LastIndexOf "/<" with
+        | "MoveNext", i when i > 0 && t.IndexOf('>', i) > i ->
+            let name = t.Substring(i + 2, t.IndexOf('>', i) - i - 2)
+
+            set.TryType { m.Type with FullName = t.Substring(0, i) }
+            |> Option.bind (fun (owner, _) -> owner.Methods |> List.tryFind (fun d -> d.Ref.Name = name))
+            |> Option.map (fun d -> d.Ref)
+            |> Option.defaultValue m
+        | _ -> m
+
+    // The handler: the delegate a registration adds, or the method that receives messages itself (a loop that calls
+    // Kafka's Consume or Service Bus's ReceiveMessageAsync).
+    let handlerOf (r: PlatformRouting.Registration) =
+        match specOf r.Rule "message-handler", specOf r.Rule "message-receive" with
+        | Some handlerSpec, _ ->
+            operand r handlerSpec
+            |> Option.bind (handlerIn r.Flow)
+            |> Option.map (fun target -> PlatformRouting.unwrap set isUser 0 target, false)
+        | None, Some _ -> Some(kickoff r.Caller.Ref, true)
+        | None, None -> None
+
     registrations
     |> List.choose (fun r ->
-        match specOf r.Rule "message-handler" with
+        match handlerOf r with
         | None -> None
-        | Some handlerSpec ->
-            match operand r handlerSpec |> Option.bind (handlerIn r.Flow) with
-            | None -> None
-            | Some target ->
-                let handler = PlatformRouting.unwrap set isUser 0 target
-                let point = firstPoint set handler
-                let registrationPoint = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
+        | Some(handler, receives) ->
+            let point = firstPoint set handler
+            let registrationPoint = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
 
-                // The consumer: the receiver of the registration. A constructor that takes the handler has none.
-                let made =
-                    if isNewObj r then None else r.Flow.OperandsAt r.Offset |> List.tryHead |> Option.bind (madeIn r.Flow 0)
+            // The consumer: the receiver of the registration. A constructor that takes the handler has none.
+            let made =
+                if isNewObj r then None else r.Flow.OperandsAt r.Offset |> List.tryHead |> Option.bind (madeIn r.Flow 0)
 
-                // Where the queue is named: by the call that made the consumer, or by one that ties it to a queue.
-                let source =
+            // Where the queue is named: by the receiving call itself (RabbitMQ's BasicGet), by the call that made
+            // the consumer, or by one that ties it to a queue (a subscription).
+            let tiedTo (o: int) = tied |> List.tryFind (fun (key, _) -> key = (r.Caller.Ref.Key, o)) |> Option.map snd
+
+            let own =
+                match specOf r.Rule "message-queue", specOf r.Rule "message-consumer" with
+                | Some queue, None when receives -> Some(r, text r queue)
+                | _ -> None
+
+            let source =
+                own
+                |> Option.orElse (
                     made
                     |> Option.bind (fun o ->
                         match r.Flow.InstructionAt o with
@@ -1479,43 +1510,48 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
 
                                     Some(made, text made queue)
                                 | _ -> None)
-                        | Some { Op = NewObj _ } -> tied |> List.tryFind (fun (key, _) -> key = (r.Caller.Ref.Key, o)) |> Option.map snd
+                            |> Option.orElse (tiedTo o)
+                        | Some { Op = NewObj _ } -> tiedTo o
                         | _ -> None)
+                )
 
-                let projectId =
-                    match set.Origin handler.Type.Assembly with
-                    | User pid -> pid
-                    | _ -> ctx.Project.ProjectId
+            let projectId =
+                match set.Origin handler.Type.Assembly with
+                | User pid -> pid
+                | _ -> ctx.Project.ProjectId
 
-                ctx.Program.Attributor.Attribute(projectId, handler, point)
-                |> Option.map (fun unit ->
-                    let queue = source |> Option.bind snd
-                    let category = defaultArg r.Rule.Category EffectCategory.Network
-                    let calledWhen = if category = EffectCategory.Background then "each time it fires" else "for each message received"
+            ctx.Program.Attributor.Attribute(projectId, handler, point)
+            |> Option.map (fun unit ->
+                let queue = source |> Option.bind snd
+                let category = defaultArg r.Rule.Category EffectCategory.Network
+                let calledWhen = if category = EffectCategory.Background then "each time it fires" else "for each message received"
 
-                    let queueStep =
-                        match source with
-                        | Some(q, name) ->
-                            let named = match name with Some n -> $"queue \"{n}\"" | None -> "a queue whose name is not a constant"
-                            [ step $"{q.Caller.Ref.Display} reads it from {named} with {q.Declared.Display} (rule {q.Rule.Id})" q.Caller.Ref (Instruction.pointAt q.Caller.Body.Value.Value.Instructions q.Index) ]
-                        | None -> []
+                let queueStep =
+                    match source with
+                    | Some(q, name) ->
+                        let named = match name with Some n -> $"queue \"{n}\"" | None -> "a queue whose name is not a constant"
+                        [ step $"{q.Caller.Ref.Display} reads it from {named} with {q.Declared.Display} (rule {q.Rule.Id})" q.Caller.Ref (Instruction.pointAt q.Caller.Body.Value.Value.Instructions q.Index) ]
+                    | None -> []
 
-                    { Id = ""
-                      ApplicationId = ctx.Project.ProjectId
-                      HandlerUnit = unit.Id
-                      HandlerMember = handler.Display
-                      Location = point |> Option.map Attribution.toLocation
-                      Category = category
-                      Predicates = []
-                      HttpMethod = None
-                      Route = queue
-                      // Background work (a timer) has no address; a message comes from a queue.
-                      Completeness = if queue.IsSome || category = EffectCategory.Background then Completeness.Complete else Completeness.Unresolved
-                      Forms = [ RouteForm.PlatformRouting ]
-                      Evidence =
-                        { Steps =
-                            step $"{r.Caller.Ref.Display} registers {handler.Display} with {r.Declared.Display}, called {calledWhen} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
-                            :: queueStep } }))
+                { Id = ""
+                  ApplicationId = ctx.Project.ProjectId
+                  HandlerUnit = unit.Id
+                  HandlerMember = handler.Display
+                  Location = point |> Option.map Attribution.toLocation
+                  Category = category
+                  Predicates = []
+                  HttpMethod = None
+                  Route = queue
+                  // Background work (a timer) has no address; a message comes from a queue.
+                  Completeness = if queue.IsSome || category = EffectCategory.Background then Completeness.Complete else Completeness.Unresolved
+                  Forms = [ RouteForm.PlatformRouting ]
+                  Evidence =
+                    { Steps =
+                        (if receives then
+                             step $"{r.Caller.Ref.Display} receives messages with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
+                         else
+                             step $"{r.Caller.Ref.Display} registers {handler.Display} with {r.Declared.Display}, called {calledWhen} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint)
+                        :: queueStep } }))
 
 // ---- Azure Functions ----
 
