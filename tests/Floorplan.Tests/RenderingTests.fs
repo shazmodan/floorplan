@@ -51,12 +51,18 @@ let tests =
               match (WebsiteRenderer.create ()).Render(shopModel.Force(), { Path = dir; SingleFile = false }) with
               | Error(RenderError e) -> failtest e
               | Ok() ->
-                  for f in [ "index.html"; "app.css"; "app.js"; "data.js"; "workspace.dsl" ] do
+                  for f in [ "index.html"; "app.css"; "app.js"; "data.js"; "workspace.dsl"; "workspace.json" ] do
                       Expect.isTrue (File.Exists(Path.Combine(dir, f))) f
 
                   let data = File.ReadAllText(Path.Combine(dir, "data.js"))
                   Expect.stringStarts data "window.FLOORPLAN_DATA = " "data script"
                   Expect.stringContains data "Shop.Core.Orders" "contains units"
+                  Expect.stringContains data "window.FLOORPLAN_FILES" "the page knows the files beside it"
+
+                  Expect.isLessThan
+                      (File.GetLastWriteTimeUtc(Path.Combine(dir, "workspace.json")))
+                      (File.GetLastWriteTimeUtc(Path.Combine(dir, "workspace.dsl")))
+                      "the layout is older than the DSL, so Structurizr merges it rather than taking it as the workspace"
           }
 
           test "single-file output has no external references" {

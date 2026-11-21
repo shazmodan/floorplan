@@ -56,21 +56,19 @@ workspace "Shop" "Shop, derived by Floorplan from its code" {
     }
 
     views {
+        // Each view is laid out as on Floorplan's website: the positions are in workspace.json beside this file,
+        // which Structurizr Lite merges in. Without it, add `autoLayout` to a view.
         systemContext system "context" {
             include system external_filesystem external_http_prices_example_org external_processes person_user
-            autoLayout tb
         }
         container system "containers" {
             include container_Shop_Web container_Shop_Worker external_filesystem external_http_prices_example_org external_processes person_user
-            autoLayout tb
         }
         component container_Shop_Web "components_Shop_Web" {
             include component_Shop_Web_Shop_Core_Shop_Core_Domain component_Shop_Web_Shop_Core_Shop_Core_Orders component_Shop_Web_Shop_Core_Shop_Core_Orders_Validation component_Shop_Web_Shop_Core_Util component_Shop_Web_Shop_Data_Shop_Data_Repository component_Shop_Web_Shop_Data_Util component_Shop_Web_Shop_Storage_Shop_Storage component_Shop_Web_Shop_Web_Shop_Web_Handlers component_Shop_Web_Shop_Web_Shop_Web_Program external_filesystem external_http_prices_example_org person_user container_Shop_Worker
-            autoLayout tb
         }
         component container_Shop_Worker "components_Shop_Worker" {
             include component_Shop_Worker_Shop_Core_Shop_Core_Domain component_Shop_Worker_Shop_Core_Shop_Core_Orders component_Shop_Worker_Shop_Core_Shop_Core_Orders_Validation component_Shop_Worker_Shop_Core_Util component_Shop_Worker_Shop_Worker_Shop_Worker_Program external_processes container_Shop_Web
-            autoLayout tb
         }
 
         styles {

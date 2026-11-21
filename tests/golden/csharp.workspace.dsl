@@ -267,73 +267,58 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
     }
 
     views {
+        // Each view is laid out as on Floorplan's website: the positions are in workspace.json beside this file,
+        // which Structurizr Lite merges in. Without it, add `autoLayout` to a view.
         systemContext system "context" {
             include system external_database external_filesystem external_http external_http_api_example_org external_http_api_github_com external_http_status_example_org external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Azure_Messaging_ServiceBus external_library_Azure_Storage_Blobs external_library_Grpc_Core external_library_MailKit external_library_MassTransit external_library_Microsoft_AspNetCore_SignalR_Client external_library_Microsoft_Azure_Functions_Worker external_library_Microsoft_EntityFrameworkCore external_library_MongoDB_Driver external_library_NServiceBus external_library_RabbitMQ_Client external_library_SendGrid external_library_StackExchange_Redis external_native external_network external_processes person_user
-            autoLayout tb
         }
         container system "containers" {
             include container_CSharp_Blazor container_CSharp_Clients container_CSharp_Cloud container_CSharp_Controllers container_CSharp_Conventional container_CSharp_Delegated container_CSharp_Effects container_CSharp_Endpoints container_CSharp_Functions container_CSharp_Grpc container_CSharp_Messaging container_CSharp_Middleware container_CSharp_Switch container_CSharp_Table container_CSharp_Worker external_database external_filesystem external_http external_http_api_example_org external_http_api_github_com external_http_status_example_org external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Azure_Messaging_ServiceBus external_library_Azure_Storage_Blobs external_library_Grpc_Core external_library_MailKit external_library_MassTransit external_library_Microsoft_AspNetCore_SignalR_Client external_library_Microsoft_Azure_Functions_Worker external_library_Microsoft_EntityFrameworkCore external_library_MongoDB_Driver external_library_NServiceBus external_library_RabbitMQ_Client external_library_SendGrid external_library_StackExchange_Redis external_native external_network external_processes person_user
-            autoLayout tb
         }
         component container_CSharp_Blazor "components_CSharp_Blazor" {
             include component_CSharp_Blazor_CSharp_Blazor_ external_filesystem person_user
-            autoLayout tb
         }
         component container_CSharp_Clients "components_CSharp_Clients" {
             include component_CSharp_Clients_CSharp_Clients_ component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Caching component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Catalog component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Chat component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Documents component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Files component_CSharp_Clients_CSharp_Clients_CSharp_Clients_GitHub component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Notifications external_filesystem external_http external_http_api_github_com external_http_status_example_org external_library_Azure_Storage_Blobs external_library_MailKit external_library_Microsoft_AspNetCore_SignalR_Client external_library_MongoDB_Driver external_library_SendGrid external_library_StackExchange_Redis external_network
-            autoLayout tb
         }
         component container_CSharp_Cloud "components_CSharp_Cloud" {
             include component_CSharp_Cloud_CSharp_Cloud_ component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Orders component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Reports external_filesystem external_http external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_network
-            autoLayout tb
         }
         component container_CSharp_Controllers "components_CSharp_Controllers" {
             include component_CSharp_Controllers_CSharp_Controllers_ component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers_Admin component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers_Pages_Shop external_filesystem person_user
-            autoLayout tb
         }
         component container_CSharp_Conventional "components_CSharp_Conventional" {
             include component_CSharp_Conventional_CSharp_Conventional_ component_CSharp_Conventional_CSharp_Conventional_CSharp_Conventional_Controllers person_user
-            autoLayout tb
         }
         component container_CSharp_Delegated "components_CSharp_Delegated" {
             include component_CSharp_Delegated_CSharp_Delegated_ component_CSharp_Delegated_CSharp_Delegated_CSharp_Delegated person_user
-            autoLayout tb
         }
         component container_CSharp_Effects "components_CSharp_Effects" {
             include component_CSharp_Effects_CSharp_Effects_ component_CSharp_Effects_CSharp_Effects_CSharp_Effects component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Billing component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Labels component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Logging component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Ordering component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Packing component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Printing component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Reporting component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Shipping component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Storage external_database external_filesystem external_http external_http_api_example_org external_library_Microsoft_EntityFrameworkCore external_native external_network external_processes
-            autoLayout tb
         }
         component container_CSharp_Endpoints "components_CSharp_Endpoints" {
             include component_CSharp_Endpoints_CSharp_Endpoints_ component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Auditing component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Chat component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Configured component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Shipping external_filesystem person_user
-            autoLayout tb
         }
         component container_CSharp_Functions "components_CSharp_Functions" {
             include component_CSharp_Functions_CSharp_Functions_ component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Maintenance component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Orders external_filesystem external_library_Microsoft_Azure_Functions_Worker person_user
-            autoLayout tb
         }
         component container_CSharp_Grpc "components_CSharp_Grpc" {
             include component_CSharp_Grpc_CSharp_Grpc_ component_CSharp_Grpc_CSharp_Grpc_CSharp_Grpc_Inventory component_CSharp_Grpc_CSharp_Grpc_CSharp_Grpc_Restocking external_filesystem external_library_Grpc_Core person_user
-            autoLayout tb
         }
         component container_CSharp_Messaging "components_CSharp_Messaging" {
             include component_CSharp_Messaging_CSharp_Messaging_ component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Configured component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Orders component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Payments component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Publishing component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Refunds component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Sales component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Shipping external_filesystem external_library_Azure_Messaging_ServiceBus external_library_MassTransit external_library_NServiceBus external_library_RabbitMQ_Client external_network external_processes
-            autoLayout tb
         }
         component container_CSharp_Middleware "components_CSharp_Middleware" {
             include component_CSharp_Middleware_CSharp_Middleware_ component_CSharp_Middleware_CSharp_Middleware_CSharp_Middleware person_user
-            autoLayout tb
         }
         component container_CSharp_Switch "components_CSharp_Switch" {
             include component_CSharp_Switch_CSharp_Switch_ component_CSharp_Switch_CSharp_Switch_CSharp_Switch person_user
-            autoLayout tb
         }
         component container_CSharp_Table "components_CSharp_Table" {
             include component_CSharp_Table_CSharp_Table_ component_CSharp_Table_CSharp_Table_CSharp_Table person_user
-            autoLayout tb
         }
         component container_CSharp_Worker "components_CSharp_Worker" {
             include component_CSharp_Worker_CSharp_Worker_ component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Cleanup component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Imports component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Monitoring component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Reporting external_filesystem external_http
-            autoLayout tb
         }
 
         styles {

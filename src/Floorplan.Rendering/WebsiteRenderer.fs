@@ -51,7 +51,12 @@ let render (model: AnalysisModel) (output: OutputTarget) =
         File.WriteAllText(Path.Combine(output.Path, "index.html"), html)
         File.WriteAllText(Path.Combine(output.Path, "app.css"), css)
         File.WriteAllText(Path.Combine(output.Path, "app.js"), js)
-        File.WriteAllText(Path.Combine(output.Path, "data.js"), data)
+        // The files beside the site, which its pages link to (not in a single file, which has none).
+        let files = $"window.FLOORPLAN_FILES = [\"{StructurizrDsl.FileName}\", \"{StructurizrDsl.LayoutFileName}\"];\n"
+        File.WriteAllText(Path.Combine(output.Path, "data.js"), data + files)
+        // The layout first: Structurizr merges a workspace.json older than the DSL into it, and takes a newer one
+        // as the whole workspace.
+        File.WriteAllText(Path.Combine(output.Path, StructurizrDsl.LayoutFileName), StructurizrDsl.writeLayout model)
         File.WriteAllText(Path.Combine(output.Path, StructurizrDsl.FileName), StructurizrDsl.write model)
         Path.Combine(output.Path, "index.html")
 
