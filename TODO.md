@@ -12,6 +12,23 @@ Work that is known and not yet done. Remove an item when its branch is merged.
   (opening a file, resolving a host) belong to no call site. The call that loads the configuration
   (`ReadFrom.Configuration`, `LogManager.Setup().LoadConfigurationFromAppSettings()`) could carry them.
 
+- **One call graph serves every project of a solution**: types any project instantiates are instantiated for all
+  (rapid type analysis), so a project's virtual calls can reach implementations only another project constructs.
+  Log dispatch keeps to the project's referenced assemblies, and a shared framework's copy of an assembly wins over
+  a package's, but other virtual calls and the symbolic routing still see the whole solution.
+- **Razor-generated code gives no units**: Blazor components and Razor pages compile from `.razor`/`.cshtml` files
+  into generated code, which structure analysis compiles but makes no units of, so their handlers are attributed
+  to the project's global namespace unit.
+- **Inputs read from the program's configuration are not resolved**: a queue, topic or route named in
+  `appsettings.json` or an options class (`options.Value.QueueName`) is unresolved, as is a Redis channel made with
+  `RedisChannel.Literal("...")`.
+- **Not read yet**: Blazor's interactive events (`@onclick`) as inputs; Razor Pages route conventions
+  (`AddPageRoute`); Azure Functions in the in-process model (a class library, not an application); a Hangfire
+  recurring job's schedule; NServiceBus handlers (found by assembly scanning, with no registration).
+- **Checked only outside the fixtures**: the Kafka (`Produce`, `Consume`, `Subscribe`) and Azure Cosmos DB rules, on
+  probe applications: Kafka's native library and the Cosmos DB client's analysis time keep them out of the
+  fixtures.
+
 ## Later, if wanted (from docs/library-payloads-plan.md)
 
 - A catalog rule that states a library method's payload directly (`"type": "Dapper.SqlMapper"`, ...), for a
