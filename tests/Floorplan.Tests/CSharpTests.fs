@@ -265,6 +265,17 @@ let tests =
                     EffectCategory.HttpOut, "ICatalogApi::GetProduct", Some "/products/{id}" ]
                   "Refit: a call to a method marked with a verb is an HTTP call to its path"
 
+              // A SignalR client: the server invokes the handlers On registers; InvokeAsync calls a hub method.
+              Expect.equal
+                  (calls "Chat.Room")
+                  [ EffectCategory.Network, "HubConnectionExtensions::InvokeAsync", Some "Send" ]
+                  "a hub method, by its name"
+
+              Expect.exists
+                  (entries m "CSharp.Clients")
+                  (fun e -> e.Category = EffectCategory.Network && e.Route = Some "received" && e.HandlerMember.StartsWith "CSharp.Clients.Chat.Room/<>c::<Listen>")
+                  "a handler the server invokes, at its hub method"
+
               // Redis pub/sub: the subscriber's handler is a network entry point.
               Expect.exists
                   (entries m "CSharp.Clients")
