@@ -52,3 +52,6 @@ In the order they are worth doing: the first ones change results already shown, 
 
 - Publishing the dotnet tool to NuGet.
 - Choosing a license.
+- Naming the units of Razor pages and views: they are in `AspNetCoreGeneratedDocument`, the namespace the
+  Razor generator gives them. They could instead be named after their folder (`CSharp.Controllers.Areas.Admin.Pages`)
+  as Blazor components are, which imitates Razor's naming rather than reading the generated code.
