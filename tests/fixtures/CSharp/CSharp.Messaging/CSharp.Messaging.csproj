@@ -10,5 +10,6 @@
     <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.17.5" />
     <PackageReference Include="MassTransit" Version="8.2.2" />
+    <PackageReference Include="NServiceBus" Version="9.1.1" />
   </ItemGroup>
 </Project>

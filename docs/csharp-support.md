@@ -211,7 +211,13 @@ Also new, outside the recognizer:
   a tying call). The entry point is complete when the queue is a constant, unresolved otherwise. A consumer type is read like a hosted service: MassTransit's `AddConsumer<T>()`
   (`network.masstransit-add-consumer`, whose `"consumer-type"` payload is the index of the type argument) and the
   callback rule `network.masstransit-consumer` (`IConsumer<TMessage>.Consume`) make each registered consumer's
-  `Consume` an entry point, at the message type its parameter is a `ConsumeContext<T>` of. Registrations of
+  `Consume` an entry point, at the message type its parameter is a `ConsumeContext<T>` of. NServiceBus has no
+  registration per handler: an endpoint finds its handlers by scanning the application. `Endpoint.Start` and
+  `Endpoint.Create` (`network.nservicebus-endpoint`) have a `"scanned-handlers"` payload whose property names the
+  callback type it looks for (`IHandleMessages<T>`, `network.nservicebus-handler`), and every type of the
+  application that implements it has its `Handle` as an entry point at the message type of its first parameter.
+  `Send`, `SendLocal` and `Publish` on a session or a handler's context are network exit points
+  (`network.nservicebus-*`). Registrations of
   category `network` or `background` do not start the symbolic routing of HTTP requests. Fixture:
   `CSharp.Messaging`.
 - **Azure Functions** (isolated worker): a method with `[Function("Name")]` (`http-in.functions-function`, role

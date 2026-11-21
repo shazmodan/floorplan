@@ -625,6 +625,20 @@
     { "id": "network.kafka-subscribe", "assembly": "Confluent.Kafka", "type": "Confluent.Kafka.IConsumer`2",
       "members": ["Subscribe"], "whenFirstParameter": "System.String", "includeDerivedTypes": true, "kind": "registration", "category": "network",
       "payload": [{ "argument": 0, "role": "message-queue" }, { "argument": -1, "role": "message-consumer" }] },
+    // NServiceBus: an endpoint finds its handlers by scanning the application ("scanned-handlers": every type that
+    // implements IHandleMessages<T>, the callback type the payload's property names), and calls Handle for each message of the type. Send, Publish and SendLocal send.
+    { "id": "network.nservicebus-endpoint", "assembly": "NServiceBus.Core", "type": "NServiceBus.Endpoint",
+      "members": ["Start", "Create"], "kind": "registration", "category": "network", "payload": [{ "argument": -1, "property": "NServiceBus.IHandleMessages`1", "role": "scanned-handlers" }] },
+    { "id": "network.nservicebus-handler", "assembly": "NServiceBus.Core", "type": "NServiceBus.IHandleMessages`1",
+      "members": ["Handle"], "includeDerivedTypes": true, "kind": "callback", "category": "network" },
+    { "id": "network.nservicebus-send", "assembly": "NServiceBus.Core", "type": "NServiceBus.MessageSessionExtensions",
+      "members": ["Send", "SendLocal", "Publish"], "kind": "sink", "category": "network" },
+    { "id": "network.nservicebus-context-send", "assembly": "NServiceBus.Core", "type": "NServiceBus.PipelineContextExtensions",
+      "members": ["Send", "SendLocal", "Publish"], "kind": "sink", "category": "network" },
+    { "id": "network.nservicebus-session", "assembly": "NServiceBus.Core", "type": "NServiceBus.IMessageSession",
+      "members": ["Send", "Publish"], "includeDerivedTypes": true, "kind": "sink", "category": "network" },
+    { "id": "network.nservicebus-context", "assembly": "NServiceBus.Core", "type": "NServiceBus.IPipelineContext",
+      "members": ["Send", "Publish"], "includeDerivedTypes": true, "kind": "sink", "category": "network" },
     // MassTransit: AddConsumer<T>() registers a consumer ("consumer-type" is the index of the type argument), and the
     // bus calls its IConsumer<TMessage>.Consume for each message of that type.
     { "id": "network.masstransit-add-consumer", "assembly": "MassTransit", "type": "MassTransit.IRegistrationConfigurator",
