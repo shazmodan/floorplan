@@ -18,7 +18,9 @@ let private analyze (options: AnalyzeOptions) =
 
     match result with
     | Error message ->
-        eprintfn "error: %s" message
+        if not options.Silent then
+            eprintfn "error: %s" message
+
         1
     | Ok outcome ->
         let m = outcome.Model
@@ -42,7 +44,9 @@ let private analyze (options: AnalyzeOptions) =
             for line in Pipeline.consoleDiagnostics 3 m.Diagnostics do
                 eprintfn "%s" line
 
-        printfn "%s" outcome.Written
+        if not options.Silent then
+            printfn "%s" outcome.Written
+
         if outcome.HadFailures then 1 else 0
 
 [<EntryPoint>]
