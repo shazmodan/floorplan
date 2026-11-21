@@ -1396,10 +1396,19 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
     let operand (r: PlatformRouting.Registration) (spec: PayloadSpec) =
         List.tryItem (Values.operandIndex r.Declared (isNewObj r) spec.Argument) (r.Flow.OperandsAt r.Offset)
 
+    // A queue named by an argument, or by a property of one (an SQS request's QueueUrl).
     let text (r: PlatformRouting.Registration) (spec: PayloadSpec) =
-        let evaluator = Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set)
+        let evaluator =
+            Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set, fun m n -> ctx.Program.Producers.Member(m, n))
 
-        match evaluator.Operand(r.Offset, Values.operandIndex r.Declared false spec.Argument) with
+        let index = Values.operandIndex r.Declared (isNewObj r) spec.Argument
+
+        let value =
+            match spec.Property with
+            | Some property -> evaluator.OperandMember(r.Offset, index, property, spec.ConstructorArgument)
+            | None -> evaluator.Operand(r.Offset, index)
+
+        match value with
         | Values.Text t -> Some t
         | _ -> None
 

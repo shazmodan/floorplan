@@ -206,6 +206,17 @@ Also new, outside the recognizer:
   blob operations (`http-out.azure-blob*`, a blob's name as payload where the call takes one). An implicit
   conversion from a string (`op_Implicit(string)`, as to a `RedisKey`) keeps the string's value. Fixture:
   `CSharp.Clients`.
+- **AWS and Azure Cosmos DB**: the AWS SDK for .NET and the Cosmos DB client send requests through pipelines of
+  handlers of their own, past credential providers that read files, start processes and call the platform's
+  crypto API, so a call showed as low- or medium-confidence HTTP among that noise. Sink rules name the operations:
+  S3's object and bucket operations (`http-out.aws-s3`, the request's `BucketName`), DynamoDB's item, query and
+  table operations (`database.aws-dynamodb`, `TableName`), SQS's `SendMessage*` (`network.aws-sqs-send*`, the
+  queue URL as an argument or the request's `QueueUrl`), and Cosmos DB's container and item operations, a query
+  iterator's `ReadNextAsync` and a transactional batch's `ExecuteAsync` (`database.cosmos-*`). A loop that calls
+  SQS's `ReceiveMessage*` is a network entry point at its queue (`network.aws-sqs-receive*`; a `message-queue`
+  can now be a property of an argument). Constructing a client still shows its credential lookup. Fixture:
+  `CSharp.Cloud` (AWS); the Cosmos DB rules were checked on an application outside the fixtures, as the client's
+  analysis is slow.
 - **Sending messages**: the messaging libraries write a message from their own loops (RabbitMQ's frame writer,
   Kafka's native library, a bus's transport), which a call is not followed to: publishing showed only the
   connection's DNS lookup. Sink rules of category `network` name the calls that send, as for Entity Framework

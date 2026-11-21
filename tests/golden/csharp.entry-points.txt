@@ -1,4 +1,5 @@
 CSharp.Clients | network | - - | unresolved | CSharp.Clients:CSharp.Clients.Caching | CSharp.Clients.Caching.Cache/<lambda> | forms [platform-routing] | []
+CSharp.Cloud | network | - https://sqs.eu-north-1.amazonaws.com/123456789012/jobs | complete | CSharp.Cloud:CSharp.Cloud.Jobs | CSharp.Cloud.Jobs.Queue::Run | forms [platform-routing] | []
 CSharp.Controllers | http-in | - / | partial | CSharp.Controllers:CSharp.Controllers | CSharp.Controllers.HomeController::Index | forms [platform-routing] | [segment-count equals 0]
 CSharp.Controllers | http-in | - /Home | partial | CSharp.Controllers:CSharp.Controllers | CSharp.Controllers.HomeController::Index | forms [platform-routing] | [path-segment0 equals Home; segment-count equals 1]
 CSharp.Controllers | http-in | - /Home/Index/{id?} | partial | CSharp.Controllers:CSharp.Controllers | CSharp.Controllers.HomeController::Index | forms [platform-routing] | [path-segment0 equals Home; path-segment1 equals Index; path-segment2 parameter {id?}; segment-count equals 3]
