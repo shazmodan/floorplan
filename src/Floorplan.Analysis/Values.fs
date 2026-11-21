@@ -5,6 +5,7 @@ module Floorplan.Analysis.Values
 open Floorplan.Model
 open Floorplan.IL
 open Floorplan.IL.DataFlow
+open Floorplan.Catalog
 
 type Symbolic =
     | Text of string
@@ -64,6 +65,8 @@ let isTransparent (m: MethodRef) =
     | "Microsoft.AspNetCore.Http.PathString", "get_Value" -> true
     // An implicit conversion from a string wraps it (a Redis key, an XML name).
     | _, "op_Implicit" -> m.ParameterTypes = [ "System.String" ]
+    // So does a type's own factory from one string (a Redis channel's `Literal`).
+    | _ when not m.HasThis && m.ParameterTypes = [ "System.String" ] && m.ReturnType = m.Type.FullName -> true
     | _ -> false
 
 /// The constant a parameterless method returns, when its body is nothing but `ldstr; ret` (a module-level
@@ -93,6 +96,25 @@ let memberOfField (name: string) =
 let private getterName (m: MethodRef) =
     if m.HasThis && m.ParameterCount = 0 && m.ReturnsValue && m.Name.StartsWith "get_" then Some(m.Name.Substring 4) else None
 
+/// What the evaluator knows of the application's configuration: what a call reads of it (the catalog's setting
+/// rules), the value at a key ("Section:Key", ignoring case), the section an options type is bound to, and the
+/// types a configuration section has, which is not the configuration's root when nothing says which section.
+type Settings =
+    { Read: MethodRef -> SettingSpec option
+      Value: string -> string option
+      Bound: string -> string option
+      SectionTypes: Set<string> }
+
+module Settings =
+    let none: Settings =
+        { Read = (fun _ -> None)
+          Value = (fun _ -> None)
+          Bound = (fun _ -> None)
+          SectionTypes = Set.empty }
+
+    /// A key under a section: the root's keys are its own.
+    let join (section: string) (key: string) = if section = "" then key else section + ":" + key
+
 /// The last store to a member found in a method body.
 type private Store =
     /// A setter or field store, with the value stored.
@@ -103,7 +125,13 @@ type private Store =
 /// `produced m name`: member `name` of the object method `m` produces (a constructor: the new object; another
 /// method: what it returns), in terms of `m`'s arguments; with an empty `name`, what a method returns itself.
 /// `Producers` reads it from `m`'s body.
-type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: MethodRef -> string option, produced: MethodRef -> string -> Origin) =
+/// `settings`: the application's configuration, for values read from it.
+type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: MethodRef -> string option, produced: MethodRef -> string -> Origin, ?settings: Settings) =
+    let settings = defaultArg settings Settings.none
+
+    let operandIndex (m: MethodRef) (argument: int) =
+        if m.HasThis then argument + 1 else argument
+
     let rec value (depth: int) (values: Values) : Symbolic =
         if depth > 12 then
             Hole
@@ -123,6 +151,14 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                 match ins.Op with
                 | LdStr s -> Text s
                 | LdNull -> Text ""
+                | Call m
+                | CallVirt m when (settings.Read m).IsSome -> setting depth m (settings.Read m).Value operands
+                // A property of an options object: the value under the section its type is bound to.
+                | Call m
+                | CallVirt m when (getterName m).IsSome && not operands.IsEmpty && isOptions operands.Head ->
+                    match settings.Bound m.Type.FullName with
+                    | Some section -> lookup (Settings.join section (getterName m).Value)
+                    | None -> Hole
                 | NewArr _ -> arrayElements depth (Set.singleton (Pushed offset))
                 | Call m
                 | CallVirt m when m.Type.FullName = "System.String" && m.Name = "Concat" ->
@@ -183,6 +219,78 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                 | _ -> Hole
         | Argument i -> Param(i, [])
         | _ -> Hole
+
+    /// A value read from the configuration: the value at a constant key, under the section the configuration is.
+    and setting (depth: int) (m: MethodRef) (spec: SettingSpec) (operands: Values list) : Symbolic =
+        let under () =
+            match operands with
+            | configuration :: _ -> section (depth + 1) configuration
+            | [] -> None
+
+        match spec.Reads with
+        | SettingRead.Value ->
+            match under (), key depth m spec operands with
+            | Some s, Some k -> lookup (Settings.join s k)
+            | _ -> Hole
+        | SettingRead.Own ->
+            match under () with
+            | Some s when s <> "" -> lookup s
+            | _ -> Hole
+        | _ -> Hole
+
+    /// The constant key a setting call names, under its rule's prefix.
+    and key (depth: int) (m: MethodRef) (spec: SettingSpec) (operands: Values list) : string option =
+        match List.tryItem (operandIndex m spec.Argument) operands |> Option.map (value (depth + 1)) with
+        | Some(Text k) ->
+            match spec.Prefix with
+            | Some p -> Some(Settings.join p k)
+            | None -> Some k
+        | _ -> None
+
+    and lookup (key: string) : Symbolic =
+        match settings.Value key with
+        | Some v -> Text v
+        | None -> Hole
+
+    /// The section of the configuration a value is ("" for the root): a section read by a constant key, or else
+    /// the root, unless the value is typed as a section, which says nothing of which.
+    and section (depth: int) (values: Values) : string option =
+        if depth > 12 then
+            None
+        else
+            match Set.toList values with
+            | [ Pushed o ] ->
+                match flow.InstructionAt o with
+                | Some { Op = (Call r | CallVirt r) } ->
+                    match settings.Read r with
+                    | Some spec when spec.Reads = SettingRead.Section ->
+                        let operands = flow.OperandsAt o
+
+                        let parent =
+                            match operands with
+                            | configuration :: _ -> section (depth + 1) configuration
+                            | [] -> None
+
+                        match parent, key depth r spec operands with
+                        | Some p, Some k -> Some(Settings.join p k)
+                        | _ -> None
+                    | _ when settings.SectionTypes.Contains r.ReturnType -> None
+                    | _ -> Some ""
+                | Some { Op = (LdFld f | LdSFld f) } when settings.SectionTypes.Contains f.FieldType -> None
+                | Some { Op = (CastClass _ | IsInst _) } when not (flow.OperandsAt o).IsEmpty ->
+                    section (depth + 1) (flow.OperandsAt o).Head
+                | _ -> Some ""
+            | _ -> Some ""
+
+    /// Whether a value is an options object read from the configuration (IOptions<T>.Value).
+    and isOptions (values: Values) : bool =
+        match Set.toList values with
+        | [ Pushed o ] ->
+            match flow.InstructionAt o with
+            | Some { Op = (Call r | CallVirt r) } ->
+                settings.Read r |> Option.exists (fun spec -> spec.Reads = SettingRead.Options)
+            | _ -> false
+        | _ -> false
 
     /// A string built from a format literal somewhere in this expression (printf-style).
     and formatted (depth: int) (offset: int) : Symbolic =
@@ -412,6 +520,12 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
         | None -> Hole
 
     member _.Value(values: Values) = value 0 values
+
+    /// The section of the configuration that operand `index` of the instruction at `offset` is, when known.
+    member _.Section(offset: int, index: int) : string option =
+        match List.tryItem index (flow.OperandsAt offset) with
+        | Some v -> section 0 v
+        | None -> None
 
     /// As a payload: literal, template or dynamic.
     member this.Payload(offset: int, index: int, role: string) : Payload = Evaluator.ToPayload(this.Operand(offset, index), role)

@@ -11,5 +11,10 @@
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.17.5" />
     <PackageReference Include="MassTransit" Version="8.2.2" />
     <PackageReference Include="NServiceBus" Version="9.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
+  </ItemGroup>
+  <!-- The configuration, found next to the assembly as the application reads it at run time. -->
+  <ItemGroup>
+    <None Update="appsettings*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

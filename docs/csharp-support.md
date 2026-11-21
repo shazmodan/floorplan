@@ -240,7 +240,8 @@ Also new, outside the recognizer:
   (`network.redis-subscribe`); MongoDB's collection operations and the cursor methods that run a `Find` or an
   `Aggregate` (`database.mongodb-*`; `Find` itself only builds the query); and Azure Blob Storage's container and
   blob operations (`http-out.azure-blob*`, a blob's name as payload where the call takes one). An implicit
-  conversion from a string (`op_Implicit(string)`, as to a `RedisKey`) keeps the string's value. A sink rule can
+  conversion from a string (`op_Implicit(string)`, as to a `RedisKey`) keeps the string's value, and so does a
+  type's own static factory from one string (`RedisChannel.Literal("cache")`). A sink rule can
   also match by attribute (`"markedCalls": true`): its type is an attribute, and a call to a method it marks is
   the effect, with the attribute's arguments as payload. Refit's verb attributes (`[Get("/products/{id}")]` on an
   interface method, `http-out.refit` on their base `HttpMethodAttribute`) make each call to such a method an HTTP
@@ -322,6 +323,17 @@ Also new, outside the recognizer:
 - **Route parameter names** (F# and C#): a segment taken as a parameter is named after the handler parameter
   that receives it (`/orders/{id}` for `Show(HttpContext ctx, string id)`), for control-flow routes as it already
   was for platform routes.
+- **Names read from configuration**: a queue, URL or other payload read from
+  Microsoft.Extensions.Configuration by a constant key has the value the output folder's `appsettings.json` gives
+  it, with `appsettings.Production.json` over it as in the default environment. Catalog rules of a new kind,
+  `setting`, say what a call reads (`"setting": { "reads": ... }`): the value at a key (`configuration["Queues:Orders"]`,
+  `GetValue<T>`, `GetConnectionString`, under `"prefix": "ConnectionStrings"`), a section (`GetSection`,
+  `GetRequiredSection`) and a section's own `Value`, an options object (`IOptions<T>.Value`,
+  `IOptionsMonitor<T>.CurrentValue`), and the binds that tie an options type to a section in the project's
+  code (`Configure<T>(section)`, `AddOptions<T>().Bind(section)`, `BindConfiguration(path)`; a type bound to two
+  sections is bound to neither). A key the files do not have, environment variables and other configuration
+  sources stay dynamic. Fixture: `CSharp.Messaging` (`CSharp.Messaging.Configured`), with `appsettings.json` and
+  `appsettings.Production.json`.
 
 ## Not done yet
 

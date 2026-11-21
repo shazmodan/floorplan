@@ -35,6 +35,9 @@ type RuleKind =
     /// NLog's InternalLogger): a call to it in a library's code is not followed. Turning it on is the
     /// application's own call, and an exit point there.
     | SelfLog
+    /// A call that reads the application's configuration (Microsoft.Extensions.Configuration's indexer): what it
+    /// reads is in `Setting`, and its value is the one the configuration files in the output folder give.
+    | Setting
 
 /// How the log calls of a logger rule are made.
 [<RequireQualifiedAccess>]
@@ -80,6 +83,30 @@ type ConfigurationSpec =
       Json: JsonConfiguration option
       Alias: string option
       Names: ConfiguredName }
+
+/// What a setting rule's call reads or makes.
+[<RequireQualifiedAccess>]
+type SettingRead =
+    /// The value at the key `Argument` names, under the section the configuration is (the receiver, or the first
+    /// argument of a static method).
+    | Value
+    /// The section at the key `Argument` names, under that section.
+    | Section
+    /// The value of the section itself.
+    | Own
+    /// An options object (IOptions<T>.Value): its properties are the values under the section its type is bound to.
+    | Options
+    /// Binds the options type that is the call's generic argument to the section `Argument` is.
+    | BindSection
+    /// Binds the options type that is the call's generic argument to the section at the path `Argument` names.
+    | BindPath
+
+/// What a setting rule's call reads: `Argument` as in a payload (the first declared parameter is 0), and keys
+/// read are under `Prefix` (GetConnectionString's are under "ConnectionStrings").
+type SettingSpec =
+    { Reads: SettingRead
+      Argument: int
+      Prefix: string option }
 
 /// Which argument of a matched call carries something worth showing: a URL, SQL text, a path, a route template,
 /// a handler. Argument 0 is the first declared parameter; for instance methods `this` is not counted.
@@ -129,6 +156,8 @@ type Rule =
       /// For sinks: the rule's type is an attribute, and a call to a method it marks is the effect (Refit's
       /// [Get("/users/{id}")] on an interface method). Payload arguments are the attribute's.
       MarkedCalls: bool
+      /// For setting rules: what the call reads.
+      Setting: SettingSpec option
       /// The catalog that defined the rule.
       Source: string }
 

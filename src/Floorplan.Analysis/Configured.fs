@@ -84,6 +84,36 @@ let private loadJson (file: string) =
     | :? IOException
     | :? UnauthorizedAccessException -> None
 
+/// The settings the application's configuration files in a folder give, by key ("Section:Key", ignoring case, an
+/// array's elements by index), as Microsoft.Extensions.Configuration flattens them: appsettings.json, then
+/// appsettings.Production.json over it, as in the default environment.
+let appSettings (folder: string) : Collections.Generic.IReadOnlyDictionary<string, string> =
+    let values = Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+
+    let rec flatten (prefix: string) (e: JsonElement) =
+        let under (k: string) = if prefix = "" then k else prefix + ":" + k
+
+        match e.ValueKind with
+        | JsonValueKind.Object ->
+            for p in e.EnumerateObject() do
+                flatten (under p.Name) p.Value
+        | JsonValueKind.Array -> e.EnumerateArray() |> Seq.iteri (fun i x -> flatten (under (string i)) x)
+        | JsonValueKind.String -> values[prefix] <- e.GetString()
+        | JsonValueKind.Null -> values.Remove prefix |> ignore
+        | _ -> values[prefix] <- e.GetRawText()
+
+    for name in [ "appsettings.json"; "appsettings.Production.json" ] do
+        let file = Path.Combine(folder, name)
+
+        if File.Exists file then
+            match loadJson file with
+            | Some doc ->
+                use doc = doc
+                flatten "" doc.RootElement
+            | None -> ()
+
+    values
+
 /// The type values a JSON configuration names, in document order. Configuration keys ignore case, as
 /// Microsoft.Extensions.Configuration's do.
 let private jsonValues (doc: JsonDocument) (spec: JsonConfiguration) =

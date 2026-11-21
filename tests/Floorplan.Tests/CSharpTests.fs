@@ -144,6 +144,7 @@ let tests =
 
               let consumers =
                   entries m "CSharp.Messaging"
+                  |> List.filter (fun e -> not (e.HandlerMember.StartsWith "CSharp.Messaging.Configured."))
                   |> List.map (fun e -> e.Route, e.Category, e.Completeness, e.HandlerMember)
                   |> List.sort
 
@@ -165,6 +166,32 @@ let tests =
 
               Expect.contains (traced "CSharp.Messaging.Payments.Listener::Handle") "System.IO.File::AppendAllTextAsync" "a payment is logged"
               Expect.contains (traced "CSharp.Messaging.Orders.Listener::OnReturn") "System.IO.File::Delete" "a return deletes its pending file"
+          }
+
+          test "a queue named in appsettings.json: by key, through a section, with GetValue, and through bound options" {
+              let m = csharpModel.Force()
+
+              let consumers =
+                  entries m "CSharp.Messaging"
+                  |> List.filter (fun e -> e.HandlerMember.StartsWith "CSharp.Messaging.Configured.")
+                  |> List.map (fun e -> e.Route, e.Completeness)
+                  |> List.sort
+
+              Expect.equal
+                  consumers
+                  [ Some "audit-log", Completeness.Complete
+                    Some "credits", Completeness.Complete
+                    Some "invoices", Completeness.Complete
+                    Some "reminders", Completeness.Complete ]
+                  "configuration[key], GetSection(...).GetSection(...).Value, GetValue<string> (appsettings.Production.json overrides), IOptions<T>.Value of Configure<T>(section)"
+
+              let published (memberName: string) =
+                  m.ExitPoints
+                  |> List.filter (fun x -> x.Member = memberName && x.Category = EffectCategory.Network)
+                  |> List.map (fun x -> x.Payload |> Option.bind (fun p -> p.Value))
+
+              Expect.equal (published "CSharp.Messaging.Configured.Invoices::Notify") [ Some "invoices" ] "a publish to a configured queue"
+              Expect.equal (published "CSharp.Messaging.Configured.Invoices::Missing") [ None ] "a key the configuration does not have"
           }
 
           test "Azure Functions: each function is an entry point of its trigger's kind, HTTP routes under host.json's prefix" {
@@ -241,11 +268,16 @@ let tests =
 
               Expect.equal
                   (calls "Caching.Cache")
-                  [ EffectCategory.Network, "IDatabaseAsync::PublishAsync", None
+                  [ EffectCategory.Network, "IDatabaseAsync::PublishAsync", Some "cache"
                     EffectCategory.Database, "IDatabase::StringGet", None
                     EffectCategory.Database, "IDatabase::StringIncrement", Some "visits"
                     EffectCategory.Database, "IDatabaseAsync::StringSetAsync", None ]
-                  "Redis: commands with their key, a publish"
+                  "Redis: commands with their key, a publish on its channel (RedisChannel.Literal)"
+
+              Expect.contains
+                  (entries m "CSharp.Clients" |> List.map (fun e -> e.Route, e.Completeness))
+                  (Some "cache", Completeness.Complete)
+                  "Redis: a subscription on its channel"
 
               Expect.equal
                   (calls "Documents.Store")

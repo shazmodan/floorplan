@@ -73,6 +73,10 @@ type Matcher(catalog: Catalog, supertypes: TypeRef -> Set<string>) =
             cache[m.Key] <- result
             result
 
+    /// What a call reads of the application's configuration, when it does.
+    member this.Setting(m: MethodRef) : SettingSpec option =
+        this.Match m |> List.tryPick (fun r -> if r.Kind = Setting then r.Setting else None)
+
     member this.Sink(m: MethodRef) =
         this.Match m |> List.tryFind (fun r -> r.Kind = Sink)
 
