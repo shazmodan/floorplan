@@ -146,6 +146,19 @@ let tests =
                   "GetOrder logs the read"
           }
 
+          test "an application nothing starts but the process has its entry point where the process starts" {
+              let m = csharpModel.Force()
+
+              Expect.equal
+                  (entries m "CSharp.Effects" |> List.map (fun e -> e.HandlerMember, e.Category, e.Route, e.Completeness))
+                  [ "Program::<Main>$", EffectCategory.Background, None, Completeness.Complete ]
+                  "CSharp.Effects: requests, hosts and libraries start nothing in it"
+
+              Expect.isFalse
+                  (m.EntryPoints |> List.exists (fun e -> e.ApplicationId <> "CSharp.Effects" && e.HandlerMember.EndsWith "::<Main>$"))
+                  "an application with other entry points has none at its start"
+          }
+
           test "data clients: Redis and MongoDB commands are database calls, Azure Blob Storage calls are HTTP" {
               let m = csharpModel.Force()
 

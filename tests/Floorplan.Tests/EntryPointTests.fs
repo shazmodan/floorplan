@@ -352,5 +352,9 @@ let tests =
           test "Shop: minimal API handlers are found across projects" {
               let m = ExitPointTests.shopModel.Force()
               Expect.equal (handlers m "Shop.Web") [ "Shop.Web.Handlers::createOrder"; "Shop.Web.Handlers::listOrders"; "Shop.Web.Handlers::price" ] "handlers"
-              Expect.isEmpty (entries m "Shop.Worker") "a worker has no entry points"
+              // Nothing but the process starts the worker: its entry point is its main.
+              Expect.equal
+                  (entries m "Shop.Worker" |> List.map (fun e -> e.HandlerMember, e.Category))
+                  [ "Shop.Worker.Program::main", EffectCategory.Background ]
+                  "a worker starts where its process does"
           } ]
