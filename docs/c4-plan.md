@@ -1,6 +1,6 @@
 # C4 model of an analyzed solution: plan
 
-Date: 2026-11-21. Status: in progress. Adds a C4 model (https://c4model.com) of the analyzed solution to the
+Date: 2026-11-21. Status: done (all iterations merged). Adds a C4 model (https://c4model.com) of the analyzed solution to the
 analysis model, and shows it on the website.
 
 ## Resuming work (read this first)
@@ -33,7 +33,7 @@ stopped.
 | 5 | Level 4, code: the types and members of each component | `claude/c4-code` | done |
 | 6 | Diagram layout of every view | `claude/c4-layout` | done |
 | 7 | The website's Architecture pages | `claude/c4-website` | done |
-| 8 | Documentation, TODO, review on every fixture | `claude/c4-docs` | |
+| 8 | Documentation, TODO, review on every fixture | `claude/c4-docs` | done |
 
 ## Goal
 
@@ -238,4 +238,13 @@ relationships are now only those that touch its parts (a code view showed "uses"
 
 Left over: two relationship labels can overlap where lines meet (Shop's containers view, "reads files; writes
 files" and "sends HTTP requests" under Shop.Web).
+
+### 2026-11-21: iteration 8
+
+The README lists the Architecture page and how its model is derived; TODO item 9 keeps what is left. Every
+fixture solution was analyzed and its model read: Mixed (two background workers writing files), Frameworks (four
+web applications), Routing (twelve applications), Effects (one application reaching six external systems), Shop
+and the C# fixtures, each with sensible containers and external systems. Found there: Routing.Socket receives
+WebSocket messages, which are network entry points, so a "Message broker" calls it; and the C# fixtures'
+containers view is 24 external systems wide, readable only zoomed in. Both are in TODO item 9.
 

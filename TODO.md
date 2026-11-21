@@ -44,6 +44,11 @@ In the order they are worth doing: the first ones change results already shown, 
    options object kept in a field (`_options = options.Value`), named options (`Configure<T>("name", section)`),
    or other configuration sources (environment variables, `AddJsonFile("other.json")`). Next step: a probe on a
    real application, to see which of these it uses.
+9. **Refine the C4 model** (`docs/c4-plan.md`): name who sends a message (every consumer is called by one "Message
+   broker", as `EntryPoint` keeps no rule; a WebSocket's messages count as messages too); wrap long rows of
+   external systems (the C# fixtures' containers view puts 24 in one row); keep relationship labels from
+   overlapping where lines meet; dependencies between types, for "uses" at the code level. Next step: carry the
+   registration rule's assembly on `EntryPoint`.
 
 ## Later, if wanted (from docs/library-payloads-plan.md)
 
