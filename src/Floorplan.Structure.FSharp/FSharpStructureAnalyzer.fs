@@ -152,8 +152,11 @@ module FSharpStructureAnalyzer =
                         let key = cacheKey index p
 
                         match store.TryRead<StructureResult>("structure", key) with
-                        | Some cached -> cached
+                        | Some cached ->
+                            Progress.report $"Structure of {p.Name}: cached"
+                            cached
                         | None ->
+                            Progress.report $"Structure of {p.Name}: type-checking its F# code"
                             let result = analyzeProject checker index p
 
                             // Results with type-check errors may change once the code is fixed: not cached.

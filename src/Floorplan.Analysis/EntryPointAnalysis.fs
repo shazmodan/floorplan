@@ -83,9 +83,12 @@ let private sortKey (e: EntryPoint) =
 
 /// All entry points of all applications.
 let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoint list =
-    input.Projects
-    |> List.filter (fun p -> p.IsApplication)
-    |> List.collect (fun project ->
+    let applications = input.Projects |> List.filter (fun p -> p.IsApplication)
+
+    applications
+    |> List.mapi (fun i p -> i, p)
+    |> List.collect (fun (i, project) ->
+        Progress.report $"Entry points of {project.ProjectId} ({i + 1} of {applications.Length})"
         let methods = reachableUserMethods program project
         let matcher = program.MatcherFor project
         let taint = Taint.analyze program.Set (program.GraphFor project) matcher program.Recognizers (List.ofSeq methods.Values)
