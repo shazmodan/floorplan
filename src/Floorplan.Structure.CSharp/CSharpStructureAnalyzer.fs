@@ -107,9 +107,84 @@ module CSharpStructureAnalyzer =
         |> List.filter File.Exists
         |> List.distinct
 
-    /// Runs the project's source generators (LibraryImport, JSON, regex, logging...), so code that calls what they
-    /// generate binds. Generated code is compiled but gives no units and no edges. A generator that cannot be
-    /// loaded or fails is skipped.
+    /// The values of compiler options with a prefix (`/additionalfile:`), as existing paths.
+    let private optionPaths (project: LoadedProject) (prefixes: string list) =
+        project.Options.OtherOptions
+        |> List.choose (fun o ->
+            prefixes
+            |> List.tryFind (fun p -> o.StartsWith("/" + p, StringComparison.OrdinalIgnoreCase) || o.StartsWith("-" + p, StringComparison.OrdinalIgnoreCase))
+            |> Option.map (fun p -> o.Substring(p.Length + 1).Trim '"'))
+        // Relative to the project, as the compiler runs there.
+        |> List.map (fun p -> if Path.IsPathRooted p then p else Path.GetFullPath(Path.Combine(Path.GetDirectoryName project.Path, p)))
+        |> List.filter File.Exists
+        |> List.distinct
+
+    /// A file the compiler is given for generators to read (a Razor component).
+    type private FileText(path: string) =
+        inherit AdditionalText()
+        override _.Path = path
+        override _.GetText(_) = Text.SourceText.From(File.ReadAllText path)
+
+    type private ConfigOptions(values: Collections.Generic.IReadOnlyDictionary<string, string>) =
+        inherit Diagnostics.AnalyzerConfigOptions()
+
+        override _.TryGetValue(key: string, value: byref<string>) =
+            match values.TryGetValue key with
+            | true, v ->
+                value <- v
+                true
+            | _ ->
+                value <- null
+                false
+
+    let private normalizePath (p: string) = p.Replace('\\', '/').ToLowerInvariant()
+
+    /// The options of the analyzer configuration files the compiler is given (the global configuration MSBuild
+    /// writes, `*.GeneratedMSBuildEditorConfig.editorconfig`): properties outside any section apply everywhere, a
+    /// section names the file its properties apply to.
+    type private ConfigProvider(files: string list) =
+        inherit Diagnostics.AnalyzerConfigOptionsProvider()
+
+        let everywhere = Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        let byFile = Collections.Generic.Dictionary<string, Collections.Generic.Dictionary<string, string>>()
+
+        do
+            for file in files do
+                let mutable section: Collections.Generic.Dictionary<string, string> = everywhere
+
+                for raw in File.ReadAllLines file do
+                    let line = raw.Trim()
+
+                    if line = "" || line.StartsWith "#" || line.StartsWith ";" then
+                        ()
+                    elif line.StartsWith "[" && line.EndsWith "]" then
+                        let key = normalizePath (line.Substring(1, line.Length - 2))
+
+                        section <-
+                            match byFile.TryGetValue key with
+                            | true, d -> d
+                            | _ ->
+                                let d = Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                                byFile[key] <- d
+                                d
+                    else
+                        match line.IndexOf '=' with
+                        | -1 -> ()
+                        | i -> section[line.Substring(0, i).Trim()] <- line.Substring(i + 1).Trim()
+
+        let forPath (path: string) =
+            match byFile.TryGetValue(normalizePath path) with
+            | true, d -> ConfigOptions(d) :> Diagnostics.AnalyzerConfigOptions
+            | _ -> ConfigOptions(Collections.Generic.Dictionary<string, string>()) :> Diagnostics.AnalyzerConfigOptions
+
+        override _.GlobalOptions = ConfigOptions(everywhere)
+        override _.GetOptions(tree: SyntaxTree) = forPath tree.FilePath
+        override _.GetOptions(text: AdditionalText) = forPath text.Path
+
+    /// Runs the project's source generators (LibraryImport, JSON, regex, logging, Razor...), so code that calls what
+    /// they generate binds. Generators are given what the compiler gives them: the additional files (Razor
+    /// components and pages) and the analyzer configuration. Generated code is compiled but gives no units and no
+    /// edges. A generator that cannot be loaded or fails is skipped.
     let private runGenerators (project: LoadedProject) (options: CSharpParseOptions) (compilation: CSharpCompilation) : CSharpCompilation =
         let generators =
             analyzerPaths project
@@ -124,7 +199,11 @@ module CSharpStructureAnalyzer =
             compilation
         else
             try
-                let driver = CSharpGeneratorDriver.Create(generators, parseOptions = options)
+                let additional = optionPaths project [ "additionalfile:" ] |> List.map (fun f -> FileText(f) :> AdditionalText)
+                let configs = optionPaths project [ "analyzerconfig:" ]
+
+                let driver =
+                    CSharpGeneratorDriver.Create(generators, additional, options, ConfigProvider(configs))
                 let _, updated, _ = driver.RunGeneratorsAndUpdateCompilation(compilation)
                 updated :?> CSharpCompilation
             with _ ->

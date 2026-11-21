@@ -1865,3 +1865,85 @@ let razorPageEntries (ctx: AppContext) : EntryPoint list =
                                   step $"{page.Ref.FullName} is the page {identifier}{withTemplate} (rule {rule.Id})" handler None
                                   step $"{handler.Display} handles its {httpMethod} requests{forHandler}" handler point ] } }))))
     | _ -> []
+
+// ---- Razor components (Blazor) ----
+
+/// Routed Razor components, mapped by a registration whose rule has a "components" payload: MapRazorComponents<T>()
+/// maps the components in the assembly of its root component (the type argument at the payload's index), and
+/// MapBlazorHub() those of the application. A component is routed by the attributes whose metadata rule has a
+/// "component-route" payload (`@page "/orders/{Id:int}"` compiles to [Route("/orders/{Id:int}")]), one entry point per
+/// template, at GET. Its handler is the first lifecycle method the component defines (OnInitializedAsync,
+/// OnInitialized, OnParametersSetAsync, OnParametersSet), or else its BuildRenderTree.
+let componentEntries (ctx: AppContext) : EntryPoint list =
+    let set = ctx.Program.Set
+    let lifecycle = [ "OnInitializedAsync"; "OnInitialized"; "OnParametersSetAsync"; "OnParametersSet"; "BuildRenderTree" ]
+
+    let routeRules =
+        ctx.Matcher.Catalog.Rules
+        |> List.filter (fun r -> r.Kind = RuleKind.Metadata && hasRole "component-route" r)
+
+    PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
+    |> List.filter (fun r -> hasRole "components" r.Rule)
+    |> List.tryHead
+    |> Option.map (fun r ->
+        let spec = r.Rule.Payload |> List.find (fun p -> p.Role = "components")
+        let registrationPoint = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
+        let location = registrationPoint |> Option.map Attribution.toLocation
+
+        let assembly =
+            match List.tryItem spec.Argument r.Declared.TypeArguments with
+            | Some root -> root.Assembly
+            | None -> System.IO.Path.GetFileNameWithoutExtension ctx.Project.AssemblyPath
+
+        match set.TryLoad assembly with
+        | None -> []
+        | Some a ->
+            a.Types
+            |> List.collect (fun t ->
+                t.Attributes
+                |> List.choose (fun at ->
+                    routeRules
+                    |> List.tryPick (fun rule -> if at.Type.FullName = rule.Type then textArgument rule "component-route" at else None))
+                |> List.distinct
+                |> List.map (fun template -> t, template))
+            |> List.choose (fun (component, template) ->
+                let handler =
+                    lifecycle
+                    |> List.tryPick (fun name -> component.Methods |> List.tryFind (fun m -> m.Ref.Name = name && not m.IsStatic))
+                    |> Option.map (fun m -> m.Ref)
+
+                handler
+                |> Option.bind (fun handler ->
+                    let point = firstPoint set handler
+
+                    let projectId =
+                        match set.Origin handler.Type.Assembly with
+                        | User pid -> pid
+                        | _ -> ctx.Project.ProjectId
+
+                    ctx.Program.Attributor.Attribute(projectId, handler, point)
+                    |> Option.map (fun unit ->
+                        let route = PlatformRouting.normalizeRoute [ template ]
+
+                        { Id = ""
+                          ApplicationId = ctx.Project.ProjectId
+                          HandlerUnit = unit.Id
+                          HandlerMember = handler.Display
+                          Location = point |> Option.map Attribution.toLocation
+                          Category = EffectCategory.HttpIn
+                          Predicates =
+                            { Part = RequestPart.Method
+                              Operator = PredicateOperator.Equals
+                              Index = None
+                              Value = "GET"
+                              Location = location }
+                            :: PlatformRouting.templatePredicates route location
+                          HttpMethod = Some "GET"
+                          Route = Some route
+                          Completeness = Completeness.Complete
+                          Forms = [ RouteForm.PlatformRouting ]
+                          Evidence =
+                            { Steps =
+                                [ step $"{r.Caller.Ref.Display} maps the routed components of {assembly} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
+                                  step $"{component.Ref.FullName} is routed at \"{template}\"; {handler.Display} runs when it is rendered" handler point ] } }))))
+    |> Option.defaultValue []

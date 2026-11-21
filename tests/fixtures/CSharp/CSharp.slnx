@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="CSharp.Blazor/CSharp.Blazor.csproj" />
   <Project Path="CSharp.Clients/CSharp.Clients.csproj" />
   <Project Path="CSharp.Cloud/CSharp.Cloud.csproj" />
   <Project Path="CSharp.Conventional/CSharp.Conventional.csproj" />

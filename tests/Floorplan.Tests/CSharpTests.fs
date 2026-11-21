@@ -66,6 +66,17 @@ let tests =
                   "an Index page at its folder too, a template after the path, a named handler, an area page without a model"
           }
 
+          test "Blazor: each @page of a routed component is a GET entry point" {
+              let m = csharpModel.Force()
+
+              Expect.equal
+                  (entries m "CSharp.Blazor" |> List.map (fun e -> e.HttpMethod, e.Route, e.HandlerMember, e.Completeness) |> List.sort)
+                  [ Some "GET", Some "/", "CSharp.Blazor.Components.Pages.Home::BuildRenderTree", Completeness.Complete
+                    Some "GET", Some "/order/{Id:int}", "CSharp.Blazor.Components.Pages.Order::OnInitializedAsync", Completeness.Complete
+                    Some "GET", Some "/orders/{Id:int}", "CSharp.Blazor.Components.Pages.Order::OnInitializedAsync", Completeness.Complete ]
+                  "two @page directives, a page without lifecycle methods; not a component without @page"
+          }
+
           test "SignalR: each hub method clients can invoke is an entry point at the hub's pattern" {
               let m = csharpModel.Force()
 

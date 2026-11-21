@@ -389,6 +389,15 @@
     { "id": "http-in.razor-page-metadata", "assembly": "Microsoft.AspNetCore.Razor.Runtime", "type": "Microsoft.AspNetCore.Razor.Hosting.RazorCompiledItemMetadataAttribute",
       "members": [".ctor"], "kind": "metadata", "category": "http-in",
       "payload": [{ "argument": 1, "property": "Identifier", "role": "razor-identifier" }, { "argument": 1, "property": "RouteTemplate", "role": "razor-route-template" }] },
+    // Razor components (Blazor): MapRazorComponents<TRootComponent>() maps the routed components in the root component's
+    // assembly ("components" is the index of the type argument); MapBlazorHub() those of the application. A routed
+    // component carries [Route(template)], one per @page directive.
+    { "id": "http-in.map-razor-components", "assembly": "Microsoft.AspNetCore.Components.Endpoints", "type": "Microsoft.AspNetCore.Builder.RazorComponentsEndpointRouteBuilderExtensions",
+      "members": ["MapRazorComponents"], "kind": "registration", "category": "http-in", "payload": [{ "argument": 0, "role": "components" }] },
+    { "id": "http-in.map-blazor-hub", "assembly": "Microsoft.AspNetCore.Components.Server", "type": "Microsoft.AspNetCore.Builder.ComponentEndpointRouteBuilderExtensions",
+      "members": ["MapBlazorHub"], "kind": "registration", "category": "http-in", "payload": [{ "argument": 0, "role": "components" }] },
+    { "id": "http-in.component-route", "assembly": "Microsoft.AspNetCore.Components", "type": "Microsoft.AspNetCore.Components.RouteAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "component-route" }] },
     // SignalR: MapHub<THub>(endpoints, pattern) maps a hub. Clients connect at the pattern and invoke the hub's public
     // methods by name; "hub-type" is the index of the type argument that is the hub. [HubMethodName] renames one.
     { "id": "http-in.map-hub", "assembly": "Microsoft.AspNetCore.SignalR", "type": "Microsoft.AspNetCore.Builder.HubEndpointRouteBuilderExtensions",

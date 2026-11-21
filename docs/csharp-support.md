@@ -156,6 +156,17 @@ Also new, outside the recognizer:
   (`OnPostRemove`) has the query condition `handler=Remove`. A page whose model has none answers GET itself (its
   generated `ExecuteAsync`). Conventions that change page routes (`AddPageRoute`) are not read. Fixture:
   `CSharp.Controllers` (`Pages/`, `Areas/Admin/Pages/`).
+- **Blazor (Razor components)**: `MapRazorComponents<TRootComponent>()` (`http-in.map-razor-components`, whose
+  `"components"` payload is the index of the type argument) maps the routed components of the root component's
+  assembly, and `MapBlazorHub()` (`http-in.map-blazor-hub`) those of the application. A routed component carries a
+  `[Route(template)]` for each `@page` directive (`http-in.component-route`): each is a complete GET entry point.
+  Its handler is the first lifecycle method the component defines (`OnInitializedAsync`, `OnInitialized`,
+  `OnParametersSetAsync`, `OnParametersSet`), or else its `BuildRenderTree`. Interactive events (`@onclick`) are not
+  entry points. Source generators are given what the compiler gives them, the additional files
+  (`/additionalfile:`, the `.razor` components) and the analyzer configuration (`/analyzerconfig:`, resolved from
+  the project folder), so the Razor generator compiles the components and code that names them (`App` in
+  `Program.cs`) binds. Generated code gives no units, so a component is attributed to its project's global
+  namespace unit. Fixture: `CSharp.Blazor`.
 - **SignalR hubs**: `MapHub<THub>(pattern)` is a registration (`http-in.map-hub`) whose `"hub-type"` payload is
   the index of the type argument that is the hub. SignalR is part of the shared framework, which is not followed,
   and invokes hub methods by name through reflection, so they are read from the hub's declaration, as MVC actions
