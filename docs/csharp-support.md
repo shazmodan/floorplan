@@ -174,8 +174,12 @@ Also new, outside the recognizer:
   consumer)`: the consumer is whichever argument it is, as the overloads put it in different places, and
   `whenParameters` tells apart the overloads whose queue is elsewhere). A consumer kept in an async method's state
   machine is followed through its field. The entry point is complete when the queue is a constant, unresolved
-  otherwise. Registrations of category `network` or `background` do not start the symbolic routing of HTTP
-  requests. Fixture: `CSharp.Messaging`.
+  otherwise. A consumer type is read like a hosted service: MassTransit's `AddConsumer<T>()`
+  (`network.masstransit-add-consumer`, whose `"consumer-type"` payload is the index of the type argument) and the
+  callback rule `network.masstransit-consumer` (`IConsumer<TMessage>.Consume`) make each registered consumer's
+  `Consume` an entry point, at the message type its parameter is a `ConsumeContext<T>` of. Registrations of
+  category `network` or `background` do not start the symbolic routing of HTTP requests. Fixture:
+  `CSharp.Messaging`.
 - **Azure Functions** (isolated worker): a method with `[Function("Name")]` (`http-in.functions-function`, role
   `"function-name"`) is run by the host when the trigger on one of its parameters fires: an attribute whose rule
   has a `"function-trigger"` payload, of the trigger's category. Parameter attributes are read for this

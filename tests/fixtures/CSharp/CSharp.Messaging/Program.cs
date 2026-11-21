@@ -5,6 +5,7 @@ using Azure.Messaging.ServiceBus;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
+CSharp.Messaging.Shipping.Bus.Configure(new Microsoft.Extensions.DependencyInjection.ServiceCollection());
 CSharp.Messaging.Orders.Listener.Start();
 await CSharp.Messaging.Payments.Listener.StartAsync();
 await Task.Delay(Timeout.Infinite);
@@ -29,6 +30,35 @@ namespace CSharp.Messaging.Orders
         }
 
         private static void OnReturn(object? sender, BasicDeliverEventArgs e) => File.Delete("pending/" + e.DeliveryTag);
+    }
+}
+
+namespace CSharp.Messaging.Shipping
+{
+    using MassTransit;
+
+    public record OrderShipped(string OrderId);
+
+    // MassTransit: the bus calls a registered consumer's Consume for each message of its type.
+    public class ShippedConsumer : IConsumer<OrderShipped>
+    {
+        public Task Consume(ConsumeContext<OrderShipped> context) => File.AppendAllTextAsync("shipped.log", context.Message.OrderId);
+    }
+
+    // Never registered: not called by the bus.
+    public class IdleConsumer : IConsumer<OrderShipped>
+    {
+        public Task Consume(ConsumeContext<OrderShipped> context) => Task.CompletedTask;
+    }
+
+    public static class Bus
+    {
+        public static void Configure(Microsoft.Extensions.DependencyInjection.IServiceCollection services) =>
+            services.AddMassTransit(x =>
+            {
+                x.AddConsumer<ShippedConsumer>();
+                x.UsingInMemory((context, cfg) => cfg.ConfigureEndpoints(context));
+            });
     }
 }
 

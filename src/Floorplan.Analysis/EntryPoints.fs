@@ -1086,24 +1086,36 @@ let hubEntries (ctx: AppContext) : EntryPoint list =
 
 // ---- Hosted services ----
 
-/// Work the host starts by itself: a registration whose rule has a "hosted-service-type" payload
-/// (AddHostedService<T>()) names the service by its type argument, and the callback rules of category background
-/// on the service's base types name the members the host calls (IHostedService.StartAsync, a BackgroundService's
-/// ExecuteAsync). Each such member the application implements is an entry point.
+/// Types a host or library calls: a registration whose rule has a "hosted-service-type" payload (AddHostedService<T>())
+/// or a "consumer-type" payload (MassTransit's AddConsumer<T>()) names the type by its type argument, and the
+/// callback rules of the registration's category on the type's base types name the members called: the host's
+/// IHostedService.StartAsync and a BackgroundService's ExecuteAsync (background), a bus's IConsumer<T>.Consume
+/// (network). Each such member the application implements is an entry point; a consumer's is at the message type
+/// its parameter is a context of.
 let backgroundEntries (ctx: AppContext) : EntryPoint list =
     let set = ctx.Program.Set
 
+    // The message type of a consumer's method: the type argument of its first parameter (ConsumeContext<T>).
+    let messageType (m: MethodRef) =
+        match m.ParameterTypes with
+        | first :: _ when first.Contains '<' && first.EndsWith ">" ->
+            let inner = first.Substring(first.IndexOf '<' + 1).TrimEnd('>')
+            if inner.Contains ',' || inner.Contains '<' || inner.StartsWith "!" then None else Some inner
+        | _ -> None
+
     PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
-    |> List.filter (fun r -> hasRole "hosted-service-type" r.Rule)
+    |> List.filter (fun r -> hasRole "hosted-service-type" r.Rule || hasRole "consumer-type" r.Rule)
     |> List.collect (fun r ->
-        let spec = r.Rule.Payload |> List.find (fun p -> p.Role = "hosted-service-type")
+        let spec = r.Rule.Payload |> List.find (fun p -> p.Role = "hosted-service-type" || p.Role = "consumer-type")
+        let isConsumer = spec.Role = "consumer-type"
+        let category = defaultArg r.Rule.Category EffectCategory.Background
         let registrationPoint = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
 
         match List.tryItem spec.Argument r.Declared.TypeArguments with
         | None -> []
         | Some service ->
             ctx.Matcher.Callbacks service
-            |> List.filter (fun rule -> rule.Category = Some EffectCategory.Background)
+            |> List.filter (fun rule -> rule.Category = Some category)
             |> List.collect (fun rule ->
                 match set.TryType { Assembly = rule.Assembly; FullName = rule.Type } with
                 | None -> []
@@ -1126,21 +1138,25 @@ let backgroundEntries (ctx: AppContext) : EntryPoint list =
 
                 ctx.Program.Attributor.Attribute(projectId, handler, point)
                 |> Option.map (fun unit ->
+                    let route = if isConsumer then messageType handler else None
+                    let what = if isConsumer then "consumer" else "hosted service"
+                    let who = if isConsumer then "The bus" else "The host"
+
                     { Id = ""
                       ApplicationId = ctx.Project.ProjectId
                       HandlerUnit = unit.Id
                       HandlerMember = handler.Display
                       Location = point |> Option.map Attribution.toLocation
-                      Category = EffectCategory.Background
+                      Category = category
                       Predicates = []
                       HttpMethod = None
-                      Route = None
-                      Completeness = Completeness.Complete
+                      Route = route
+                      Completeness = if route.IsSome || not isConsumer then Completeness.Complete else Completeness.Unresolved
                       Forms = [ RouteForm.PlatformRouting ]
                       Evidence =
                         { Steps =
-                            [ step $"{r.Caller.Ref.Display} registers hosted service {service.FullName} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
-                              step $"The host calls {declared.Ref.Display}, which {handler.Display} implements (rule {rule.Id})" handler point ] } })))
+                            [ step $"{r.Caller.Ref.Display} registers {what} {service.FullName} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
+                              step $"{who} calls {declared.Ref.Display}, which {handler.Display} implements (rule {rule.Id})" handler point ] } })))
 
 // ---- gRPC services ----
 
