@@ -67,7 +67,7 @@ let reachableUserMethods (program: EffectAnalysis.Program) (project: AnalyzedPro
             | Some(def, _) when def.Body.Value.IsSome ->
                 result[m.Key] <- def
 
-                for e in program.Graph.Callees m do
+                for e in (program.GraphFor project).Callees m do
                     if set.IsUser e.Target.Type.Assembly && not (result.ContainsKey e.Target.Key) then
                         stack.Push e.Target
             | _ -> ()
@@ -104,7 +104,7 @@ let taintedBranches (ctx: AppContext) (m: MethodDef) : (int * Tags) list =
 
 let private userTargets (ctx: AppContext) (m: MethodDef) (ins: Instruction) (declared: MethodRef) =
     let edges =
-        ctx.Program.Graph.Callees m.Ref
+        (ctx.Program.GraphFor ctx.Project).Callees m.Ref
         |> List.filter (fun e -> e.Offset = ins.Offset && (e.Kind = Direct || e.Kind = Virtual))
         |> List.map (fun e -> e.Target)
 
@@ -223,7 +223,7 @@ let trackedHandlers (ctx: AppContext) : FoundHandler list =
             while stack.Count > 0 do
                 let k = stack.Pop()
 
-                for e in ctx.Program.Graph.Callees ctx.Methods[k].Ref do
+                for e in (ctx.Program.GraphFor ctx.Project).Callees ctx.Methods[k].Ref do
                     if isUser e.Target
                        && ctx.Taint.Parameters.ContainsKey e.Target.Key
                        && downstream.Add e.Target.Key then

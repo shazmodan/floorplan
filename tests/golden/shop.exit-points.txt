@@ -1,7 +1,9 @@
 filesystem-read | Shop.Data:Shop.Data.Repository | Shop.Data.Repository::load | System.IO.File::Exists | via - | literal:orders.txt | Shop/Shop.Data/Repository.fs:7
 filesystem-read | Shop.Data:Shop.Data.Repository | Shop.Data.Repository::load | System.IO.File::ReadAllLines | via - | literal:orders.txt | Shop/Shop.Data/Repository.fs:8
 filesystem-write | Shop.Storage:Shop.Storage | Shop.Storage.Archive::Append | System.IO.File::AppendAllText | via - | dynamic:- | Shop/Shop.Storage/Archive.cs:7
-http-out | Shop.Web:Shop.Web.Handlers | Shop.Web.Handlers::price | System.Net.Http.HttpClient::GetStringAsync | via - | template:https://prices.example.org/items/{…} | Shop/Shop.Web/Handlers.fs:18
-environment | Shop.Worker:Shop.Worker.Program | Shop.Worker.Program::main | System.Console::get_Out | via FSharp.Core | - | Shop/Shop.Worker/Program.fs:9
-process | Shop.Worker:Shop.Worker.Program | Shop.Worker.Program::main | System.Diagnostics.Process::Start | via - | literal:echo | Shop/Shop.Worker/Program.fs:10
+filesystem-write | Shop.Web:Shop.Web.Handlers | Shop.Web.Handlers/FileNotifier::Shop.Core.Orders.INotifier.Notify | System.IO.File::AppendAllText | via - | literal:notices.txt | Shop/Shop.Web/Handlers.fs:12
+http-out | Shop.Web:Shop.Web.Handlers | Shop.Web.Handlers::price | System.Net.Http.HttpClient::GetStringAsync | via - | template:https://prices.example.org/items/{…} | Shop/Shop.Web/Handlers.fs:23
+process | Shop.Worker:Shop.Worker.Program | Shop.Worker.Program/ProcessNotifier::Shop.Core.Orders.INotifier.Notify | System.Diagnostics.Process::Start | via - | literal:notify | Shop/Shop.Worker/Program.fs:8
+environment | Shop.Worker:Shop.Worker.Program | Shop.Worker.Program::main | System.Console::get_Out | via FSharp.Core | - | Shop/Shop.Worker/Program.fs:14
+process | Shop.Worker:Shop.Worker.Program | Shop.Worker.Program::main | System.Diagnostics.Process::Start | via - | literal:echo | Shop/Shop.Worker/Program.fs:15
 -- diagnostics

@@ -88,7 +88,7 @@ let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoin
     |> List.collect (fun project ->
         let methods = reachableUserMethods program project
         let matcher = program.MatcherFor project
-        let taint = Taint.analyze program.Set program.Graph matcher program.Recognizers (List.ofSeq methods.Values)
+        let taint = Taint.analyze program.Set (program.GraphFor project) matcher program.Recognizers (List.ofSeq methods.Values)
 
         let ctx =
             { Project = project
@@ -128,7 +128,7 @@ let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoin
                 let m = stack.Pop()
 
                 if seen.Add m.Key then
-                    for e in program.Graph.Callees m do
+                    for e in (program.GraphFor project).Callees m do
                         if methods.ContainsKey e.Target.Key && not (seen.Contains e.Target.Key) then
                             stack.Push e.Target
 

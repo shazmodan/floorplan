@@ -28,11 +28,19 @@ let compute (program: EffectAnalysis.Program) (entries: EntryPoint list) (exits:
         |> List.groupBy fst
         |> List.map (fun (m, xs) -> m, List.map snd xs)
         |> dict
-    let cache = Dictionary<string, Set<string>>()
+    let cache = Dictionary<struct (string * string), Set<string>>()
 
-    /// Members of user methods reachable from a method, itself included.
-    let reach (start: MethodRef) =
-        match cache.TryGetValue start.Key with
+    let graphs =
+        program.Users |> List.map (fun (p, _) -> p.ProjectId, program.GraphFor p) |> dict
+
+    /// Members of user methods an application reaches from a method, itself included.
+    let reach (application: string) (start: MethodRef) =
+        let graph =
+            match graphs.TryGetValue application with
+            | true, g -> g
+            | _ -> program.Graph
+
+        match cache.TryGetValue(struct (application, start.Key)) with
         | true, r -> r
         | _ ->
             let seen = HashSet<string>()
@@ -45,12 +53,12 @@ let compute (program: EffectAnalysis.Program) (entries: EntryPoint list) (exits:
                 if seen.Add m.Key then
                     members.Add m.Display |> ignore
 
-                    for e in program.Graph.Callees m do
+                    for e in graph.Callees m do
                         if e.Kind <> Initializer && set.IsUser e.Target.Type.Assembly && not (seen.Contains e.Target.Key) then
                             stack.Push e.Target
 
             let r = Set.ofSeq members
-            cache[start.Key] <- r
+            cache[struct (application, start.Key)] <- r
             r
 
     entries
@@ -60,7 +68,7 @@ let compute (program: EffectAnalysis.Program) (entries: EntryPoint list) (exits:
             | true, ms -> ms
             | _ -> []
 
-        let reached = starts |> List.map reach |> Set.unionMany
+        let reached = starts |> List.map (reach e.ApplicationId) |> Set.unionMany
 
         let ids =
             reached

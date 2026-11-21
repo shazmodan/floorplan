@@ -191,9 +191,20 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
             |> Seq.map (fun m -> m.Ref)
         )
 
-        let made = fst configured |> List.map (fun c -> c.Made)
-        g.AddConstructed(made |> List.choose (function Configured.Constructed t -> Some t | _ -> None))
-        g.AddRoots(made |> List.choose (function Configured.Called m -> Some m | _ -> None))
+        // A configured type is made for the project whose output folder holds the configuration file.
+        let madeFor (file: string) =
+            let folder = IO.Path.GetFullPath(IO.Path.GetDirectoryName file)
+
+            input.Projects
+            |> List.tryFind (fun p ->
+                String.Equals(IO.Path.GetFullPath(IO.Path.GetDirectoryName p.AssemblyPath), folder, StringComparison.OrdinalIgnoreCase))
+            |> Option.map (fun p -> IO.Path.GetFileNameWithoutExtension p.AssemblyPath)
+            |> Option.defaultValue "*"
+
+        for (by, cs) in fst configured |> List.groupBy (fun c -> madeFor c.File) do
+            g.AddConstructed(cs |> List.choose (fun c -> match c.Made with Configured.Constructed t -> Some t | _ -> None), by)
+
+        g.AddRoots(fst configured |> List.choose (fun c -> match c.Made with Configured.Called m -> Some m | _ -> None))
         g
 
     let graph =
@@ -244,8 +255,47 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
     let matchers = Dictionary<string, Matcher>()
     let summaries = Dictionary<string, Summaries.Summaries>()
 
+    // Each project's reference closure: its own assembly and every assembly it references, directly or not.
+    let closures = Dictionary<string, HashSet<string>>()
+
+    let closureOf (project: AnalyzedProject) =
+        match closures.TryGetValue project.ProjectId with
+        | true, c -> c
+        | _ ->
+            let seen = HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            let pending = Stack<string>()
+            pending.Push(IO.Path.GetFileNameWithoutExtension project.AssemblyPath)
+
+            while pending.Count > 0 do
+                let name = pending.Pop()
+
+                if seen.Add name then
+                    match set.TryLoad name with
+                    | Some a ->
+                        for r in a.ReferencedAssemblies do
+                            if not (seen.Contains r) then
+                                pending.Push r
+                    | None -> ()
+
+            closures[project.ProjectId] <- seen
+            seen
+
+    let graphs = Dictionary<string, CallGraph>()
+
     member _.Set = set
+
+    /// The call graph of the whole solution, over which dependency summaries are computed.
     member _.Graph = graph
+
+    /// The call graph as a project sees it: its virtual calls reach only implementations in types that code in
+    /// its reference closure constructs.
+    member _.GraphFor(project: AnalyzedProject) =
+        match graphs.TryGetValue project.ProjectId with
+        | true, g -> g
+        | _ ->
+            let g = graph.ForAssemblies (closureOf project).Contains
+            graphs[project.ProjectId] <- g
+            g
 
     /// What the configuration files name, for people: an info diagnostic for each type constructed, and a warning
     /// for each value that names no type the analysis can read.
@@ -366,25 +416,10 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
         let effects = this.EffectsFor project
         let fromCache = this.CachedEffects (this.CatalogFor project).Catalog.Name
 
-        // The call graph serves every project of the solution, so implementations are constructed by any of them:
+        // Summaries serve every project of the solution, so cached implementations are constructed by any of them:
         // a project's log calls reach only those in assemblies it references, directly or not.
-        let referenced =
-            let seen = HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            let pending = Stack<string>()
-            pending.Push(IO.Path.GetFileNameWithoutExtension project.AssemblyPath)
-
-            while pending.Count > 0 do
-                let name = pending.Pop()
-
-                if seen.Add name then
-                    match set.TryLoad name with
-                    | Some a ->
-                        for r in a.ReferencedAssemblies do
-                            if not (seen.Contains r) then
-                                pending.Push r
-                    | None -> ()
-
-            seen
+        let referenced = closureOf project
+        let graph = this.GraphFor project
 
         fun (callback: string) ->
             let linked =
@@ -528,7 +563,7 @@ let exitPoints (program: Program) (input: AnalysisInput) : EffectResult =
             let ctx: ExitPoints.ProjectContext =
                 { Project = project
                   Set = program.Set
-                  Graph = program.Graph
+                  Graph = program.GraphFor project
                   Matcher = program.MatcherFor project
                   Effects = program.EffectsFor project
                   Dispatch = program.DispatchFor project
