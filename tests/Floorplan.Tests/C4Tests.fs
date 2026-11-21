@@ -99,6 +99,39 @@ let tests =
                   "only the outside elements its components are related to"
           }
 
+          test "code: a component's types, the compiler's own nested types standing for the type they are in" {
+              let m = ExitPointTests.shopModel.Force()
+              let handlers = C4.componentId (C4.containerId "Shop.Web") "Shop.Web:Shop.Web.Handlers"
+
+              let code =
+                  m.Architecture.Elements
+                  |> List.filter (fun e -> e.Parent = Some handlers)
+                  |> List.map (fun e -> e.Name, e.Technology, e.Tags)
+
+              Expect.equal
+                  code
+                  [ "Handlers", Some "F# module", [ "handles requests"; "reaches out" ]
+                    "FileNotifier", Some "type", [ "reaches out" ] ]
+                  "the module, and the type nested in it whose method writes the notices"
+
+              Expect.equal (C4.codeTypeOf "CSharp.Clients.Caching.Cache/<Remember>d__2::MoveNext") "CSharp.Clients.Caching.Cache" "an async state machine"
+              Expect.equal (C4.codeTypeOf "Shop.Web.Handlers/price@18::Invoke") "Shop.Web.Handlers" "an F# closure"
+              Expect.equal (C4.codeTypeOf "Program/<>c::<<Main>$>b__0_1") "Program" "a lambda's class"
+              Expect.equal (C4.codeTypeOf "Shop.Web.Handlers/FileNotifier::Notify") "Shop.Web.Handlers/FileNotifier" "a nested type of its own"
+
+              let v = view m ("code:" + handlers.Substring 10)
+
+              Expect.containsAll
+                  (into v (C4.codeId handlers "Shop.Web.Handlers"))
+                  [ "person:user", "sends HTTP requests to"
+                    C4.componentId (C4.containerId "Shop.Worker") "Shop.Worker:Shop.Worker.Program", "sends HTTP requests to /api/orders" ]
+                  "callers reach the handler's type; another container's component is shown whole"
+
+              Expect.isFalse
+                  (m.Architecture.Elements |> List.exists (fun e -> e.Kind = C4Kind.Component && e.Name = ""))
+                  "a global namespace has its label"
+          }
+
           test "system context of the C# fixtures: client libraries name the systems they reach" {
               let m = CSharpTests.csharpModel.Force()
               let systems = named m C4Kind.ExternalSystem
