@@ -592,6 +592,13 @@
       "members": ["CreateProcessor"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
       "payload": [{ "argument": 0, "role": "message-queue" }] },
 
+    // Quartz.NET: AddJob<T>() and ScheduleJob<T>() register a job ("job-type" is the index of the type argument), and
+    // the scheduler calls its IJob.Execute when a trigger fires.
+    { "id": "background.quartz-add-job", "assembly": "Quartz.Extensions.DependencyInjection", "type": "Quartz.ServiceCollectionExtensions",
+      "members": ["AddJob", "ScheduleJob"], "kind": "registration", "category": "background", "payload": [{ "argument": 0, "role": "job-type" }] },
+    { "id": "background.quartz-job", "assembly": "Quartz", "type": "Quartz.IJob",
+      "members": ["Execute"], "includeDerivedTypes": true, "kind": "callback", "category": "background" },
+
     // ---------------- timers ----------------
     // A timer calls its callback each time it fires: background work, with "message-handler" naming the delegate.
     { "id": "background.threading-timer", "assembly": "System.Private.CoreLib", "type": "System.Threading.Timer",

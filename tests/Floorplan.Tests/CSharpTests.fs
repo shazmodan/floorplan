@@ -234,7 +234,7 @@ let tests =
               Expect.equal (sent "Shipped") [ "MassTransit.IPublishEndpoint::Publish", None, Confidence.High ] "MassTransit"
           }
 
-          test "hosted services and timers: what the host or a timer starts is background work, an entry point of its own" {
+          test "hosted services, timers and scheduled jobs: what a host, a timer or a scheduler starts is background work, an entry point of its own" {
               let m = csharpModel.Force()
 
               let worker =
@@ -244,12 +244,13 @@ let tests =
 
               Expect.equal
                   worker
-                  [ "CSharp.Worker.Cleanup.Sweeper::ExecuteAsync", EffectCategory.Background, None, Completeness.Complete
+                  [ "CSharp.Worker.Cleanup.PurgeJob::Execute", EffectCategory.Background, None, Completeness.Complete
+                    "CSharp.Worker.Cleanup.Sweeper::ExecuteAsync", EffectCategory.Background, None, Completeness.Complete
                     "CSharp.Worker.Monitoring.Heartbeat/<>c::<StartAsync>b__3_0", EffectCategory.Background, None, Completeness.Complete
                     "CSharp.Worker.Monitoring.Heartbeat::OnAudit", EffectCategory.Background, None, Completeness.Complete
                     "CSharp.Worker.Monitoring.Heartbeat::StartAsync", EffectCategory.Background, None, Completeness.Complete
                     "CSharp.Worker.Monitoring.Heartbeat::StopAsync", EffectCategory.Background, None, Completeness.Complete ]
-                  "a BackgroundService's ExecuteAsync, an IHostedService's StartAsync and StopAsync, the callbacks of a System.Threading.Timer and a System.Timers.Timer; not a service never registered"
+                  "a BackgroundService's ExecuteAsync, an IHostedService's StartAsync and StopAsync, the callbacks of a System.Threading.Timer and a System.Timers.Timer, a Quartz job; not a service never registered"
 
               let audit = entries m "CSharp.Worker" |> List.find (fun e -> e.HandlerMember.EndsWith "::OnAudit")
               Expect.exists audit.Evidence.Steps (fun s -> s.Description.Contains "called each time it fires") "a timer's callback"
