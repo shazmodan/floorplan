@@ -471,14 +471,44 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
               Technology = (if e.Category = EffectCategory.HttpIn then Some "HTTP" else facts.EntryLibrary e)
               Source = e.Id })
 
-    // Dependencies between the units of a container's code.
+    // Whether a type is one a unit declares: a namespace's own type, or a module itself. A type made from another
+    // file (a Razor component) lands in a unit that is not its namespace, and is left out.
+    let declares (unitId: string) (typeName: string) =
+        match units.TryFind unitId with
+        | Some u when u.Kind = UnitKind.Module -> typeName = u.Name
+        | Some u when u.Kind = UnitKind.Namespace ->
+            let ns = match typeName.LastIndexOf '.' with -1 -> "" | i -> typeName.Substring(0, i)
+            ns = u.Name
+        | _ -> false
+
+    // Uses between the types of a container's code, where the analyzer gives them (C#): "uses" at the code level.
+    let typeUses =
+        [ for c in facts.Containers do
+              let id = containerId c.Id
+              let own = facts.UnitsOf id
+
+              for d in model.TypeDependencies do
+                  if own.Contains d.FromUnit && own.Contains d.ToUnit && declares d.FromUnit d.FromType && declares d.ToUnit d.ToType then
+                      yield
+                          { From = codeId (componentId id d.FromUnit) d.FromType
+                            To = codeId (componentId id d.ToUnit) d.ToType
+                            Description = "uses"
+                            Technology = None
+                            Source = $"{d.FromType} -> {d.ToType}" } ]
+
+    let byTypes =
+        model.TypeDependencies |> List.filter (fun d -> d.FromUnit <> d.ToUnit) |> List.map (fun d -> d.FromUnit, d.ToUnit) |> Set.ofList
+
+    // Dependencies between the units of a container's code that no use between their types gives (F# modules,
+    // whose analyzer gives none).
     let uses' =
         [ for c in facts.Containers do
               let id = containerId c.Id
               let own = facts.UnitsOf id
 
               for d in model.Dependencies do
-                  if d.FromUnit <> d.ToUnit && own.Contains d.FromUnit && own.Contains d.ToUnit then
+                  if d.FromUnit <> d.ToUnit && own.Contains d.FromUnit && own.Contains d.ToUnit
+                     && not (byTypes.Contains((d.FromUnit, d.ToUnit))) then
                       yield
                           { From = componentId id d.FromUnit
                             To = componentId id d.ToUnit
@@ -486,7 +516,7 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
                             Technology = None
                             Source = $"{d.FromUnit} -> {d.ToUnit}" } ]
 
-    let links = calls @ uses @ between @ uses'
+    let links = calls @ uses @ between @ uses' @ typeUses
 
     let components =
         [ for c in facts.Containers do
@@ -550,8 +580,8 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
         |> List.distinct
         |> List.map (fun (componentKey, typeName) ->
             let key = codeId componentKey typeName
-            let handles = links |> List.exists (fun l -> l.To = key)
-            let reaches = links |> List.exists (fun l -> l.From = key)
+            let handles = links |> List.exists (fun l -> l.To = key && l.Description <> "uses")
+            let reaches = links |> List.exists (fun l -> l.From = key && l.Description <> "uses")
             let unitKind = components |> List.tryFind (fun c -> c.Id = componentKey) |> Option.bind (fun c -> c.Technology)
             let isModule = unitKind |> Option.exists (fun t -> t.EndsWith " module") && not (typeName.Contains "/")
 

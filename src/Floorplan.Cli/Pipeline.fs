@@ -132,6 +132,7 @@ let buildModel (log: string -> unit) (store: Caching.Store) (catalogs: string li
             Projects = projects
             Units = structure.Units |> List.sortBy (fun u -> u.Id)
             Dependencies = structure.Dependencies
+            TypeDependencies = structure.TypeDependencies
             EntryPoints = entries
             Traces = traces
             ExitPoints = effects.ExitPoints

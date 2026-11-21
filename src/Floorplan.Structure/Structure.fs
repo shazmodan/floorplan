@@ -39,17 +39,20 @@ module SolutionIndex =
 type StructureResult =
     { Units: CodeUnit list
       Dependencies: Dependency list
+      TypeDependencies: TypeDependency list
       Diagnostics: Diagnostic list }
 
 module StructureResult =
     let empty =
         { Units = []
           Dependencies = []
+          TypeDependencies = []
           Diagnostics = [] }
 
     let combine (results: StructureResult list) =
         { Units = results |> List.collect (fun r -> r.Units)
           Dependencies = results |> List.collect (fun r -> r.Dependencies)
+          TypeDependencies = results |> List.collect (fun r -> r.TypeDependencies)
           Diagnostics = results |> List.collect (fun r -> r.Diagnostics) }
 
 type IStructureAnalyzer =
@@ -72,6 +75,7 @@ module LimitedSupport =
     let analyze (projects: LoadedProject list) =
         { Units = projects |> List.map unitFor
           Dependencies = []
+          TypeDependencies = []
           Diagnostics =
             projects
             |> List.map (fun p ->
@@ -128,4 +132,15 @@ module StructureAnalysis =
                   SampleLocations = ds |> List.collect (fun d -> d.SampleLocations) |> List.truncate 3 })
             |> List.sortBy (fun d -> d.FromUnit, d.ToUnit)
 
-        { result with Dependencies = dependencies }, index
+        let typeDependencies =
+            result.TypeDependencies
+            |> List.choose (fun d -> resolve d.ToUnit |> Option.map (fun t -> { d with ToUnit = t }))
+            |> List.filter (fun d -> ids.Contains d.FromUnit && d.FromType <> d.ToType)
+            |> List.groupBy (fun d -> d.FromUnit, d.FromType, d.ToUnit, d.ToType)
+            |> List.map (fun (_, ds) -> { ds.Head with Weight = ds |> List.sumBy (fun d -> d.Weight) })
+            |> List.sortBy (fun d -> d.FromUnit, d.FromType, d.ToUnit, d.ToType)
+
+        { result with
+            Dependencies = dependencies
+            TypeDependencies = typeDependencies },
+        index

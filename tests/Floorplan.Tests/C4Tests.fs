@@ -193,6 +193,39 @@ let tests =
               Expect.stringContains shop "component_Shop_Worker_Shop_Worker_Shop_Worker_Program -> component_Shop_Web_Shop_Web_Shop_Web_Handlers \"sends HTTP requests to /api/orders\" \"HTTP\"" "code-level relationships are written at their components"
           }
 
+          test "code: types that use one another, from the C# analyzer's uses between types" {
+              let m = CSharpTests.csharpModel.Force()
+              let clients = C4.containerId "CSharp.Clients"
+              let catalog = C4.componentId clients "CSharp.Clients:CSharp.Clients.Catalog"
+              let v = view m ("code:" + catalog.Substring 10)
+              let products = C4.codeId catalog "CSharp.Clients.Catalog.Products"
+
+              Expect.containsAll
+                  (v.Relationships |> List.filter (fun r -> r.From = products) |> List.map (fun r -> r.To, r.Description))
+                  [ C4.codeId catalog "CSharp.Clients.Catalog.ICatalogApi", "uses"; C4.codeId catalog "CSharp.Clients.Catalog.Product", "uses" ]
+                  "Products uses the Refit interface and the record it returns"
+
+              let product = m.Architecture.Elements |> List.find (fun e -> e.Id = C4.codeId catalog "CSharp.Clients.Catalog.Product")
+              Expect.isEmpty product.Tags "being used is neither handling requests nor reaching out"
+
+              let program = C4.codeId (C4.componentId clients "CSharp.Clients:") "Program"
+
+              Expect.contains
+                  (into (view m "components:CSharp.Clients") (C4.componentId clients "CSharp.Clients:CSharp.Clients.Caching"))
+                  (C4.componentId clients "CSharp.Clients:", "uses")
+                  "the component level is lifted from the code level"
+
+              Expect.isFalse
+                  (m.Architecture.Relationships |> List.exists (fun r -> r.From = C4.componentId clients "CSharp.Clients:" && r.Description = "uses"))
+                  "and stored only there, from the types"
+
+              Expect.isTrue (m.Architecture.Relationships |> List.exists (fun r -> r.From = program)) "top-level statements are Program"
+
+              Expect.isFalse
+                  (m.TypeDependencies |> List.exists (fun d -> d.FromType = d.ToType))
+                  "a type's uses of itself are left out"
+          }
+
           test "layout: what is around the parts is drawn above or below them, in rows of at most rowLength" {
               for m in [ ExitPointTests.shopModel.Force(); CSharpTests.csharpModel.Force() ] do
                   let parents = m.Architecture.Elements |> List.map (fun e -> e.Id, e.Parent) |> Map.ofList

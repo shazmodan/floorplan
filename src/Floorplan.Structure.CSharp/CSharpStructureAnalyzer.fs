@@ -59,6 +59,20 @@ module CSharpStructureAnalyzer =
         | :? IEventSymbol -> ownerName symbol.ContainingType
         | _ -> None
 
+    /// The outermost type a symbol is or is declared in, by its namespace and name: what a type dependency names.
+    let rec private outermostType (symbol: ISymbol) : string option =
+        match symbol with
+        | null -> None
+        | :? INamespaceSymbol -> None
+        | :? ITypeParameterSymbol -> None
+        | :? INamedTypeSymbol as t when t.IsTupleType || t.IsAnonymousType -> None
+        | :? INamedTypeSymbol as t when isNull t.ContainingType ->
+            let t = t.OriginalDefinition
+            let ns = namespaceName t.ContainingNamespace
+            Some(if ns = "" then t.Name else ns + "." + t.Name)
+        | :? IMethodSymbol as m when not (isNull m.ReducedFrom) -> outermostType m.ReducedFrom
+        | s -> outermostType s.ContainingType
+
     /// The namespace whose code a position is in.
     let private enclosingNamespace (model: SemanticModel) (position: int) =
         let rec up (s: ISymbol) =
@@ -336,7 +350,30 @@ module CSharpStructureAnalyzer =
                     | symbol ->
                         target symbol
                         |> Option.map (fun (t, targetProject) ->
-                            unitId (enclosingNamespace model n.SpanStart), t, targetProject, n.GetLocation().GetLineSpan())))
+                            let types =
+                                match outermostType (model.GetEnclosingSymbol n.SpanStart), outermostType symbol with
+                                | Some a, Some b -> Some(a, b)
+                                | _ -> None
+
+                            unitId (enclosingNamespace model n.SpanStart), t, targetProject, n.GetLocation().GetLineSpan(), types)))
+            |> Array.ofSeq
+
+        let typeEdges =
+            edges
+            |> Array.choose (fun (from, target, _, _, types) -> types |> Option.map (fun (a, b) -> from, a, target, b))
+            |> Array.filter (fun (_, a, _, b) -> a <> b)
+            |> Array.countBy id
+            |> Array.map (fun ((from, a, target, b), n) ->
+                { FromUnit = from
+                  FromType = a
+                  ToUnit = target
+                  ToType = b
+                  Weight = n })
+            |> List.ofArray
+
+        let edges =
+            edges
+            |> Seq.map (fun (from, target, project, span, _) -> from, target, project, span)
             |> Seq.filter (fun (from, target, _, _) -> from <> target)
             |> Seq.groupBy (fun (from, target, _, _) -> from, target)
             |> Seq.map (fun ((from, target), uses) ->
@@ -352,13 +389,14 @@ module CSharpStructureAnalyzer =
 
         { Units = units
           Dependencies = edges
+          TypeDependencies = typeEdges
           Diagnostics = errors }
 
     /// What a project's structure depends on: its sources, defines, referenced assemblies, and which assemblies
     /// belong to which project of the solution.
     let private cacheKey (index: SolutionIndex) (project: LoadedProject) =
         Caching.hash
-            [ yield "structure-csharp-v2"
+            [ yield "structure-csharp-v3"
               yield typeof<StructureResult>.Assembly.GetName().Version.ToString()
               yield typeof<CSharpCompilation>.Assembly.GetName().Version.ToString()
               yield project.Id
