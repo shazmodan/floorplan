@@ -164,6 +164,7 @@ let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list =
     | Some main ->
         let machine = Machine(set, ctx.Matcher, ctx.Program.Recognizers, defaultLimits, ctx.Program.SettingsFor ctx.Project)
         let args = List.replicate main.ParameterCount Unknown
+        Progress.report $"Entry points of {ctx.Project.ProjectId}: running its startup code symbolically to find what it registers"
         machine.Invoke(Registration, main, args, emptyState, 0) |> ignore
 
         if System.Environment.GetEnvironmentVariable "FLOORPLAN_DEBUG" = "1" then

@@ -121,6 +121,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
         |> List.map (fun r -> r.Type, r.Members)
         |> List.distinct
 
+    do Progress.report $"Reading the assemblies of {input.Projects.Length} projects and their dependencies"
     let mutable set = newSet ()
     let mvids = Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 
@@ -141,6 +142,8 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
 
     do
         if store.Enabled then
+            Progress.report "Checking the summary cache for the dependencies"
+
             for name in set.KnownAssemblies do
                 if set.Origin name = Dependency then
                     let entries =
@@ -178,9 +181,12 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
     let findConfigured () =
         Configured.Resolver(set).Find(configuredRules, outputFolders)
 
+    do Progress.report "Reading the configuration files in the output folders"
     let mutable configured = findConfigured ()
 
     let buildGraph () =
+        Progress.report "Building the call graph"
+
         let g = CallGraph(set, recognizers, cachedAssemblies.Contains, callbacks)
 
         g.AddRoots(
@@ -241,6 +247,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                     | Configured.Called m -> cachedAssemblies.Contains m.Type.Assembly && not (analyzed.Contains m.Key))
 
             if miss || configuredMiss then
+                Progress.report "The summary cache does not cover this solution's calls: analyzing every dependency afresh"
                 cached.Clear()
                 cachedAssemblies.Clear()
                 (set :> IDisposable).Dispose()
@@ -250,6 +257,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
             else
                 g
 
+    do Progress.report $"Call graph: {graph.ReachableMethods.Length} methods reachable"
     let userList = users ()
     let producers = Values.Producers(set, recognizers)
     let matchers = Dictionary<string, Matcher>()
@@ -417,6 +425,8 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
         match summaries.TryGetValue matcher.Catalog.Name with
         | true, s -> s
         | _ ->
+            Progress.report $"Summarizing what dependency methods reach (catalog {matcher.Catalog.Name})"
+
             let s =
                 Summaries.Summaries(graph, matcher, recognizers, producers, fun m ->
                     set.Origin m.Type.Assembly = Dependency && not (cachedAssemblies.Contains m.Type.Assembly))
@@ -528,6 +538,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
     /// Writes summaries of the dependencies analyzed in this run, for later runs.
     member this.SaveCache() =
         if store.Enabled then
+            Progress.report "Saving dependency summaries to the cache"
             let all = graph.ReachableMethods
             let reachable = all |> List.filter (fun m -> set.Origin m.Type.Assembly = Dependency)
             let byAssembly = reachable |> List.groupBy (fun m -> m.Type.Assembly)
@@ -637,7 +648,9 @@ let exitPoints (program: Program) (input: AnalysisInput) : EffectResult =
 
     let perProject =
         program.Users
-        |> List.map (fun (project, assembly) ->
+        |> List.mapi (fun i (project, assembly) ->
+            Progress.report $"Exit points of {project.ProjectId} ({i + 1} of {program.Users.Length})"
+
             let ctx: ExitPoints.ProjectContext =
                 { Project = project
                   Set = program.Set

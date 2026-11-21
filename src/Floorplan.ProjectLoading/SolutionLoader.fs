@@ -139,7 +139,14 @@ let load (options: LoadOptions) (input: string option) : Result<LoadedSolution, 
         let root = Path.GetDirectoryName path
 
         let prepared =
-            if options.Build then Build.build path options.Configuration else Build.restore path
+            if options.Build then
+                Progress.report $"Building {Path.GetFileName path} (dotnet build -c {options.Configuration})"
+                Build.build path options.Configuration
+            else
+                Progress.report $"Restoring packages of {Path.GetFileName path}"
+                Build.restore path
+
+        Progress.report (if prepared.ExitCode = 0 then "Locating MSBuild" else "The build failed; locating MSBuild to load what did build")
 
         // A failed build is not fatal: projects that did build are still analyzed (plan risk 10).
         let buildFailed = prepared.ExitCode <> 0
@@ -164,7 +171,11 @@ let load (options: LoadOptions) (input: string option) : Result<LoadedSolution, 
                 loader.Notifications.Subscribe(fun state ->
                     match state with
                     | WorkspaceProjectState.Failed(file, error) -> loadErrors[Path.GetFullPath file] <- describeLoadError error
+                    | WorkspaceProjectState.Loading file when Discovery.isProject file ->
+                        Progress.report $"Loading project {Path.GetFileNameWithoutExtension file}"
                     | _ -> ())
+
+            Progress.report "Evaluating the projects with MSBuild"
 
             let evaluated =
                 if Discovery.isProject path then

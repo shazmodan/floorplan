@@ -7,13 +7,16 @@ open Floorplan.Cli.Options
 
 /// Exit codes: 0 success, 1 analysis failed or some projects could not be analyzed, 2 usage error.
 let private analyze (options: AnalyzeOptions) =
-    let clock = Diagnostics.Stopwatch.StartNew()
+    let result =
+        use display = new StatusLine.Display(options.Quiet)
+        Progress.listen display.Report
 
-    let log message =
-        if not options.Quiet then
-            eprintfn "[%5.1fs] %s" clock.Elapsed.TotalSeconds message
+        try
+            Pipeline.run display.Report options
+        finally
+            Progress.stop ()
 
-    match Pipeline.run log options with
+    match result with
     | Error message ->
         eprintfn "error: %s" message
         1

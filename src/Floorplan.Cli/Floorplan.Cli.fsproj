@@ -14,6 +14,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Options.fs" />
+    <Compile Include="StatusLine.fs" />
     <Compile Include="Pipeline.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

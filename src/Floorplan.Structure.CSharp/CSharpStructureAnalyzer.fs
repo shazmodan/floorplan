@@ -384,8 +384,11 @@ module CSharpStructureAnalyzer =
                         let key = cacheKey index p
 
                         match store.TryRead<StructureResult>("structure", key) with
-                        | Some cached -> cached
+                        | Some cached ->
+                            Progress.report $"Structure of {p.Name}: cached"
+                            cached
                         | None ->
+                            Progress.report $"Structure of {p.Name}: compiling its C# code"
                             let result = analyzeProject index p
 
                             // Results with compile errors may change once the code is fixed: not cached.

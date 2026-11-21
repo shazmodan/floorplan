@@ -97,7 +97,30 @@ let tests =
                       Cache = false
                       Quiet = true }
 
-              match Pipeline.run ignore options with
+              // Every step reported, by the pipeline and by the stages inside it.
+              let reported = Collections.Concurrent.ConcurrentQueue<string>()
+              Progress.listen reported.Enqueue
+
+              let result =
+                  try
+                      Pipeline.run reported.Enqueue options
+                  finally
+                      Progress.stop ()
+
+              let steps = List.ofSeq reported
+
+              for expected in
+                  [ "Restoring packages of Shop.slnx"
+                    "Loading project Shop.Web"
+                    "Structure of Shop.Web: type-checking its F# code"
+                    "Structure of Shop.Storage: compiling its C# code"
+                    "Building the call graph"
+                    "Exit points of Shop.Web (4 of 5)"
+                    "Entry points of Shop.Worker (2 of 2)"
+                    "Writing site output" ] do
+                  Expect.contains steps expected "a step reported"
+
+              match result with
               | Error e -> failtest e
               | Ok outcome ->
                   Expect.isFalse outcome.HadFailures "no failures"

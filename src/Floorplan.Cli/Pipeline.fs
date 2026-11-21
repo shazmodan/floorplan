@@ -101,6 +101,7 @@ let buildModel (log: string -> unit) (store: Caching.Store) (catalogs: string li
 
     log "Finding entry points"
     let entries = EntryPointAnalysis.analyze program input
+    log $"Tracing {entries.Length} entry points to the {effects.ExitPoints.Length} exit points they reach"
     let traces = Traces.compute program entries effects.ExitPoints
 
     let projects =
@@ -148,8 +149,6 @@ let run (log: string -> unit) (options: AnalyzeOptions) : Result<Outcome, string
           Build = options.Build
           Include = options.Include
           Exclude = options.Exclude }
-
-    log (if options.Build then "Building and loading the solution" else "Loading the solution")
 
     match SolutionLoader.load loadOptions options.Path with
     | Error e -> Error(SolutionLoader.describe e)

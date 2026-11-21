@@ -6,5 +6,6 @@
     <Compile Include="Model.fs" />
     <Compile Include="Json.fs" />
     <Compile Include="Caching.fs" />
+    <Compile Include="Progress.fs" />
   </ItemGroup>
 </Project>
