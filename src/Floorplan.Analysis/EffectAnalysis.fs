@@ -366,10 +366,30 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
         let effects = this.EffectsFor project
         let fromCache = this.CachedEffects (this.CatalogFor project).Catalog.Name
 
+        // The call graph serves every project of the solution, so implementations are constructed by any of them:
+        // a project's log calls reach only those in assemblies it references, directly or not.
+        let referenced =
+            let seen = HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            let pending = Stack<string>()
+            pending.Push(IO.Path.GetFileNameWithoutExtension project.AssemblyPath)
+
+            while pending.Count > 0 do
+                let name = pending.Pop()
+
+                if seen.Add name then
+                    match set.TryLoad name with
+                    | Some a ->
+                        for r in a.ReferencedAssemblies do
+                            if not (seen.Contains r) then
+                                pending.Push r
+                    | None -> ()
+
+            seen
+
         fun (callback: string) ->
             let linked =
                 graph.CallbackTargets callback
-                |> List.filter (fun e -> set.Origin e.Target.Type.Assembly = Dependency)
+                |> List.filter (fun e -> set.Origin e.Target.Type.Assembly = Dependency && referenced.Contains e.Target.Type.Assembly)
                 |> List.collect (fun e ->
                     let step: Summaries.PathStep =
                         { Caller = e.Declared.Display
@@ -383,6 +403,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
             let cachedOnly =
                 cachedAssemblies
                 |> Seq.toList
+                |> List.filter referenced.Contains
                 |> List.collect (fun a ->
                     fromCache a (callbackKey a callback) |> Option.defaultValue [] |> List.map (fun d -> a, d))
 

@@ -62,6 +62,8 @@ let isTransparent (m: MethodRef) =
     | "Microsoft.AspNetCore.Http.PathString", ".ctor" -> true
     | "Microsoft.AspNetCore.Http.PathString", "ToString" -> true
     | "Microsoft.AspNetCore.Http.PathString", "get_Value" -> true
+    // An implicit conversion from a string wraps it (a Redis key, an XML name).
+    | _, "op_Implicit" -> m.ParameterTypes = [ "System.String" ]
     | _ -> false
 
 /// The constant a parameterless method returns, when its body is nothing but `ldstr; ret` (a module-level

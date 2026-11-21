@@ -146,6 +146,46 @@ let tests =
                   "GetOrder logs the read"
           }
 
+          test "data clients: Redis and MongoDB commands are database calls, Azure Blob Storage calls are HTTP" {
+              let m = csharpModel.Force()
+
+              let calls (typeName: string) =
+                  m.ExitPoints
+                  |> List.filter (fun x ->
+                      x.Member.StartsWith $"CSharp.Clients.{typeName}"
+                      && x.Confidence = Confidence.High
+                      && (x.Category = EffectCategory.Database || x.Category = EffectCategory.HttpOut || x.Category = EffectCategory.Network))
+                  |> List.map (fun x -> x.Category, x.Primitive.Substring(x.Primitive.LastIndexOf '.' + 1), x.Payload |> Option.bind (fun p -> p.Value))
+                  |> List.sort
+
+              Expect.equal
+                  (calls "Caching.Cache")
+                  [ EffectCategory.Network, "IDatabaseAsync::PublishAsync", None
+                    EffectCategory.Database, "IDatabase::StringGet", None
+                    EffectCategory.Database, "IDatabase::StringIncrement", Some "visits"
+                    EffectCategory.Database, "IDatabaseAsync::StringSetAsync", None ]
+                  "Redis: commands with their key, a publish"
+
+              Expect.equal
+                  (calls "Documents.Store")
+                  [ EffectCategory.Database, "IAsyncCursorSourceExtensions::ToListAsync", None
+                    EffectCategory.Database, "IMongoCollectionExtensions::DeleteOneAsync", None
+                    EffectCategory.Database, "IMongoCollection`1::InsertOneAsync", None ]
+                  "MongoDB: a find runs where its cursor is read"
+
+              Expect.equal
+                  (calls "Files.Archive")
+                  [ EffectCategory.HttpOut, "BlobBaseClient::DownloadContentAsync", None
+                    EffectCategory.HttpOut, "BlobContainerClient::UploadBlobAsync", Some "archive/{…}" ]
+                  "Azure Blob Storage, with the blob's name"
+
+              // Redis pub/sub: the subscriber's handler is a network entry point.
+              Expect.exists
+                  (entries m "CSharp.Clients")
+                  (fun e -> e.Category = EffectCategory.Network && e.HandlerMember.StartsWith "CSharp.Clients.Caching.Cache/<>c::<Listen>")
+                  "a Redis subscription"
+          }
+
           test "sending a message is a network exit point, with the routing key where the call has one" {
               let m = csharpModel.Force()
 
