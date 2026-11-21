@@ -1,0 +1,10 @@
+@page "/orders/{Id:int}"
+@page "/order/{Id:int}"
+<h1>Order @Id</h1>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    // Runs when the component is rendered for a request.
+    protected override Task OnInitializedAsync() => System.IO.File.AppendAllTextAsync("views.log", Id.ToString());
+}
