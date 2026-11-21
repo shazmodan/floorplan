@@ -271,6 +271,78 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                 |> List.map (fun m -> m.Ref.Key)))
         |> Set.ofList
 
+    // The payload of a direct call to a primitive, worked out in the calling method's data flow.
+    let sinkPayload (f: DataFlow.Flow) (offset: int) (declared: MethodRef) (isNewObj: bool) (hit: SinkHit) : Payload option =
+        hit.Rule.Payload
+        |> List.tryHead
+        |> Option.map (fun spec ->
+            let evaluator = evaluatorOf f
+
+            match spec.Property with
+            | _ when spec.Role = "grpc-method" ->
+                // A gRPC call's method descriptor: /{service}/{method}, from the constructor arguments the catalog's
+                // descriptor rule names.
+                let descriptor =
+                    ctx.Matcher.Catalog.Rules
+                    |> List.tryFind (fun r -> r.Payload |> List.exists (fun p -> p.Role = "grpc-service-name"))
+
+                let path =
+                    match descriptor, List.tryItem (Values.operandIndex declared isNewObj spec.Argument) (f.OperandsAt offset) with
+                    | Some rule, Some operand ->
+                        let index (role: string) = (rule.Payload |> List.find (fun p -> p.Role = role)).Argument
+
+                        match Values.staticObjectTexts ctx.Set f operand rule.Type [ index "grpc-service-name"; index "grpc-method-name" ] with
+                        | Some [ service; name ] -> Values.Text $"/{service}/{name}"
+                        | _ -> Values.Hole
+                    | _ -> Values.Hole
+
+                Values.Evaluator.ToPayload(path, "url")
+            | Some property when spec.Argument >= 0 ->
+                let index = Values.operandIndex declared isNewObj spec.Argument
+                Values.Evaluator.ToPayload(evaluator.OperandMember(offset, index, property, spec.ConstructorArgument), spec.Role)
+            | Some property when declared.HasThis && not isNewObj ->
+                evaluator.PropertyPayload(offset, property, spec.ConstructorArgument, spec.Role)
+            | Some _ -> Values.Evaluator.ToPayload(Values.Hole, spec.Role)
+            | None -> evaluator.Payload(offset, Values.operandIndex declared isNewObj spec.Argument, spec.Role))
+
+    // Code a generator wrote into the application ([GeneratedCode], as Grpc.Tools' clients): a call to a primitive in
+    // it is reported at the application's call into it, which is where the effect is decided.
+    let isGenerated (d: MethodDef) =
+        d.Attributes |> List.exists (fun a -> a.Type.FullName = "System.CodeDom.Compiler.GeneratedCodeAttribute")
+
+    let generatedReach = Dictionary<string, (SinkHit * Payload option * MethodRef list) list>()
+
+    // The primitives generated code calls, following its calls to more generated code: each with its payload and the
+    // generated methods on the way.
+    let rec generatedSinks (depth: int) (target: MethodRef) : (SinkHit * Payload option * MethodRef list) list =
+        match generatedReach.TryGetValue target.Key with
+        | true, r -> r
+        | _ when depth > 4 || not (ctx.Set.IsUser target.Type.Assembly) -> []
+        | _ ->
+            generatedReach[target.Key] <- []
+
+            let r =
+                match ctx.Set.TryMethod target with
+                | Some(def, _) when isGenerated def ->
+                    match def.Body.Value, DataFlow.ofMethod def with
+                    | Some body, Some f ->
+                        callSites ctx def body
+                        |> Array.toList
+                        |> List.collect (fun (_, ins, declared, edges) ->
+                            let isNewObj = match ins.Op with NewObj _ -> true | _ -> false
+
+                            edges
+                            |> List.collect (fun e ->
+                                match sinkOf ctx.Set ctx.Matcher e with
+                                | Some hit -> [ hit, sinkPayload f ins.Offset declared isNewObj hit, [ target ] ]
+                                | None -> generatedSinks (depth + 1) e.Target |> List.map (fun (h, p, chain) -> h, p, target :: chain)))
+                        |> List.distinctBy (fun (h, p, _) -> h.Rule.Id, h.Primitive.Key, p)
+                    | _ -> []
+                | _ -> []
+
+            generatedReach[target.Key] <- r
+            r
+
     for t in assembly.Types do
         let implementsMarked = markedImplementations t
 
@@ -280,6 +352,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
             | Some _ when implementsMarked.Contains m.Ref.Key -> ()
             | Some body ->
                 let flow = lazy (DataFlow.ofMethod m)
+                let generated = isGenerated m
 
                 // A generated log method's own log call is not one: the call to the method is (generatedLogger).
                 let generatedBody = (loggerAttribute ctx m.Attributes).IsSome
@@ -528,32 +601,39 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                     |> Option.bind queryPayload)
 
                             let payload =
-                                hit.Rule.Payload
-                                |> List.tryHead
-                                |> Option.bind (fun spec ->
-                                    flow.Value
-                                    |> Option.map (fun f ->
-                                        let evaluator = evaluatorOf f
-
-                                        match spec.Property with
-                                        | Some property when spec.Argument >= 0 ->
-                                            let index = Values.operandIndex declared isNewObj spec.Argument
-                                            Values.Evaluator.ToPayload(evaluator.OperandMember(ins.Offset, index, property, spec.ConstructorArgument), spec.Role)
-                                        | Some property when declared.HasThis && not isNewObj ->
-                                            evaluator.PropertyPayload(ins.Offset, property, spec.ConstructorArgument, spec.Role)
-                                        | Some _ -> Values.Evaluator.ToPayload(Values.Hole, spec.Role)
-                                        | None -> evaluator.Payload(ins.Offset, Values.operandIndex declared isNewObj spec.Argument, spec.Role)))
+                                flow.Value
+                                |> Option.bind (fun f -> sinkPayload f ins.Offset declared isNewObj hit)
                                 |> Option.orElseWith (fun () -> if hit.Rule.Payload.IsEmpty then ofQuery () else None)
 
-                            add
-                                hit.Category
-                                hit.Rule.Id
-                                hit.Primitive.Display
-                                None
-                                payload
-                                Confidence.High
-                                [ step $"{m.Ref.Display} calls {hit.Primitive.Display}" m.Ref point
-                                  step $"{hit.Primitive.Display} is a {categoryName hit.Category} primitive (rule {hit.Rule.Id})" hit.Primitive None ]
+                            // In generated code, the call that reaches it reports it (generatedSinks).
+                            if not generated then
+                                add
+                                    hit.Category
+                                    hit.Rule.Id
+                                    hit.Primitive.Display
+                                    None
+                                    payload
+                                    Confidence.High
+                                    [ step $"{m.Ref.Display} calls {hit.Primitive.Display}" m.Ref point
+                                      step $"{hit.Primitive.Display} is a {categoryName hit.Category} primitive (rule {hit.Rule.Id})" hit.Primitive None ]
+                        | None when not generated && not isLogCall && (generatedSinks 0 edge.Target).Length > 0 ->
+                            // A call into generated code (a gRPC client): what its calls to primitives do, here.
+                            for (hit, payload, chain) in generatedSinks 0 edge.Target do
+                                let through =
+                                    List.pairwise chain
+                                    |> List.map (fun (a: MethodRef, b: MethodRef) -> step $"{a.Display} calls {b.Display}, which is generated code" a None)
+
+                                add
+                                    hit.Category
+                                    hit.Rule.Id
+                                    hit.Primitive.Display
+                                    None
+                                    payload
+                                    Confidence.High
+                                    ([ step $"{m.Ref.Display} calls {chain.Head.Display}, which is generated code" m.Ref point ]
+                                     @ through
+                                     @ [ step $"{(List.last chain).Display} calls {hit.Primitive.Display}" (List.last chain) None
+                                         step $"{hit.Primitive.Display} is a {categoryName hit.Category} primitive (rule {hit.Rule.Id})" hit.Primitive None ])
                         | None ->
                             match ctx.Set.Origin edge.Target.Type.Assembly with
                             | Dependency ->

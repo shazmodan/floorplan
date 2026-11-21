@@ -92,6 +92,17 @@ let tests =
                   (m.ExitPoints |> List.filter (fun x -> List.contains x.Id trace.ExitPointIds))
                   (fun x -> x.Primitive = "System.IO.File::AppendAllTextAsync")
                   "Reserve writes the reservations log"
+
+              // A client: the call into the generated client is the outbound call, at the application's call site.
+              let outbound =
+                  m.ExitPoints
+                  |> List.filter (fun x -> x.Category = EffectCategory.HttpOut && x.Unit.StartsWith "CSharp.Grpc:")
+                  |> List.map (fun x -> x.Member, x.Payload |> Option.bind (fun p -> p.Value), x.Confidence)
+
+              Expect.equal
+                  outbound
+                  [ "CSharp.Grpc.Restocking.Restocker/<Reserve>d__1::MoveNext", Some "/shop.inventory.Stock/Reserve", Confidence.High ]
+                  "one call, where the application makes it; nothing inside the generated client"
           }
 
           test "message consumers: each handler a messaging library calls is a network entry point at its queue" {
