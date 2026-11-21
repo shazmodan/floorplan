@@ -176,6 +176,17 @@ Also new, outside the recognizer:
   machine is followed through its field. The entry point is complete when the queue is a constant, unresolved
   otherwise. Registrations of category `network` or `background` do not start the symbolic routing of HTTP
   requests. Fixture: `CSharp.Messaging`.
+- **Azure Functions** (isolated worker): a method with `[Function("Name")]` (`http-in.functions-function`, role
+  `"function-name"`) is run by the host when the trigger on one of its parameters fires: an attribute whose rule
+  has a `"function-trigger"` payload, of the trigger's category. Parameter attributes are read for this
+  (`MethodDef.ParameterAttributes`). An HTTP trigger (`http-in.functions-http-trigger`) gives every string among
+  its arguments as the HTTP methods and its `Route` property (the function's name by default) under the
+  `extensions.http.routePrefix` of the `host.json` next to the assembly (`api` by default): complete with
+  methods, partial without. A timer (`background.functions-timer-trigger`) is background work at its schedule;
+  queue, Service Bus, blob and Event Hubs triggers are of category `network` at their queue or path
+  (`"trigger-address"`). Enum arguments of attributes, such as the trigger's `AuthorizationLevel`, are decoded
+  with their types found next to the assembly. The in-process model (a class library) is not an application and
+  is not covered. Fixture: `CSharp.Functions` (net8.0 only: the worker SDK it uses does not build for net10.0).
 - **Hosted services**: background work the generic host starts by itself is an entry point of category
   `background`. `AddHostedService<T>()` is a registration (`background.add-hosted-service`) whose
   `"hosted-service-type"` payload is the index of the type argument that is the service, and callback rules of

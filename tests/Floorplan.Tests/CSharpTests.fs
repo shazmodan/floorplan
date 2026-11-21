@@ -115,6 +115,31 @@ let tests =
               Expect.contains (traced "CSharp.Messaging.Orders.Listener::OnReturn") "System.IO.File::Delete" "a return deletes its pending file"
           }
 
+          test "Azure Functions: each function is an entry point of its trigger's kind, HTTP routes under host.json's prefix" {
+              let m = csharpModel.Force()
+
+              let functions =
+                  entries m "CSharp.Functions"
+                  |> List.map (fun e -> e.HandlerMember, e.Category, e.HttpMethod, e.Route, e.Completeness)
+                  |> List.sort
+
+              Expect.equal
+                  functions
+                  [ "CSharp.Functions.Maintenance.Cleanup::Run", EffectCategory.Background, None, Some "0 */5 * * * *", Completeness.Complete
+                    "CSharp.Functions.Orders.OrderFunctions::Get", EffectCategory.HttpIn, Some "GET", Some "/fn/orders/{id}", Completeness.Complete
+                    "CSharp.Functions.Orders.OrderFunctions::OnOrder", EffectCategory.Network, None, Some "orders", Completeness.Complete
+                    "CSharp.Functions.Orders.OrderFunctions::Place", EffectCategory.HttpIn, Some "POST,PUT", Some "/fn/PlaceOrder", Completeness.Complete ]
+                  "HTTP with a route and without one, a timer, a queue; not a method without [Function]"
+
+              let get = entries m "CSharp.Functions" |> List.find (fun e -> e.HandlerMember.EndsWith "::Get")
+              let trace = m.Traces |> List.find (fun t -> t.EntryPointId = get.Id)
+
+              Expect.exists
+                  (m.ExitPoints |> List.filter (fun x -> List.contains x.Id trace.ExitPointIds))
+                  (fun x -> x.Primitive = "System.IO.File::AppendAllText")
+                  "GetOrder logs the read"
+          }
+
           test "hosted services: what the host starts is background work, an entry point of its own" {
               let m = csharpModel.Force()
 

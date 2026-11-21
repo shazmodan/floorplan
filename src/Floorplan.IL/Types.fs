@@ -195,6 +195,8 @@ type MethodDef =
       Attributes: AttributeDef list
       /// Parameter names as declared (empty strings where the metadata has none).
       ParameterNames: string list
+      /// The custom attributes of each parameter, in order (Azure Functions' triggers), read on demand.
+      ParameterAttributes: Lazy<AttributeDef list list>
       /// The native library, for a P/Invoke declaration.
       PInvokeModule: string option
       /// Methods this one explicitly overrides (.override), e.g. explicit interface implementations.

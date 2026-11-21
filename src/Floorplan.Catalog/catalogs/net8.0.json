@@ -471,6 +471,33 @@
       "members": ["CreateProcessor"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
       "payload": [{ "argument": 0, "role": "message-queue" }] },
 
+    // ---------------- Azure Functions ----------------
+    // The host runs a method marked [Function("Name")] ("function-name") when the trigger on one of its parameters
+    // fires ("function-trigger", of the trigger's category). An HTTP trigger names its methods (every string among
+    // its arguments, "http-methods") and its route (the Route property, the function's name by default) under
+    // host.json's routePrefix ("api" by default); any other trigger names its queue, schedule or path
+    // ("trigger-address").
+    { "id": "http-in.functions-function", "assembly": "Microsoft.Azure.Functions.Worker.Core", "type": "Microsoft.Azure.Functions.Worker.FunctionAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "function-name" }] },
+    { "id": "http-in.functions-http-trigger", "assembly": "Microsoft.Azure.Functions.Worker.Extensions.Http", "type": "Microsoft.Azure.Functions.Worker.HttpTriggerAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in",
+      "payload": [{ "argument": -1, "role": "function-trigger" }, { "argument": -1, "role": "http-methods" }, { "argument": -1, "property": "Route", "role": "route-template" }] },
+    { "id": "background.functions-timer-trigger", "assembly": "Microsoft.Azure.Functions.Worker.Extensions.Timer", "type": "Microsoft.Azure.Functions.Worker.TimerTriggerAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "background",
+      "payload": [{ "argument": -1, "role": "function-trigger" }, { "argument": 0, "role": "trigger-address" }] },
+    { "id": "network.functions-queue-trigger", "assembly": "Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues", "type": "Microsoft.Azure.Functions.Worker.QueueTriggerAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "network",
+      "payload": [{ "argument": -1, "role": "function-trigger" }, { "argument": 0, "role": "trigger-address" }] },
+    { "id": "network.functions-servicebus-trigger", "assembly": "Microsoft.Azure.Functions.Worker.Extensions.ServiceBus", "type": "Microsoft.Azure.Functions.Worker.ServiceBusTriggerAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "network",
+      "payload": [{ "argument": -1, "role": "function-trigger" }, { "argument": 0, "role": "trigger-address" }] },
+    { "id": "network.functions-blob-trigger", "assembly": "Microsoft.Azure.Functions.Worker.Extensions.Storage.Blobs", "type": "Microsoft.Azure.Functions.Worker.BlobTriggerAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "network",
+      "payload": [{ "argument": -1, "role": "function-trigger" }, { "argument": 0, "role": "trigger-address" }] },
+    { "id": "network.functions-eventhub-trigger", "assembly": "Microsoft.Azure.Functions.Worker.Extensions.EventHubs", "type": "Microsoft.Azure.Functions.Worker.EventHubTriggerAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "network",
+      "payload": [{ "argument": -1, "role": "function-trigger" }, { "argument": 0, "role": "trigger-address" }] },
+
     // ---------------- background ----------------
     // The generic host starts each hosted service it is given, not on a request: AddHostedService<T>() registers T
     // ("hosted-service-type" is the index of the type argument), and the host calls the members of the callback

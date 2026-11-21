@@ -1462,3 +1462,135 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                         { Steps =
                             step $"{r.Caller.Ref.Display} registers {handler.Display} with {r.Declared.Display}, called for each message received (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
                             :: queueStep } }))
+
+// ---- Azure Functions ----
+
+/// The route prefix of HTTP-triggered functions: `extensions.http.routePrefix` in the host.json next to the
+/// assembly, "api" by default.
+let private functionsRoutePrefix (assemblyPath: string) =
+    let file = System.IO.Path.Combine(System.IO.Path.GetDirectoryName assemblyPath, "host.json")
+
+    let read () =
+        use doc =
+            System.Text.Json.JsonDocument.Parse(
+                System.IO.File.ReadAllText file,
+                System.Text.Json.JsonDocumentOptions(CommentHandling = System.Text.Json.JsonCommentHandling.Skip, AllowTrailingCommas = true)
+            )
+
+        let child (e: System.Text.Json.JsonElement) (name: string) =
+            if e.ValueKind <> System.Text.Json.JsonValueKind.Object then
+                None
+            else
+                e.EnumerateObject()
+                |> Seq.tryFind (fun p -> System.String.Equals(p.Name, name, System.StringComparison.OrdinalIgnoreCase))
+                |> Option.map (fun p -> p.Value)
+
+        child doc.RootElement "extensions"
+        |> Option.bind (fun e -> child e "http")
+        |> Option.bind (fun e -> child e "routePrefix")
+        |> Option.filter (fun e -> e.ValueKind = System.Text.Json.JsonValueKind.String)
+        |> Option.map (fun e -> e.GetString())
+
+    try
+        if System.IO.File.Exists file then defaultArg (read ()) "api" else "api"
+    with
+    | :? System.Text.Json.JsonException
+    | :? System.IO.IOException -> "api"
+
+/// Functions: methods with an attribute whose metadata rule has a "function-name" payload ([Function("Name")]), run
+/// by the host when the trigger on one of their parameters fires: an attribute whose metadata rule has a
+/// "function-trigger" payload, of the trigger's category. An HTTP trigger gives the HTTP methods (every string in
+/// its arguments) and its "route-template" property (the function's name by default), under host.json's route
+/// prefix; any other trigger gives its "trigger-address" argument (a queue, a schedule) as the route.
+let functionEntries (ctx: AppContext) : EntryPoint list =
+    let set = ctx.Program.Set
+    let prefix = lazy (functionsRoutePrefix ctx.Project.AssemblyPath)
+
+    let rulesFor (a: AttributeDef) = attributeRules ctx.Matcher a
+
+    let texts (values: AttributeValue list) =
+        values
+        |> List.collect (function
+            | AttributeValue.Text t -> [ t ]
+            | AttributeValue.Many items -> items |> List.choose (function AttributeValue.Text t -> Some t | _ -> None)
+            | _ -> [])
+
+    ctx.Methods.Values
+    |> Seq.toList
+    |> List.choose (fun m ->
+        m.Attributes
+        |> List.tryPick (fun a -> rulesFor a |> List.tryPick (fun r -> textArgument r "function-name" a))
+        |> Option.map (fun name -> m, name))
+    |> List.collect (fun (m, functionName) ->
+        m.ParameterAttributes.Value
+        |> List.concat
+        |> List.collect (fun a ->
+            rulesFor a
+            |> List.filter (hasRole "function-trigger")
+            |> List.map (fun r -> a, r))
+        |> List.truncate 1
+        |> List.choose (fun (trigger, rule) ->
+            let handler = m.Ref
+            let point = firstPoint set handler
+            let location = point |> Option.map Attribution.toLocation
+
+            let projectId =
+                match set.Origin handler.Type.Assembly with
+                | User pid -> pid
+                | _ -> ctx.Project.ProjectId
+
+            ctx.Program.Attributor.Attribute(projectId, handler, point)
+            |> Option.map (fun unit ->
+                let category = defaultArg rule.Category EffectCategory.HttpIn
+
+                let httpMethod, route, predicates, completeness =
+                    if category = EffectCategory.HttpIn then
+                        let methods =
+                            if hasRole "http-methods" rule then
+                                texts trigger.Arguments |> List.map (fun t -> t.ToUpperInvariant()) |> List.distinct
+                            else
+                                []
+
+                        let template =
+                            rule.Payload
+                            |> List.tryFind (fun p -> p.Role = "route-template")
+                            |> Option.bind (fun p -> p.Property)
+                            |> Option.bind (fun property ->
+                                trigger.Named |> List.tryPick (fun (n, v) -> match v with AttributeValue.Text t when n = property -> Some t | _ -> None))
+                            |> Option.defaultValue functionName
+
+                        let route = PlatformRouting.normalizeRoute ((if prefix.Value = "" then [] else [ prefix.Value ]) @ [ template ])
+                        let httpMethod = if methods.IsEmpty then None else Some(String.concat "," methods)
+
+                        let methodPredicate =
+                            httpMethod
+                            |> Option.map (fun v ->
+                                { Part = RequestPart.Method
+                                  Operator = PredicateOperator.Equals
+                                  Index = None
+                                  Value = v
+                                  Location = location })
+                            |> Option.toList
+
+                        httpMethod,
+                        Some route,
+                        methodPredicate @ PlatformRouting.templatePredicates route location,
+                        (if httpMethod.IsSome then Completeness.Complete else Completeness.Partial)
+                    else
+                        let address = textArgument rule "trigger-address" trigger
+                        None, address, [], (if address.IsSome || not (hasRole "trigger-address" rule) then Completeness.Complete else Completeness.Unresolved)
+
+                { Id = ""
+                  ApplicationId = ctx.Project.ProjectId
+                  HandlerUnit = unit.Id
+                  HandlerMember = handler.Display
+                  Location = location
+                  Category = category
+                  Predicates = predicates
+                  HttpMethod = httpMethod
+                  Route = route
+                  Completeness = completeness
+                  Forms = [ RouteForm.PlatformRouting ]
+                  Evidence =
+                    { Steps =
+                        [ step $"{handler.Display} is function \"{functionName}\", run by the host when its trigger fires: {trigger.Type.FullName} (rule {rule.Id})" handler point ] } })))
