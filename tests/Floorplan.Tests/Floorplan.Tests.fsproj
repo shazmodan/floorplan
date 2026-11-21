@@ -21,6 +21,7 @@
     <Compile Include="NoiseAndTraceTests.fs" />
     <Compile Include="FrameworkTests.fs" />
     <Compile Include="CSharpTests.fs" />
+    <Compile Include="C4Tests.fs" />
     <Compile Include="LibraryPayloadTests.fs" />
     <Compile Include="SymbolicSamples.fs" />
     <Compile Include="SymbolicTests.fs" />
