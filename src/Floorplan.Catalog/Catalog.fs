@@ -126,6 +126,9 @@ type Rule =
       LogCall: LogCall
       /// For configured rules: where the configuration names the types.
       Configuration: ConfigurationSpec option
+      /// For sinks: the rule's type is an attribute, and a call to a method it marks is the effect (Refit's
+      /// [Get("/users/{id}")] on an interface method). Payload arguments are the attribute's.
+      MarkedCalls: bool
       /// The catalog that defined the rule.
       Source: string }
 

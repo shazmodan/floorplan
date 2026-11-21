@@ -23,6 +23,10 @@
     { "id": "http-out.webrequest", "assembly": "System.Net.Requests", "type": "System.Net.WebRequest",
       "members": ["GetResponse", "GetResponseAsync", "BeginGetResponse", "GetRequestStream", "GetRequestStreamAsync"],
       "includeDerivedTypes": true, "kind": "sink", "category": "http-out" },
+    // Refit: an interface method marked [Get("/users/{id}")] (or Post, Put, Delete, Patch, Head, Options) is an HTTP
+    // call when it is called; the attribute's path is the payload.
+    { "id": "http-out.refit", "assembly": "Refit", "type": "Refit.HttpMethodAttribute", "members": [".ctor"], "includeDerivedTypes": true,
+      "markedCalls": true, "kind": "sink", "category": "http-out", "payload": [{ "argument": 0, "role": "url" }] },
     { "id": "http-out.websocket-client", "assembly": "System.Net.WebSockets.Client", "type": "System.Net.WebSockets.ClientWebSocket",
       "members": ["ConnectAsync"], "kind": "sink", "category": "http-out", "payload": [{ "argument": 0, "role": "url" }] },
 

@@ -109,6 +109,15 @@ type Matcher(catalog: Catalog, supertypes: TypeRef -> Set<string>) =
         | true, r -> Some r
         | _ -> None
 
+    /// A sink rule for an attribute whose marked methods' calls are the effect, by the attribute's type or, with
+    /// includeDerivedTypes, one of its base types.
+    member _.MarkingSink(attribute: TypeRef) : Rule option =
+        catalog.Rules
+        |> List.tryFind (fun r ->
+            r.Kind = Sink
+            && r.MarkedCalls
+            && (r.Type = attribute.FullName || (r.IncludeDerivedTypes && (supertypes attribute).Contains r.Type)))
+
     /// A self-log rule for a call of `m`: a library's log of its own workings, off unless turned on.
     member this.SelfLog(m: MethodRef) =
         this.Match m |> List.tryFind (fun r -> r.Kind = SelfLog)

@@ -181,7 +181,7 @@ let tests =
                   "a loop that receives from SQS"
           }
 
-          test "data clients: Redis and MongoDB commands are database calls, Azure Blob Storage calls are HTTP" {
+          test "data clients: Redis and MongoDB commands are database calls, Azure Blob Storage and Refit calls are HTTP" {
               let m = csharpModel.Force()
 
               let calls (typeName: string) =
@@ -213,6 +213,12 @@ let tests =
                   [ EffectCategory.HttpOut, "BlobBaseClient::DownloadContentAsync", None
                     EffectCategory.HttpOut, "BlobContainerClient::UploadBlobAsync", Some "archive/{…}" ]
                   "Azure Blob Storage, with the blob's name"
+
+              Expect.equal
+                  (calls "Catalog.Products")
+                  [ EffectCategory.HttpOut, "ICatalogApi::AddProduct", Some "/products"
+                    EffectCategory.HttpOut, "ICatalogApi::GetProduct", Some "/products/{id}" ]
+                  "Refit: a call to a method marked with a verb is an HTTP call to its path"
 
               // Redis pub/sub: the subscriber's handler is a network entry point.
               Expect.exists
