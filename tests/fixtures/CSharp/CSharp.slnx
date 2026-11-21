@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="CSharp.Clients/CSharp.Clients.csproj" />
   <Project Path="CSharp.Conventional/CSharp.Conventional.csproj" />
   <Project Path="CSharp.Controllers/CSharp.Controllers.csproj" />
   <Project Path="CSharp.Delegated/CSharp.Delegated.csproj" />

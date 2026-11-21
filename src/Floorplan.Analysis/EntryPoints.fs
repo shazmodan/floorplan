@@ -1480,13 +1480,14 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
             let made =
                 if isNewObj r then None else r.Flow.OperandsAt r.Offset |> List.tryHead |> Option.bind (madeIn r.Flow 0)
 
-            // Where the queue is named: by the receiving call itself (RabbitMQ's BasicGet), by the call that made
-            // the consumer, or by one that ties it to a queue (a subscription).
+            // Where the queue is named: by the registering or receiving call itself (Redis's Subscribe(channel,
+            // handler), RabbitMQ's BasicGet), by the call that made the consumer, or by one that ties it to a queue
+            // (a subscription).
             let tiedTo (o: int) = tied |> List.tryFind (fun (key, _) -> key = (r.Caller.Ref.Key, o)) |> Option.map snd
 
             let own =
                 match specOf r.Rule "message-queue", specOf r.Rule "message-consumer" with
-                | Some queue, None when receives -> Some(r, text r queue)
+                | Some queue, None -> Some(r, text r queue)
                 | _ -> None
 
             let source =

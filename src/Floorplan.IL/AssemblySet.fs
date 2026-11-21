@@ -21,18 +21,31 @@ module Origin =
         |> List.exists (fun m -> p.Contains("/packs/" + m) || p.Contains("/shared/" + m + "/") || p.Contains("/" + m.ToLowerInvariant() + ".ref/"))
 
 type AssemblySet(reader: IAssemblyReader, userAssemblies: (string * string) list, searchPaths: string list) =
-    // Every candidate file, by simple assembly name. The first path given wins.
+    // Every candidate file, by simple assembly name. The first path given wins, except that a shared framework's
+    // copy wins over a package's: in a solution that mixes a web application with a console one, an assembly that
+    // is part of ASP.NET Core for one and a package for the other (Microsoft.Extensions.Logging.Abstractions) is
+    // the framework's for both, whatever the order of the projects.
     let candidates = Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 
     do
+        let users = HashSet<string>(StringComparer.OrdinalIgnoreCase)
+
         for (_, path) in userAssemblies do
-            candidates[Path.GetFileNameWithoutExtension path] <- path
+            let name = Path.GetFileNameWithoutExtension path
+            candidates[name] <- path
+            users.Add name |> ignore
 
         for path in searchPaths do
             let name = Path.GetFileNameWithoutExtension path
 
-            if not (candidates.ContainsKey name) && File.Exists path then
+            match candidates.TryGetValue name with
+            | false, _ when File.Exists path -> candidates[name] <- path
+            | true, existing when not (users.Contains name)
+                                  && not (Origin.isFrameworkPath existing)
+                                  && Origin.isFrameworkPath path
+                                  && File.Exists path ->
                 candidates[name] <- path
+            | _ -> ()
 
     let userByName =
         userAssemblies

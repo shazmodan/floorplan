@@ -446,6 +446,46 @@
     { "id": "blind-spot.delegate-dynamic-invoke", "type": "System.Delegate", "members": ["DynamicInvoke"], "kind": "blind-spot", "blindSpot": "reflection" },
     { "id": "blind-spot.dynamic", "type": "Microsoft.CSharp.RuntimeBinder.Binder", "members": ["*"], "kind": "blind-spot", "blindSpot": "dynamic" },
 
+    // ---------------- data clients ----------------
+    // Clients of databases and storage services that send their commands from connections of their own (a
+    // multiplexer, a connection pool, an HTTP pipeline of policies), which a call is followed to only by long,
+    // virtual routes, if at all. The catalog names the calls that run a command.
+    { "id": "database.redis", "assembly": "StackExchange.Redis", "type": "StackExchange.Redis.IDatabaseAsync",
+      "members": ["Geo*", "Hash*", "HyperLogLog*", "Key*", "List*", "Lock*", "Execute*", "ScriptEvaluate*", "Set*", "Sort*", "Stream*", "String*"],
+      "includeDerivedTypes": true, "kind": "sink", "category": "database", "payload": [{ "argument": 0, "role": "key" }] },
+    { "id": "network.redis-publish", "assembly": "StackExchange.Redis", "type": "StackExchange.Redis.IRedisAsync",
+      "members": ["Publish", "PublishAsync"], "includeDerivedTypes": true, "kind": "sink", "category": "network",
+      "payload": [{ "argument": 0, "role": "channel" }] },
+    { "id": "network.redis-subscribe", "assembly": "StackExchange.Redis", "type": "StackExchange.Redis.ISubscriber",
+      "members": ["Subscribe", "SubscribeAsync"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
+      "payload": [{ "argument": 1, "role": "message-handler" }, { "argument": 0, "role": "message-queue" }] },
+    { "id": "database.mongodb-collection", "assembly": "MongoDB.Driver", "type": "MongoDB.Driver.IMongoCollection`1",
+      "members": ["Aggregate*", "BulkWrite*", "Count*", "Delete*", "Distinct*", "EstimatedDocumentCount*", "FindSync", "FindAsync", "FindOneAnd*",
+                  "Insert*", "MapReduce*", "Replace*", "Update*", "Watch*"],
+      "includeDerivedTypes": true, "kind": "sink", "category": "database" },
+    // The extension methods run the command too, except Find and Aggregate, which return a query run by the cursor
+    // methods below.
+    { "id": "database.mongodb-collection-extensions", "assembly": "MongoDB.Driver", "type": "MongoDB.Driver.IMongoCollectionExtensions",
+      "members": ["Count*", "Delete*", "Distinct*", "FindSync", "FindAsync", "FindOneAnd*", "Replace*", "Update*", "Watch*"],
+      "kind": "sink", "category": "database" },
+    { "id": "database.mongodb-cursor", "assembly": "MongoDB.Driver.Core", "type": "MongoDB.Driver.IAsyncCursorSourceExtensions",
+      "members": ["Any*", "First*", "ForEachAsync", "Single*", "ToEnumerable", "ToList*"], "kind": "sink", "category": "database" },
+    { "id": "http-out.azure-blob-container", "assembly": "Azure.Storage.Blobs", "type": "Azure.Storage.Blobs.BlobContainerClient",
+      "members": ["Create", "CreateAsync", "CreateIfNotExists*", "Delete", "DeleteAsync", "DeleteIfExists*", "Exists", "ExistsAsync",
+                  "GetProperties*", "SetMetadata*", "GetAccessPolicy*", "SetAccessPolicy*", "GetBlobs*", "FindBlobsByTags*", "Rename", "RenameAsync"],
+      "includeDerivedTypes": true, "kind": "sink", "category": "http-out" },
+    { "id": "http-out.azure-blob-container-blob", "assembly": "Azure.Storage.Blobs", "type": "Azure.Storage.Blobs.BlobContainerClient",
+      "members": ["UploadBlob", "UploadBlobAsync", "DeleteBlob", "DeleteBlobAsync", "DeleteBlobIfExists*"],
+      "includeDerivedTypes": true, "kind": "sink", "category": "http-out", "payload": [{ "argument": 0, "role": "blob" }] },
+    { "id": "http-out.azure-blob", "assembly": "Azure.Storage.Blobs", "type": "Azure.Storage.Blobs.Specialized.BlobBaseClient",
+      "members": ["Download", "DownloadAsync", "DownloadStreaming", "DownloadStreamingAsync", "DownloadContent", "DownloadContentAsync",
+                  "DownloadTo", "DownloadToAsync", "OpenRead", "OpenReadAsync", "StartCopyFromUri*", "SyncCopyFromUri*", "AbortCopyFromUri*",
+                  "Delete", "DeleteAsync", "DeleteIfExists*", "Exists", "ExistsAsync", "Undelete*", "GetProperties*", "SetHttpHeaders*",
+                  "SetMetadata*", "SetTags*", "GetTags*", "SetAccessTier*", "CreateSnapshot*"],
+      "includeDerivedTypes": true, "kind": "sink", "category": "http-out" },
+    { "id": "http-out.azure-blob-upload", "assembly": "Azure.Storage.Blobs", "type": "Azure.Storage.Blobs.BlobClient",
+      "members": ["Upload", "UploadAsync", "OpenWrite", "OpenWriteAsync"], "includeDerivedTypes": true, "kind": "sink", "category": "http-out" },
+
     // ---------------- messaging ----------------
     // Sending a message. The libraries write it from their own loops (RabbitMQ's frame writer, Kafka's native
     // library, a bus's transport), which a call is not followed to, so the catalog names the calls that send: the

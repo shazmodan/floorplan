@@ -195,6 +195,17 @@ Also new, outside the recognizer:
   (`"trigger-address"`). Enum arguments of attributes, such as the trigger's `AuthorizationLevel`, are decoded
   with their types found next to the assembly. The in-process model (a class library) is not an application and
   is not covered. Fixture: `CSharp.Functions` (net8.0 only: the worker SDK it uses does not build for net10.0).
+- **Data clients**: clients of databases and storage services send their commands from connections of their
+  own (a multiplexer, a connection pool, an HTTP pipeline of policies), which a call is followed to only by long,
+  virtual routes: a MongoDB insert reached the database not at all, only low-confidence routes through its
+  authentication code, and a blob upload was a hidden low-confidence HTTP call. Sink rules name the calls that run
+  a command: StackExchange.Redis's `IDatabase` commands (`database.redis`, the key as payload), `Publish`
+  (`network.redis-publish`) and `Subscribe`, whose handler is a network entry point at its channel
+  (`network.redis-subscribe`); MongoDB's collection operations and the cursor methods that run a `Find` or an
+  `Aggregate` (`database.mongodb-*`; `Find` itself only builds the query); and Azure Blob Storage's container and
+  blob operations (`http-out.azure-blob*`, a blob's name as payload where the call takes one). An implicit
+  conversion from a string (`op_Implicit(string)`, as to a `RedisKey`) keeps the string's value. Fixture:
+  `CSharp.Clients`.
 - **Sending messages**: the messaging libraries write a message from their own loops (RabbitMQ's frame writer,
   Kafka's native library, a bus's transport), which a call is not followed to: publishing showed only the
   connection's DNS lookup. Sink rules of category `network` name the calls that send, as for Entity Framework
