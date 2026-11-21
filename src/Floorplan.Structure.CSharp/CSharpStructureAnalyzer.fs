@@ -290,7 +290,61 @@ module CSharpStructureAnalyzer =
         let isOwn (tree: SyntaxTree) = ownFiles.Contains tree.FilePath
         let unitId = UnitId.create project.Id
 
-        let namespaces = declaredNamespaces (compilation.SyntaxTrees |> Seq.filter isOwn |> List.ofSeq)
+        // Code a generator makes from a file of the project that is not C# (a Razor component or page): its #line
+        // directives map it back to that file. It declares the project's types as its own source does.
+        let projectDir = Path.GetFullPath(Path.GetDirectoryName project.Path) + string Path.DirectorySeparatorChar
+
+        let mappedFile (tree: SyntaxTree) =
+            if isOwn tree then
+                None
+            else
+                tree.GetLineMappings()
+                |> Seq.tryPick (fun m ->
+                    let path = m.MappedSpan.Path
+
+                    if m.IsHidden || not m.MappedSpan.HasMappedPath || String.IsNullOrEmpty path then
+                        None
+                    else
+                        let full = try Path.GetFullPath path with _ -> path
+
+                        if full.StartsWith(projectDir, StringComparison.OrdinalIgnoreCase)
+                           && not (full.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+                           && File.Exists full then
+                            Some full
+                        else
+                            None)
+
+        let fromOtherFiles =
+            compilation.SyntaxTrees |> Seq.choose (fun t -> mappedFile t |> Option.map (fun f -> t, f)) |> List.ofSeq
+
+        let isMapped (tree: SyntaxTree) = fromOtherFiles |> List.exists (fun (t, _) -> obj.ReferenceEquals(t, tree))
+
+        // A namespace only generated code declares is located in the first file it is made from, as a whole.
+        let generatedNamespaces =
+            fromOtherFiles
+            |> List.collect (fun (tree, file) ->
+                let lines = try File.ReadAllLines(file).Length with _ -> 1
+
+                declaredNamespaces [ tree ]
+                |> List.filter (fun (_, _, types) -> not types.IsEmpty)
+                |> List.map (fun (name, _, types) ->
+                    name,
+                    Some
+                        { File = file
+                          StartLine = 1
+                          StartColumn = 0
+                          EndLine = max 1 lines
+                          EndColumn = Int32.MaxValue },
+                    types))
+
+        let namespaces =
+            (declaredNamespaces (compilation.SyntaxTrees |> Seq.filter isOwn |> List.ofSeq) @ generatedNamespaces)
+            |> List.groupBy (fun (name, _, _) -> name)
+            |> List.map (fun (name, found) ->
+                name,
+                found |> List.tryPick (fun (_, location, _) -> location),
+                found |> List.collect (fun (_, _, types) -> types) |> List.distinct |> List.sort)
+            |> List.sortBy (fun (name, _, _) -> name)
 
         let units =
             namespaces
@@ -329,15 +383,19 @@ module CSharpStructureAnalyzer =
 
         let edges =
             compilation.SyntaxTrees
-            |> Seq.filter isOwn
+            |> Seq.filter (fun tree -> isOwn tree || isMapped tree)
             |> Seq.collect (fun tree ->
                 let model = compilation.GetSemanticModel(tree, false)
+
+                let own = isOwn tree
 
                 tree.GetRoot().DescendantNodes()
                 |> Seq.filter (fun n ->
                     // Names (of types, members, attributes) and target-typed constructions; using directives name namespaces only.
+                    // In generated code, only what its types do: not the assembly attributes that list them.
                     (n :? SimpleNameSyntax || n :? ImplicitObjectCreationExpressionSyntax)
-                    && isNull (n.FirstAncestorOrSelf<UsingDirectiveSyntax>()))
+                    && isNull (n.FirstAncestorOrSelf<UsingDirectiveSyntax>())
+                    && (own || not (isNull (n.FirstAncestorOrSelf<BaseTypeDeclarationSyntax>()))))
                 |> Seq.choose (fun (n: SyntaxNode) ->
                     let info = model.GetSymbolInfo n
 
@@ -355,7 +413,7 @@ module CSharpStructureAnalyzer =
                                 | Some a, Some b -> Some(a, b)
                                 | _ -> None
 
-                            unitId (enclosingNamespace model n.SpanStart), t, targetProject, n.GetLocation().GetLineSpan(), types)))
+                            unitId (enclosingNamespace model n.SpanStart), t, targetProject, n.GetLocation().GetMappedLineSpan(), types)))
             |> Array.ofSeq
 
         let typeEdges =
@@ -396,7 +454,7 @@ module CSharpStructureAnalyzer =
     /// belong to which project of the solution.
     let private cacheKey (index: SolutionIndex) (project: LoadedProject) =
         Caching.hash
-            [ yield "structure-csharp-v3"
+            [ yield "structure-csharp-v4"
               yield typeof<StructureResult>.Assembly.GetName().Version.ToString()
               yield typeof<CSharpCompilation>.Assembly.GetName().Version.ToString()
               yield project.Id

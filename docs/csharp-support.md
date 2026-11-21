@@ -13,6 +13,12 @@ support instead of appearing as one limited-support node.
   outside any namespace, and top-level statements, form the project's global namespace unit (empty name, shown as
   "(global namespace)"). A namespace that only contains other namespaces is not a unit. Generated files under
   `obj/` (global usings, assembly info) are compiled but give no units and no edges.
+- **Razor-generated code**: code a source generator makes from a file of the project that is not C# (a `.razor`
+  component, a `.cshtml` page or view), found by its `#line` directives mapping back to that file, declares units
+  as the project's own source does: a Blazor component is a type of the namespace its folder gives
+  (`CSharp.Blazor.Components.Pages`), a page or view a type of `AspNetCoreGeneratedDocument`, where the Razor
+  generator puts them. A namespace only generated code declares is located in the first file it is made from.
+  What the generated types' code uses gives edges; the assembly attributes that list them give none.
 - **Edges**: every name in the source that Roslyn binds to a type or member (including attributes and target-typed
   `new()`) is an edge from the namespace the code is in to the declaring type's unit. `using` directives give no
   edges: they name namespaces and may be unused.
