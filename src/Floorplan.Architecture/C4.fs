@@ -130,22 +130,38 @@ let private joined (technologies: string list) =
     | few when few.Length <= 3 -> Some(String.Join(", ", few))
     | many -> Some(String.Join(", ", List.truncate 3 many) + $" and {many.Length - 3} more")
 
-/// Who or what makes an entry point run: a person for HTTP, the system that delivers a message, the file system
-/// for a watched folder. Background work starts by itself and has no caller.
-let private callerOf (e: EntryPoint) : (C4Kind * External) option =
-    match e.Category with
-    | EffectCategory.HttpIn -> Some(C4Kind.Person, generic "user" "User" "A person or client calling the HTTP endpoints")
-    | EffectCategory.Network ->
-        Some(C4Kind.ExternalSystem, generic "messaging" "Message broker" "The broker or service that delivers messages")
-    | EffectCategory.FilesystemRead
-    | EffectCategory.FilesystemWrite -> Some(C4Kind.ExternalSystem, generic "filesystem" "File system" "Files and directories")
-    | _ -> None
+/// The library an entry point is registered with or receives through, when it is neither the platform's nor
+/// the solution's own.
+let private entryLibraryIn (solution: Solution) (e: EntryPoint) =
+    e.RegisteredThrough
+    |> Option.bind (fun t ->
+        let ns = namespaceOf t
+        if ns = "" || isPlatform ns || solution.Namespaces.Contains ns then None else Some ns)
 
-let private callerVerb (e: EntryPoint) =
+/// Who or what makes an entry point run, and what it does: a person for HTTP; for a message, the system its
+/// library reaches (the same element as the calls sent through that library), the network when the platform's
+/// own sockets receive it, or a message broker when nothing names it; the file system for a watched folder.
+/// Background work starts by itself and has no caller.
+let private callerOf (library: EntryPoint -> string option) (e: EntryPoint) : (C4Kind * External * string) option =
     match e.Category with
-    | EffectCategory.HttpIn -> "sends HTTP requests to"
-    | EffectCategory.Network -> "delivers messages to"
-    | _ -> "notifies of changed files"
+    | EffectCategory.HttpIn ->
+        Some(C4Kind.Person, generic "user" "User" "A person or client calling the HTTP endpoints", "sends HTTP requests to")
+    | EffectCategory.Network ->
+        match library e, e.RegisteredThrough with
+        | Some lib, _ ->
+            Some(C4Kind.ExternalSystem, generic $"library:{lib}" lib "A service reached through its client library", "delivers messages to")
+        | None, Some through when isPlatform (namespaceOf through) ->
+            Some(C4Kind.ExternalSystem, generic "network" "Network" "Hosts reached over the network", "sends messages to")
+        | None, _ ->
+            Some(
+                C4Kind.ExternalSystem,
+                generic "messaging" "Message broker" "The broker or service that delivers messages",
+                "delivers messages to"
+            )
+    | EffectCategory.FilesystemRead
+    | EffectCategory.FilesystemWrite ->
+        Some(C4Kind.ExternalSystem, generic "filesystem" "File system" "Files and directories", "notifies of changed files")
+    | _ -> None
 
 /// The exit points shown by default: the website hides some categories and low-confidence ones.
 let private shown (model: AnalysisModel) (x: ExitPoint) =
@@ -228,6 +244,8 @@ type private Facts =
       Exits: ExitPoint list
       Solution: Solution
       Library: ExitPoint -> string option
+      /// The library an entry point receives through, named as `Library` names an exit point's.
+      EntryLibrary: EntryPoint -> string option
       /// The containers each exit point belongs to: its application's, or for library code, the applications
       /// whose entry points reach it (every one that references the library, when none is traced to it).
       ContainersOf: ExitPoint -> string list
@@ -243,7 +261,8 @@ let private factsOf (model: AnalysisModel) : Facts =
         { Namespaces = model.Units |> List.map (fun u -> u.Name) |> Set.ofList
           Assemblies = model.Projects |> List.map (fun p -> p.Name) |> Set.ofList }
 
-    let root = rootsOf (exits |> List.choose (libraryIn solution))
+    let root =
+        rootsOf ((exits |> List.choose (libraryIn solution)) @ (model.EntryPoints |> List.choose (entryLibraryIn solution)))
     let projects = model.Projects |> List.filter (fun p -> not p.IsTestProject)
     let byId = projects |> List.map (fun p -> p.Id, p) |> Map.ofList
     let projectOfUnit = model.Units |> List.map (fun u -> u.Id, u.ProjectId) |> Map.ofList
@@ -295,6 +314,7 @@ let private factsOf (model: AnalysisModel) : Facts =
       Exits = exits
       Solution = solution
       Library = fun x -> libraryIn solution x |> Option.map root
+      EntryLibrary = fun e -> entryLibraryIn solution e |> Option.map root
       ContainersOf = containersOf
       Containers = containers
       UnitsOf =
@@ -366,7 +386,7 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
                 Sources = p.Id :: (entries |> List.map (fun e -> e.Id)) })
 
     // One application sends what another receives: a message to a queue it consumes (every consumer of the
-    // queue), or a request to its route, when the URL names no host but a local one or the application's own name
+    // queue, unless the two go through different libraries, which are different brokers), or a request to its route, when the URL names no host but a local one or the application's own name
     // and exactly one other application has the route. Only exact matches of known text.
     let localHost (url: string) (application: string) =
         match hostOf (Some { Role = ""; Kind = PayloadKind.Literal; Value = Some url }) with
@@ -380,7 +400,12 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
               match x.Category, x.Payload with
               | EffectCategory.Network, Some { Kind = PayloadKind.Literal; Value = Some queue } ->
                   for e in model.EntryPoints do
-                      if e.Category = EffectCategory.Network && e.Route = Some queue then
+                      let sameBroker =
+                          match facts.Library x, facts.EntryLibrary e with
+                          | Some sent, Some received -> sent = received
+                          | _ -> true
+
+                      if e.Category = EffectCategory.Network && e.Route = Some queue && sameBroker then
                           for c in facts.ContainersOf x do
                               if c <> containerId e.ApplicationId then
                                   yield
@@ -414,11 +439,13 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
     let outbound =
         facts.Exits |> List.filter (fun x -> not (matched.Contains x.Id)) |> List.map (fun x -> externalOf facts.Library x, x)
 
-    let inbound = model.EntryPoints |> List.choose (fun e -> callerOf e |> Option.map (fun c -> c, e))
+    let inbound =
+        model.EntryPoints
+        |> List.choose (fun e -> callerOf facts.EntryLibrary e |> Option.map (fun (kind, ext, verb) -> (kind, ext), verb, e))
 
     let externals =
         (outbound |> List.map (fun (ext, x) -> (C4Kind.ExternalSystem, ext), x.Id))
-        @ (inbound |> List.map (fun (c, e) -> c, e.Id))
+        @ (inbound |> List.map (fun (c, _, e) -> c, e.Id))
         |> List.groupBy (fun ((kind, ext), _) -> idOf kind ext)
         |> List.map (fun (id, items) ->
             let (kind, ext), _ = items.Head
@@ -437,11 +464,11 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
 
     let calls =
         inbound
-        |> List.map (fun ((kind, ext), e) ->
+        |> List.map (fun ((kind, ext), verb, e) ->
             { From = idOf kind ext
               To = codeOf (containerId e.ApplicationId) e.HandlerUnit e.HandlerMember
-              Description = callerVerb e
-              Technology = (if e.Category = EffectCategory.HttpIn then Some "HTTP" else None)
+              Description = verb
+              Technology = (if e.Category = EffectCategory.HttpIn then Some "HTTP" else facts.EntryLibrary e)
               Source = e.Id })
 
     // Dependencies between the units of a container's code.

@@ -76,7 +76,7 @@ Routing.Prefixed | http-in | GET /items | partial | Routing.Prefixed:Routing.Pre
 Routing.Records | http-in | GET /Session | complete | Routing.Records:Routing.Records.Session | Routing.Records.Session::show | forms [control-flow] | [method equals GET; path-segment0 equals Session; segment-count equals 1]
 Routing.Records | http-in | POST /Session | complete | Routing.Records:Routing.Records.Session | Routing.Records.Session::create | forms [control-flow] | [method equals POST; path-segment0 equals Session; segment-count equals 1]
 Routing.Records | http-in | DELETE /Session/{id} | complete | Routing.Records:Routing.Records.Session | Routing.Records.Session::remove | forms [control-flow] | [method equals DELETE; path-segment0 equals Session; segment-count equals 2; path-segment1 parameter {param}]
-Routing.Socket | network | - - | unresolved | Routing.Socket:Routing.Socket.Connection | Routing.Socket.Connection::handle | forms [] | []
+Routing.Socket | network | - - | unresolved | Routing.Socket:Routing.Socket.Connection | Routing.Socket.Connection::handle | forms [] | [] | through System.Net.Sockets.TcpListener
 Routing.Table | http-in | - /health | partial | Routing.Table:Routing.Table.Handlers | Routing.Table.Handlers::health | forms [table-lookup] | [path equals /health]
 Routing.Table | http-in | - /orders | partial | Routing.Table:Routing.Table.Handlers | Routing.Table.Handlers::orders | forms [table-lookup] | [path equals /orders]
 Routing.Table | http-in | - /users | partial | Routing.Table:Routing.Table.Handlers | Routing.Table.Handlers::users | forms [table-lookup] | [path equals /users]

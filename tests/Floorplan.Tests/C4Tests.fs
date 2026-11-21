@@ -199,6 +199,34 @@ let tests =
 
               Expect.containsAll
                   systems
-                  [ "StackExchange.Redis"; "MongoDB.Driver"; "Amazon.S3"; "Message broker"; "File system" ]
+                  [ "StackExchange.Redis"; "MongoDB.Driver"; "Amazon.S3"; "RabbitMQ.Client"; "File system" ]
                   "a database, a document store, a storage service, a broker that delivers messages, files"
+          }
+
+          test "who sends a message: the system its library reaches, one element with what is sent through it" {
+              let m = CSharpTests.csharpModel.Force()
+              let containers = view m "containers"
+              let messaging = C4.containerId "CSharp.Messaging"
+
+              Expect.contains
+                  (into containers messaging)
+                  ("external:library:RabbitMQ.Client", "delivers messages to")
+                  "RabbitMQ delivers the messages its consumers receive"
+
+              Expect.isTrue
+                  (containers.Relationships |> List.exists (fun r -> r.From = messaging && r.To = "external:library:RabbitMQ.Client"))
+                  "and the application sends to the same element"
+
+              Expect.isFalse (named m C4Kind.ExternalSystem |> List.contains "Message broker") "every consumer's library is known"
+
+              Expect.isEmpty
+                  (into containers (C4.containerId "CSharp.Functions") |> List.filter (fun (from, _) -> from = messaging))
+                  "a queue named orders on RabbitMQ is not the Functions host's queue of that name"
+
+              let routing = EntryPointTests.routingModel.Force()
+
+              Expect.contains
+                  (into (view routing "containers") (C4.containerId "Routing.Socket"))
+                  ("external:network", "sends messages to")
+                  "messages on the platform's own sockets come from the network, not a broker"
           } ]

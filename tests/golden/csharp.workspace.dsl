@@ -111,13 +111,13 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         external_library_MailKit = softwareSystem "MailKit" "A service reached through its client library" "External"
         external_library_MassTransit = softwareSystem "MassTransit" "A service reached through its client library" "External"
         external_library_Microsoft_AspNetCore_SignalR_Client = softwareSystem "Microsoft.AspNetCore.SignalR.Client" "A service reached through its client library" "External"
+        external_library_Microsoft_Azure_Functions_Worker = softwareSystem "Microsoft.Azure.Functions.Worker" "A service reached through its client library" "External"
         external_library_Microsoft_EntityFrameworkCore = softwareSystem "Microsoft.EntityFrameworkCore" "A database reached through its client library" "External"
         external_library_MongoDB_Driver = softwareSystem "MongoDB.Driver" "A database reached through its client library" "External"
         external_library_NServiceBus = softwareSystem "NServiceBus" "A service reached through its client library" "External"
         external_library_RabbitMQ_Client = softwareSystem "RabbitMQ.Client" "A service reached through its client library" "External"
         external_library_SendGrid = softwareSystem "SendGrid" "A service reached through its client library" "External"
         external_library_StackExchange_Redis = softwareSystem "StackExchange.Redis" "A service reached through its client library" "External"
-        external_messaging = softwareSystem "Message broker" "The broker or service that delivers messages" "External"
         external_native = softwareSystem "Native libraries" "Code outside .NET, called through P/Invoke" "External"
         external_network = softwareSystem "Network" "Hosts reached over the network" "External"
         external_processes = softwareSystem "Operating system" "Processes the application starts or inspects" "External"
@@ -210,10 +210,10 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Orders -> external_filesystem "writes files"
         component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Orders -> external_network "sends and receives over the network" "RabbitMQ.Client"
         component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Payments -> external_filesystem "writes files"
-        component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Publishing -> component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Orders "sends messages to orders" "RabbitMQ.Client"
         component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Publishing -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Shipping "uses"
         component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Publishing -> external_library_Azure_Messaging_ServiceBus "sends and receives over the network" "Azure.Messaging.ServiceBus"
         component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Publishing -> external_library_MassTransit "sends and receives over the network" "MassTransit"
+        component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Publishing -> external_library_RabbitMQ_Client "sends and receives over the network" "RabbitMQ.Client"
         component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Refunds -> external_filesystem "writes files"
         component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Sales -> external_filesystem "reads files" "NServiceBus.Core"
         component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Sales -> external_filesystem "writes files" "NServiceBus.Core"
@@ -235,16 +235,17 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Monitoring -> external_http "sends HTTP requests" "HTTP"
         component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Reporting -> external_filesystem "writes files"
         external_filesystem -> component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Imports "notifies of changed files"
-        external_messaging -> component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Caching "delivers messages to"
-        external_messaging -> component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Chat "delivers messages to"
-        external_messaging -> component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs "delivers messages to"
-        external_messaging -> component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Orders "delivers messages to"
-        external_messaging -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Configured "delivers messages to"
-        external_messaging -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Orders "delivers messages to"
-        external_messaging -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Payments "delivers messages to"
-        external_messaging -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Refunds "delivers messages to"
-        external_messaging -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Sales "delivers messages to"
-        external_messaging -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Shipping "delivers messages to"
+        external_library_Amazon_SQS -> component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs "delivers messages to" "Amazon.SQS"
+        external_library_Azure_Messaging_ServiceBus -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Payments "delivers messages to" "Azure.Messaging.ServiceBus"
+        external_library_Azure_Messaging_ServiceBus -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Refunds "delivers messages to" "Azure.Messaging.ServiceBus"
+        external_library_MassTransit -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Shipping "delivers messages to" "MassTransit"
+        external_library_Microsoft_AspNetCore_SignalR_Client -> component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Chat "delivers messages to" "Microsoft.AspNetCore.SignalR.Client"
+        external_library_Microsoft_Azure_Functions_Worker -> component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Orders "delivers messages to" "Microsoft.Azure.Functions.Worker"
+        external_library_NServiceBus -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Sales "delivers messages to" "NServiceBus"
+        external_library_RabbitMQ_Client -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Configured "delivers messages to" "RabbitMQ.Client"
+        external_library_RabbitMQ_Client -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Orders "delivers messages to" "RabbitMQ.Client"
+        external_library_RabbitMQ_Client -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Refunds "delivers messages to" "RabbitMQ.Client"
+        external_library_StackExchange_Redis -> component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Caching "delivers messages to" "StackExchange.Redis"
         person_user -> component_CSharp_Blazor_CSharp_Blazor_ "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_Controllers_CSharp_Controllers_ "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers "sends HTTP requests to" "HTTP"
@@ -267,11 +268,11 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
 
     views {
         systemContext system "context" {
-            include system external_database external_filesystem external_http external_http_api_example_org external_http_api_github_com external_http_status_example_org external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Azure_Messaging_ServiceBus external_library_Azure_Storage_Blobs external_library_Grpc_Core external_library_MailKit external_library_MassTransit external_library_Microsoft_AspNetCore_SignalR_Client external_library_Microsoft_EntityFrameworkCore external_library_MongoDB_Driver external_library_NServiceBus external_library_RabbitMQ_Client external_library_SendGrid external_library_StackExchange_Redis external_messaging external_native external_network external_processes person_user
+            include system external_database external_filesystem external_http external_http_api_example_org external_http_api_github_com external_http_status_example_org external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Azure_Messaging_ServiceBus external_library_Azure_Storage_Blobs external_library_Grpc_Core external_library_MailKit external_library_MassTransit external_library_Microsoft_AspNetCore_SignalR_Client external_library_Microsoft_Azure_Functions_Worker external_library_Microsoft_EntityFrameworkCore external_library_MongoDB_Driver external_library_NServiceBus external_library_RabbitMQ_Client external_library_SendGrid external_library_StackExchange_Redis external_native external_network external_processes person_user
             autoLayout tb
         }
         container system "containers" {
-            include container_CSharp_Blazor container_CSharp_Clients container_CSharp_Cloud container_CSharp_Controllers container_CSharp_Conventional container_CSharp_Delegated container_CSharp_Effects container_CSharp_Endpoints container_CSharp_Functions container_CSharp_Grpc container_CSharp_Messaging container_CSharp_Middleware container_CSharp_Switch container_CSharp_Table container_CSharp_Worker external_database external_filesystem external_http external_http_api_example_org external_http_api_github_com external_http_status_example_org external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Azure_Messaging_ServiceBus external_library_Azure_Storage_Blobs external_library_Grpc_Core external_library_MailKit external_library_MassTransit external_library_Microsoft_AspNetCore_SignalR_Client external_library_Microsoft_EntityFrameworkCore external_library_MongoDB_Driver external_library_NServiceBus external_library_RabbitMQ_Client external_library_SendGrid external_library_StackExchange_Redis external_messaging external_native external_network external_processes person_user
+            include container_CSharp_Blazor container_CSharp_Clients container_CSharp_Cloud container_CSharp_Controllers container_CSharp_Conventional container_CSharp_Delegated container_CSharp_Effects container_CSharp_Endpoints container_CSharp_Functions container_CSharp_Grpc container_CSharp_Messaging container_CSharp_Middleware container_CSharp_Switch container_CSharp_Table container_CSharp_Worker external_database external_filesystem external_http external_http_api_example_org external_http_api_github_com external_http_status_example_org external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Azure_Messaging_ServiceBus external_library_Azure_Storage_Blobs external_library_Grpc_Core external_library_MailKit external_library_MassTransit external_library_Microsoft_AspNetCore_SignalR_Client external_library_Microsoft_Azure_Functions_Worker external_library_Microsoft_EntityFrameworkCore external_library_MongoDB_Driver external_library_NServiceBus external_library_RabbitMQ_Client external_library_SendGrid external_library_StackExchange_Redis external_native external_network external_processes person_user
             autoLayout tb
         }
         component container_CSharp_Blazor "components_CSharp_Blazor" {
@@ -279,11 +280,11 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
             autoLayout tb
         }
         component container_CSharp_Clients "components_CSharp_Clients" {
-            include component_CSharp_Clients_CSharp_Clients_ component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Caching component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Catalog component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Chat component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Documents component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Files component_CSharp_Clients_CSharp_Clients_CSharp_Clients_GitHub component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Notifications external_filesystem external_http external_http_api_github_com external_http_status_example_org external_library_Azure_Storage_Blobs external_library_MailKit external_library_Microsoft_AspNetCore_SignalR_Client external_library_MongoDB_Driver external_library_SendGrid external_library_StackExchange_Redis external_messaging external_network
+            include component_CSharp_Clients_CSharp_Clients_ component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Caching component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Catalog component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Chat component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Documents component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Files component_CSharp_Clients_CSharp_Clients_CSharp_Clients_GitHub component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Notifications external_filesystem external_http external_http_api_github_com external_http_status_example_org external_library_Azure_Storage_Blobs external_library_MailKit external_library_Microsoft_AspNetCore_SignalR_Client external_library_MongoDB_Driver external_library_SendGrid external_library_StackExchange_Redis external_network
             autoLayout tb
         }
         component container_CSharp_Cloud "components_CSharp_Cloud" {
-            include component_CSharp_Cloud_CSharp_Cloud_ component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Orders component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Reports external_filesystem external_http external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_messaging external_network
+            include component_CSharp_Cloud_CSharp_Cloud_ component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Orders component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Reports external_filesystem external_http external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_network
             autoLayout tb
         }
         component container_CSharp_Controllers "components_CSharp_Controllers" {
@@ -307,7 +308,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
             autoLayout tb
         }
         component container_CSharp_Functions "components_CSharp_Functions" {
-            include component_CSharp_Functions_CSharp_Functions_ component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Maintenance component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Orders external_filesystem external_messaging person_user container_CSharp_Messaging
+            include component_CSharp_Functions_CSharp_Functions_ component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Maintenance component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Orders external_filesystem external_library_Microsoft_Azure_Functions_Worker person_user
             autoLayout tb
         }
         component container_CSharp_Grpc "components_CSharp_Grpc" {
@@ -315,7 +316,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
             autoLayout tb
         }
         component container_CSharp_Messaging "components_CSharp_Messaging" {
-            include component_CSharp_Messaging_CSharp_Messaging_ component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Configured component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Orders component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Payments component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Publishing component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Refunds component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Sales component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Shipping external_filesystem external_library_Azure_Messaging_ServiceBus external_library_MassTransit external_library_NServiceBus external_library_RabbitMQ_Client external_messaging external_network external_processes container_CSharp_Functions
+            include component_CSharp_Messaging_CSharp_Messaging_ component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Configured component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Orders component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Payments component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Publishing component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Refunds component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Sales component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Shipping external_filesystem external_library_Azure_Messaging_ServiceBus external_library_MassTransit external_library_NServiceBus external_library_RabbitMQ_Client external_network external_processes
             autoLayout tb
         }
         component container_CSharp_Middleware "components_CSharp_Middleware" {

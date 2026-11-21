@@ -143,6 +143,10 @@ type EntryPoint =
       Location: Location option
       /// Category of the inbound primitive, normally HttpIn or Network.
       Category: EffectCategory
+      /// The library type the entry point is registered with or receives through, as the catalog rule that found
+      /// it names it (e.g. "RabbitMQ.Client.Events.AsyncEventingBasicConsumer"), when one is known. It names who
+      /// delivers a message.
+      RegisteredThrough: string option
       Predicates: Predicate list
       HttpMethod: string option
       Route: string option

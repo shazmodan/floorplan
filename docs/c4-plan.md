@@ -274,3 +274,24 @@ Checked with Structurizr's own tooling in Docker (the `structurizr/cli` image is
 and every view's relationship count matches Floorplan's apart from the case above. To repeat:
 `docker run --rm -v <dir>:/usr/local/structurizr structurizr/structurizr validate -workspace /usr/local/structurizr/workspace.dsl`.
 The suite does not run it (Docker and a network pull are not assumed).
+
+### 2026-11-21: who sends a message (TODO item 9, `claude/c4-name-message-senders`)
+
+`EntryPoint.RegisteredThrough` holds the library type an entry point is registered with or receives through, as
+the catalog rule that found it names it: the queue rule's type for a consumer (`RabbitMQ.Client.IModel`,
+`Azure.Messaging.ServiceBus.ServiceBusClient`), the registration's for a consumer type (`MassTransit...`), the
+handler interface for scanned handlers (`NServiceBus.IHandleMessages`1`), the trigger attribute for a function,
+a network source's rule for handlers found by request-data tracking. HTTP routes leave it empty. The entry-point
+goldens show it as `| through <type>`.
+
+The C4 model names a message's caller after that type's namespace, rooted as exit points' libraries are, so the
+system an application consumes from is the same element as the one it sends to (`RabbitMQ.Client`,
+`StackExchange.Redis`): "delivers messages to", with the library as technology. The platform's own sockets
+(`System.Net.Sockets`, Routing.Socket) are "Network", which "sends messages to" the application. "Message
+broker" is left only for an entry point with no rule type, which no fixture has now. A message sent to a queue
+links two applications only when both go through the same library, when both are known: `CSharp.Messaging`'s
+RabbitMQ queue `orders` no longer links it to `CSharp.Functions`' Functions queue of that name. The C# fixtures'
+containers view is 4934 wide instead of 6864.
+
+A function's queue trigger names the Functions host (`Microsoft.Azure.Functions.Worker`), not the storage queue
+behind it: the attribute names no other library.
