@@ -206,6 +206,8 @@
     "person": "Person", "software-system": "Software system", "external-system": "External system",
     "container": "Container", "component": "Component", "code": "Code"
   };
+  // More labelled lines than this in one view, and labels show only on selection or hover.
+  var C4_QUIET_LABELS = 24;
   var C4_LEVEL = { "context": "System context", "containers": "Containers", "components": "Components", "code": "Code" };
 
   // The views from the system down to this one: context, containers, a container's components, a component's code.
@@ -270,6 +272,11 @@
     }
 
     var edgeEls = [], nodeEls = {};
+    // A view with many labelled lines shows its labels only for the selected element's lines and the line under
+    // the pointer, or all of them on request: drawn at once they crowd one another.
+    var labelled = groupBy(v.relationships.filter(function (rel) { return rel.description !== "uses"; }), function (rel) { return rel.from + ">" + rel.to; });
+    var quiet = Object.keys(labelled).length > C4_QUIET_LABELS;
+    if (quiet) canvas.world.classList.add("c4-quiet");
     var edgeOf = {};
     g.edges.forEach(function (e) { edgeOf[e.from + ">" + e.to] = e; });
     var relsByPair = groupBy(v.relationships, function (rel) { return rel.from + ">" + rel.to; });
@@ -369,6 +376,7 @@
       edgeEls.forEach(function (eEl) {
         var on = eEl.getAttribute("data-from") === id || eEl.getAttribute("data-to") === id;
         eEl.classList.toggle("dim", id !== null && !on);
+        eEl.classList.toggle("lit", id !== null && on);
       });
       renderSide(id);
     }
@@ -427,8 +435,10 @@
           return [i ? el("span", { class: "muted" }, " › ") : null,
             t.view.id === v.id ? el("strong", { "aria-current": "page" }, t.label) : el("a", { href: c4Link(t.view.id) }, t.label)];
         })),
-        el("span", { class: "muted" }, "Level " + (levels.indexOf(v.level) + 1) + " of 4: " + C4_LEVEL[v.level] + ". Select an element for details; double-click one to open the level below."),
-        el("span", { class: "spacer" }), zoomButtons(canvas)),
+        el("span", { class: "muted" }, "Level " + (levels.indexOf(v.level) + 1) + " of 4: " + C4_LEVEL[v.level] + ". Select an element for details; double-click one to open the level below." + (quiet ? " Labels show for the selected element's lines." : "")),
+        el("span", { class: "spacer" }),
+        quiet ? el("label", { class: "c4-labels" }, el("input", { type: "checkbox", on: { change: function (ev) { canvas.world.classList.toggle("c4-quiet", !ev.target.checked); } } }), " All labels") : null,
+        zoomButtons(canvas)),
       host
     ]);
     host.appendChild(canvas.svg);

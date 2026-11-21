@@ -338,3 +338,8 @@ between F# types. Each is a branch of its own, below.
 **Small fixes** (`claude/c4-small-fixes`): a component's description says "An F# module" (`article` picks "a" or
 "an" by how the word is said, letters by their names); a relationship's technology is dropped when it only
 repeats the name of the library system it reaches (`RabbitMQ.Client` to RabbitMQ.Client).
+
+**Labels in dense views** (`claude/c4-dense-view-labels`): a view with more than 24 labelled lines
+(`C4_QUIET_LABELS` in `app.js`; the C# fixtures' context and containers views) draws its labels only for the
+selected element's lines and the line under the pointer; an "All labels" box in the toolbar shows them all, and
+the hint under the trail says so. Smaller views are unchanged.

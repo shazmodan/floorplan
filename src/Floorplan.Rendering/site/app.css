@@ -316,6 +316,9 @@ ul.plain li { padding: 3px 0; }
 .c4-boundary text { fill: var(--muted); font-size: 13px; font-weight: 600; }
 .c4-rel text { fill: var(--text); font-size: 11.5px; paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
 .c4-rel text .tech { fill: var(--muted); font-size: 10.5px; }
+.c4-quiet .c4-rel text { display: none; }
+.c4-quiet .c4-rel.lit text, .c4-quiet .c4-rel:hover text { display: inline; }
+.c4-labels { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; font-size: 13px; }
 .c4-trail { display: inline-flex; gap: 2px; align-items: center; flex: none; }
 .c4-legend i.c4-swatch { width: 14px; height: 10px; border: none; border-radius: 2px; }
 .c4-legend i.c4-person { background: var(--c4-person); }
