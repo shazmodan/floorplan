@@ -164,7 +164,12 @@ Also new, outside the recognizer:
   TResponse>(type, serviceName, methodName, ...)` (`http-in.grpc-method`), and a delegate to the base class's
   method. Each method the service overrides is an entry point at `POST /{serviceName}/{methodName}`, complete;
   one it leaves to the generated base class (which answers that it is unimplemented) is not. Grpc.AspNetCore's own
-  catch-all for unknown services and methods stays an entry point of the library. Fixture: `CSharp.Grpc`.
+  catch-all for unknown services and methods stays an entry point of the library. A gRPC client is the other
+  side: the generated client calls a `CallInvoker` (`http-out.grpc-client`) with the same descriptor, so the call
+  is an outbound HTTP call to `/{serviceName}/{methodName}` (the `"grpc-method"` payload). Code a generator wrote
+  into the application (`[GeneratedCode]`) reports its calls to primitives at the application's call into it, where
+  the effect is decided: the client call is an exit point in the method that calls `ReserveAsync`, not in each of
+  the client's generated methods. Fixture: `CSharp.Grpc`.
 - **Message consumers**: a handler a messaging library calls for each message it receives is an entry point of
   category `network`, whose route is the queue. A registration rule with a `"message-handler"` payload adds the
   delegate to a consumer (RabbitMQ's `Received` on `EventingBasicConsumer` and `AsyncEventingBasicConsumer`, Azure

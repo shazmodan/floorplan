@@ -27,6 +27,12 @@
     // call when it is called; the attribute's path is the payload.
     { "id": "http-out.refit", "assembly": "Refit", "type": "Refit.HttpMethodAttribute", "members": [".ctor"], "includeDerivedTypes": true,
       "markedCalls": true, "kind": "sink", "category": "http-out", "payload": [{ "argument": 0, "role": "url" }] },
+    // gRPC clients: the code Grpc.Tools generates calls a CallInvoker with the method's descriptor, a static field its
+    // type's static constructor makes from the service's and the method's names ("grpc-method": the path is
+    // /{service}/{method}, read as for the server's binding).
+    { "id": "http-out.grpc-client", "assembly": "Grpc.Core.Api", "type": "Grpc.Core.CallInvoker",
+      "members": ["BlockingUnaryCall", "AsyncUnaryCall", "AsyncServerStreamingCall", "AsyncClientStreamingCall", "AsyncDuplexStreamingCall"],
+      "includeDerivedTypes": true, "kind": "sink", "category": "http-out", "payload": [{ "argument": 0, "role": "grpc-method" }] },
     { "id": "http-out.websocket-client", "assembly": "System.Net.WebSockets.Client", "type": "System.Net.WebSockets.ClientWebSocket",
       "members": ["ConnectAsync"], "kind": "sink", "category": "http-out", "payload": [{ "argument": 0, "role": "url" }] },
 

@@ -1166,31 +1166,6 @@ let backgroundEntries (ctx: AppContext) : EntryPoint list =
 
 // ---- gRPC services ----
 
-/// The value a static field is given by its type's static constructor: what the constructor stores in it.
-let private staticInit (set: AssemblySet) (f: FieldRef) : (Flow * Values) option =
-    match set.TryType f.Type with
-    | Some(t, _) ->
-        t.Methods
-        |> List.tryFind (fun m -> m.IsConstructor && m.IsStatic)
-        |> Option.bind DataFlow.ofMethod
-        |> Option.bind (fun flow ->
-            flow.Body.Instructions
-            |> Array.tryPick (fun ins ->
-                match ins.Op with
-                | StSFld g when g.Key = f.Key -> flow.OperandsAt ins.Offset |> List.tryLast |> Option.map (fun v -> flow, v)
-                | _ -> None))
-    | None -> None
-
-/// The string the values are: a constant, or a static field its static constructor sets to one.
-let rec private constantText (set: AssemblySet) (flow: Flow) (depth: int) (values: Values) : string option =
-    match Set.toList values with
-    | [ Pushed o ] ->
-        match flow.InstructionAt o with
-        | Some { Op = LdStr s } -> Some s
-        | Some { Op = LdSFld f } when depth < 4 -> staticInit set f |> Option.bind (fun (fl, v) -> constantText set fl (depth + 1) v)
-        | _ -> None
-    | _ -> None
-
 /// The methods a delegate among the values is made from (`new UnaryServerMethod(impl.SayHello)`).
 let private delegateTargets (flow: Flow) (values: Values) : MethodRef list =
     values
@@ -1276,27 +1251,12 @@ let grpcEntries (ctx: AppContext) : EntryPoint list =
 
                                 // The descriptor: a static field made by the descriptor type's constructor.
                                 let names =
-                                    match operand descriptorSpec |> Option.map Set.toList with
-                                    | Some [ Pushed o ] ->
-                                        match flow.InstructionAt o with
-                                        | Some { Op = LdSFld f } ->
-                                            match staticInit set f with
-                                            | Some(cctor, made) ->
-                                                match Set.toList made with
-                                                | [ Pushed n ] ->
-                                                    match cctor.InstructionAt n with
-                                                    | Some { Op = NewObj ctor } when generic ctor.Type.FullName = descriptorRule.Type ->
-                                                        let args = cctor.OperandsAt n
-                                                        let text (s: PayloadSpec) = List.tryItem s.Argument args |> Option.bind (constantText set cctor 0)
-
-                                                        match text serviceNameSpec, text methodNameSpec with
-                                                        | Some s, Some m -> Some(s, m)
-                                                        | _ -> None
-                                                    | _ -> None
-                                                | _ -> None
-                                            | None -> None
-                                        | _ -> None
-                                    | _ -> None
+                                    operand descriptorSpec
+                                    |> Option.bind (fun d ->
+                                        Values.staticObjectTexts set flow d descriptorRule.Type [ serviceNameSpec.Argument; methodNameSpec.Argument ])
+                                    |> Option.bind (function
+                                        | [ s; m ] -> Some(s, m)
+                                        | _ -> None)
 
                                 let handlers =
                                     operand handlerSpec

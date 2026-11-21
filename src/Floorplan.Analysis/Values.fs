@@ -567,3 +567,58 @@ type Producers(set: AssemblySet, recognizers: ICodegenRecognizer list) =
 
             memo[key] <- origin
             origin
+
+// ---- Static fields ----
+
+/// The value a static field is given by its type's static constructor: what the constructor stores in it.
+let staticInit (set: AssemblySet) (f: FieldRef) : (Flow * Values) option =
+    match set.TryType f.Type with
+    | Some(t, _) ->
+        t.Methods
+        |> List.tryFind (fun m -> m.IsConstructor && m.IsStatic)
+        |> Option.bind DataFlow.ofMethod
+        |> Option.bind (fun flow ->
+            flow.Body.Instructions
+            |> Array.tryPick (fun ins ->
+                match ins.Op with
+                | StSFld g when g.Key = f.Key -> flow.OperandsAt ins.Offset |> List.tryLast |> Option.map (fun v -> flow, v)
+                | _ -> None))
+    | None -> None
+
+/// The string the values are: a constant, or a static field its static constructor sets to one.
+let rec constantText (set: AssemblySet) (flow: Flow) (depth: int) (values: Values) : string option =
+    match Set.toList values with
+    | [ Pushed o ] ->
+        match flow.InstructionAt o with
+        | Some { Op = LdStr s } -> Some s
+        | Some { Op = LdSFld f } when depth < 4 -> staticInit set f |> Option.bind (fun (fl, v) -> constantText set fl (depth + 1) v)
+        | _ -> None
+    | _ -> None
+
+/// The constant arguments, at these indices, of the object a static field holds when its static constructor makes
+/// it with a constructor of the type `typeName` (generic arguments aside): a gRPC method descriptor's service and
+/// method names. None unless the values are such a field and every argument is a constant.
+let staticObjectTexts (set: AssemblySet) (flow: Flow) (values: Values) (typeName: string) (indices: int list) : string list option =
+    let generic (name: string) =
+        match name.IndexOf '<' with
+        | -1 -> name
+        | i -> name.Substring(0, i)
+
+    match Set.toList values with
+    | [ Pushed o ] ->
+        match flow.InstructionAt o with
+        | Some { Op = LdSFld f } ->
+            match staticInit set f with
+            | Some(cctor, made) ->
+                match Set.toList made with
+                | [ Pushed n ] ->
+                    match cctor.InstructionAt n with
+                    | Some { Op = NewObj ctor } when generic ctor.Type.FullName = typeName ->
+                        let args = cctor.OperandsAt n
+                        let texts = indices |> List.map (fun i -> List.tryItem i args |> Option.bind (constantText set cctor 0))
+                        if texts |> List.forall Option.isSome then Some(List.choose id texts) else None
+                    | _ -> None
+                | _ -> None
+            | None -> None
+        | _ -> None
+    | _ -> None

@@ -10,6 +10,20 @@ var app = builder.Build();
 app.MapGrpcService<StockService>();
 app.Run();
 
+namespace CSharp.Grpc.Restocking
+{
+    using CSharp.Grpc.Inventory;
+    using global::Grpc.Net.Client;
+
+    // A gRPC client: each call is an outbound HTTP call to POST /{package.Service}/{Method}.
+    public class Restocker
+    {
+        private readonly Stock.StockClient stock = new(GrpcChannel.ForAddress("https://inventory.example.org"));
+
+        public async Task<bool> Reserve(string sku) => (await stock.ReserveAsync(new ReserveRequest { Sku = sku, Count = 1 })).Ok;
+    }
+}
+
 namespace CSharp.Grpc.Inventory
 {
     public class StockService : Stock.StockBase
