@@ -257,7 +257,8 @@ Also new, outside the recognizer:
   SQS's `ReceiveMessage*` is a network entry point at its queue (`network.aws-sqs-receive*`; a `message-queue`
   can now be a property of an argument). Constructing a client still shows its credential lookup. Fixture:
   `CSharp.Cloud` (AWS); the Cosmos DB rules were checked on an application outside the fixtures, as the client's
-  analysis is slow.
+  analysis is slow. So were Elasticsearch's (`database.elasticsearch`, the request methods of
+  `ElasticsearchClient`), whose calls were low-confidence HTTP through the client's transport.
 - **Sending messages**: the messaging libraries write a message from their own loops (RabbitMQ's frame writer,
   Kafka's native library, a bus's transport), which a call is not followed to: publishing showed only the
   connection's DNS lookup. Sink rules of category `network` name the calls that send, as for Entity Framework
