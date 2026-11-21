@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>The C4 model of an analyzed solution, derived from the analysis model (docs/c4-plan.md).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="C4.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Floorplan.Model\Floorplan.Model.fsproj" />
+    <ProjectReference Include="..\Floorplan.Layout\Floorplan.Layout.fsproj" />
+  </ItemGroup>
+</Project>

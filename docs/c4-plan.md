@@ -1,0 +1,135 @@
+# C4 model of an analyzed solution: plan
+
+Date: 2026-11-21. Status: in progress. Adds a C4 model (https://c4model.com) of the analyzed solution to the
+analysis model, and shows it on the website.
+
+## Resuming work (read this first)
+
+This plan is worked in iterations. Each one is a branch of its own, ends with every test green, and is merged on
+its own. To pick up after a break:
+
+1. Read the **Status** table below. The first iteration not marked done is the current one.
+2. Check `git branch -a` for that iteration's branch. If it exists, check it out and read its commits and the
+   iteration's **Log** entry: that is where work stopped. If not, branch from `main` with the name in the table.
+3. Do the iteration's steps, then its **Done when** checks and the whole suite:
+   `dotnet run --project tests/Floorplan.Tests -- --summary`. Goldens are updated with `FLOORPLAN_UPDATE_GOLDEN=1`;
+   check every changed line.
+4. Before committing, update this file in the same commit: the Status row, and a dated **Log** entry with what was
+   done, what was found, and anything left over. Findings that change the design go into **Design** as well.
+5. The owner asked (2026-11-21) for no pull requests: when the whole suite passes locally, merge into `main`
+   with `--no-ff`, push, delete the branch, and go on to the next iteration.
+
+Never leave knowledge only in a conversation: if a session ends mid-iteration, the Log entry must say where it
+stopped.
+
+## Status
+
+| # | Iteration | Branch | Status |
+|---|---|---|---|
+| 1 | Plan, model types, an empty model in every run | `claude/c4-model-plan` | done |
+| 2 | Level 1, system context: the system, its users and the external systems | `claude/c4-system-context` | |
+| 3 | Level 2, containers: applications, libraries, and links between applications | `claude/c4-containers` | |
+| 4 | Level 3, components: the units of each container | `claude/c4-components` | |
+| 5 | Level 4, code: the types and members of each component | `claude/c4-code` | |
+| 6 | Diagram layout of every view | `claude/c4-layout` | |
+| 7 | The website's Architecture pages | `claude/c4-website` | |
+| 8 | Documentation, TODO, review on every fixture | `claude/c4-docs` | |
+
+## Goal
+
+Every run gives, beside what it gives today, a C4 model of the solution in its four levels, derived from what the
+analysis already found, with nothing configured by hand:
+
+1. **System context**: the solution as one software system, the people and systems that call it (from the entry
+   points), and the external systems it uses (from the exit points).
+2. **Containers**: the applications of the solution (each project that is an application), what each one is
+   (a web application, a worker, a console application), the external systems each one talks to, and the
+   applications that talk to each other (one sends to a queue another consumes).
+3. **Components**: for each container, the units (namespaces, F# modules) of its own project and of the library
+   projects it references, the dependencies between them, and which ones handle requests or reach out.
+4. **Code**: for each component, its types and the members that are entry or exit points.
+
+Each element and relationship keeps references to what it was derived from (entry points, exit points, units,
+dependencies), so it can be checked on the existing pages, as every other result can.
+
+The website gets an **Architecture** page: the four levels as diagrams in C4's notation, each element linking down
+to the next level (a container opens its components, a component its code) and to the existing unit and evidence
+pages. The JSON output carries the model too.
+
+Not goals: hand-written C4 models or merging with them, deployment diagrams, dynamic diagrams, exporting to other
+C4 tools (Structurizr DSL, PlantUML). Possible later.
+
+## Where things are today
+
+- `src/Floorplan.Model/Model.fs`: the analysis model. `Project` (with `IsApplication` and `ProjectReferences`),
+  `CodeUnit` (namespace, module or project unit, with `Types` for namespaces), `Dependency` between units,
+  `EntryPoint` (category, application, handler unit and member, route) and `ExitPoint` (category, unit, member,
+  primitive, payload, `ViaAssembly`).
+- `src/Floorplan.Layout`: `Layered.layout` lays out a directed graph (cycles collapsed), `SolutionLayout` the
+  project, unit and flow graphs. All layout is computed in the core so every renderer draws the same picture.
+- `src/Floorplan.Cli/Pipeline.fs`: `buildModel` runs the stages and assembles the model.
+- `src/Floorplan.Rendering/site/app.js`: the website, one page per hash route (`#/units`, `#/flow`, ...), drawing
+  SVG from the layouts in the model.
+- Goldens in `tests/golden` are text, one line per result, written by `tests/Floorplan.Tests/Golden.fs`.
+
+## Design
+
+### Model (`Floorplan.Model`, in `AnalysisModel.Architecture`)
+
+- `C4Element`: `Id`, `Kind` (person, software system, external system, container, component, code), `Name`,
+  `Technology` (e.g. "C# · net8.0 · web application"), `Description`, `Parent` (the element it is part of),
+  `Tags` (e.g. "library", "handles requests", "has side-effects"), and `Sources`: the ids of the projects, units,
+  entry and exit points it was derived from.
+- `C4Relationship`: `From`, `To`, `Description` (e.g. "GET /api/orders", "reads and writes", "sends to queue
+  orders"), `Technology` (e.g. "HTTP", "RabbitMQ"), and `Sources`.
+- `C4View`: `Id`, `Level` (context, containers, components, code), `Scope` (the element the view is of: the
+  system, a container, a component), the element ids it shows, and its `Layout` (a `GraphLayout`, iteration 6).
+- `C4Model`: elements, relationships, views. A relationship is stored between the most specific elements
+  (a code element and an external system); a view shows it between the elements it shows that contain them, so
+  the levels agree with one another by construction.
+- The schema version goes to 2.
+
+### Deriving the levels (`Floorplan.Analysis` or a new `Floorplan.Architecture` project, decided in iteration 2)
+
+- **External systems** come from exit points, grouped by what they reach, named without knowing any library:
+  - outbound HTTP: the host of the payload's URL when it is absolute (`prices.example.org`), else one "HTTP
+    services" element for calls whose host is unknown;
+  - database, network and messaging: the library the primitive belongs to (the first segments of the
+    primitive's namespace, e.g. `StackExchange.Redis`, `RabbitMQ.Client`), or for the platform's own primitives
+    (`System.Data`, `System.Net.Sockets`) the kind ("SQL database through ADO.NET", "network");
+  - files: one "file system"; processes: "operating system processes"; native code: "native libraries";
+  - categories hidden by default (environment, nondeterminism) and low-confidence exit points are left out, as
+    the website leaves them out by default.
+- **People and calling systems** come from entry points: HTTP routes are called by a "web client" person;
+  messages come from the external system that delivers them (named as for exit points, from the registration's
+  evidence); background work is started by the application itself and has no caller.
+- **Containers** are the application projects. A library project is not a container: its units appear as
+  components in every container that references it, tagged as part of that library. A library no application
+  references is a container of its own, tagged "library".
+- **Between containers**: a message sent to a queue (an exit point's payload) that another application consumes
+  (an entry point's route), and an HTTP call whose URL path matches another application's route. Matches are
+  exact; nothing is guessed.
+- **Components** are units; dependencies between units are relationships between components.
+- **Code** elements are the types a unit declares (`CodeUnit.Types`) and the types of the members that are entry
+  or exit points (from `HandlerMember` and `Member`, "Namespace.Type::Method"). An F# module is one code element.
+
+### Website
+
+- `#/architecture` shows the system context; `#/architecture/containers`, `#/architecture/container/<id>` and
+  `#/architecture/component/<id>` the other levels, with a breadcrumb. Diagrams use C4's notation: a person
+  shape, boxes with the name, `[kind: technology]` and description, external elements in grey, the scope's
+  boundary drawn around its parts, labelled relationship arrows, and a legend.
+- Clicking an element opens its level below (a container its components, a component its code), and a side
+  panel links to the existing pages (unit, evidence of each entry and exit point).
+
+## Log
+
+### 2026-11-21: iteration 1
+
+Plan written. `C4Kind`, `C4Element`, `C4Relationship`, `C4Level`, `C4View` and `C4Model` are in
+`Floorplan.Model`, and `AnalysisModel.Architecture` holds the model; the schema version is 2. The derivation is a
+project of its own, `src/Floorplan.Architecture` (`C4.derive : AnalysisModel -> C4Model`), because it needs
+nothing but the finished analysis model: no IL, no compiler. It depends on `Floorplan.Model` and
+`Floorplan.Layout`, and is checked as language-neutral by the architecture tests. `Pipeline.buildModel` derives
+the model last ("Deriving the C4 model"); for now `derive` returns an empty one. The JSON round-trip test covers
+the new types.
