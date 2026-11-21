@@ -191,6 +191,13 @@ Also new, outside the recognizer:
   (`"trigger-address"`). Enum arguments of attributes, such as the trigger's `AuthorizationLevel`, are decoded
   with their types found next to the assembly. The in-process model (a class library) is not an application and
   is not covered. Fixture: `CSharp.Functions` (net8.0 only: the worker SDK it uses does not build for net10.0).
+- **Sending messages**: the messaging libraries write a message from their own loops (RabbitMQ's frame writer,
+  Kafka's native library, a bus's transport), which a call is not followed to: publishing showed only the
+  connection's DNS lookup. Sink rules of category `network` name the calls that send, as for Entity Framework
+  Core: RabbitMQ's `BasicPublish` (the routing key is the payload; `whenParameters` tells the overloads apart),
+  Kafka's `Produce`/`ProduceAsync` (the topic), Azure Service Bus's `ServiceBusSender.Send*`/`Schedule*`, and
+  MassTransit's `Publish` and `Send`. Fixture: `CSharp.Messaging` (`CSharp.Messaging.Publishing`); Kafka's rule
+  was checked on an application outside the fixtures, as its native library is not in them.
 - **Hosted services**: background work the generic host starts by itself is an entry point of category
   `background`. `AddHostedService<T>()` is a registration (`background.add-hosted-service`) whose
   `"hosted-service-type"` payload is the index of the type argument that is the service, and callback rules of

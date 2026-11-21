@@ -62,6 +62,22 @@ namespace CSharp.Messaging.Shipping
     }
 }
 
+namespace CSharp.Messaging.Publishing
+{
+    using MassTransit;
+
+    // Sending messages: each call that sends is an exit point of category network, with the routing key where the
+    // call has one.
+    public class Publisher(IModel channel, ServiceBusSender sender, IPublishEndpoint bus)
+    {
+        public void Order(string id) => channel.BasicPublish("", "orders", null, Encoding.UTF8.GetBytes(id));
+
+        public Task Payment(string id) => sender.SendMessageAsync(new ServiceBusMessage(id));
+
+        public Task Shipped(string id) => bus.Publish(new Shipping.OrderShipped(id));
+    }
+}
+
 namespace CSharp.Messaging.Payments
 {
     public static class Listener
