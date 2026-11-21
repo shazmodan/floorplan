@@ -18,8 +18,8 @@ writes a static website to `./floorplan-out` that shows:
 3. **Entry points**: inbound HTTP routes and the module that handles each one, with how complete each route is;
    messages a queue delivers; the background work a host or a timer starts; and, for an application nothing else
    starts (a command-line tool), where the process starts.
-4. **Exit points**: outbound HTTP, database, file, process and other side-effects, the module each belongs to,
-   and the dependency it goes through.
+4. **Exit points**: outbound HTTP, database, file, process, messages sent and other side-effects, the module each
+   belongs to, and the dependency it goes through.
 5. **Traces**: the side-effects each entry point can cause.
 
 Floorplan knows no web framework. It reads the compiled code of the solution and its dependencies and follows it
@@ -70,7 +70,9 @@ application data folder), so a second run is about twice as fast.
 |---|---|
 | Module graph | F# compiler service for F# (a unit per module), Roslyn for C# (a unit per namespace): every symbol use is an edge from the enclosing to the declaring unit, also between F# and C# projects |
 | Exit points | Call graph over IL (rapid type analysis, closures, async and task state machines, iterators) matched against the catalog; effects inside NuGet packages are summarized and reported at the user call site |
-| Entry points | Handlers from platform registrations, from handler tables, and from request-data tracking (a user function called on a branch that request data decides) |
+| Entry points | Handlers from platform registrations, from handler tables, and from request-data tracking (a user function called on a branch that request data decides); read from declarations where the platform finds them by reflection (MVC controllers, Razor Pages, Blazor components, SignalR hubs, gRPC services, Azure Functions) |
+| Other inputs | Message consumers (RabbitMQ, Azure Service Bus, MassTransit, NServiceBus, Kafka, SQS, Redis, a SignalR client) at their queue, background work (hosted services, timers, Quartz.NET and Hangfire jobs), file watchers at their path, and a command-line program's start |
+| Outputs through client libraries | Where a library sends from loops or pipelines of its own, the catalog names the calls: Entity Framework Core, Redis, MongoDB, Cosmos DB, DynamoDB, S3, Azure Blob Storage, Refit and gRPC clients, message publishing, email (MailKit, SendGrid); NLog, log4net and Serilog targets named in configuration files |
 | Routes | Recovered from the conditions on request data: equality, prefixes, constant regexes, path segments, list patterns, active patterns, table keys. Reported as complete, partial or unresolved; never guessed |
 
 Blind spots (reflection, run-time code generation, `dynamic`) are listed under Diagnostics. C# projects get
