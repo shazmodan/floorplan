@@ -226,6 +226,28 @@ let tests =
                   "a type's uses of itself are left out"
           }
 
+          test "code: F# types and modules that use one another, a module's types named Module/Type" {
+              let m = ExitPointTests.shopModel.Force()
+              let web = C4.containerId "Shop.Web"
+              let handlers = C4.componentId web "Shop.Web:Shop.Web.Handlers"
+              let orders = C4.componentId web "Shop.Core:Shop.Core.Orders"
+              let uses (from: string) = m.Architecture.Relationships |> List.filter (fun r -> r.From = from && r.Description = "uses") |> List.map (fun r -> r.To)
+
+              Expect.contains
+                  (uses (C4.codeId handlers "Shop.Web.Handlers/FileNotifier"))
+                  (C4.codeId orders "Shop.Core.Orders/INotifier")
+                  "the notifier type implements the interface the orders module declares"
+
+              Expect.contains
+                  (uses (C4.codeId handlers "Shop.Web.Handlers"))
+                  (C4.codeId orders "Shop.Core.Orders")
+                  "a module calls another module's functions"
+
+              Expect.isFalse
+                  (m.Architecture.Relationships |> List.exists (fun r -> r.From.StartsWith "component:" && r.Description = "uses"))
+                  "every use between Shop's components is lifted from its types"
+          }
+
           test "layout: what is around the parts is drawn above or below them, in rows of at most rowLength" {
               for m in [ ExitPointTests.shopModel.Force(); CSharpTests.csharpModel.Force() ] do
                   let parents = m.Architecture.Elements |> List.map (fun e -> e.Id, e.Parent) |> Map.ofList

@@ -320,7 +320,7 @@ every name it already resolves for unit dependencies, the outermost type the use
 symbol is or is declared in, named "Namespace.Type" as a unit's `Types` are. Uses within one type are left out;
 uses within one unit are kept (they are what a code view shows). `AnalysisModel.TypeDependencies` carries them,
 the schema version is 3 (this and `EntryPoint.RegisteredThrough`), and the C# structure cache key is v3. The F#
-analyzer gives none: an F# module is its component's one code element, so its unit dependencies say the same.
+analyzer gave none at first; see the follow-up below.
 
 The C4 model stores a "uses" between code elements for each type dependency inside a container whose types are
 the ones their units declare (a Razor component, generated from a `.razor` file, lands in the global namespace's
@@ -353,3 +353,15 @@ merges a `workspace.json` that is older than `workspace.dsl` into the parsed DSL
 whole workspace, so the site writes the JSON first (a rendering test checks the order). Without the JSON,
 Structurizr lays the views out itself. The Architecture page links to the DSL when the files are there
 (`window.FLOORPLAN_FILES` in `data.js`, not with `--single-file`).
+
+**Uses between F# types** (`claude/c4-fsharp-type-uses`): the F# analyzer gives type dependencies too.
+`ModuleTree.typesOf` reads the types each module and namespace declares, with their ranges, so a use is in the
+type whose range holds it, or else in its module; `SymbolOwner.typeOfSymbol` names what a symbol belongs to: a
+module by its logical name, a type in a module "Module/Type" (as the code level already named nested types from
+member names, `Shop.Web.Handlers/FileNotifier`), any other type "Namespace.Type". C4's `declares` takes a
+module's own types. On Shop, `FileNotifier` uses `Shop.Core.Orders/INotifier`, `Domain/Order` uses
+`Domain/OrderId`, and every "uses" between Shop's components is lifted from its types. The F# structure cache key
+is v3.
+
+Left over: a type in a nested module is named by the module's logical name (`A.B/T`), while code elements made
+from member names use the compiled name (`A/B/T`); none of the fixtures has such a type in an entry or exit point.
