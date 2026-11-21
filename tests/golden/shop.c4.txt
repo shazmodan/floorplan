@@ -69,14 +69,14 @@ view context | context of system | 5 elements | 816 x 691
   system -> external:filesystem | writes files | - | 2 sources
   system -> external:http:prices.example.org | sends HTTP requests | HTTP | 1 sources
   system -> external:processes | starts or inspects processes | - | 2 sources
-view containers | containers of system | 6 elements | 816 x 921
+view containers | containers of system | 6 elements | 816 x 1032
   container:Shop.Web -> external:filesystem | reads files | - | 2 sources
   container:Shop.Web -> external:filesystem | writes files | - | 2 sources
   container:Shop.Web -> external:http:prices.example.org | sends HTTP requests | HTTP | 1 sources
   container:Shop.Worker -> container:Shop.Web | sends HTTP requests to /api/orders | HTTP | 1 sources
   container:Shop.Worker -> external:processes | starts or inspects processes | - | 2 sources
   person:user -> container:Shop.Web | sends HTTP requests to | HTTP | 3 sources
-view components:Shop.Web | components of container:Shop.Web | 13 elements | 1236 x 1611
+view components:Shop.Web | components of container:Shop.Web | 13 elements | 1236 x 1722
   component:Shop.Web|Shop.Core:Shop.Core.Orders -> component:Shop.Web|Shop.Core:Shop.Core.Domain | uses | - | 1 sources
   component:Shop.Web|Shop.Core:Shop.Core.Orders -> component:Shop.Web|Shop.Core:Shop.Core.Orders.Validation | uses | - | 1 sources
   component:Shop.Web|Shop.Core:Shop.Core.Orders -> component:Shop.Web|Shop.Core:Util | uses | - | 1 sources

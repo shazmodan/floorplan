@@ -592,6 +592,9 @@ let private lifted (elements: Map<string, C4Element>) (shown: string list) (link
 let boxWidth = 240.0
 let boxHeight = 120.0
 
+/// At most this many elements around a view's parts side by side; more wrap into further rows.
+let rowLength = 6
+
 /// The edges that close a cycle, found by a depth-first search in a fixed order: without them the graph is
 /// acyclic, so the layout keeps every element a box of its own rather than collapsing a cycle into one.
 let private closingCycles (nodes: string list) (edges: (string * string) list) =
@@ -645,23 +648,71 @@ let private laidOut (view: C4View) (parts: Set<string>) : GraphLayout =
 
     let top = "\u0000top"
     let bottom = "\u0000bottom"
+    let anchor (side: string) (row: int) = $"\u0000{side}{row}"
     let innerRouted = routed |> List.filter (fun (a, b) -> parts.Contains a && parts.Contains b)
     let sources = inside |> List.filter (fun p -> not (innerRouted |> List.exists (fun (_, b) -> b = p)))
     let sinks = inside |> List.filter (fun p -> not (innerRouted |> List.exists (fun (a, _) -> a = p)))
 
+    // The elements around the parts in rows of at most `rowLength`, each row hanging from an invisible anchor
+    // under the row before it (above the parts, the farthest row first), so a view with many external systems
+    // grows down rather than across.
+    let belowRows = below |> List.chunkBySize rowLength
+    let aboveRows = above |> Set.toList |> List.chunkBySize rowLength
+
+    let rowAnchors =
+        (belowRows
+         |> List.mapi (fun i row ->
+             let a = if i = 0 then bottom else anchor "below" i
+             (row |> List.map (fun b -> a, b)) @ (if i = 0 then [] else belowRows[i - 1] |> List.map (fun b -> b, a))))
+        @ (aboveRows
+           |> List.mapi (fun i row ->
+               if i = 0 then
+                   []
+               else
+                   let a = anchor "above" i
+                   (row |> List.map (fun x -> x, a)) @ (aboveRows[i - 1] |> List.map (fun x -> a, x))))
+        |> List.concat
+        // When the parts take more than one row, the nearest row above hangs above the top anchor, so no element
+        // above is drawn among them. (It costs a layer, so a single row of parts goes without.)
+        |> List.append (
+            if innerRouted.IsEmpty && inside.Length <= rowLength then
+                []
+            else
+                aboveRows |> List.tryHead |> Option.defaultValue [] |> List.map (fun x -> x, top)
+        )
+
+    // Parts related to no other part (the containers of a system whose applications do not call each other) in
+    // rows too, each row under the one before it; the rest of the parts keep the layers their relationships give.
+    let alone = inside |> List.filter (fun p -> List.contains p sources && List.contains p sinks)
+    let aloneRows = alone |> List.chunkBySize rowLength
+
+    let aloneAnchors =
+        aloneRows
+        |> List.mapi (fun i row ->
+            if i = 0 then
+                []
+            else
+                let a = anchor "parts" i
+                (aloneRows[i - 1] |> List.map (fun p -> p, a)) @ (row |> List.map (fun p -> a, p)))
+        |> List.concat
+
     let anchors =
-        (sources |> List.map (fun p -> top, p))
+        (sources |> List.filter (fun p -> not (List.contains p alone) || List.contains p aloneRows.Head) |> List.map (fun p -> top, p))
         @ (sinks |> List.map (fun p -> p, bottom))
-        @ (below |> List.map (fun b -> bottom, b))
+        @ rowAnchors
+        @ aloneAnchors
+
+    let anchorIds =
+        anchors |> List.collect (fun (a, b) -> [ a; b ]) |> List.filter (fun id -> id.StartsWith("\u0000", StringComparison.Ordinal)) |> List.distinct
 
     let graph =
         Layered.layout
             { Layered.defaults with LayerGap = 110.0; NodeGap = 48.0 }
             ((view.Elements |> List.map (fun id -> Layered.node id boxWidth boxHeight))
-             @ [ Layered.node top 1.0 1.0; Layered.node bottom 1.0 1.0 ])
+             @ (top :: bottom :: anchorIds |> List.distinct |> List.map (fun id -> Layered.node id 1.0 1.0)))
             ((routed @ anchors) |> List.map (fun (a, b) -> Layered.edge a b))
 
-    let nodes = graph.Nodes |> List.filter (fun n -> n.Id <> top && n.Id <> bottom)
+    let nodes = graph.Nodes |> List.filter (fun n -> not (n.Id.StartsWith("\u0000", StringComparison.Ordinal)))
     let at = nodes |> List.map (fun n -> n.Id, n) |> Map.ofList
     let routedSet = Set.ofList routed
 

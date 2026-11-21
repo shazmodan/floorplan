@@ -295,3 +295,20 @@ containers view is 4934 wide instead of 6864.
 
 A function's queue trigger names the Functions host (`Microsoft.Azure.Functions.Worker`), not the storage queue
 behind it: the attribute names no other library.
+
+### 2026-11-21: rows that wrap, labels that keep apart (TODO item 9, `claude/c4-wrap-rows-place-labels`)
+
+A view's layout (`laidOut`) puts the elements around the parts in rows of at most `C4.rowLength` (6), each row
+hanging from an invisible anchor under the row before it, below the parts and above them alike; parts related to
+no other part (a system's applications that do not call each other) wrap the same way. When the parts take more
+than one row, the nearest row above hangs above the top anchor: the layered layout otherwise pulled an element
+that calls a part in a lower row down among the parts, inside the boundary (seen with the brokers in the C#
+fixtures' containers view). That costs a layer (111 px) in those views. Anchors are found by an ordinal
+`StartsWith("\u0000")`: the culture-sensitive one ignores the null character and matched every id. The C#
+fixtures' context view is 1980 wide instead of 4560, the containers view 2280 by 2507 instead of 4934 by 691. A
+test checks that nothing around the parts is drawn among them and that no row is longer than `rowLength`.
+
+The website places each relationship label at the first spot along its line (the middle, then further out) where
+it overlaps no label placed before and no box; on Shop's containers view "reads files; writes files" and "sends
+HTTP requests" no longer overlap. In dense views (the C# containers view, about 70 relationships) labels still
+crowd one another where many lines run side by side.

@@ -193,6 +193,23 @@ let tests =
               Expect.stringContains shop "component_Shop_Worker_Shop_Worker_Shop_Worker_Program -> component_Shop_Web_Shop_Web_Shop_Web_Handlers \"sends HTTP requests to /api/orders\" \"HTTP\"" "code-level relationships are written at their components"
           }
 
+          test "layout: what is around the parts is drawn above or below them, in rows of at most rowLength" {
+              for m in [ ExitPointTests.shopModel.Force(); CSharpTests.csharpModel.Force() ] do
+                  let parents = m.Architecture.Elements |> List.map (fun e -> e.Id, e.Parent) |> Map.ofList
+
+                  for v in m.Architecture.Views do
+                      let isPart (id: string) = if v.Level = C4Level.Context then id = v.Scope else parents[id] = Some v.Scope
+                      let parts, around = v.Layout.Nodes |> List.partition (fun n -> isPart n.Id)
+                      let top = parts |> List.map (fun n -> n.Y) |> List.min
+                      let bottom = parts |> List.map (fun n -> n.Y + n.Height) |> List.max
+
+                      for n in around do
+                          Expect.isTrue (n.Y + n.Height <= top || n.Y >= bottom) $"{v.Id}: {n.Id} is among the parts"
+
+                      for _, row in around |> List.groupBy (fun n -> n.Y) do
+                          Expect.isLessThanOrEqual row.Length C4.rowLength $"{v.Id}: a row of {row.Length}"
+          }
+
           test "system context of the C# fixtures: client libraries name the systems they reach" {
               let m = CSharpTests.csharpModel.Force()
               let systems = named m C4Kind.ExternalSystem

@@ -273,16 +273,47 @@
     var edgeOf = {};
     g.edges.forEach(function (e) { edgeOf[e.from + ">" + e.to] = e; });
     var relsByPair = groupBy(v.relationships, function (rel) { return rel.from + ">" + rel.to; });
+    // Labels are placed one by one, each at the first spot along its line (the middle, then further out) where
+    // it overlaps no label placed before it and no box: lines that meet at a box would otherwise put their
+    // labels on one another.
+    var taken = g.nodes.map(function (n) { return { x: n.x, y: n.y, w: n.width, h: n.height }; });
+    var overlaps = function (a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h; };
+    var along = function (p, t) {
+      var lengths = [], total = 0;
+      for (var i = 1; i < p.length; i++) { var d = Math.hypot(p[i].x - p[i - 1].x, p[i].y - p[i - 1].y); lengths.push(d); total += d; }
+      var at = total * t;
+      for (var j = 0; j < lengths.length; j++) {
+        if (at <= lengths[j] || j === lengths.length - 1) {
+          var f = lengths[j] ? Math.min(1, at / lengths[j]) : 0;
+          return { x: p[j].x + (p[j + 1].x - p[j].x) * f, y: p[j].y + (p[j + 1].y - p[j].y) * f };
+        }
+        at -= lengths[j];
+      }
+      return p[0];
+    };
+    var place = function (p, lines) {
+      var w = Math.max.apply(null, lines.map(function (t) { return t.length; })) * 6.2 + 8, h = lines.length * 14 + 4;
+      var box = function (c) { return { x: c.x - w / 2, y: c.y - (lines.length - 1) * 7 - 12, w: w, h: h }; };
+      var tries = [0.5, 0.4, 0.6, 0.3, 0.7, 0.22, 0.78, 0.15, 0.85];
+      for (var i = 0; i < tries.length; i++) {
+        var c = along(p, tries[i]), b = box(c);
+        if (!taken.some(function (o) { return overlaps(o, b); })) { taken.push(b); return c; }
+      }
+      var mid = along(p, 0.5);
+      taken.push(box(mid));
+      return mid;
+    };
     Object.keys(relsByPair).forEach(function (key) {
       var e = edgeOf[key];
       if (!e) return;
       var rels = relsByPair[key];
-      var p = e.points, mid = p.length % 2 === 0 ? { x: (p[p.length / 2 - 1].x + p[p.length / 2].x) / 2, y: (p[p.length / 2 - 1].y + p[p.length / 2].y) / 2 } : p[(p.length - 1) / 2];
+      var p = e.points;
       // A dependency between components ("uses") is the common case: its arrow says it without a label.
       var label = rels.map(function (rel) { return rel.description; }).filter(function (d) { return d !== "uses"; }).join("; ");
       var tech = Array.from(new Set(rels.map(function (rel) { return rel.technology; }).filter(Boolean))).join(", ");
       var lines = label ? wrapText(label, 30, 2) : [];
       if (tech) lines.push("[" + nodeText(tech, 230) + "]");
+      var mid = lines.length ? place(p, lines) : p[0];
       var group = svg("g", { class: "c4-rel", "data-from": rels[0].from, "data-to": rels[0].to },
         svg("path", { class: "g-edge", d: curve(p) }),
         lines.length ? svg("text", { x: mid.x, y: mid.y - (lines.length - 1) * 7, "text-anchor": "middle" },

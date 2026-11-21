@@ -44,9 +44,8 @@ In the order they are worth doing: the first ones change results already shown, 
    options object kept in a field (`_options = options.Value`), named options (`Configure<T>("name", section)`),
    or other configuration sources (environment variables, `AddJsonFile("other.json")`). Next step: a probe on a
    real application, to see which of these it uses.
-9. **Refine the C4 model** (`docs/c4-plan.md`): wrap long rows of external systems (the C# fixtures' containers
-   view puts many in one row); keep relationship labels from overlapping where lines meet; dependencies between
-   types, for "uses" at the code level. Done: who sends a message is named from `EntryPoint.RegisteredThrough`.
+9. **Refine the C4 model** (`docs/c4-plan.md`): dependencies between types, for "uses" at the code level. Done:
+   who sends a message is named from `EntryPoint.RegisteredThrough`; rows of elements wrap; labels keep apart.
 
 ## Later, if wanted (from docs/library-payloads-plan.md)
 
