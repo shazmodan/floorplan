@@ -13,4 +13,8 @@ let main _ =
     Orders.announce (ProcessNotifier()) order
     printfn "%s" (Util.describe order)
     Process.Start("echo", "done") |> ignore
+
+    // The web application's own route: the worker calls it.
+    use client = new System.Net.Http.HttpClient()
+    client.GetStringAsync("http://localhost:5000/api/orders").Result |> ignore
     0

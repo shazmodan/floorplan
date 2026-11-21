@@ -7,6 +7,13 @@ open Floorplan.Architecture
 let private render (model: AnalysisModel) =
     (C4.describe model.Architecture |> String.concat "\n") + "\n"
 
+let private view (model: AnalysisModel) (id: string) =
+    model.Architecture.Views |> List.find (fun v -> v.Id = id)
+
+/// The relationships a view shows into an element, as (from, description).
+let private into (v: C4View) (target: string) =
+    v.Relationships |> List.filter (fun r -> r.To = target) |> List.map (fun r -> r.From, r.Description)
+
 let private named (model: AnalysisModel) (kind: C4Kind) =
     model.Architecture.Elements |> List.filter (fun e -> e.Kind = kind) |> List.map (fun e -> e.Name) |> List.sort
 
@@ -27,18 +34,40 @@ let tests =
               Expect.equal
                   (named m C4Kind.ExternalSystem)
                   [ "File system"; "Operating system"; "prices.example.org" ]
-                  "the host of an absolute URL, files and processes; not the environment, hidden by default"
+                  "the host of an absolute URL, files and processes; not the environment, hidden by default, nor the web application the worker calls"
 
-              let into (target: string) =
-                  m.Architecture.Relationships |> List.filter (fun r -> r.To = target) |> List.map (fun r -> r.From, r.Description)
+              let context = view m "context"
+              Expect.contains (into context "external:http:prices.example.org") (C4.SystemId, "sends HTTP requests") "the system calls the price service"
+              Expect.equal (into context C4.SystemId) [ "person:user", "sends HTTP requests to" ] "the user calls the system"
+              Expect.equal context.Elements.Head C4.SystemId "the system, and what is around it"
+          }
 
-              Expect.equal (into "external:http:prices.example.org") [ C4.SystemId, "sends HTTP requests" ] "the system calls the price service"
-              Expect.equal (into C4.SystemId) [ "person:user", "sends HTTP requests to" ] "the user calls the system"
+          test "containers: the applications, what they are, and one calling another's route" {
+              let m = ExitPointTests.shopModel.Force()
+              let containers = m.Architecture.Elements |> List.filter (fun e -> e.Kind = C4Kind.Container)
 
               Expect.equal
-                  (m.Architecture.Views |> List.map (fun v -> v.Id, v.Level))
-                  [ "context", C4Level.Context ]
-                  "one view per level so far"
+                  (containers |> List.map (fun c -> c.Name, c.Tags, c.Technology))
+                  [ "Shop.Web", [ "web application" ], Some "F# · net10.0"
+                    "Shop.Worker", [ "background worker" ], Some "F# · net8.0" ]
+                  "applications are containers; the libraries they reference are not"
+
+              let containers = view m "containers"
+              let web = C4.containerId "Shop.Web"
+
+              Expect.contains
+                  (into containers web)
+                  (C4.containerId "Shop.Worker", "sends HTTP requests to /api/orders")
+                  "the worker calls the web application's route"
+
+              Expect.contains
+                  (into containers "external:filesystem")
+                  (web, "writes files")
+                  "the web application writes through the libraries it references, as its routes are traced to"
+
+              Expect.isFalse
+                  (into containers "external:filesystem" |> List.contains (C4.containerId "Shop.Worker", "writes files"))
+                  "the worker reaches no library code that writes"
           }
 
           test "system context of the C# fixtures: client libraries name the systems they reach" {
