@@ -1103,10 +1103,18 @@ let backgroundEntries (ctx: AppContext) : EntryPoint list =
             if inner.Contains ',' || inner.Contains '<' || inner.StartsWith "!" then None else Some inner
         | _ -> None
 
+    // The roles that name a type by its type argument, what the type is, and who calls it.
+    let roles =
+        [ "hosted-service-type", ("hosted service", "The host")
+          "consumer-type", ("consumer", "The bus")
+          "job-type", ("job", "The scheduler") ]
+        |> dict
+
     PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
-    |> List.filter (fun r -> hasRole "hosted-service-type" r.Rule || hasRole "consumer-type" r.Rule)
+    |> List.filter (fun r -> r.Rule.Payload |> List.exists (fun p -> roles.ContainsKey p.Role))
     |> List.collect (fun r ->
-        let spec = r.Rule.Payload |> List.find (fun p -> p.Role = "hosted-service-type" || p.Role = "consumer-type")
+        let spec = r.Rule.Payload |> List.find (fun p -> roles.ContainsKey p.Role)
+        let what, who = roles[spec.Role]
         let isConsumer = spec.Role = "consumer-type"
         let category = defaultArg r.Rule.Category EffectCategory.Background
         let registrationPoint = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
@@ -1139,8 +1147,6 @@ let backgroundEntries (ctx: AppContext) : EntryPoint list =
                 ctx.Program.Attributor.Attribute(projectId, handler, point)
                 |> Option.map (fun unit ->
                     let route = if isConsumer then messageType handler else None
-                    let what = if isConsumer then "consumer" else "hosted service"
-                    let who = if isConsumer then "The bus" else "The host"
 
                     { Id = ""
                       ApplicationId = ctx.Project.ProjectId

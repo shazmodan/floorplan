@@ -1,10 +1,13 @@
 // A worker: the host starts the hosted services it is given, and they do their work without a request.
 using CSharp.Worker.Cleanup;
 using CSharp.Worker.Monitoring;
+using Quartz;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddHostedService<Sweeper>();
 builder.Services.AddHostedService(_ => new Heartbeat("https://status.example.org/ping"));
+builder.Services.AddQuartz(q => q.ScheduleJob<CSharp.Worker.Cleanup.PurgeJob>(t => t.WithCronSchedule("0 0 3 * * ?")));
+builder.Services.AddQuartzHostedService();
 builder.Build().Run();
 
 namespace CSharp.Worker.Cleanup
@@ -21,6 +24,16 @@ namespace CSharp.Worker.Cleanup
 
                 await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
             }
+        }
+    }
+
+    // A Quartz job: the scheduler runs Execute when its trigger fires.
+    public class PurgeJob : Quartz.IJob
+    {
+        public Task Execute(Quartz.IJobExecutionContext context)
+        {
+            Directory.Delete("cache", recursive: true);
+            return Task.CompletedTask;
         }
     }
 

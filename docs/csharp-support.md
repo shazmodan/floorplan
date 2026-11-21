@@ -233,7 +233,10 @@ Also new, outside the recognizer:
   hosted service the application never registers is not one. A timer's callback is background work too: the
   registration rules `background.threading-timer` (the `System.Threading.Timer` constructor, read where it is
   constructed) and `background.timers-timer-elapsed` (`System.Timers.Timer.Elapsed`) name the delegate with the
-  same `"message-handler"` role as message consumers, and the entry point takes the rule's category. Fixture:
+  same `"message-handler"` role as message consumers, and the entry point takes the rule's category. A Quartz.NET
+  job is read like a hosted service: `AddJob<T>()` and `ScheduleJob<T>()` (`background.quartz-add-job`, whose
+  `"job-type"` payload is the index of the type argument) and the callback rule `background.quartz-job`
+  (`IJob.Execute`) make each registered job's `Execute` background work. Fixture:
   `CSharp.Worker` (Microsoft.Extensions.Hosting as a package, on the Worker SDK).
 - **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
   built assembly (a dependency, like a package), with the application's handlers passed as method groups in a
