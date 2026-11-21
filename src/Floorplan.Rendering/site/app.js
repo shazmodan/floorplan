@@ -894,7 +894,7 @@
   function routeLabel(e) {
     if (e.route) return (e.httpMethod ? e.httpMethod + " " : "") + e.route;
     if (e.predicates.length) return (e.httpMethod ? e.httpMethod + " " : "") + e.predicates.map(predicateText).join(", ");
-    if (e.category === "background") return "(started by the host)";
+    if (e.category === "background") return "(started without a request)";
     return "(unresolved)";
   }
   function predicateText(p) {

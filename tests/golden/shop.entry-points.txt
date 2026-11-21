@@ -1,3 +1,4 @@
 Shop.Web | http-in | GET /api/orders | complete | Shop.Web:Shop.Web.Handlers | Shop.Web.Handlers::listOrders | forms [platform-routing] | [method equals GET; path-segment0 equals api; path-segment1 equals orders; segment-count equals 2]
 Shop.Web | http-in | POST /api/orders/{item} | complete | Shop.Web:Shop.Web.Handlers | Shop.Web.Handlers::createOrder | forms [platform-routing] | [method equals POST; path-segment0 equals api; path-segment1 equals orders; path-segment2 parameter {item}; segment-count equals 3]
 Shop.Web | http-in | GET /api/prices/{item} | complete | Shop.Web:Shop.Web.Handlers | Shop.Web.Handlers::price | forms [platform-routing] | [method equals GET; path-segment0 equals api; path-segment1 equals prices; path-segment2 parameter {item}; segment-count equals 3]
+Shop.Worker | background | - - | complete | Shop.Worker:Shop.Worker.Program | Shop.Worker.Program::main | forms [] | []

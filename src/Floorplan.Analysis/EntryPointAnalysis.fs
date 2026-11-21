@@ -167,11 +167,35 @@ let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoin
         let routed =
             all |> List.filter (fun e -> e.Route.IsSome) |> List.map (fun e -> e.HandlerMember, e.HttpMethod) |> Set.ofList
 
-        all
-        |> List.filter (fun e ->
-            e.Route.IsSome
-            || e.Forms <> [ RouteForm.PlatformRouting ]
-            || not (routed.Contains(e.HandlerMember, e.HttpMethod))))
+        let found =
+            all
+            |> List.filter (fun e ->
+                e.Route.IsSome
+                || e.Forms <> [ RouteForm.PlatformRouting ]
+                || not (routed.Contains(e.HandlerMember, e.HttpMethod)))
+
+        // An application nothing starts but the process itself (a command-line tool, a batch job): its entry point
+        // is where the process starts, and its trace is what it does.
+        if found.IsEmpty then
+            program.Users
+            |> List.tryFind (fun (p, _) -> p.ProjectId = project.ProjectId)
+            |> Option.bind (fun (_, a) -> a.EntryPoint)
+            |> Option.bind (fun main ->
+                entryFor
+                    ctx
+                    main
+                    EffectCategory.Background
+                    []
+                    []
+                    [ { Description = $"The process starts at {main.Display}: nothing in the application is started by a request, a host or a library"
+                        Member = main.Display
+                        Assembly = main.Type.Assembly
+                        Location = firstPoint program.Set main |> Option.map Attribution.toLocation } ])
+            // Nothing to recover: the process start is all there is.
+            |> Option.map (fun e -> { e with Completeness = Completeness.Complete })
+            |> Option.toList
+        else
+            found)
     |> List.distinctBy (fun e -> e.ApplicationId, e.HandlerMember, e.Route, e.HttpMethod)
     |> List.sortBy sortKey
     |> List.mapi (fun i e -> { e with Id = $"entry-{i + 1}" })
