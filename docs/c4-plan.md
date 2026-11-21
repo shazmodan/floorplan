@@ -365,3 +365,10 @@ is v3.
 
 Left over: a type in a nested module is named by the module's logical name (`A.B/T`), while code elements made
 from member names use the compiled name (`A/B/T`); none of the fixtures has such a type in an entry or exit point.
+
+### 2026-11-21: Razor-generated code has units (TODO item 1, `claude/razor-generated-units`)
+
+Not a C4 iteration, but it changes the C# fixtures' model: Blazor components and Razor pages now have units of
+their own (`docs/csharp-support.md`), so their code elements are in `CSharp.Blazor.Components.Pages`,
+`CSharp.Blazor.Components` and `AspNetCoreGeneratedDocument` rather than the global namespace, and the code level
+shows their uses (`App` uses `Routes`, the `Item` page its `ItemModel`).

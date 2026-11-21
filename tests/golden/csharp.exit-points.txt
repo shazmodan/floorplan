@@ -1,4 +1,4 @@
-filesystem-write | CSharp.Blazor: | CSharp.Blazor.Components.Pages.Order::OnInitializedAsync | System.IO.File::AppendAllTextAsync | via - | literal:views.log | CSharp/CSharp.Blazor/Components/Pages/Order.razor:9
+filesystem-write | CSharp.Blazor:CSharp.Blazor.Components.Pages | CSharp.Blazor.Components.Pages.Order::OnInitializedAsync | System.IO.File::AppendAllTextAsync | via - | literal:views.log | CSharp/CSharp.Blazor/Components/Pages/Order.razor:9
 environment | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | System.Environment::GetEnvironmentVariable | via StackExchange.Redis | literal:ComputerName | CSharp/CSharp.Clients/Program.cs:6
 filesystem-read | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | System.IO.File::Exists | via StackExchange.Redis | dynamic:- | CSharp/CSharp.Clients/Program.cs:6
 network | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | StackExchange.Redis.ISubscriber::Publish | via StackExchange.Redis | dynamic:- | CSharp/CSharp.Clients/Program.cs:6

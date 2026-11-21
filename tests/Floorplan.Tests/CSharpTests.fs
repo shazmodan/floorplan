@@ -905,6 +905,32 @@ let tests =
                   "routes"
           }
 
+          test "Razor components and pages are units of the namespaces their generated code declares" {
+              let m = csharpModel.Force()
+              let pages = m.Units |> List.find (fun u -> u.Id = "CSharp.Blazor:CSharp.Blazor.Components.Pages")
+
+              Expect.equal pages.Types [ "Badge"; "Home"; "Order" ] "the components of the folder, from their .razor files"
+              Expect.stringEnds pages.Location.Value.File ".razor" "located in a Razor file, not in generated code"
+
+              Expect.isTrue
+                  (m.EntryPoints
+                   |> List.filter (fun e -> e.ApplicationId = "CSharp.Blazor" && e.Category = EffectCategory.HttpIn)
+                   |> List.forall (fun e -> e.HandlerUnit = pages.Id))
+                  "the routable components' handlers are in it, not in the global namespace"
+
+              let audit = m.EntryPoints |> List.find (fun e -> e.Route = Some "/Admin/Audit")
+              Expect.equal audit.HandlerUnit "CSharp.Controllers:AspNetCoreGeneratedDocument" "a Razor page without a model, in the namespace it is generated in"
+
+              Expect.isFalse
+                  (m.Dependencies |> List.exists (fun d -> d.FromUnit = "CSharp.Controllers:" && d.ToUnit = "CSharp.Controllers:AspNetCoreGeneratedDocument"))
+                  "the assembly attributes that list the generated pages are no dependency"
+
+              Expect.isTrue
+                  (m.TypeDependencies
+                   |> List.exists (fun d -> d.FromType = "AspNetCoreGeneratedDocument.Pages_Shop_Item" && d.ToType = "CSharp.Controllers.Pages.Shop.ItemModel"))
+                  "a page uses its model"
+          }
+
           test "ViewBag in controllers and Razor views is not a blind spot; other dynamic values are" {
               let m = csharpModel.Force()
 
