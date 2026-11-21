@@ -1406,12 +1406,20 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
             | _ -> Some o
         | _ -> None
 
+    // The roles that name where messages come from, and what to call it: a queue (RabbitMQ, Service Bus), a channel
+    // (Redis), a hub method a server invokes (a SignalR client).
+    let addressRoles = [ "message-queue", "queue"; "message-channel", "channel"; "message-method", "hub method" ]
+    let addressOf (rule: Rule) = addressRoles |> List.tryPick (fun (role, _) -> specOf rule role)
+
+    let nounOf (rule: Rule) =
+        addressRoles |> List.tryPick (fun (role, noun) -> specOf rule role |> Option.map (fun _ -> noun)) |> Option.defaultValue "queue"
+
     // Calls that tie a consumer to a queue, by the method they are in and the instruction that made the consumer:
     // whichever of their arguments is the consumer, as overloads put it in different places.
     let tied =
         registrations
         |> List.collect (fun r ->
-            match specOf r.Rule "message-queue", specOf r.Rule "message-consumer" with
+            match addressOf r.Rule, specOf r.Rule "message-consumer" with
             | Some queue, Some _ ->
                 r.Flow.OperandsAt r.Offset
                 |> List.choose (madeIn r.Flow 0)
@@ -1480,7 +1488,7 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
             let tiedTo (o: int) = tied |> List.tryFind (fun (key, _) -> key = (r.Caller.Ref.Key, o)) |> Option.map snd
 
             let own =
-                match specOf r.Rule "message-queue", specOf r.Rule "message-consumer" with
+                match addressOf r.Rule, specOf r.Rule "message-consumer" with
                 | Some queue, None -> Some(r, text r queue)
                 | _ -> None
 
@@ -1493,7 +1501,7 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                         | Some { Op = (Call c | CallVirt c) } ->
                             ctx.Matcher.Match c
                             |> List.tryPick (fun rule ->
-                                match specOf rule "message-queue", specOf rule "message-consumer" with
+                                match addressOf rule, specOf rule "message-consumer" with
                                 | Some queue, None ->
                                     let made: PlatformRouting.Registration =
                                         { Caller = r.Caller
@@ -1510,7 +1518,7 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                             // Made by a constructor that names it (new FileSystemWatcher(path)), or tied to it later.
                             ctx.Matcher.Match ctor
                             |> List.tryPick (fun rule ->
-                                match specOf rule "message-queue", specOf rule "message-consumer" with
+                                match addressOf rule, specOf rule "message-consumer" with
                                 | Some queue, None when rule.Kind = Registration ->
                                     let made: PlatformRouting.Registration =
                                         { Caller = r.Caller
@@ -1544,7 +1552,11 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                 let queueStep =
                     match source with
                     | Some(q, name) ->
-                        let noun, verb = if category = EffectCategory.FilesystemRead then "path", "watches" else "queue", "reads it from"
+                        let noun, verb =
+                            match category, nounOf q.Rule with
+                            | EffectCategory.FilesystemRead, _ -> "path", "watches"
+                            | _, "hub method" -> "hub method", "receives it as"
+                            | _, noun -> noun, "reads it from"
                         let named = match name with Some n -> $"{noun} \"{n}\"" | None -> $"a {noun} that is not a constant"
                         [ step $"{q.Caller.Ref.Display} {verb} {named} with {q.Declared.Display} (rule {q.Rule.Id})" q.Caller.Ref (Instruction.pointAt q.Caller.Body.Value.Value.Instructions q.Index) ]
                     | None -> []

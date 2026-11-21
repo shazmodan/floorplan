@@ -398,6 +398,17 @@
       "members": ["MapBlazorHub"], "kind": "registration", "category": "http-in", "payload": [{ "argument": 0, "role": "components" }] },
     { "id": "http-in.component-route", "assembly": "Microsoft.AspNetCore.Components", "type": "Microsoft.AspNetCore.Components.RouteAttribute",
       "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "component-route" }] },
+    // A SignalR client: the server invokes the handlers On registers by a hub method's name, and InvokeAsync, SendAsync
+    // and StreamAsync call the hub's methods by name.
+    { "id": "network.signalr-client-on", "assembly": "Microsoft.AspNetCore.SignalR.Client.Core", "type": "Microsoft.AspNetCore.SignalR.Client.HubConnectionExtensions",
+      "members": ["On"], "kind": "registration", "category": "network",
+      "payload": [{ "argument": 2, "role": "message-handler" }, { "argument": 1, "role": "message-method" }] },
+    { "id": "network.signalr-client-call", "assembly": "Microsoft.AspNetCore.SignalR.Client.Core", "type": "Microsoft.AspNetCore.SignalR.Client.HubConnectionExtensions",
+      "members": ["InvokeAsync", "SendAsync", "StreamAsync", "StreamAsChannelAsync"], "kind": "sink", "category": "network",
+      "payload": [{ "argument": 1, "role": "hub-method" }] },
+    { "id": "network.signalr-client-call-core", "assembly": "Microsoft.AspNetCore.SignalR.Client.Core", "type": "Microsoft.AspNetCore.SignalR.Client.HubConnection",
+      "members": ["InvokeCoreAsync", "SendCoreAsync", "StreamAsyncCore", "StreamAsChannelCoreAsync"], "kind": "sink", "category": "network",
+      "payload": [{ "argument": 0, "role": "hub-method" }] },
     // SignalR: MapHub<THub>(endpoints, pattern) maps a hub. Clients connect at the pattern and invoke the hub's public
     // methods by name; "hub-type" is the index of the type argument that is the hub. [HubMethodName] renames one.
     { "id": "http-in.map-hub", "assembly": "Microsoft.AspNetCore.SignalR", "type": "Microsoft.AspNetCore.Builder.HubEndpointRouteBuilderExtensions",
@@ -494,7 +505,7 @@
       "payload": [{ "argument": 0, "role": "channel" }] },
     { "id": "network.redis-subscribe", "assembly": "StackExchange.Redis", "type": "StackExchange.Redis.ISubscriber",
       "members": ["Subscribe", "SubscribeAsync"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
-      "payload": [{ "argument": 1, "role": "message-handler" }, { "argument": 0, "role": "message-queue" }] },
+      "payload": [{ "argument": 1, "role": "message-handler" }, { "argument": 0, "role": "message-channel" }] },
     { "id": "database.mongodb-collection", "assembly": "MongoDB.Driver", "type": "MongoDB.Driver.IMongoCollection`1",
       "members": ["Aggregate*", "BulkWrite*", "Count*", "Delete*", "Distinct*", "EstimatedDocumentCount*", "FindSync", "FindAsync", "FindOneAnd*",
                   "Insert*", "MapReduce*", "Replace*", "Update*", "Watch*"],

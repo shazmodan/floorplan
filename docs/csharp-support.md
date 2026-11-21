@@ -174,7 +174,11 @@ Also new, outside the recognizer:
   accessors, generic methods and overrides of the framework's virtual methods (`OnConnectedAsync`,
   `OnDisconnectedAsync`, `Dispose`). Each is an entry point at the pattern (with a route group's prefix), partial,
   as the invocation's target, not the HTTP method, chooses the handler; `[HubMethodName]` gives the name clients
-  invoke it by (`http-in.signalr-hub-method-name`), shown in the evidence. Fixture: `CSharp.Endpoints/Chat.cs`.
+  invoke it by (`http-in.signalr-hub-method-name`), shown in the evidence. Fixture: `CSharp.Endpoints/Chat.cs`. A
+  SignalR client is the other side: a handler `On` registers (`network.signalr-client-on`) is a network entry point
+  at the hub method the server invokes (a `"message-method"`, as Redis's subscription names a `"message-channel"`
+  and a queue a `"message-queue"`), and `InvokeAsync`, `SendAsync` and `StreamAsync` are network exit points with the
+  hub method's name (`network.signalr-client-call*`). Fixture: `CSharp.Clients` (`CSharp.Clients.Chat`).
 - **gRPC services** (Grpc.AspNetCore): `MapGrpcService<TService>()` is a registration
   (`http-in.map-grpc-service`) whose `"grpc-service-type"` payload is the index of the type argument that is the
   service. The library binds a service by reflection, so the binding is read the way it does it, from code in the

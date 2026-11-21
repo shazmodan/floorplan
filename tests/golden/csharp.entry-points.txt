@@ -1,6 +1,7 @@
 CSharp.Blazor | http-in | GET / | complete | CSharp.Blazor: | CSharp.Blazor.Components.Pages.Home::BuildRenderTree | forms [platform-routing] | [method equals GET; segment-count equals 0]
 CSharp.Blazor | http-in | GET /order/{Id:int} | complete | CSharp.Blazor: | CSharp.Blazor.Components.Pages.Order::OnInitializedAsync | forms [platform-routing] | [method equals GET; path-segment0 equals order; path-segment1 parameter {Id:int}; segment-count equals 2]
 CSharp.Blazor | http-in | GET /orders/{Id:int} | complete | CSharp.Blazor: | CSharp.Blazor.Components.Pages.Order::OnInitializedAsync | forms [platform-routing] | [method equals GET; path-segment0 equals orders; path-segment1 parameter {Id:int}; segment-count equals 2]
+CSharp.Clients | network | - received | complete | CSharp.Clients:CSharp.Clients.Chat | CSharp.Clients.Chat.Room/<lambda> | forms [platform-routing] | []
 CSharp.Clients | network | - - | unresolved | CSharp.Clients:CSharp.Clients.Caching | CSharp.Clients.Caching.Cache/<lambda> | forms [platform-routing] | []
 CSharp.Cloud | network | - https://sqs.eu-north-1.amazonaws.com/123456789012/jobs | complete | CSharp.Cloud:CSharp.Cloud.Jobs | CSharp.Cloud.Jobs.Queue::Run | forms [platform-routing] | []
 CSharp.Controllers | http-in | - / | partial | CSharp.Controllers:CSharp.Controllers | CSharp.Controllers.HomeController::Index | forms [platform-routing] | [segment-count equals 0]

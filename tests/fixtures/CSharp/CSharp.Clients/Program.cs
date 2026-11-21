@@ -76,6 +76,21 @@ namespace CSharp.Clients.Catalog
     }
 }
 
+namespace CSharp.Clients.Chat
+{
+    using Microsoft.AspNetCore.SignalR.Client;
+
+    // A SignalR client: the server invokes the handlers registered with On, and the client calls the hub's methods.
+    public class Room
+    {
+        private readonly HubConnection connection = new HubConnectionBuilder().WithUrl("https://chat.example.org/hubs/chat").Build();
+
+        public void Listen() => connection.On<string>("received", message => File.AppendAllText("chat.log", message));
+
+        public Task Say(string text) => connection.InvokeAsync("Send", text);
+    }
+}
+
 namespace CSharp.Clients.Files
 {
     public class Archive(BlobContainerClient container)
