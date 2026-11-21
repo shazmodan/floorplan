@@ -27,6 +27,10 @@ type Condition =
       /// request satisfies a condition that cannot be stated, so no route recovered on that path is trusted.
       Uncertain: bool }
 
+/// The types of the objects that stand for a configuration section and an options object read from one.
+let private configurationSection = "<configuration-section>"
+let private optionsObject = "<options>"
+
 type SVal =
     /// A string, an integer (as int64) or a float.
     | Const of obj
@@ -175,7 +179,9 @@ type private Thread =
       Forked: bool }
 
 /// The interpreter. One machine per application and phase run.
-type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer list, limits: Limits) =
+/// `settings`: the application's configuration, for routes and other values read from it.
+type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer list, limits: Limits, ?settings: Values.Settings) =
+    let settings = defaultArg settings Values.Settings.none
     let mutable nextId = 0
     let mutable steps = 0
     // Every step taken, never given back: the run stops for good at the hard cap.
@@ -1152,6 +1158,62 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
         elif m.Name = "get_IsCompleted" then
             // Awaits complete synchronously: the analysis follows the code, not the scheduling.
             one (Const(box 1L))
+        elif (settings.Read m |> Option.exists (fun spec -> spec.Reads <> SettingRead.BindSection && spec.Reads <> SettingRead.BindPath)) then
+            // A read of the configuration: a section is an object that knows its path ("" for the root), an
+            // options object reads its fields from the section its type is bound to.
+            let spec = (settings.Read m).Value
+
+            let sectionOf (v: SVal) =
+                match v with
+                | Ref id ->
+                    match state.Heap.TryFind id with
+                    | Some o when o.Type.FullName = configurationSection ->
+                        match o.Fields.TryFind "<path>" with
+                        | Some(Const(:? string as p)) -> Some p
+                        | _ -> None
+                    | _ -> Some ""
+                | _ when settings.SectionTypes.Contains m.Type.FullName -> None
+                | _ -> Some ""
+
+            let under = operands |> List.tryHead |> Option.bind sectionOf
+
+            let key () =
+                match arg spec.Argument with
+                | Const(:? string as k) ->
+                    match spec.Prefix with
+                    | Some p -> Some(Values.Settings.join p k)
+                    | None -> Some k
+                | _ -> None
+
+            let lookup (k: string) =
+                match settings.Value k with
+                | Some v -> Const(box v)
+                | None -> Unknown
+
+            let made (typeName: string) (path: string option) =
+                let id, s = allocate state { Assembly = "System.Runtime"; FullName = typeName } site
+
+                let s =
+                    match path with
+                    | Some p -> update s id (fun o -> { o with Fields = o.Fields.Add("<path>", Const(box p)) })
+                    | None -> s
+
+                [ Ref id, s ]
+
+            match spec.Reads with
+            | SettingRead.Value ->
+                match under, key () with
+                | Some sec, Some k -> one (lookup (Values.Settings.join sec k))
+                | _ -> one Unknown
+            | SettingRead.Own ->
+                match under with
+                | Some sec when sec <> "" -> one (lookup sec)
+                | _ -> one Unknown
+            | SettingRead.Section ->
+                match under, key () with
+                | Some sec, Some k -> made configurationSection (Some(Values.Settings.join sec k))
+                | _ -> made configurationSection None
+            | _ -> made optionsObject None
         elif m.Type.FullName = "Microsoft.AspNetCore.Routing.Patterns.RoutePatternFactory" && m.Name = "Parse" then
             one (arg 0)
         elif (Values.isTransparent m) && not operands.IsEmpty then
@@ -1739,6 +1801,14 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                                 match deref t.State v.Head with
                                 | Ref id ->
                                     match t.State.Heap.TryFind id with
+                                    | Some o when o.Type.FullName = optionsObject ->
+                                        // A property of an options object: the value under its type's section.
+                                        match settings.Bound f.Type.FullName with
+                                        | Some section ->
+                                            match settings.Value(Values.Settings.join section (Values.memberOfField f.Name)) with
+                                            | Some text -> Const(box text)
+                                            | None -> Unknown
+                                        | None -> Unknown
                                     | Some o -> o.Fields.TryFind f.Name |> Option.defaultValue (defaultOf f.FieldType)
                                     | None -> Unknown
                                 | Req tags -> Req tags

@@ -168,6 +168,23 @@ let tests =
               Expect.contains (traced "CSharp.Messaging.Orders.Listener::OnReturn") "System.IO.File::Delete" "a return deletes its pending file"
           }
 
+          test "a minimal API route named in appsettings.json: by key, through a section, and through bound options" {
+              let m = csharpModel.Force()
+
+              let routes =
+                  entries m "CSharp.Endpoints"
+                  |> List.filter (fun e -> e.HandlerMember.StartsWith "CSharp.Endpoints.Configured.")
+                  |> List.map (fun e -> e.HttpMethod, e.Route, e.Completeness)
+                  |> List.sort
+
+              Expect.equal
+                  routes
+                  [ Some "GET", Some "/configured/health", Completeness.Complete
+                    Some "GET", Some "/configured/status", Completeness.Complete
+                    Some "GET", Some "/configured/version", Completeness.Complete ]
+                  "app.Configuration[key], a section's indexer, IOptions<T>.Value of Configure<T>(section)"
+          }
+
           test "a queue named in appsettings.json: by key, through a section, with GetValue, and through bound options" {
               let m = csharpModel.Force()
 
