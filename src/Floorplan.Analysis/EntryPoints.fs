@@ -1339,12 +1339,46 @@ let grpcEntries (ctx: AppContext) : EntryPoint list =
 let messageEntries (ctx: AppContext) : EntryPoint list =
     let set = ctx.Program.Set
     let isUser (m: MethodRef) = ctx.Methods.ContainsKey m.Key
-    let registrations = PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
+
+    // Registrations by a call, and by a constructor that takes the handler (a timer's callback).
+    let registrations =
+        PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
+        @ (ctx.Methods.Values
+           |> Seq.toList
+           |> List.collect (fun m ->
+               match m.Body.Value with
+               | None -> []
+               | Some body ->
+                   let flow = lazy (DataFlow.ofMethod m)
+
+                   body.Instructions
+                   |> Array.mapi (fun i ins -> i, ins)
+                   |> Array.choose (fun (i, ins) ->
+                       match ins.Op with
+                       | NewObj ctor ->
+                           match ctx.Matcher.Registration ctor, flow.Value with
+                           | Some rule, Some f when rule.Payload |> List.exists (fun p -> p.Role = "message-handler") ->
+                               Some
+                                   ({ Caller = m
+                                      Offset = ins.Offset
+                                      Index = i
+                                      Rule = rule
+                                      Declared = ctor
+                                      Flow = f }
+                                   : PlatformRouting.Registration)
+                           | _ -> None
+                       | _ -> None)
+                   |> Array.toList))
+
+    let isNewObj (r: PlatformRouting.Registration) =
+        match r.Flow.InstructionAt r.Offset with
+        | Some { Op = NewObj _ } -> true
+        | _ -> false
 
     let specOf (rule: Rule) (role: string) = rule.Payload |> List.tryFind (fun p -> p.Role = role)
 
     let operand (r: PlatformRouting.Registration) (spec: PayloadSpec) =
-        List.tryItem (Values.operandIndex r.Declared false spec.Argument) (r.Flow.OperandsAt r.Offset)
+        List.tryItem (Values.operandIndex r.Declared (isNewObj r) spec.Argument) (r.Flow.OperandsAt r.Offset)
 
     let text (r: PlatformRouting.Registration) (spec: PayloadSpec) =
         let evaluator = Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set)
@@ -1405,8 +1439,9 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                 let point = firstPoint set handler
                 let registrationPoint = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
 
-                // The consumer: the receiver of the registration.
-                let made = r.Flow.OperandsAt r.Offset |> List.tryHead |> Option.bind (madeIn r.Flow 0)
+                // The consumer: the receiver of the registration. A constructor that takes the handler has none.
+                let made =
+                    if isNewObj r then None else r.Flow.OperandsAt r.Offset |> List.tryHead |> Option.bind (madeIn r.Flow 0)
 
                 // Where the queue is named: by the call that made the consumer, or by one that ties it to a queue.
                 let source =
@@ -1439,6 +1474,8 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                 ctx.Program.Attributor.Attribute(projectId, handler, point)
                 |> Option.map (fun unit ->
                     let queue = source |> Option.bind snd
+                    let category = defaultArg r.Rule.Category EffectCategory.Network
+                    let calledWhen = if category = EffectCategory.Background then "each time it fires" else "for each message received"
 
                     let queueStep =
                         match source with
@@ -1452,15 +1489,16 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                       HandlerUnit = unit.Id
                       HandlerMember = handler.Display
                       Location = point |> Option.map Attribution.toLocation
-                      Category = EffectCategory.Network
+                      Category = category
                       Predicates = []
                       HttpMethod = None
                       Route = queue
-                      Completeness = if queue.IsSome then Completeness.Complete else Completeness.Unresolved
+                      // Background work (a timer) has no address; a message comes from a queue.
+                      Completeness = if queue.IsSome || category = EffectCategory.Background then Completeness.Complete else Completeness.Unresolved
                       Forms = [ RouteForm.PlatformRouting ]
                       Evidence =
                         { Steps =
-                            step $"{r.Caller.Ref.Display} registers {handler.Display} with {r.Declared.Display}, called for each message received (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
+                            step $"{r.Caller.Ref.Display} registers {handler.Display} with {r.Declared.Display}, called {calledWhen} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
                             :: queueStep } }))
 
 // ---- Azure Functions ----

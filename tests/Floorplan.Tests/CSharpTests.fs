@@ -143,7 +143,7 @@ let tests =
                   "GetOrder logs the read"
           }
 
-          test "hosted services: what the host starts is background work, an entry point of its own" {
+          test "hosted services and timers: what the host or a timer starts is background work, an entry point of its own" {
               let m = csharpModel.Force()
 
               let worker =
@@ -154,9 +154,14 @@ let tests =
               Expect.equal
                   worker
                   [ "CSharp.Worker.Cleanup.Sweeper::ExecuteAsync", EffectCategory.Background, None, Completeness.Complete
+                    "CSharp.Worker.Monitoring.Heartbeat/<>c::<StartAsync>b__3_0", EffectCategory.Background, None, Completeness.Complete
+                    "CSharp.Worker.Monitoring.Heartbeat::OnAudit", EffectCategory.Background, None, Completeness.Complete
                     "CSharp.Worker.Monitoring.Heartbeat::StartAsync", EffectCategory.Background, None, Completeness.Complete
                     "CSharp.Worker.Monitoring.Heartbeat::StopAsync", EffectCategory.Background, None, Completeness.Complete ]
-                  "a BackgroundService's ExecuteAsync, an IHostedService's StartAsync and StopAsync; not a service never registered"
+                  "a BackgroundService's ExecuteAsync, an IHostedService's StartAsync and StopAsync, the callbacks of a System.Threading.Timer and a System.Timers.Timer; not a service never registered"
+
+              let audit = entries m "CSharp.Worker" |> List.find (fun e -> e.HandlerMember.EndsWith "::OnAudit")
+              Expect.exists audit.Evidence.Steps (fun s -> s.Description.Contains "called each time it fires") "a timer's callback"
 
               let traced (handler: string) =
                   let e = entries m "CSharp.Worker" |> List.find (fun e -> e.HandlerMember = handler)

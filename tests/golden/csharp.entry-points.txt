@@ -60,5 +60,7 @@ CSharp.Switch | http-in | GET /api/suppliers | complete | CSharp.Switch:CSharp.S
 CSharp.Table | http-in | - /health | partial | CSharp.Table:CSharp.Table | CSharp.Table.Handlers::Health | forms [table-lookup] | [path equals /health]
 CSharp.Table | http-in | - /orders | partial | CSharp.Table:CSharp.Table | CSharp.Table.Handlers::Orders | forms [table-lookup] | [path equals /orders]
 CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Cleanup | CSharp.Worker.Cleanup.Sweeper::ExecuteAsync | forms [platform-routing] | []
+CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat/<lambda> | forms [platform-routing] | []
+CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::OnAudit | forms [platform-routing] | []
 CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::StartAsync | forms [platform-routing] | []
 CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::StopAsync | forms [platform-routing] | []
