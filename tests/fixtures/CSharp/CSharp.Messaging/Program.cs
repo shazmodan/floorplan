@@ -78,6 +78,30 @@ namespace CSharp.Messaging.Publishing
     }
 }
 
+namespace CSharp.Messaging.Refunds
+{
+    // Receiving in a loop of its own: the method that receives is the handler.
+    public static class Poller
+    {
+        public static async Task RunAsync(ServiceBusClient client, CancellationToken ct)
+        {
+            var receiver = client.CreateReceiver("refunds");
+
+            while (!ct.IsCancellationRequested)
+            {
+                var message = await receiver.ReceiveMessageAsync(cancellationToken: ct);
+                await File.AppendAllTextAsync("refunds.log", message.Body.ToString(), ct);
+            }
+        }
+
+        public static void Drain(IModel channel)
+        {
+            while (channel.BasicGet("audit", true) is { } result)
+                File.AppendAllText("audit.log", Encoding.UTF8.GetString(result.Body.ToArray()));
+        }
+    }
+}
+
 namespace CSharp.Messaging.Payments
 {
     public static class Listener

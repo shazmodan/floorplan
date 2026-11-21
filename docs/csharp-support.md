@@ -173,8 +173,12 @@ Also new, outside the recognizer:
   that ties the consumer to a queue, whose rule also has `"message-consumer"` (`BasicConsume("orders", autoAck,
   consumer)`: the consumer is whichever argument it is, as the overloads put it in different places, and
   `whenParameters` tells apart the overloads whose queue is elsewhere). A consumer kept in an async method's state
-  machine is followed through its field. The entry point is complete when the queue is a constant, unresolved
-  otherwise. A consumer type is read like a hosted service: MassTransit's `AddConsumer<T>()`
+  machine is followed through its field. A method that receives in a loop of its own is a handler too: a rule
+  with a `"message-receive"` payload names the receiving member (RabbitMQ's `BasicGet`, Service Bus's
+  `ServiceBusReceiver.ReceiveMessage(s)Async`, Kafka's `Consume`), and the method that calls it is the entry point
+  (an async method, not its state machine). The queue is the call's own `"message-queue"` (`BasicGet("audit")`),
+  or is named where the receiver is made (`CreateReceiver("refunds")`) or subscribed (Kafka's `Subscribe(topic)`,
+  a tying call). The entry point is complete when the queue is a constant, unresolved otherwise. A consumer type is read like a hosted service: MassTransit's `AddConsumer<T>()`
   (`network.masstransit-add-consumer`, whose `"consumer-type"` payload is the index of the type argument) and the
   callback rule `network.masstransit-consumer` (`IConsumer<TMessage>.Consume`) make each registered consumer's
   `Consume` an entry point, at the message type its parameter is a `ConsumeContext<T>` of. Registrations of
