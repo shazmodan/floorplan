@@ -27,6 +27,7 @@ let nativeRule =
       HttpMethod = None
       RequestPart = None
       WhenFirstParameter = None
+      WhenParameters = []
       BlindSpot = None
       ComparesTo = None
       Dispatch = None

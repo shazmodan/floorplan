@@ -42,6 +42,8 @@ type Matcher(catalog: Catalog, supertypes: TypeRef -> Set<string>) =
         && (match rule.WhenFirstParameter with
             | None -> true
             | Some t -> (match m.ParameterTypes with first :: _ -> first = t | [] -> false))
+        && (rule.WhenParameters.Length <= m.ParameterTypes.Length
+            && List.forall2 (fun (want: string) (have: string) -> want = have) rule.WhenParameters (List.truncate rule.WhenParameters.Length m.ParameterTypes))
 
     member _.Catalog = catalog
 

@@ -1326,3 +1326,139 @@ let grpcEntries (ctx: AppContext) : EntryPoint list =
                 |> List.distinctBy (fun e -> e.Route, e.HandlerMember)
             | _ -> [])
     | _ -> []
+
+// ---- Message consumers ----
+
+/// Handlers a messaging library calls for each message it receives: a registration whose rule has a
+/// "message-handler" payload (RabbitMQ's `consumer.Received += handler`, Azure Service Bus's
+/// `processor.ProcessMessageAsync += handler`) adds a delegate to a consumer object. The queue is read from the call
+/// that made the consumer, when its rule has a "message-queue" payload (`client.CreateProcessor("orders")`), or
+/// from a call in the same method that ties the consumer to a queue, whose rule has "message-queue" and
+/// "message-consumer" payloads (`channel.BasicConsume("orders", autoAck, consumer)`). Each handler is an entry
+/// point of category network, at the queue.
+let messageEntries (ctx: AppContext) : EntryPoint list =
+    let set = ctx.Program.Set
+    let isUser (m: MethodRef) = ctx.Methods.ContainsKey m.Key
+    let registrations = PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
+
+    let specOf (rule: Rule) (role: string) = rule.Payload |> List.tryFind (fun p -> p.Role = role)
+
+    let operand (r: PlatformRouting.Registration) (spec: PayloadSpec) =
+        List.tryItem (Values.operandIndex r.Declared false spec.Argument) (r.Flow.OperandsAt r.Offset)
+
+    let text (r: PlatformRouting.Registration) (spec: PayloadSpec) =
+        let evaluator = Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set)
+
+        match evaluator.Operand(r.Offset, Values.operandIndex r.Declared false spec.Argument) with
+        | Values.Text t -> Some t
+        | _ -> None
+
+    // The method a delegate among the values runs. Roslyn caches a lambda's delegate in a static field and makes it
+    // only when the field is empty, so the values are the cached one and the new one: the new one says what runs.
+    let handlerIn (flow: Flow) (values: Values) =
+        let made, other =
+            values
+            |> Set.toList
+            |> List.partition (fun v ->
+                match v with
+                | Pushed o -> (match flow.InstructionAt o with Some { Op = NewObj _ } -> true | _ -> false)
+                | _ -> false)
+
+        (made @ other) |> List.tryPick (fun v -> PlatformRouting.handlerOf set flow (Set.singleton v))
+
+    // The instruction that made an object, when the values are one object. An async method keeps its locals in
+    // fields of its state machine: one read from a field of `this` is what the method stored in it.
+    let rec madeIn (flow: Flow) (depth: int) (values: Values) =
+        match Set.toList values with
+        | [ Pushed o ] ->
+            match flow.InstructionAt o, flow.OperandsAt o with
+            | Some { Op = LdFld f }, [ receiver ] when receiver.Contains(Argument 0) && depth < 4 ->
+                flow.Body.Instructions
+                |> Array.tryPick (fun ins ->
+                    match ins.Op, flow.OperandsAt ins.Offset with
+                    | StFld g, [ target; stored ] when g.Key = f.Key && target.Contains(Argument 0) -> madeIn flow (depth + 1) stored
+                    | _ -> None)
+            | _ -> Some o
+        | _ -> None
+
+    // Calls that tie a consumer to a queue, by the method they are in and the instruction that made the consumer:
+    // whichever of their arguments is the consumer, as overloads put it in different places.
+    let tied =
+        registrations
+        |> List.collect (fun r ->
+            match specOf r.Rule "message-queue", specOf r.Rule "message-consumer" with
+            | Some queue, Some _ ->
+                r.Flow.OperandsAt r.Offset
+                |> List.choose (madeIn r.Flow 0)
+                |> List.map (fun made -> (r.Caller.Ref.Key, made), (r, text r queue))
+            | _ -> [])
+
+    registrations
+    |> List.choose (fun r ->
+        match specOf r.Rule "message-handler" with
+        | None -> None
+        | Some handlerSpec ->
+            match operand r handlerSpec |> Option.bind (handlerIn r.Flow) with
+            | None -> None
+            | Some target ->
+                let handler = PlatformRouting.unwrap set isUser 0 target
+                let point = firstPoint set handler
+                let registrationPoint = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
+
+                // The consumer: the receiver of the registration.
+                let made = r.Flow.OperandsAt r.Offset |> List.tryHead |> Option.bind (madeIn r.Flow 0)
+
+                // Where the queue is named: by the call that made the consumer, or by one that ties it to a queue.
+                let source =
+                    made
+                    |> Option.bind (fun o ->
+                        match r.Flow.InstructionAt o with
+                        | Some { Op = (Call c | CallVirt c) } ->
+                            ctx.Matcher.Match c
+                            |> List.tryPick (fun rule ->
+                                match specOf rule "message-queue", specOf rule "message-consumer" with
+                                | Some queue, None ->
+                                    let made: PlatformRouting.Registration =
+                                        { Caller = r.Caller
+                                          Offset = o
+                                          Index = r.Caller.Body.Value.Value.Instructions |> Array.findIndex (fun i -> i.Offset = o)
+                                          Rule = rule
+                                          Declared = c
+                                          Flow = r.Flow }
+
+                                    Some(made, text made queue)
+                                | _ -> None)
+                        | Some { Op = NewObj _ } -> tied |> List.tryFind (fun (key, _) -> key = (r.Caller.Ref.Key, o)) |> Option.map snd
+                        | _ -> None)
+
+                let projectId =
+                    match set.Origin handler.Type.Assembly with
+                    | User pid -> pid
+                    | _ -> ctx.Project.ProjectId
+
+                ctx.Program.Attributor.Attribute(projectId, handler, point)
+                |> Option.map (fun unit ->
+                    let queue = source |> Option.bind snd
+
+                    let queueStep =
+                        match source with
+                        | Some(q, name) ->
+                            let named = match name with Some n -> $"queue \"{n}\"" | None -> "a queue whose name is not a constant"
+                            [ step $"{q.Caller.Ref.Display} reads it from {named} with {q.Declared.Display} (rule {q.Rule.Id})" q.Caller.Ref (Instruction.pointAt q.Caller.Body.Value.Value.Instructions q.Index) ]
+                        | None -> []
+
+                    { Id = ""
+                      ApplicationId = ctx.Project.ProjectId
+                      HandlerUnit = unit.Id
+                      HandlerMember = handler.Display
+                      Location = point |> Option.map Attribution.toLocation
+                      Category = EffectCategory.Network
+                      Predicates = []
+                      HttpMethod = None
+                      Route = queue
+                      Completeness = if queue.IsSome then Completeness.Complete else Completeness.Unresolved
+                      Forms = [ RouteForm.PlatformRouting ]
+                      Evidence =
+                        { Steps =
+                            step $"{r.Caller.Ref.Display} registers {handler.Display} with {r.Declared.Display}, called for each message received (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
+                            :: queueStep } }))

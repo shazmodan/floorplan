@@ -165,6 +165,17 @@ Also new, outside the recognizer:
   method. Each method the service overrides is an entry point at `POST /{serviceName}/{methodName}`, complete;
   one it leaves to the generated base class (which answers that it is unimplemented) is not. Grpc.AspNetCore's own
   catch-all for unknown services and methods stays an entry point of the library. Fixture: `CSharp.Grpc`.
+- **Message consumers**: a handler a messaging library calls for each message it receives is an entry point of
+  category `network`, whose route is the queue. A registration rule with a `"message-handler"` payload adds the
+  delegate to a consumer (RabbitMQ's `Received` on `EventingBasicConsumer` and `AsyncEventingBasicConsumer`, Azure
+  Service Bus's `ProcessMessageAsync`); the queue is read from the call that made the consumer, when its rule has
+  a `"message-queue"` payload (`ServiceBusClient.CreateProcessor("payments")`), or from a call in the same method
+  that ties the consumer to a queue, whose rule also has `"message-consumer"` (`BasicConsume("orders", autoAck,
+  consumer)`: the consumer is whichever argument it is, as the overloads put it in different places, and
+  `whenParameters` tells apart the overloads whose queue is elsewhere). A consumer kept in an async method's state
+  machine is followed through its field. The entry point is complete when the queue is a constant, unresolved
+  otherwise. Registrations of category `network` or `background` do not start the symbolic routing of HTTP
+  requests. Fixture: `CSharp.Messaging`.
 - **Hosted services**: background work the generic host starts by itself is an entry point of category
   `background`. `AddHostedService<T>()` is a registration (`background.add-hosted-service`) whose
   `"hosted-service-type"` payload is the index of the type argument that is the service, and callback rules of

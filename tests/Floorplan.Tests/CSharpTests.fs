@@ -91,6 +91,30 @@ let tests =
                   "Reserve writes the reservations log"
           }
 
+          test "message consumers: each handler a messaging library calls is a network entry point at its queue" {
+              let m = csharpModel.Force()
+
+              let consumers =
+                  entries m "CSharp.Messaging"
+                  |> List.map (fun e -> e.Route, e.Category, e.Completeness, e.HandlerMember)
+                  |> List.sort
+
+              Expect.equal
+                  consumers
+                  [ Some "orders", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Orders.Listener/<>c::<Start>b__0_0"
+                    Some "payments", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Payments.Listener::Handle"
+                    Some "returns", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Orders.Listener::OnReturn" ]
+                  "RabbitMQ's Received with BasicConsume (two overloads), Service Bus's ProcessMessageAsync with CreateProcessor; not the error handler"
+
+              let traced (handler: string) =
+                  let e = entries m "CSharp.Messaging" |> List.find (fun e -> e.HandlerMember = handler)
+                  let t = m.Traces |> List.find (fun t -> t.EntryPointId = e.Id)
+                  m.ExitPoints |> List.filter (fun x -> List.contains x.Id t.ExitPointIds) |> List.map (fun x -> x.Primitive)
+
+              Expect.contains (traced "CSharp.Messaging.Payments.Listener::Handle") "System.IO.File::AppendAllTextAsync" "a payment is logged"
+              Expect.contains (traced "CSharp.Messaging.Orders.Listener::OnReturn") "System.IO.File::Delete" "a return deletes its pending file"
+          }
+
           test "hosted services: what the host starts is background work, an entry point of its own" {
               let m = csharpModel.Force()
 

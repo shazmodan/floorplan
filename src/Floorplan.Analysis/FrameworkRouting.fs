@@ -138,7 +138,11 @@ let private receivesRequests (ctx: AppContext) =
 
         if seen.Add m.Key then
             for e in graph.Callees m do
-                if (ctx.Matcher.Registration e.Declared).IsSome || (ctx.Matcher.Source e.Declared).IsSome then
+                // Only HTTP registrations route requests: message consumers and hosted services do not.
+                let registers =
+                    ctx.Matcher.Registration e.Declared |> Option.exists (fun r -> r.Category = Some EffectCategory.HttpIn)
+
+                if registers || (ctx.Matcher.Source e.Declared).IsSome then
                     found <- true
                 elif not (seen.Contains e.Target.Key) then
                     stack.Push e.Target
