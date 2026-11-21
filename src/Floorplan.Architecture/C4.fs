@@ -230,7 +230,9 @@ type private Facts =
       /// whose entry points reach it (every one that references the library, when none is traced to it).
       ContainersOf: ExitPoint -> string list
       /// The projects that are containers: applications, and libraries no application references.
-      Containers: Project list }
+      Containers: Project list
+      /// The units of a container's code: its project's and those of every project it references.
+      UnitsOf: string -> Set<string> }
 
 let private factsOf (model: AnalysisModel) : Facts =
     let exits = model.ExitPoints |> List.filter (shown model)
@@ -271,6 +273,9 @@ let private factsOf (model: AnalysisModel) : Facts =
         |> List.map (fun (x, apps) -> x, apps |> List.map snd |> Set.ofList)
         |> Map.ofList
 
+    let containers =
+        applications @ (projects |> List.filter (fun p -> not p.IsApplication && (usedBy p.Id).IsEmpty))
+
     let containersOf (x: ExitPoint) =
         match projectOfUnit.TryFind x.Unit with
         | None -> []
@@ -289,11 +294,29 @@ let private factsOf (model: AnalysisModel) : Facts =
       Solution = solution
       Library = fun x -> libraryIn solution x |> Option.map root
       ContainersOf = containersOf
-      Containers = applications @ (projects |> List.filter (fun p -> not p.IsApplication && (usedBy p.Id).IsEmpty)) }
+      Containers = containers
+      UnitsOf =
+        let byContainer =
+            containers
+            |> List.map (fun p ->
+                let own = closure Set.empty p.Id
+                containerId p.Id, model.Units |> List.filter (fun u -> own.Contains u.ProjectId) |> List.map (fun u -> u.Id) |> Set.ofList)
+            |> Map.ofList
 
-/// Level 1 and 2: the solution as one system, its containers, who calls them and what they use.
-let private containers (facts: Facts) : C4Element list * Link list =
+        fun c -> byContainer.TryFind c |> Option.defaultValue Set.empty }
+
+/// The id of a unit's component in a container: a library's unit is a component of each container that has it.
+let componentId (container: string) (unitId: string) = $"component:{container.Substring 10}|{unitId}"
+
+/// Level 1, 2 and 3: the solution as one system, its containers and their components, who calls them and what
+/// they use.
+let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
     let model = facts.Model
+    let units = model.Units |> List.map (fun u -> u.Id, u) |> Map.ofList
+
+    // The component of a unit in a container, or the container itself for a unit it does not have.
+    let partOf (container: string) (unitId: string) =
+        if (facts.UnitsOf container).Contains unitId then componentId container unitId else container
     let applications = model.Projects |> List.filter (fun p -> p.IsApplication)
 
     let system =
@@ -333,8 +356,8 @@ let private containers (facts: Facts) : C4Element list * Link list =
                           for c in facts.ContainersOf x do
                               if c <> containerId e.ApplicationId then
                                   yield
-                                      { From = c
-                                        To = containerId e.ApplicationId
+                                      { From = partOf c x.Unit
+                                        To = partOf (containerId e.ApplicationId) e.HandlerUnit
                                         Description = $"sends messages to {queue}"
                                         Technology = technologyOf facts.Solution facts.Library x
                                         Source = x.Id }
@@ -345,14 +368,12 @@ let private containers (facts: Facts) : C4Element list * Link list =
                       let receivers =
                           model.EntryPoints
                           |> List.filter (fun e -> e.Category = EffectCategory.HttpIn && e.Route = Some path && containerId e.ApplicationId <> c)
-                          |> List.map (fun e -> e.ApplicationId)
-                          |> List.distinct
 
-                      match receivers with
+                      match receivers |> List.map (fun e -> e.ApplicationId) |> List.distinct with
                       | [ application ] when localHost url application ->
                           yield
-                              { From = c
-                                To = containerId application
+                              { From = partOf c x.Unit
+                                To = partOf (containerId application) receivers.Head.HandlerUnit
                                 Description = $"sends HTTP requests to {path}"
                                 Technology = technologyOf facts.Solution facts.Library x
                                 Source = x.Id }
@@ -380,7 +401,7 @@ let private containers (facts: Facts) : C4Element list * Link list =
         |> List.collect (fun (ext, x) ->
             facts.ContainersOf x
             |> List.map (fun c ->
-                { From = c
+                { From = partOf c x.Unit
                   To = idOf C4Kind.ExternalSystem ext
                   Description = verb x.Category
                   Technology = technologyOf facts.Solution facts.Library x
@@ -390,12 +411,60 @@ let private containers (facts: Facts) : C4Element list * Link list =
         inbound
         |> List.map (fun ((kind, ext), e) ->
             { From = idOf kind ext
-              To = containerId e.ApplicationId
+              To = partOf (containerId e.ApplicationId) e.HandlerUnit
               Description = callerVerb e
               Technology = (if e.Category = EffectCategory.HttpIn then Some "HTTP" else None)
               Source = e.Id })
 
-    system :: containerElements @ (externals |> List.sortBy (fun e -> e.Id)), calls @ uses @ between
+    // Dependencies between the units of a container's code.
+    let uses' =
+        [ for c in facts.Containers do
+              let id = containerId c.Id
+              let own = facts.UnitsOf id
+
+              for d in model.Dependencies do
+                  if d.FromUnit <> d.ToUnit && own.Contains d.FromUnit && own.Contains d.ToUnit then
+                      yield
+                          { From = componentId id d.FromUnit
+                            To = componentId id d.ToUnit
+                            Description = "uses"
+                            Technology = None
+                            Source = $"{d.FromUnit} -> {d.ToUnit}" } ]
+
+    let links = calls @ uses @ between @ uses'
+
+    let components =
+        [ for c in facts.Containers do
+              let id = containerId c.Id
+
+              for unitId in facts.UnitsOf id |> Set.toList do
+                  let u = units[unitId]
+                  let componentKey = componentId id unitId
+                  let project = model.Projects |> List.tryFind (fun p -> p.Id = u.ProjectId)
+
+                  let kind =
+                      match u.Kind with
+                      | UnitKind.Module -> "module"
+                      | UnitKind.Namespace -> "namespace"
+                      | UnitKind.Type -> "type"
+                      | UnitKind.ProjectUnit -> "project"
+
+                  let language = project |> Option.map (fun p -> languageName p.Language) |> Option.defaultValue ""
+                  let handles = links |> List.exists (fun l -> l.To = componentKey && not (l.From.StartsWith "component:"))
+                  let reaches = links |> List.exists (fun l -> l.From = componentKey && not (l.To.StartsWith "component:"))
+                  let projectName = project |> Option.map (fun p -> p.Name) |> Option.defaultValue u.ProjectId
+
+                  yield
+                      { element componentKey C4Kind.Component u.Name $"A {language} {kind} of {projectName}" with
+                          Technology = Some $"{language} {kind}"
+                          Parent = Some id
+                          Tags =
+                            [ if u.ProjectId <> c.Id then $"library {projectName}"
+                              if handles then "handles requests"
+                              if reaches then "reaches out" ]
+                          Sources = [ unitId ] } ]
+
+    system :: containerElements @ components @ (externals |> List.sortBy (fun e -> e.Id)), links
 
 /// The model's links as one view shows them: each end moved up to the shown element that contains it, links
 /// within one shown element dropped, and the rest merged.
@@ -422,7 +491,7 @@ let private lifted (elements: Map<string, C4Element>) (shown: string list) (link
 /// The C4 model of the solution the analysis model describes.
 let derive (model: AnalysisModel) : C4Model =
     let facts = factsOf model
-    let elements, links = containers facts
+    let elements, links = elementsAndLinks facts
     let byId = elements |> List.map (fun e -> e.Id, e) |> Map.ofList
 
     let ofKind (kinds: C4Kind list) =
@@ -438,11 +507,27 @@ let derive (model: AnalysisModel) : C4Model =
           Relationships = lifted byId shown links
           Layout = AnalysisModel.emptyGraph }
 
+    let containers = ofKind [ C4Kind.Container ]
+
+    // A container's components, and the elements outside it they are related to.
+    let componentsView (container: string) =
+        let own = elements |> List.filter (fun e -> e.Parent = Some container) |> List.map (fun e -> e.Id)
+        let around = outside @ (containers |> List.filter (fun c -> c <> container))
+        let all = lifted byId (own @ around) links
+        let ownSet = Set.ofList own
+
+        let related =
+            around
+            |> List.filter (fun a -> all |> List.exists (fun r -> (r.From = a && ownSet.Contains r.To) || (r.To = a && ownSet.Contains r.From)))
+
+        view $"components:{container.Substring 10}" C4Level.Components container (own @ related)
+
     { Elements = elements
       Relationships = merge links
       Views =
         [ view "context" C4Level.Context SystemId (SystemId :: outside)
-          view "containers" C4Level.Containers SystemId (ofKind [ C4Kind.Container ] @ outside) ] }
+          view "containers" C4Level.Containers SystemId (containers @ outside) ]
+        @ (containers |> List.map componentsView) }
 
 /// The model as text, one line per element and relationship, then each view with its relationships, for people
 /// and golden files.

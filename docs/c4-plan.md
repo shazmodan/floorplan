@@ -29,7 +29,7 @@ stopped.
 | 1 | Plan, model types, an empty model in every run | `claude/c4-model-plan` | done |
 | 2 | Level 1, system context: the system, its users and the external systems | `claude/c4-system-context` | done |
 | 3 | Level 2, containers: applications, libraries, and links between applications | `claude/c4-containers` | done |
-| 4 | Level 3, components: the units of each container | `claude/c4-components` | |
+| 4 | Level 3, components: the units of each container | `claude/c4-components` | done |
 | 5 | Level 4, code: the types and members of each component | `claude/c4-code` | |
 | 6 | Diagram layout of every view | `claude/c4-layout` | |
 | 7 | The website's Architecture pages | `claude/c4-website` | |
@@ -181,4 +181,15 @@ external system. Shop's worker now calls the web application's `/api/orders` on 
 point in `shop.exit-points.txt`). `CSharp.Messaging` sending to `orders` links it to `CSharp.Functions`, which
 consumes a queue of that name: in the fixtures the two are different brokers, which only knowing the library of
 the consumer's entry point (left over from iteration 2) would tell apart.
+
+### 2026-11-21: iteration 4
+
+A component is a unit in a container: `component:<project>|<unit id>`, its parent the container. A library's unit
+is a component of every container whose project references the library (tagged "library <project>"), since an
+element has one parent; the components of Shop.Core are in both Shop.Web and Shop.Worker. Tags also say which
+components handle requests and which reach out. Relationships are now stored from and to components: exit
+points from their unit's component, callers to the handler's, a call between applications from the caller's
+component to the handler's, and each dependency between units of a container's code is a "uses" between its
+components. A view `components:<project>` per container shows its components and the outside elements they are
+related to (people, external systems, other containers shown whole). `csharp.c4.txt` is now 500 lines.
 

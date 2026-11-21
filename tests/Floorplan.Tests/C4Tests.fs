@@ -70,6 +70,35 @@ let tests =
                   "the worker reaches no library code that writes"
           }
 
+          test "components: a container's units and its libraries', what each one handles and reaches" {
+              let m = ExitPointTests.shopModel.Force()
+              let web = C4.containerId "Shop.Web"
+
+              let components =
+                  m.Architecture.Elements
+                  |> List.filter (fun e -> e.Kind = C4Kind.Component && e.Parent = Some web)
+                  |> List.map (fun e -> e.Name, e.Tags)
+                  |> Map.ofList
+
+              Expect.equal components["Shop.Web.Handlers"] [ "handles requests"; "reaches out" ] "the handlers"
+              Expect.equal components["Shop.Data.Repository"] [ "library Shop.Data"; "reaches out" ] "a library's unit is a component of the container"
+              Expect.isTrue (components.ContainsKey "Shop.Storage") "the C# library too"
+
+              let v = view m "components:Shop.Web"
+              let handlers = C4.componentId web "Shop.Web:Shop.Web.Handlers"
+
+              Expect.containsAll
+                  (into v handlers)
+                  [ "person:user", "sends HTTP requests to"
+                    C4.containerId "Shop.Worker", "sends HTTP requests to /api/orders"
+                    C4.componentId web "Shop.Web:Shop.Web.Program", "uses" ]
+                  "who calls the handlers: the user, the worker (another container, shown whole), the program"
+
+              Expect.isFalse
+                  (v.Elements |> List.contains "external:processes")
+                  "only the outside elements its components are related to"
+          }
+
           test "system context of the C# fixtures: client libraries name the systems they reach" {
               let m = CSharpTests.csharpModel.Force()
               let systems = named m C4Kind.ExternalSystem
