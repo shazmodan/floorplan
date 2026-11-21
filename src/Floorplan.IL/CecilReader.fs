@@ -210,7 +210,10 @@ let private convert (asm: string) (method: MethodDefinition) (i: Mono.Cecil.Cil.
     | Code.Unbox_Any -> UnboxAny(tref ())
     | Code.Castclass -> CastClass(tref ())
     | Code.Isinst -> IsInst(tref ())
-    | Code.Ldtoken -> LdToken
+    | Code.Ldtoken ->
+        match i.Operand with
+        | :? MethodReference -> LdToken(Some(mref ()))
+        | _ -> LdToken None
     | Code.Br
     | Code.Br_S -> Br(target ())
     | Code.Brtrue

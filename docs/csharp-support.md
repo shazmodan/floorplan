@@ -247,7 +247,12 @@ Also new, outside the recognizer:
   (`IJob.Execute`) make each registered job's `Execute` background work. A file watcher's handler
   (`FileSystemWatcher`'s `Changed`, `Created`, `Deleted`, `Renamed`; `filesystem-read.watcher-events`) is an input
   from the file system: an entry point of category `filesystem-read`, at the path the watcher's constructor is
-  given (`filesystem-read.watcher-path`, a constructor that names the consumer's address). Fixture:
+  given (`filesystem-read.watcher-path`, a constructor that names the consumer's address). A Hangfire job is
+  handed over as an expression tree (`RecurringJob.AddOrUpdate<Reports>("nightly", r => r.Nightly(), ...)`,
+  `BackgroundJob.Enqueue`, and the client and manager extension methods; `background.hangfire-*`), whose method
+  its server runs: the `"expression-handler"` role finds the method by the token the tree's construction loads for
+  `Expression.Call` (the IL reader now keeps a method token's method, `LdToken`), and that method is background
+  work. Fixture:
   `CSharp.Worker` (Microsoft.Extensions.Hosting as a package, on the Worker SDK).
 - **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
   built assembly (a dependency, like a package), with the application's handlers passed as method groups in a

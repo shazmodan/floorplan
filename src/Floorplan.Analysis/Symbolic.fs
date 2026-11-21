@@ -2128,7 +2128,7 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                             match written, (if t.Pc > 0 then Some instrs[t.Pc - 1].Op else None) with
                             | Some v, Some(LdLocA n) -> continueFrom { next with Locals = next.Locals.Add(n, v) } results rest declared.ReturnsValue
                             | _ -> continueWith results rest declared.ReturnsValue
-                        | LdToken -> t <- push Unknown t.Stack
+                        | LdToken _ -> t <- push Unknown t.Stack
 
         List.ofSeq outcomes
 

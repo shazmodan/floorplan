@@ -38,7 +38,7 @@ let stackEffect (op: Op) : int * int =
     | LdNull
     | LdSFld _
     | LdSFldA _
-    | LdToken
+    | LdToken _
     | LdFtn _ -> 0, 1
     | StArg _
     | StLoc _

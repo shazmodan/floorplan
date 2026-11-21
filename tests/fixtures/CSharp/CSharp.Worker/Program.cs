@@ -9,6 +9,7 @@ builder.Services.AddHostedService(_ => new Heartbeat("https://status.example.org
 builder.Services.AddQuartz(q => q.ScheduleJob<CSharp.Worker.Cleanup.PurgeJob>(t => t.WithCronSchedule("0 0 3 * * ?")));
 builder.Services.AddQuartzHostedService();
 CSharp.Worker.Imports.Inbox.Watch();
+CSharp.Worker.Reporting.Schedule.Jobs();
 builder.Build().Run();
 
 namespace CSharp.Worker.Cleanup
@@ -42,6 +43,26 @@ namespace CSharp.Worker.Cleanup
     public class Archiver : BackgroundService
     {
         protected override Task ExecuteAsync(CancellationToken stoppingToken) => File.WriteAllTextAsync("archive.txt", "", stoppingToken);
+    }
+}
+
+namespace CSharp.Worker.Reporting
+{
+    // Hangfire: a job is an expression tree, and its server runs the method the tree calls.
+    public class Reports
+    {
+        public void Nightly() => File.WriteAllText("nightly.txt", DateTime.UtcNow.ToString("O"));
+
+        public Task Send(string to) => File.AppendAllTextAsync("outbox.log", to);
+    }
+
+    public static class Schedule
+    {
+        public static void Jobs()
+        {
+            Hangfire.RecurringJob.AddOrUpdate<Reports>("nightly", r => r.Nightly(), Hangfire.Cron.Daily);
+            Hangfire.BackgroundJob.Enqueue<Reports>(r => r.Send("ops@example.org"));
+        }
     }
 }
 

@@ -116,7 +116,8 @@ type Op =
     | UnboxAny of TypeRef
     | CastClass of TypeRef
     | IsInst of TypeRef
-    | LdToken
+    /// A metadata token; the method, when it is one (an expression tree names the method it calls this way).
+    | LdToken of MethodRef option
     | Br of int
     | BrTrue of int
     | BrFalse of int

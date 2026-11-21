@@ -248,7 +248,7 @@ let analyze (set: AssemblySet) (graph: CallGraph) (matcher: Matcher) (recognizer
                 | LdcI8 _
                 | LdcR _
                 | LdNull
-                | LdToken
+                | LdToken _
                 | LdFtn _ -> Set.empty
                 | LdFld f
                 | LdSFld f
