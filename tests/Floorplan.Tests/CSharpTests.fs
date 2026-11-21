@@ -279,6 +279,11 @@ let tests =
                     EffectCategory.HttpOut, "HttpClient::GetStringAsync", Some "https://api.github.com/zen" ]
                   "a typed client's relative URLs, under the base address AddHttpClient gives it"
 
+              Expect.equal
+                  (calls "GitHub.Status")
+                  [ EffectCategory.HttpOut, "HttpClient::GetStringAsync", Some "https://status.example.org/health" ]
+                  "a named client's, under the base address registered with its name"
+
               // A SignalR client: the server invokes the handlers On registers; InvokeAsync calls a hub method.
               Expect.equal
                   (calls "Chat.Room")

@@ -251,8 +251,9 @@ Also new, outside the recognizer:
   payload is the index of the type argument) gives the client type the constant its configuration delegate sets
   `BaseAddress` to (`http-out.base-address`), and an HTTP call the client makes through the `HttpClient` it keeps
   in a field (its constructor's parameter) has that address before a relative URL (`repos/{…}` is
-  `https://api.github.com/repos/{…}`). Named clients (`AddHttpClient("name", ...)` and `CreateClient("name")`) are not
-  joined. Fixture: `CSharp.Clients`.
+  `https://api.github.com/repos/{…}`). A named client is joined by its name: `AddHttpClient("status", ...)`
+  (`http-out.named-client`, the name a constant) and the client `IHttpClientFactory.CreateClient("status")` makes
+  (`http-out.client-factory`). Fixture: `CSharp.Clients`.
 - **AWS and Azure Cosmos DB**: the AWS SDK for .NET and the Cosmos DB client send requests through pipelines of
   handlers of their own, past credential providers that read files, start processes and call the platform's
   crypto API, so a call showed as low- or medium-confidence HTTP among that noise. Sink rules name the operations:

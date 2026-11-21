@@ -400,48 +400,68 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                          match ins.Op with
                          | Call d
                          | CallVirt d ->
-                             match ctx.Matcher.Registration d with
-                             | Some rule when rule.Payload |> List.exists (fun p -> p.Role = "typed-http-client") ->
-                                 let spec = rule.Payload |> List.find (fun p -> p.Role = "typed-http-client")
+                             let roles =
+                                 ctx.Matcher.Match d
+                                 |> List.filter (fun r -> r.Kind = Registration)
+                                 |> List.collect (fun r -> r.Payload)
 
-                                 match List.tryItem spec.Argument d.TypeArguments, DataFlow.ofMethod m with
-                                 | Some client, Some f ->
-                                     f.OperandsAt ins.Offset
-                                     |> List.tryPick (delegateTarget f)
-                                     |> Option.bind baseAddressIn
-                                     |> Option.map (fun b -> client.FullName, b)
+                             match DataFlow.ofMethod m with
+                             | Some f when roles |> List.exists (fun p -> p.Role = "typed-http-client" || p.Role = "named-http-client") ->
+                                 let configured () =
+                                     f.OperandsAt ins.Offset |> List.tryPick (delegateTarget f) |> Option.bind baseAddressIn
+
+                                 match roles |> List.tryFind (fun p -> p.Role = "typed-http-client"), roles |> List.tryFind (fun p -> p.Role = "named-http-client") with
+                                 | Some spec, _ when spec.Argument < d.TypeArguments.Length ->
+                                     configured () |> Option.map (fun b -> "type:" + d.TypeArguments[spec.Argument].FullName, b)
+                                 | _, Some spec ->
+                                     // A named client: AddHttpClient("github", c => ...), the name a constant.
+                                     match (evaluatorOf f).Operand(ins.Offset, Values.operandIndex d false spec.Argument) with
+                                     | Values.Text name -> configured () |> Option.map (fun b -> "name:" + name, b)
+                                     | _ -> None
                                  | _ -> None
                              | _ -> None
                          | _ -> None))
              |> dict)
 
-    // A relative URL sent through a typed client's HttpClient field, with the client's base address before it.
+    // The client a call is made through: a typed client's HttpClient field ("type:"), or one a factory makes by a
+    // constant name ("name:", IHttpClientFactory.CreateClient("github")).
+    let clientOf (m: MethodDef) (f: DataFlow.Flow) (offset: int) =
+        match f.OperandsAt offset with
+        | receiver :: _ ->
+            receiver
+            |> Set.toList
+            |> List.tryPick (function
+                | DataFlow.Pushed o ->
+                    match f.InstructionAt o, f.OperandsAt o with
+                    | Some { Op = LdFld fld }, [ owner ] when owner.Contains(DataFlow.Argument 0) && fld.Type.FullName = m.Ref.Type.FullName ->
+                        Some("type:" + m.Ref.Type.FullName)
+                    | Some { Op = (Call c | CallVirt c) }, _ when
+                        ctx.Matcher.Match c |> List.exists (fun r -> r.Payload |> List.exists (fun p -> p.Role = "http-client-name"))
+                        ->
+                        let spec =
+                            ctx.Matcher.Match c
+                            |> List.pick (fun r -> r.Payload |> List.tryFind (fun p -> p.Role = "http-client-name"))
+
+                        match (evaluatorOf f).Operand(o, Values.operandIndex c false spec.Argument) with
+                        | Values.Text name -> Some("name:" + name)
+                        | _ -> None
+                    | _ -> None
+                | _ -> None)
+        | [] -> None
+
+    // A relative URL sent through a typed or named client, with the client's base address before it.
     let withBaseAddress (m: MethodDef) (f: DataFlow.Flow) (offset: int) (payload: Payload option) =
-        match payload with
-        | Some p when p.Role = "url" && baseAddresses.Value.ContainsKey m.Ref.Type.FullName ->
+        match payload, clientOf m f offset with
+        | Some p, Some client when p.Role = "url" && baseAddresses.Value.ContainsKey client ->
             let relative =
                 match p.Value with
                 | Some v when v.StartsWith "http://" || v.StartsWith "https://" -> None
                 | Some v -> Some v
                 | None -> if p.Kind = PayloadKind.Dynamic then Some "{…}" else None
 
-            // Only through a field of the client itself (the HttpClient its constructor is given).
-            let throughField =
-                match f.OperandsAt offset with
-                | receiver :: _ ->
-                    receiver
-                    |> Set.toList
-                    |> List.exists (function
-                        | DataFlow.Pushed o ->
-                            match f.InstructionAt o, f.OperandsAt o with
-                            | Some { Op = LdFld fld }, [ owner ] -> owner.Contains(DataFlow.Argument 0) && fld.Type.FullName = m.Ref.Type.FullName
-                            | _ -> false
-                        | _ -> false)
-                | [] -> false
-
             match relative with
-            | Some r when throughField ->
-                let joined = baseAddresses.Value[m.Ref.Type.FullName].TrimEnd('/') + "/" + r.TrimStart('/')
+            | Some r ->
+                let joined = baseAddresses.Value[client].TrimEnd('/') + "/" + r.TrimStart('/')
 
                 Some
                     { p with
