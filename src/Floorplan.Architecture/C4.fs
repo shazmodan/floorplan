@@ -475,11 +475,12 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
               Technology = (if e.Category = EffectCategory.HttpIn then Some "HTTP" else facts.EntryLibrary e)
               Source = e.Id })
 
-    // Whether a type is one a unit declares: a namespace's own type, or a module itself. A type made from another
+    // Whether a type is one a unit declares: a namespace's own type, a module itself or a type in it. A type made from another
     // file (a Razor component) lands in a unit that is not its namespace, and is left out.
     let declares (unitId: string) (typeName: string) =
         match units.TryFind unitId with
-        | Some u when u.Kind = UnitKind.Module -> typeName = u.Name
+        | Some u when u.Kind = UnitKind.Module ->
+            typeName = u.Name || (typeName.StartsWith(u.Name + "/") && not (typeName.Substring(u.Name.Length + 1).Contains "/"))
         | Some u when u.Kind = UnitKind.Namespace ->
             let ns = match typeName.LastIndexOf '.' with -1 -> "" | i -> typeName.Substring(0, i)
             ns = u.Name

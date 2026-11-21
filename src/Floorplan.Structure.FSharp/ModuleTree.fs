@@ -80,6 +80,31 @@ let ofParsedInput (input: ParsedInput) : DeclaredUnit list =
 
                 own @ modules)
 
+/// A type a unit declares, with the source range it covers.
+type DeclaredType =
+    { Unit: string
+      Name: string
+      Range: range }
+
+/// The types each module and namespace of a file declares (not those nested in a type: F# has none).
+let typesOf (input: ParsedInput) : DeclaredType list =
+    let rec inDecls (unitName: string) (decls: SynModuleDecl list) =
+        decls
+        |> List.collect (function
+            | SynModuleDecl.Types(typeDefns = defns) ->
+                defns
+                |> List.map (fun (SynTypeDefn(typeInfo = SynComponentInfo(longId = ids); range = r)) ->
+                    { Unit = unitName; Name = join ids; Range = r })
+            | SynModuleDecl.NestedModule(moduleInfo = SynComponentInfo(longId = ids); decls = inner) ->
+                inDecls (if unitName = "" then join ids else unitName + "." + join ids) inner
+            | _ -> [])
+
+    match input with
+    | ParsedInput.SigFile _ -> []
+    | ParsedInput.ImplFile file ->
+        file.Contents
+        |> List.collect (fun (SynModuleOrNamespace(longId = ids; decls = decls)) -> inDecls (join ids) decls)
+
 /// The innermost unit whose range contains the position.
 let enclosing (units: DeclaredUnit list) (file: string) (pos: pos) =
     units

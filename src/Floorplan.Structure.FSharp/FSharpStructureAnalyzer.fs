@@ -36,14 +36,27 @@ module FSharpStructureAnalyzer =
         let sources = options.SourceFiles |> Array.filter (fun f -> f.EndsWith ".fs" && not (isGenerated f))
         let parsingOptions, _ = checker.GetParsingOptionsFromProjectOptions options
 
-        let declared =
+        let parsed =
             sources
             |> Array.toList
-            |> List.collect (fun file ->
+            |> List.map (fun file ->
                 let text = SourceText.ofString (File.ReadAllText file)
-                let parsed = checker.ParseFile(file, text, parsingOptions) |> Async.RunSynchronously
-                ModuleTree.ofParsedInput parsed.ParseTree)
-            |> List.distinctBy (fun u -> u.FullName)
+                (checker.ParseFile(file, text, parsingOptions) |> Async.RunSynchronously).ParseTree)
+
+        let declared =
+            parsed |> List.collect ModuleTree.ofParsedInput |> List.distinctBy (fun u -> u.FullName)
+
+        let declaredTypes = parsed |> List.collect ModuleTree.typesOf
+
+        // The type code at a position is in: a type its unit declares whose range holds it, else a module itself.
+        let typeAt (from: ModuleTree.DeclaredUnit) (file: string) (pos: pos) =
+            declaredTypes
+            |> List.tryFind (fun t ->
+                t.Unit = from.FullName
+                && String.Equals(t.Range.FileName, file, StringComparison.OrdinalIgnoreCase)
+                && Range.rangeContainsPos t.Range pos)
+            |> Option.map (fun t -> if from.Kind = UnitKind.Module then from.FullName + "/" + t.Name else from.FullName + "." + t.Name)
+            |> Option.orElse (if from.Kind = UnitKind.Module then Some from.FullName else None)
 
         let unitId = UnitId.create project.Id
 
@@ -81,7 +94,7 @@ module FSharpStructureAnalyzer =
                 Some(UnitId.forProject target.Id, target.Id)
             | Some target -> Some(UnitId.create target.Id owner, target.Id)
 
-        let edges =
+        let uses =
             results.GetAllUsesOfAllSymbols()
             |> Array.filter (fun u -> not u.IsFromDefinition && not (isGenerated u.FileName))
             |> Array.choose (fun u ->
@@ -92,8 +105,31 @@ module FSharpStructureAnalyzer =
                 match from, owner, assembly with
                 | Some from, Some owner, Some assembly ->
                     targetUnit assembly owner
-                    |> Option.map (fun (target, targetProject) -> unitId from.FullName, target, targetProject, u.Range)
+                    |> Option.map (fun (target, targetProject) ->
+                        let types =
+                            match typeAt from u.FileName u.Range.Start, SymbolOwner.typeOfSymbol u.Symbol with
+                            | Some a, Some b -> Some(a, b)
+                            | _ -> None
+
+                        unitId from.FullName, target, targetProject, u.Range, types)
                 | _ -> None)
+
+        let typeEdges =
+            uses
+            |> Array.choose (fun (from, target, _, _, types) -> types |> Option.map (fun (a, b) -> from, a, target, b))
+            |> Array.filter (fun (_, a, _, b) -> a <> b)
+            |> Array.countBy id
+            |> Array.map (fun ((from, a, target, b), n) ->
+                { FromUnit = from
+                  FromType = a
+                  ToUnit = target
+                  ToType = b
+                  Weight = n })
+            |> Array.toList
+
+        let edges =
+            uses
+            |> Array.map (fun (from, target, project, range, _) -> from, target, project, range)
             |> Array.filter (fun (from, target, _, _) -> from <> target)
             |> Array.groupBy (fun (from, target, _, _) -> from, target)
             |> Array.map (fun ((from, target), uses) ->
@@ -112,7 +148,7 @@ module FSharpStructureAnalyzer =
 
         { Units = units
           Dependencies = edges
-          TypeDependencies = []
+          TypeDependencies = typeEdges
           Diagnostics = errors }
 
     /// What a project's structure depends on: its sources, compiler options, referenced assemblies, and which
@@ -128,7 +164,7 @@ module FSharpStructureAnalyzer =
                 if info.Exists then $"{r}|{info.Length}|{info.LastWriteTimeUtc.Ticks}" else r)
 
         Caching.hash
-            [ yield "structure-v2"
+            [ yield "structure-v3"
               yield typeof<StructureResult>.Assembly.GetName().Version.ToString()
               yield project.Id
               yield project.Path

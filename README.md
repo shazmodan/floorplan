@@ -24,7 +24,7 @@ writes a static website to `./floorplan-out` that shows:
 6. **Architecture**: a [C4 model](https://c4model.com) of the solution in its four levels, derived from the
    above: the system with its users and the external systems it reaches, its applications (containers), each
    application's components (the modules of its own project and of the libraries it references) and each
-   component's code (its types, and in C# which types use which). Each element opens the level below, and each relationship lists the entry and
+   component's code (its types, and which use which). Each element opens the level below, and each relationship lists the entry and
    exit points behind it. The site's folder also holds the model as a [Structurizr DSL](https://docs.structurizr.com/dsl)
    workspace, `workspace.dsl`, to open in Structurizr or export to PlantUML or Mermaid with its tools; `workspace.json`
    beside it holds the website's layout, which Structurizr Lite merges in.
