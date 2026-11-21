@@ -308,8 +308,28 @@ let private factsOf (model: AnalysisModel) : Facts =
 /// The id of a unit's component in a container: a library's unit is a component of each container that has it.
 let componentId (container: string) (unitId: string) = $"component:{container.Substring 10}|{unitId}"
 
-/// Level 1, 2 and 3: the solution as one system, its containers and their components, who calls them and what
-/// they use.
+/// The type a member is declared by, as people know it: compiler-generated nested types (an async method's state
+/// machine, a lambda's closure class, an F# closure) stand for the type they are nested in.
+let codeTypeOf (memberName: string) =
+    let parts = (typeOf memberName).Split('/')
+
+    let generated (name: string) =
+        name.StartsWith "<" || name.Contains "@" || name.Contains "$" || name.Contains "__"
+
+    parts |> Array.skip 1 |> Array.takeWhile (generated >> not) |> Array.append [| parts[0] |] |> String.concat "/"
+
+/// The id of a type's code element in a component.
+let codeId (componentKey: string) (typeName: string) = $"code:{componentKey.Substring 10}|{typeName}"
+
+/// The simple name of a type, without namespace or enclosing types.
+let private simpleName (typeName: string) =
+    let last = typeName.Split('/') |> Array.last
+    match last.LastIndexOf '.' with
+    | -1 -> last
+    | i -> last.Substring(i + 1)
+
+/// Level 1 to 4: the solution as one system, its containers, their components and their code, who calls them
+/// and what they use.
 let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
     let model = facts.Model
     let units = model.Units |> List.map (fun u -> u.Id, u) |> Map.ofList
@@ -317,6 +337,12 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
     // The component of a unit in a container, or the container itself for a unit it does not have.
     let partOf (container: string) (unitId: string) =
         if (facts.UnitsOf container).Contains unitId then componentId container unitId else container
+
+    // The code element of a member in its unit's component.
+    let codeOf (container: string) (unitId: string) (memberName: string) =
+        match partOf container unitId with
+        | c when c.StartsWith "component:" -> codeId c (codeTypeOf memberName)
+        | other -> other
     let applications = model.Projects |> List.filter (fun p -> p.IsApplication)
 
     let system =
@@ -356,8 +382,8 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
                           for c in facts.ContainersOf x do
                               if c <> containerId e.ApplicationId then
                                   yield
-                                      { From = partOf c x.Unit
-                                        To = partOf (containerId e.ApplicationId) e.HandlerUnit
+                                      { From = codeOf c x.Unit x.Member
+                                        To = codeOf (containerId e.ApplicationId) e.HandlerUnit e.HandlerMember
                                         Description = $"sends messages to {queue}"
                                         Technology = technologyOf facts.Solution facts.Library x
                                         Source = x.Id }
@@ -372,8 +398,8 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
                       match receivers |> List.map (fun e -> e.ApplicationId) |> List.distinct with
                       | [ application ] when localHost url application ->
                           yield
-                              { From = partOf c x.Unit
-                                To = partOf (containerId application) receivers.Head.HandlerUnit
+                              { From = codeOf c x.Unit x.Member
+                                To = codeOf (containerId application) receivers.Head.HandlerUnit receivers.Head.HandlerMember
                                 Description = $"sends HTTP requests to {path}"
                                 Technology = technologyOf facts.Solution facts.Library x
                                 Source = x.Id }
@@ -401,7 +427,7 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
         |> List.collect (fun (ext, x) ->
             facts.ContainersOf x
             |> List.map (fun c ->
-                { From = partOf c x.Unit
+                { From = codeOf c x.Unit x.Member
                   To = idOf C4Kind.ExternalSystem ext
                   Description = verb x.Category
                   Technology = technologyOf facts.Solution facts.Library x
@@ -411,7 +437,7 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
         inbound
         |> List.map (fun ((kind, ext), e) ->
             { From = idOf kind ext
-              To = partOf (containerId e.ApplicationId) e.HandlerUnit
+              To = codeOf (containerId e.ApplicationId) e.HandlerUnit e.HandlerMember
               Description = callerVerb e
               Technology = (if e.Category = EffectCategory.HttpIn then Some "HTTP" else None)
               Source = e.Id })
@@ -450,12 +476,16 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
                       | UnitKind.ProjectUnit -> "project"
 
                   let language = project |> Option.map (fun p -> languageName p.Language) |> Option.defaultValue ""
-                  let handles = links |> List.exists (fun l -> l.To = componentKey && not (l.From.StartsWith "component:"))
-                  let reaches = links |> List.exists (fun l -> l.From = componentKey && not (l.To.StartsWith "component:"))
+                  let mine (id: string) = id = componentKey || id.StartsWith(codeId componentKey "")
+                  let inside (id: string) = id.StartsWith "component:" || id.StartsWith "code:"
+                  let handles = links |> List.exists (fun l -> mine l.To && not (mine l.From) && not (l.Description = "uses"))
+                  let reaches = links |> List.exists (fun l -> mine l.From && not (inside l.To))
                   let projectName = project |> Option.map (fun p -> p.Name) |> Option.defaultValue u.ProjectId
 
+                  let name = if u.Name = "" then u.DisplayName else u.Name
+
                   yield
-                      { element componentKey C4Kind.Component u.Name $"A {language} {kind} of {projectName}" with
+                      { element componentKey C4Kind.Component name $"A {language} {kind} of {projectName}" with
                           Technology = Some $"{language} {kind}"
                           Parent = Some id
                           Tags =
@@ -464,7 +494,48 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
                               if reaches then "reaches out" ]
                           Sources = [ unitId ] } ]
 
-    system :: containerElements @ components @ (externals |> List.sortBy (fun e -> e.Id)), links
+    // Each component's types: those its unit declares, and those of the members that are entry or exit points.
+    let code =
+        let named =
+            [ for c in facts.Containers do
+                  let id = containerId c.Id
+
+                  for unitId in facts.UnitsOf id |> Set.toList do
+                      let u = units[unitId]
+                      let componentKey = componentId id unitId
+
+                      match u.Kind with
+                      | UnitKind.Module -> yield componentKey, u.Name
+                      | _ -> for t in u.Types -> componentKey, (if u.Name = "" then t else $"{u.Name}.{t}") ]
+
+        let fromLinks =
+            links
+            |> List.collect (fun l -> [ l.From; l.To ])
+            |> List.filter (fun id -> id.StartsWith "code:")
+            |> List.map (fun id ->
+                let rest = id.Substring 5
+                let cut = rest.LastIndexOf '|'
+                "component:" + rest.Substring(0, cut), rest.Substring(cut + 1))
+
+        (named @ fromLinks)
+        |> List.distinct
+        |> List.map (fun (componentKey, typeName) ->
+            let key = codeId componentKey typeName
+            let handles = links |> List.exists (fun l -> l.To = key)
+            let reaches = links |> List.exists (fun l -> l.From = key)
+            let unitKind = components |> List.tryFind (fun c -> c.Id = componentKey) |> Option.bind (fun c -> c.Technology)
+            let isModule = unitKind |> Option.exists (fun t -> t.EndsWith " module") && not (typeName.Contains "/")
+
+            { element key C4Kind.Code (simpleName typeName) typeName with
+                Technology = (if isModule then unitKind else Some "type")
+                Parent = Some componentKey
+                Tags =
+                  [ if handles then "handles requests"
+                    if reaches then "reaches out" ]
+                Sources = [ typeName ] })
+        |> List.sortBy (fun e -> e.Id)
+
+    system :: containerElements @ components @ code @ (externals |> List.sortBy (fun e -> e.Id)), links
 
 /// The model's links as one view shows them: each end moved up to the shown element that contains it, links
 /// within one shown element dropped, and the rest merged.
@@ -522,12 +593,38 @@ let derive (model: AnalysisModel) : C4Model =
 
         view $"components:{container.Substring 10}" C4Level.Components container (own @ related)
 
+    // A component's code elements, and the elements outside it they are related to.
+    let codeView (componentKey: string) =
+        let own = elements |> List.filter (fun e -> e.Parent = Some componentKey) |> List.map (fun e -> e.Id)
+        let container = byId[componentKey].Parent.Value
+
+        let around =
+            outside
+            @ (containers |> List.filter (fun c -> c <> container))
+            @ (elements |> List.filter (fun e -> e.Kind = C4Kind.Component && e.Id <> componentKey) |> List.map (fun e -> e.Id))
+
+        let all = lifted byId (own @ around) links
+        let ownSet = Set.ofList own
+
+        let related =
+            around
+            |> List.filter (fun a -> all |> List.exists (fun r -> (r.From = a && ownSet.Contains r.To) || (r.To = a && ownSet.Contains r.From)))
+
+        view $"code:{componentKey.Substring 10}" C4Level.Code componentKey (own @ related)
+
+    // Components with code of their own: a C# namespace's types, an F# module.
+    let componentKeys =
+        elements
+        |> List.filter (fun e -> e.Kind = C4Kind.Component && elements |> List.exists (fun c -> c.Parent = Some e.Id))
+        |> List.map (fun e -> e.Id)
+
     { Elements = elements
       Relationships = merge links
       Views =
         [ view "context" C4Level.Context SystemId (SystemId :: outside)
           view "containers" C4Level.Containers SystemId (containers @ outside) ]
-        @ (containers |> List.map componentsView) }
+        @ (containers |> List.map componentsView)
+        @ (componentKeys |> List.map codeView) }
 
 /// The model as text, one line per element and relationship, then each view with its relationships, for people
 /// and golden files.

@@ -30,7 +30,7 @@ stopped.
 | 2 | Level 1, system context: the system, its users and the external systems | `claude/c4-system-context` | done |
 | 3 | Level 2, containers: applications, libraries, and links between applications | `claude/c4-containers` | done |
 | 4 | Level 3, components: the units of each container | `claude/c4-components` | done |
-| 5 | Level 4, code: the types and members of each component | `claude/c4-code` | |
+| 5 | Level 4, code: the types and members of each component | `claude/c4-code` | done |
 | 6 | Diagram layout of every view | `claude/c4-layout` | |
 | 7 | The website's Architecture pages | `claude/c4-website` | |
 | 8 | Documentation, TODO, review on every fixture | `claude/c4-docs` | |
@@ -192,4 +192,18 @@ points from their unit's component, callers to the handler's, a call between app
 component to the handler's, and each dependency between units of a container's code is a "uses" between its
 components. A view `components:<project>` per container shows its components and the outside elements they are
 related to (people, external systems, other containers shown whole). `csharp.c4.txt` is now 500 lines.
+
+### 2026-11-21: iteration 5
+
+Code elements are a component's types (`code:<project>|<unit id>|<type>`): those a namespace declares, an F#
+module itself, and the types of the members that are entry or exit points. `C4.codeTypeOf` names a member's type
+as people know it: compiler-generated nested types (`<Remember>d__2`, `<>c`, `price@18`) stand for the type they
+are nested in; a nested type of its own (`Shop.Web.Handlers/FileNotifier`) is an element. Exit points now start
+at their member's type and callers reach the handler's type, so every level is lifted from the code level. A
+view `code:<component>` per component with code shows its types and the elements outside it they are related to
+(other components and containers shown whole).
+
+Dependencies are known between units only, so "uses" stays between components, and a code view shows what each
+type handles and reaches, not which types use which. A global namespace's component is named by its label,
+"(global namespace)". `csharp.c4.txt` is 839 lines.
 
