@@ -159,6 +159,28 @@ let tests =
                   "an application with other entry points has none at its start"
           }
 
+          test "AWS: S3 is HTTP, DynamoDB a database, SQS messaging, each with what its request names" {
+              let m = csharpModel.Force()
+
+              let named (memberName: string) =
+                  m.ExitPoints
+                  |> List.filter (fun x -> x.Member = memberName && x.Confidence = Confidence.High && x.Category <> EffectCategory.Nondeterminism)
+                  |> List.map (fun x -> x.Category, x.Primitive.Substring(x.Primitive.LastIndexOf '.' + 1), x.Payload |> Option.bind (fun p -> p.Value))
+
+              Expect.equal (named "CSharp.Cloud.Reports.Archive::Store") [ EffectCategory.HttpOut, "IAmazonS3::PutObjectAsync", Some "reports" ] "S3, the bucket"
+              Expect.equal (named "CSharp.Cloud.Orders.Table::Save") [ EffectCategory.Database, "IAmazonDynamoDB::PutItemAsync", Some "orders" ] "DynamoDB, the table"
+
+              Expect.equal
+                  (named "CSharp.Cloud.Jobs.Queue::Enqueue")
+                  [ EffectCategory.Network, "IAmazonSQS::SendMessageAsync", Some "https://sqs.eu-north-1.amazonaws.com/123456789012/jobs" ]
+                  "SQS, the queue"
+
+              Expect.equal
+                  (entries m "CSharp.Cloud" |> List.map (fun e -> e.HandlerMember, e.Category, e.Route))
+                  [ "CSharp.Cloud.Jobs.Queue::Run", EffectCategory.Network, Some "https://sqs.eu-north-1.amazonaws.com/123456789012/jobs" ]
+                  "a loop that receives from SQS"
+          }
+
           test "data clients: Redis and MongoDB commands are database calls, Azure Blob Storage calls are HTTP" {
               let m = csharpModel.Force()
 

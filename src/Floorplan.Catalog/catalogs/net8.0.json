@@ -486,6 +486,39 @@
     { "id": "http-out.azure-blob-upload", "assembly": "Azure.Storage.Blobs", "type": "Azure.Storage.Blobs.BlobClient",
       "members": ["Upload", "UploadAsync", "OpenWrite", "OpenWriteAsync"], "includeDerivedTypes": true, "kind": "sink", "category": "http-out" },
 
+    // AWS (the AWS SDK for .NET) and Azure Cosmos DB send their requests through pipelines of handlers of their own,
+    // past credential providers that read files, start processes and call the platform's crypto API: the catalog
+    // names the operations. The bucket, table or queue is the payload, read from the request object's property.
+    { "id": "http-out.aws-s3", "assembly": "AWSSDK.S3", "type": "Amazon.S3.IAmazonS3",
+      "members": ["PutObject*", "GetObject*", "DeleteObject*", "CopyObject*", "ListObjects*", "PutBucket*", "GetBucket*", "DeleteBucket*",
+                  "ListBuckets*", "InitiateMultipartUpload*", "UploadPart*", "CompleteMultipartUpload*", "AbortMultipartUpload*", "RestoreObject*"],
+      "includeDerivedTypes": true, "kind": "sink", "category": "http-out", "payload": [{ "argument": 0, "property": "BucketName", "role": "bucket" }] },
+    { "id": "database.aws-dynamodb", "assembly": "AWSSDK.DynamoDBv2", "type": "Amazon.DynamoDBv2.IAmazonDynamoDB",
+      "members": ["PutItem*", "GetItem*", "UpdateItem*", "DeleteItem*", "Query*", "Scan*", "BatchGetItem*", "BatchWriteItem*",
+                  "TransactGetItems*", "TransactWriteItems*", "ExecuteStatement*", "CreateTable*", "DeleteTable*", "UpdateTable*", "DescribeTable*", "ListTables*"],
+      "includeDerivedTypes": true, "kind": "sink", "category": "database", "payload": [{ "argument": 0, "property": "TableName", "role": "table" }] },
+    { "id": "network.aws-sqs-send", "assembly": "AWSSDK.SQS", "type": "Amazon.SQS.IAmazonSQS",
+      "members": ["SendMessage*"], "whenFirstParameter": "System.String", "includeDerivedTypes": true, "kind": "sink", "category": "network",
+      "payload": [{ "argument": 0, "role": "queue" }] },
+    { "id": "network.aws-sqs-send-request", "assembly": "AWSSDK.SQS", "type": "Amazon.SQS.IAmazonSQS",
+      "members": ["SendMessage*"], "whenFirstParameter": "Amazon.SQS.Model.SendMessageRequest", "includeDerivedTypes": true, "kind": "sink", "category": "network",
+      "payload": [{ "argument": 0, "property": "QueueUrl", "role": "queue" }] },
+    { "id": "network.aws-sqs-receive", "assembly": "AWSSDK.SQS", "type": "Amazon.SQS.IAmazonSQS",
+      "members": ["ReceiveMessage*"], "whenFirstParameter": "System.String", "includeDerivedTypes": true, "kind": "registration", "category": "network",
+      "payload": [{ "argument": -1, "role": "message-receive" }, { "argument": 0, "role": "message-queue" }] },
+    { "id": "network.aws-sqs-receive-request", "assembly": "AWSSDK.SQS", "type": "Amazon.SQS.IAmazonSQS",
+      "members": ["ReceiveMessage*"], "whenFirstParameter": "Amazon.SQS.Model.ReceiveMessageRequest", "includeDerivedTypes": true, "kind": "registration", "category": "network",
+      "payload": [{ "argument": -1, "role": "message-receive" }, { "argument": 0, "property": "QueueUrl", "role": "message-queue" }] },
+    { "id": "database.cosmos-container", "assembly": "Microsoft.Azure.Cosmos.Client", "type": "Microsoft.Azure.Cosmos.Container",
+      "members": ["CreateItem*", "ReadItem*", "UpsertItem*", "ReplaceItem*", "PatchItem*", "DeleteItem*", "ReadManyItems*",
+                  "ReadContainer*", "ReplaceContainer*", "DeleteContainer*", "ReadThroughput*", "ReplaceThroughput*"],
+      "includeDerivedTypes": true, "kind": "sink", "category": "database" },
+    // A query iterator runs its query a page at a time; a transactional batch runs when executed.
+    { "id": "database.cosmos-feed", "assembly": "Microsoft.Azure.Cosmos.Client", "type": "Microsoft.Azure.Cosmos.FeedIterator`1",
+      "members": ["ReadNextAsync"], "includeDerivedTypes": true, "kind": "sink", "category": "database" },
+    { "id": "database.cosmos-batch", "assembly": "Microsoft.Azure.Cosmos.Client", "type": "Microsoft.Azure.Cosmos.TransactionalBatch",
+      "members": ["ExecuteAsync"], "includeDerivedTypes": true, "kind": "sink", "category": "database" },
+
     // ---------------- messaging ----------------
     // Sending a message. The libraries write it from their own loops (RabbitMQ's frame writer, Kafka's native
     // library, a bus's transport), which a call is not followed to, so the catalog names the calls that send: the
