@@ -8,6 +8,7 @@ builder.Services.AddHostedService<Sweeper>();
 builder.Services.AddHostedService(_ => new Heartbeat("https://status.example.org/ping"));
 builder.Services.AddQuartz(q => q.ScheduleJob<CSharp.Worker.Cleanup.PurgeJob>(t => t.WithCronSchedule("0 0 3 * * ?")));
 builder.Services.AddQuartzHostedService();
+CSharp.Worker.Imports.Inbox.Watch();
 builder.Build().Run();
 
 namespace CSharp.Worker.Cleanup
@@ -41,6 +42,21 @@ namespace CSharp.Worker.Cleanup
     public class Archiver : BackgroundService
     {
         protected override Task ExecuteAsync(CancellationToken stoppingToken) => File.WriteAllTextAsync("archive.txt", "", stoppingToken);
+    }
+}
+
+namespace CSharp.Worker.Imports
+{
+    // A watcher calls its handlers when a file in the path it watches changes: an input from the file system.
+    public static class Inbox
+    {
+        public static FileSystemWatcher Watch()
+        {
+            var watcher = new FileSystemWatcher("inbox");
+            watcher.Created += (_, e) => File.Copy(e.FullPath, Path.Combine("imported", e.Name!));
+            watcher.EnableRaisingEvents = true;
+            return watcher;
+        }
     }
 }
 

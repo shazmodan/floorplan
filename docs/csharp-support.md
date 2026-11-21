@@ -244,7 +244,10 @@ Also new, outside the recognizer:
   same `"message-handler"` role as message consumers, and the entry point takes the rule's category. A Quartz.NET
   job is read like a hosted service: `AddJob<T>()` and `ScheduleJob<T>()` (`background.quartz-add-job`, whose
   `"job-type"` payload is the index of the type argument) and the callback rule `background.quartz-job`
-  (`IJob.Execute`) make each registered job's `Execute` background work. Fixture:
+  (`IJob.Execute`) make each registered job's `Execute` background work. A file watcher's handler
+  (`FileSystemWatcher`'s `Changed`, `Created`, `Deleted`, `Renamed`; `filesystem-read.watcher-events`) is an input
+  from the file system: an entry point of category `filesystem-read`, at the path the watcher's constructor is
+  given (`filesystem-read.watcher-path`, a constructor that names the consumer's address). Fixture:
   `CSharp.Worker` (Microsoft.Extensions.Hosting as a package, on the Worker SDK).
 - **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
   built assembly (a dependency, like a package), with the application's handlers passed as method groups in a

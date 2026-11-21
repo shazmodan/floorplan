@@ -170,6 +170,15 @@
     { "id": "filesystem-read.watcher", "assembly": "System.IO.FileSystem.Watcher", "type": "System.IO.FileSystemWatcher",
       "members": ["set_EnableRaisingEvents", "WaitForChanged"], "kind": "sink", "category": "filesystem-read" },
 
+    // A watcher calls its handlers when a file in the path it watches changes: an input from the file system, with
+    // "message-handler" naming the delegate and the constructor's path as the address.
+    { "id": "filesystem-read.watcher-events", "assembly": "System.IO.FileSystem.Watcher", "type": "System.IO.FileSystemWatcher",
+      "members": ["add_Changed", "add_Created", "add_Deleted", "add_Renamed"], "kind": "registration", "category": "filesystem-read",
+      "payload": [{ "argument": 0, "role": "message-handler" }] },
+    { "id": "filesystem-read.watcher-path", "assembly": "System.IO.FileSystem.Watcher", "type": "System.IO.FileSystemWatcher",
+      "members": [".ctor"], "whenFirstParameter": "System.String", "kind": "registration", "category": "filesystem-read",
+      "payload": [{ "argument": 0, "role": "message-queue" }] },
+
     // ---------------- process ----------------
     { "id": "process.start", "assembly": "System.Diagnostics.Process", "type": "System.Diagnostics.Process",
       "members": ["Start"], "kind": "sink", "category": "process", "payload": [{ "argument": 0, "role": "command" }] },
