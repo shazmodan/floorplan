@@ -48,7 +48,7 @@ let rec private closure (fsproj: string) =
 
 /// Projects that must stay language-neutral (plan section 3.5).
 let neutralProjects =
-    [ "Floorplan.Analysis"; "Floorplan.Layout"; "Floorplan.Rendering" ]
+    [ "Floorplan.Analysis"; "Floorplan.Architecture"; "Floorplan.Layout"; "Floorplan.Rendering" ]
 
 /// Framework names that must not appear in src/ (plan section 9). Frameworks exist only as test fixtures.
 let frameworkNames =

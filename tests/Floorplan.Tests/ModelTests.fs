@@ -25,7 +25,37 @@ let private sample =
                 DisplayName = "Orders"
                 Parent = None
                 Location = None
-                Types = [] } ] }
+                Types = [] } ]
+        Architecture =
+            { Elements =
+                [ { Id = "system"
+                    Kind = C4Kind.SoftwareSystem
+                    Name = "App"
+                    Technology = None
+                    Description = "The solution"
+                    Parent = None
+                    Tags = []
+                    Sources = [] }
+                  { Id = "container:p1"
+                    Kind = C4Kind.Container
+                    Name = "App"
+                    Technology = Some "F# · net8.0"
+                    Description = ""
+                    Parent = Some "system"
+                    Tags = [ "web application" ]
+                    Sources = [ "p1" ] } ]
+              Relationships =
+                [ { From = "container:p1"
+                    To = "system"
+                    Description = "uses"
+                    Technology = None
+                    Sources = [] } ]
+              Views =
+                [ { Id = "context"
+                    Level = C4Level.Context
+                    Scope = "system"
+                    Elements = [ "system" ]
+                    Layout = AnalysisModel.emptyGraph } ] } }
 
 [<Tests>]
 let tests =
@@ -43,6 +73,8 @@ let tests =
               Expect.stringContains json "\"supportLevel\":\"full\"" "support level"
               Expect.stringContains json "\"parent\":null" "none"
               Expect.stringContains json "\"catalogUsed\":\"net8.0\"" "some"
+              Expect.stringContains json "\"kind\":\"software-system\"" "C4 kind"
+              Expect.stringContains json "\"level\":\"context\"" "C4 level"
           }
 
           test "category names match the catalog spelling" {

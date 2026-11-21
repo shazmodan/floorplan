@@ -13,6 +13,7 @@ open Floorplan.IL.Codegen.FSharp
 open Floorplan.IL.Codegen.CSharp
 open Floorplan.Analysis
 open Floorplan.Layout
+open Floorplan.Architecture
 open Floorplan.Rendering
 open Floorplan.Cli.Options
 
@@ -126,20 +127,24 @@ let buildModel (log: string -> unit) (store: Caching.Store) (catalogs: string li
         { SolutionLayout.compute projects structure.Units structure.Dependencies with
             FlowGraph = SolutionLayout.flow structure.Units structure.Dependencies entries effects.ExitPoints presentation }
 
-    { AnalysisModel.empty toolVersion (DateTime.UtcNow.ToString "yyyy-MM-ddTHH:mm:ssZ") { Name = solution.Name; Path = solution.Path } with
-        Projects = projects
-        Units = structure.Units |> List.sortBy (fun u -> u.Id)
-        Dependencies = structure.Dependencies
-        EntryPoints = entries
-        Traces = traces
-        ExitPoints = effects.ExitPoints
-        Layout = layout
-        Presentation = presentation
-        Diagnostics =
-            (solution.BuildOutput |> Option.map buildDiagnostic |> Option.toList)
-            @ (solution.Failures |> List.map failureDiagnostic)
-            @ structure.Diagnostics
-            @ effects.Diagnostics }
+    let model =
+        { AnalysisModel.empty toolVersion (DateTime.UtcNow.ToString "yyyy-MM-ddTHH:mm:ssZ") { Name = solution.Name; Path = solution.Path } with
+            Projects = projects
+            Units = structure.Units |> List.sortBy (fun u -> u.Id)
+            Dependencies = structure.Dependencies
+            EntryPoints = entries
+            Traces = traces
+            ExitPoints = effects.ExitPoints
+            Layout = layout
+            Presentation = presentation
+            Diagnostics =
+                (solution.BuildOutput |> Option.map buildDiagnostic |> Option.toList)
+                @ (solution.Failures |> List.map failureDiagnostic)
+                @ structure.Diagnostics
+                @ effects.Diagnostics }
+
+    log "Deriving the C4 model"
+    { model with Architecture = C4.derive model }
 
 let run (log: string -> unit) (options: AnalyzeOptions) : Result<Outcome, string> =
     let loadOptions =

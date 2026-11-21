@@ -34,6 +34,7 @@
     <ProjectReference Include="..\Floorplan.IL.Codegen.CSharp\Floorplan.IL.Codegen.CSharp.fsproj" />
     <ProjectReference Include="..\Floorplan.Analysis\Floorplan.Analysis.fsproj" />
     <ProjectReference Include="..\Floorplan.Layout\Floorplan.Layout.fsproj" />
+    <ProjectReference Include="..\Floorplan.Architecture\Floorplan.Architecture.fsproj" />
     <ProjectReference Include="..\Floorplan.Rendering\Floorplan.Rendering.fsproj" />
   </ItemGroup>
 </Project>

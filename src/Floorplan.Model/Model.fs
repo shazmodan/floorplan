@@ -253,6 +253,65 @@ type Presentation =
       /// Exit points at or below this confidence are hidden by default.
       HiddenConfidence: Confidence list }
 
+/// What a C4 element is (https://c4model.com): the four levels' kinds, and the people and systems around them.
+[<RequireQualifiedAccess>]
+type C4Kind =
+    | Person
+    | SoftwareSystem
+    | ExternalSystem
+    | Container
+    | Component
+    | Code
+
+/// An element of the C4 model, derived from the analysis: what it was derived from is in `Sources`.
+type C4Element =
+    { Id: string
+      Kind: C4Kind
+      Name: string
+      /// What it is built with or of, e.g. "C# · net8.0 · web application".
+      Technology: string option
+      Description: string
+      /// The element it is part of: a container's system, a component's container, a code element's component.
+      Parent: string option
+      Tags: string list
+      /// Ids of the projects, units, entry points and exit points it was derived from.
+      Sources: string list }
+
+/// A relationship between the most specific elements it holds between; a view shows it between the elements it
+/// shows that contain them.
+type C4Relationship =
+    { From: string
+      To: string
+      /// What happens, e.g. "GET /api/orders", "sends to orders".
+      Description: string
+      /// How, e.g. "HTTP", "RabbitMQ.Client".
+      Technology: string option
+      /// Ids of the entry points, exit points and dependencies behind it.
+      Sources: string list }
+
+[<RequireQualifiedAccess>]
+type C4Level =
+    | Context
+    | Containers
+    | Components
+    | Code
+
+/// One diagram: a level of the model, of one element (the system, a container, a component).
+type C4View =
+    { Id: string
+      Level: C4Level
+      /// The element the view is of.
+      Scope: string
+      /// The elements it shows; the relationships between them follow from the model's.
+      Elements: string list
+      Layout: GraphLayout }
+
+/// The C4 model of the solution, in four levels (docs/c4-plan.md).
+type C4Model =
+    { Elements: C4Element list
+      Relationships: C4Relationship list
+      Views: C4View list }
+
 type AnalysisModel =
     { SchemaVersion: int
       ToolVersion: string
@@ -266,11 +325,19 @@ type AnalysisModel =
       Traces: Trace list
       Layout: Layout
       Presentation: Presentation
+      /// The C4 model of the solution, derived from everything above.
+      Architecture: C4Model
       Diagnostics: Diagnostic list }
 
 module AnalysisModel =
+    /// 2: the C4 model (Architecture).
     [<Literal>]
-    let CurrentSchemaVersion = 1
+    let CurrentSchemaVersion = 2
+
+    let emptyArchitecture =
+        { Elements = []
+          Relationships = []
+          Views = [] }
 
     let emptyGraph =
         { Width = 0.0
@@ -301,6 +368,7 @@ module AnalysisModel =
           Presentation =
             { HiddenCategories = [ EffectCategory.Environment; EffectCategory.Nondeterminism ]
               HiddenConfidence = [ Confidence.Low ] }
+          Architecture = emptyArchitecture
           Diagnostics = [] }
 
 module EffectCategory =
