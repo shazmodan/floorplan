@@ -112,6 +112,8 @@ type Rule =
       RequestPart: RequestPart option
       /// Only overloads whose first parameter has this type, e.g. "System.String" for path-taking constructors.
       WhenFirstParameter: string option
+      /// Only overloads whose parameter types start with these, e.g. one of several that take the same first type.
+      WhenParameters: string list
       /// For blind spots: what kind of blind spot.
       BlindSpot: string option
       /// For comparisons: the value the request part is compared with.

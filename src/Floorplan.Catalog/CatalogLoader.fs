@@ -174,6 +174,7 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
       HttpMethod = str e "httpMethod"
       RequestPart = str e "requestPart" |> Option.map (fun p -> requestPart p context)
       WhenFirstParameter = str e "whenFirstParameter"
+      WhenParameters = strings e "whenParameters"
       BlindSpot = str e "blindSpot"
       ComparesTo = str e "comparesTo"
       Dispatch = dispatch

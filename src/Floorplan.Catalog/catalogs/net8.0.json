@@ -446,6 +446,31 @@
     { "id": "blind-spot.delegate-dynamic-invoke", "type": "System.Delegate", "members": ["DynamicInvoke"], "kind": "blind-spot", "blindSpot": "reflection" },
     { "id": "blind-spot.dynamic", "type": "Microsoft.CSharp.RuntimeBinder.Binder", "members": ["*"], "kind": "blind-spot", "blindSpot": "dynamic" },
 
+    // ---------------- messaging ----------------
+    // Messaging libraries call a handler for each message they receive. "message-handler" is the delegate a
+    // registration adds to a consumer; "message-queue" names the queue, on the call that makes the consumer or, with
+    // "message-consumer", on one that ties a consumer to a queue (the consumer is whichever of its arguments it is).
+    // Each handler is an entry point of category network, at the queue.
+    { "id": "network.rabbitmq-received", "assembly": "RabbitMQ.Client", "type": "RabbitMQ.Client.Events.EventingBasicConsumer",
+      "members": ["add_Received"], "kind": "registration", "category": "network", "payload": [{ "argument": 0, "role": "message-handler" }] },
+    { "id": "network.rabbitmq-received-async", "assembly": "RabbitMQ.Client", "type": "RabbitMQ.Client.Events.AsyncEventingBasicConsumer",
+      "members": ["add_Received"], "kind": "registration", "category": "network", "payload": [{ "argument": 0, "role": "message-handler" }] },
+    { "id": "network.rabbitmq-consume", "assembly": "RabbitMQ.Client", "type": "RabbitMQ.Client.IModelExensions",
+      "members": ["BasicConsume"], "kind": "registration", "category": "network", "whenParameters": ["RabbitMQ.Client.IModel", "System.String"],
+      "payload": [{ "argument": 1, "role": "message-queue" }, { "argument": -1, "role": "message-consumer" }] },
+    { "id": "network.rabbitmq-consume-consumer-first", "assembly": "RabbitMQ.Client", "type": "RabbitMQ.Client.IModelExensions",
+      "members": ["BasicConsume"], "kind": "registration", "category": "network", "whenParameters": ["RabbitMQ.Client.IModel", "RabbitMQ.Client.IBasicConsumer"],
+      "payload": [{ "argument": 2, "role": "message-queue" }, { "argument": -1, "role": "message-consumer" }] },
+    { "id": "network.rabbitmq-model-consume", "assembly": "RabbitMQ.Client", "type": "RabbitMQ.Client.IModel",
+      "members": ["BasicConsume"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
+      "payload": [{ "argument": 0, "role": "message-queue" }, { "argument": -1, "role": "message-consumer" }] },
+    { "id": "network.servicebus-process-message", "assembly": "Azure.Messaging.ServiceBus", "type": "Azure.Messaging.ServiceBus.ServiceBusProcessor",
+      "members": ["add_ProcessMessageAsync"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
+      "payload": [{ "argument": 0, "role": "message-handler" }] },
+    { "id": "network.servicebus-create-processor", "assembly": "Azure.Messaging.ServiceBus", "type": "Azure.Messaging.ServiceBus.ServiceBusClient",
+      "members": ["CreateProcessor"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
+      "payload": [{ "argument": 0, "role": "message-queue" }] },
+
     // ---------------- background ----------------
     // The generic host starts each hosted service it is given, not on a request: AddHostedService<T>() registers T
     // ("hosted-service-type" is the index of the type argument), and the host calls the members of the callback
