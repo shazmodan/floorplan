@@ -38,7 +38,17 @@ namespace CSharp.Worker.Monitoring
     {
         private readonly HttpClient http = new();
 
-        public Task StartAsync(CancellationToken cancellationToken) => http.GetAsync(url, cancellationToken);
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            // Timers call back each time they fire: background work of their own.
+            var flush = new System.Threading.Timer(_ => File.AppendAllText("heartbeat.log", "beat"), null, 0, 60_000);
+            var audit = new System.Timers.Timer(300_000);
+            audit.Elapsed += OnAudit;
+            audit.Start();
+            return http.GetAsync(url, cancellationToken);
+        }
+
+        private static void OnAudit(object? sender, System.Timers.ElapsedEventArgs e) => File.WriteAllText("audit.txt", e.SignalTime.ToString("O"));
 
         public Task StopAsync(CancellationToken cancellationToken)
         {

@@ -471,6 +471,13 @@
       "members": ["CreateProcessor"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
       "payload": [{ "argument": 0, "role": "message-queue" }] },
 
+    // ---------------- timers ----------------
+    // A timer calls its callback each time it fires: background work, with "message-handler" naming the delegate.
+    { "id": "background.threading-timer", "assembly": "System.Private.CoreLib", "type": "System.Threading.Timer",
+      "members": [".ctor"], "kind": "registration", "category": "background", "payload": [{ "argument": 0, "role": "message-handler" }] },
+    { "id": "background.timers-timer-elapsed", "assembly": "System.ComponentModel.TypeConverter", "type": "System.Timers.Timer",
+      "members": ["add_Elapsed"], "kind": "registration", "category": "background", "payload": [{ "argument": 0, "role": "message-handler" }] },
+
     // ---------------- Azure Functions ----------------
     // The host runs a method marked [Function("Name")] ("function-name") when the trigger on one of its parameters
     // fires ("function-trigger", of the trigger's category). An HTTP trigger names its methods (every string among
