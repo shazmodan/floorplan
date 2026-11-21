@@ -566,6 +566,13 @@
     { "id": "database.cosmos-batch", "assembly": "Microsoft.Azure.Cosmos.Client", "type": "Microsoft.Azure.Cosmos.TransactionalBatch",
       "members": ["ExecuteAsync"], "includeDerivedTypes": true, "kind": "sink", "category": "database" },
 
+    // Elasticsearch (Elastic.Clients.Elasticsearch): requests go through the client's transport, a long virtual
+    // route to HttpClient; the catalog names the client's request methods.
+    { "id": "database.elasticsearch", "assembly": "Elastic.Clients.Elasticsearch", "type": "Elastic.Clients.Elasticsearch.ElasticsearchClient",
+      "members": ["Index", "IndexAsync", "Search", "SearchAsync", "Get", "GetAsync", "GetSource*", "Delete", "DeleteAsync", "DeleteByQuery*",
+                  "Update", "UpdateAsync", "UpdateByQuery*", "Bulk", "BulkAsync", "Count", "CountAsync", "Exists", "ExistsAsync", "Create", "CreateAsync",
+                  "Scroll", "ScrollAsync", "MultiGet*", "MultiSearch*", "Reindex*", "OpenPointInTime*", "ClosePointInTime*"],
+      "includeDerivedTypes": true, "kind": "sink", "category": "database" },
     // Email: MailKit sends a message on the connection Connect opened, which a call is not followed to; SendGrid
     // through an HTTP pipeline of its own.
     { "id": "network.mailkit-connect", "assembly": "MailKit", "type": "MailKit.MailService",
