@@ -178,6 +178,10 @@ let private element (id: string) (kind: C4Kind) (name: string) (description: str
       Tags = []
       Sources = [] }
 
+/// "A" or "An" before a word, by how it is said: "an F# module", "a C# namespace".
+let private article (word: string) =
+    if word.Length > 0 && "AEFHILMNORSXaeiou".IndexOf word[0] >= 0 && (word.Length = 1 || not (Char.IsLower word[1]) || "aeiou".IndexOf (Char.ToLower word[0]) >= 0) then "An" else "A"
+
 let private languageName (language: Language) =
     match language with
     | Language.FSharp -> "F#"
@@ -516,7 +520,14 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
                             Technology = None
                             Source = $"{d.FromUnit} -> {d.ToUnit}" } ]
 
-    let links = calls @ uses @ between @ uses' @ typeUses
+    // A technology that only repeats the name of the system it reaches ("RabbitMQ.Client" to RabbitMQ.Client)
+    // says nothing.
+    let links =
+        (calls @ uses @ between @ uses' @ typeUses)
+        |> List.map (fun l ->
+            match l.Technology with
+            | Some t when l.To = $"external:library:{t}" || l.From = $"external:library:{t}" -> { l with Technology = None }
+            | _ -> l)
 
     let components =
         [ for c in facts.Containers do
@@ -544,7 +555,7 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
                   let name = if u.Name = "" then u.DisplayName else u.Name
 
                   yield
-                      { element componentKey C4Kind.Component name $"A {language} {kind} of {projectName}" with
+                      { element componentKey C4Kind.Component name $"{article language} {language} {kind} of {projectName}" with
                           Technology = Some $"{language} {kind}"
                           Parent = Some id
                           Tags =

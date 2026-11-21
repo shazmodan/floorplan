@@ -3,22 +3,22 @@ workspace "Shop" "Shop, derived by Floorplan from its code" {
         !impliedRelationships "com.structurizr.model.CreateImpliedRelationshipsUnlessSameRelationshipExistsStrategy"
         system = softwareSystem "Shop" "The Shop solution: 2 applications in 5 projects" {
             container_Shop_Web = container "Shop.Web" "A web application" "F# · net10.0" "web application" {
-                component_Shop_Web_Shop_Core_Shop_Core_Domain = component "Shop.Core.Domain" "A F# module of Shop.Core" "F# module" "library Shop.Core"
-                component_Shop_Web_Shop_Core_Shop_Core_Orders = component "Shop.Core.Orders" "A F# module of Shop.Core" "F# module" "library Shop.Core"
-                component_Shop_Web_Shop_Core_Shop_Core_Orders_Validation = component "Shop.Core.Orders.Validation" "A F# module of Shop.Core" "F# module" "library Shop.Core"
-                component_Shop_Web_Shop_Core_Util = component "Util (Shop.Core)" "A F# module of Shop.Core" "F# module" "library Shop.Core"
-                component_Shop_Web_Shop_Data_Shop_Data_Repository = component "Shop.Data.Repository" "A F# module of Shop.Data" "F# module" "library Shop.Data,reaches out"
-                component_Shop_Web_Shop_Data_Util = component "Util (Shop.Data)" "A F# module of Shop.Data" "F# module" "library Shop.Data"
+                component_Shop_Web_Shop_Core_Shop_Core_Domain = component "Shop.Core.Domain" "An F# module of Shop.Core" "F# module" "library Shop.Core"
+                component_Shop_Web_Shop_Core_Shop_Core_Orders = component "Shop.Core.Orders" "An F# module of Shop.Core" "F# module" "library Shop.Core"
+                component_Shop_Web_Shop_Core_Shop_Core_Orders_Validation = component "Shop.Core.Orders.Validation" "An F# module of Shop.Core" "F# module" "library Shop.Core"
+                component_Shop_Web_Shop_Core_Util = component "Util (Shop.Core)" "An F# module of Shop.Core" "F# module" "library Shop.Core"
+                component_Shop_Web_Shop_Data_Shop_Data_Repository = component "Shop.Data.Repository" "An F# module of Shop.Data" "F# module" "library Shop.Data,reaches out"
+                component_Shop_Web_Shop_Data_Util = component "Util (Shop.Data)" "An F# module of Shop.Data" "F# module" "library Shop.Data"
                 component_Shop_Web_Shop_Storage_Shop_Storage = component "Shop.Storage" "A C# namespace of Shop.Storage" "C# namespace" "library Shop.Storage,reaches out"
-                component_Shop_Web_Shop_Web_Shop_Web_Handlers = component "Shop.Web.Handlers" "A F# module of Shop.Web" "F# module" "handles requests,reaches out"
-                component_Shop_Web_Shop_Web_Shop_Web_Program = component "Shop.Web.Program" "A F# module of Shop.Web" "F# module"
+                component_Shop_Web_Shop_Web_Shop_Web_Handlers = component "Shop.Web.Handlers" "An F# module of Shop.Web" "F# module" "handles requests,reaches out"
+                component_Shop_Web_Shop_Web_Shop_Web_Program = component "Shop.Web.Program" "An F# module of Shop.Web" "F# module"
             }
             container_Shop_Worker = container "Shop.Worker" "A background worker" "F# · net8.0" "background worker" {
-                component_Shop_Worker_Shop_Core_Shop_Core_Domain = component "Shop.Core.Domain" "A F# module of Shop.Core" "F# module" "library Shop.Core"
-                component_Shop_Worker_Shop_Core_Shop_Core_Orders = component "Shop.Core.Orders" "A F# module of Shop.Core" "F# module" "library Shop.Core"
-                component_Shop_Worker_Shop_Core_Shop_Core_Orders_Validation = component "Shop.Core.Orders.Validation" "A F# module of Shop.Core" "F# module" "library Shop.Core"
-                component_Shop_Worker_Shop_Core_Util = component "Util" "A F# module of Shop.Core" "F# module" "library Shop.Core"
-                component_Shop_Worker_Shop_Worker_Shop_Worker_Program = component "Shop.Worker.Program" "A F# module of Shop.Worker" "F# module" "reaches out"
+                component_Shop_Worker_Shop_Core_Shop_Core_Domain = component "Shop.Core.Domain" "An F# module of Shop.Core" "F# module" "library Shop.Core"
+                component_Shop_Worker_Shop_Core_Shop_Core_Orders = component "Shop.Core.Orders" "An F# module of Shop.Core" "F# module" "library Shop.Core"
+                component_Shop_Worker_Shop_Core_Shop_Core_Orders_Validation = component "Shop.Core.Orders.Validation" "An F# module of Shop.Core" "F# module" "library Shop.Core"
+                component_Shop_Worker_Shop_Core_Util = component "Util" "An F# module of Shop.Core" "F# module" "library Shop.Core"
+                component_Shop_Worker_Shop_Worker_Shop_Worker_Program = component "Shop.Worker.Program" "An F# module of Shop.Worker" "F# module" "reaches out"
             }
         }
         external_filesystem = softwareSystem "File system" "Files and directories" "External"
