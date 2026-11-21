@@ -1432,16 +1432,35 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
             |> Option.defaultValue m
         | _ -> m
 
-    // The handler: the delegate a registration adds, or the method that receives messages itself (a loop that calls
-    // Kafka's Consume or Service Bus's ReceiveMessageAsync).
+    // The method an expression tree among the values calls (`() => reports.Daily()` handed to Hangfire): the one
+    // whose token the tree's construction loads, as Expression.Call is given it.
+    let rec expressionTarget (flow: Flow) (depth: int) (values: Values) : MethodRef option =
+        if depth > 16 then
+            None
+        else
+            values
+            |> Set.toList
+            |> List.tryPick (function
+                | Pushed o ->
+                    match flow.InstructionAt o with
+                    | Some { Op = LdToken(Some m) } when isUser m -> Some m
+                    | _ -> flow.OperandsAt o |> List.tryPick (expressionTarget flow (depth + 1))
+                | _ -> None)
+
+    // The handler: the delegate a registration adds, the method an expression tree it is given calls, or the method
+    // that receives messages itself (a loop that calls Kafka's Consume or Service Bus's ReceiveMessageAsync).
     let handlerOf (r: PlatformRouting.Registration) =
-        match specOf r.Rule "message-handler", specOf r.Rule "message-receive" with
-        | Some handlerSpec, _ ->
+        match specOf r.Rule "message-handler", specOf r.Rule "expression-handler", specOf r.Rule "message-receive" with
+        | Some handlerSpec, _, _ ->
             operand r handlerSpec
             |> Option.bind (handlerIn r.Flow)
             |> Option.map (fun target -> PlatformRouting.unwrap set isUser 0 target, false)
-        | None, Some _ -> Some(kickoff r.Caller.Ref, true)
-        | None, None -> None
+        | None, Some _, _ ->
+            r.Flow.OperandsAt r.Offset
+            |> List.tryPick (expressionTarget r.Flow 0)
+            |> Option.map (fun target -> target, false)
+        | None, None, Some _ -> Some(kickoff r.Caller.Ref, true)
+        | None, None, None -> None
 
     registrations
     |> List.choose (fun r ->

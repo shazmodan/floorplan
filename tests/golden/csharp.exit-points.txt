@@ -269,16 +269,22 @@ nondeterminism | CSharp.Messaging:CSharp.Messaging.Shipping | CSharp.Messaging.S
 process | CSharp.Messaging:CSharp.Messaging.Shipping | CSharp.Messaging.Shipping.Bus/<>c::<Configure>b__0_1 | System.Diagnostics.Process::GetCurrentProcess | via MassTransit | - | CSharp/CSharp.Messaging/Program.cs:60
 nondeterminism | CSharp.Messaging:CSharp.Messaging.Shipping | CSharp.Messaging.Shipping.Bus/<>c::<Configure>b__0_0 | System.Random::Next | via MassTransit | - | CSharp/CSharp.Messaging/Program.cs:60
 nondeterminism | CSharp.Worker: | Program/<>c::<<Main>$>b__0_1 | System.Guid::NewGuid | via Quartz.Extensions.DependencyInjection | - | CSharp/CSharp.Worker/Program.cs:9
-filesystem-read | CSharp.Worker:CSharp.Worker.Cleanup | CSharp.Worker.Cleanup.Sweeper/<ExecuteAsync>d__0::MoveNext | System.IO.Directory::GetFiles | via - | literal:tmp | CSharp/CSharp.Worker/Program.cs:23
-filesystem-write | CSharp.Worker:CSharp.Worker.Cleanup | CSharp.Worker.Cleanup.Sweeper/<ExecuteAsync>d__0::MoveNext | System.IO.File::Delete | via - | dynamic:- | CSharp/CSharp.Worker/Program.cs:24
-filesystem-write | CSharp.Worker:CSharp.Worker.Cleanup | CSharp.Worker.Cleanup.PurgeJob::Execute | System.IO.Directory::Delete | via - | literal:cache | CSharp/CSharp.Worker/Program.cs:36
-filesystem-write | CSharp.Worker:CSharp.Worker.Cleanup | CSharp.Worker.Cleanup.Archiver::ExecuteAsync | System.IO.File::WriteAllTextAsync | via - | literal:archive.txt | CSharp/CSharp.Worker/Program.cs:44
-filesystem-write | CSharp.Worker:CSharp.Worker.Imports | CSharp.Worker.Imports.Inbox/<>c::<Watch>b__0_0 | System.IO.File::Copy | via - | dynamic:- | CSharp/CSharp.Worker/Program.cs:56
-filesystem-read | CSharp.Worker:CSharp.Worker.Imports | CSharp.Worker.Imports.Inbox::Watch | System.IO.FileSystemWatcher::set_EnableRaisingEvents | via - | - | CSharp/CSharp.Worker/Program.cs:57
-filesystem-write | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat/<>c::<StartAsync>b__3_0 | System.IO.File::AppendAllText | via - | literal:heartbeat.log | CSharp/CSharp.Worker/Program.cs:73
-http-out | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::StartAsync | System.Net.Http.HttpClient::GetAsync | via - | dynamic:- | CSharp/CSharp.Worker/Program.cs:77
-filesystem-write | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::OnAudit | System.IO.File::WriteAllText | via - | literal:audit.txt | CSharp/CSharp.Worker/Program.cs:80
-filesystem-write | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::StopAsync | System.IO.File::AppendAllText | via - | literal:heartbeat.log | CSharp/CSharp.Worker/Program.cs:84
+filesystem-read | CSharp.Worker:CSharp.Worker.Cleanup | CSharp.Worker.Cleanup.Sweeper/<ExecuteAsync>d__0::MoveNext | System.IO.Directory::GetFiles | via - | literal:tmp | CSharp/CSharp.Worker/Program.cs:24
+filesystem-write | CSharp.Worker:CSharp.Worker.Cleanup | CSharp.Worker.Cleanup.Sweeper/<ExecuteAsync>d__0::MoveNext | System.IO.File::Delete | via - | dynamic:- | CSharp/CSharp.Worker/Program.cs:25
+filesystem-write | CSharp.Worker:CSharp.Worker.Cleanup | CSharp.Worker.Cleanup.PurgeJob::Execute | System.IO.Directory::Delete | via - | literal:cache | CSharp/CSharp.Worker/Program.cs:37
+filesystem-write | CSharp.Worker:CSharp.Worker.Cleanup | CSharp.Worker.Cleanup.Archiver::ExecuteAsync | System.IO.File::WriteAllTextAsync | via - | literal:archive.txt | CSharp/CSharp.Worker/Program.cs:45
+filesystem-write | CSharp.Worker:CSharp.Worker.Imports | CSharp.Worker.Imports.Inbox/<>c::<Watch>b__0_0 | System.IO.File::Copy | via - | dynamic:- | CSharp/CSharp.Worker/Program.cs:77
+filesystem-read | CSharp.Worker:CSharp.Worker.Imports | CSharp.Worker.Imports.Inbox::Watch | System.IO.FileSystemWatcher::set_EnableRaisingEvents | via - | - | CSharp/CSharp.Worker/Program.cs:78
+filesystem-write | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat/<>c::<StartAsync>b__3_0 | System.IO.File::AppendAllText | via - | literal:heartbeat.log | CSharp/CSharp.Worker/Program.cs:94
+http-out | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::StartAsync | System.Net.Http.HttpClient::GetAsync | via - | dynamic:- | CSharp/CSharp.Worker/Program.cs:98
+filesystem-write | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::OnAudit | System.IO.File::WriteAllText | via - | literal:audit.txt | CSharp/CSharp.Worker/Program.cs:101
+filesystem-write | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::StopAsync | System.IO.File::AppendAllText | via - | literal:heartbeat.log | CSharp/CSharp.Worker/Program.cs:105
+nondeterminism | CSharp.Worker:CSharp.Worker.Reporting | CSharp.Worker.Reporting.Reports::Nightly | System.DateTime::get_UtcNow | via - | - | CSharp/CSharp.Worker/Program.cs:54
+filesystem-write | CSharp.Worker:CSharp.Worker.Reporting | CSharp.Worker.Reporting.Reports::Nightly | System.IO.File::WriteAllText | via - | literal:nightly.txt | CSharp/CSharp.Worker/Program.cs:54
+filesystem-write | CSharp.Worker:CSharp.Worker.Reporting | CSharp.Worker.Reporting.Reports::Send | System.IO.File::AppendAllTextAsync | via - | literal:outbox.log | CSharp/CSharp.Worker/Program.cs:56
+nondeterminism | CSharp.Worker:CSharp.Worker.Reporting | CSharp.Worker.Reporting.Schedule::Jobs | System.DateTime::get_Now | via Hangfire.Core | - | CSharp/CSharp.Worker/Program.cs:63
+environment | CSharp.Worker:CSharp.Worker.Reporting | CSharp.Worker.Reporting.Schedule::Jobs | System.Console::WriteLine | via Hangfire.Core | - | CSharp/CSharp.Worker/Program.cs:64
+nondeterminism | CSharp.Worker:CSharp.Worker.Reporting | CSharp.Worker.Reporting.Schedule::Jobs | System.DateTime::get_UtcNow | via Hangfire.Core | - | CSharp/CSharp.Worker/Program.cs:64
 -- diagnostics
 configured.unresolved | log4net.config names "Contoso.Logging.MissingAppender, Contoso.Logging" (rule configured.log4net-appender), which is nothing the analysis can read. What it does is not analyzed.
 configured.unresolved | appsettings.json names "Contoso" (rule configured.serilog-sink), which is nothing the analysis can read. What it does is not analyzed.

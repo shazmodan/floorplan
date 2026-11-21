@@ -72,3 +72,5 @@ CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Monito
 CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::OnAudit | forms [platform-routing] | []
 CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::StartAsync | forms [platform-routing] | []
 CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::StopAsync | forms [platform-routing] | []
+CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Reporting | CSharp.Worker.Reporting.Reports::Nightly | forms [platform-routing] | []
+CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Reporting | CSharp.Worker.Reporting.Reports::Send | forms [platform-routing] | []

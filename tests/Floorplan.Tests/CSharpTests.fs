@@ -267,8 +267,10 @@ let tests =
                     "CSharp.Worker.Monitoring.Heartbeat/<>c::<StartAsync>b__3_0", EffectCategory.Background, None, Completeness.Complete
                     "CSharp.Worker.Monitoring.Heartbeat::OnAudit", EffectCategory.Background, None, Completeness.Complete
                     "CSharp.Worker.Monitoring.Heartbeat::StartAsync", EffectCategory.Background, None, Completeness.Complete
-                    "CSharp.Worker.Monitoring.Heartbeat::StopAsync", EffectCategory.Background, None, Completeness.Complete ]
-                  "a BackgroundService's ExecuteAsync, an IHostedService's StartAsync and StopAsync, the callbacks of a System.Threading.Timer and a System.Timers.Timer, a Quartz job, and a file watcher's handler (an input from the file system, at the path it watches); not a service never registered"
+                    "CSharp.Worker.Monitoring.Heartbeat::StopAsync", EffectCategory.Background, None, Completeness.Complete
+                    "CSharp.Worker.Reporting.Reports::Nightly", EffectCategory.Background, None, Completeness.Complete
+                    "CSharp.Worker.Reporting.Reports::Send", EffectCategory.Background, None, Completeness.Complete ]
+                  "a BackgroundService's ExecuteAsync, an IHostedService's StartAsync and StopAsync, the callbacks of a System.Threading.Timer and a System.Timers.Timer, a Quartz job, Hangfire jobs (by the method their expression calls), and a file watcher's handler (an input from the file system, at the path it watches); not a service never registered"
 
               let audit = entries m "CSharp.Worker" |> List.find (fun e -> e.HandlerMember.EndsWith "::OnAudit")
               Expect.exists audit.Evidence.Steps (fun s -> s.Description.Contains "called each time it fires") "a timer's callback"
