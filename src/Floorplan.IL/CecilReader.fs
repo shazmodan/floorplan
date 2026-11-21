@@ -367,6 +367,11 @@ let private readMethod (asm: string) (m: MethodDefinition) : MethodDef =
       IsSpecialName = m.IsSpecialName
       Attributes = readAttributes asm m.CustomAttributes
       ParameterNames = m.Parameters |> Seq.map (fun p -> if isNull p.Name then "" else p.Name) |> Seq.toList
+      ParameterAttributes =
+        lazy
+            (m.Parameters
+             |> Seq.map (fun p -> if p.HasCustomAttributes then readAttributes asm p.CustomAttributes else [])
+             |> Seq.toList)
       PInvokeModule =
         if m.IsPInvokeImpl && not (isNull m.PInvokeInfo) then
             Some(if isNull m.PInvokeInfo.Module then "" else m.PInvokeInfo.Module.Name)
@@ -429,20 +434,32 @@ let private targetFramework (a: AssemblyDefinition) =
 /// Reads assemblies with Cecil. Modules stay open so method bodies can be read lazily; dispose to release.
 type CecilAssemblyReader() =
     let opened = List<ModuleDefinition>()
+    let resolvers = List<DefaultAssemblyResolver>()
 
     interface IAssemblyReader with
         member _.Read(path, readSymbols) =
             let pdbExists = File.Exists(Path.ChangeExtension(path, ".pdb"))
 
+            // An attribute argument of an enum type is decoded with its type, which can be in another assembly
+            // ([HttpTrigger(AuthorizationLevel.Function, ...)]): look for it next to this one.
+            let resolver = new DefaultAssemblyResolver()
+            resolver.AddSearchDirectory(Path.GetDirectoryName(Path.GetFullPath path))
+            lock resolvers (fun () -> resolvers.Add resolver)
+
             let parameters =
-                ReaderParameters(ReadingMode = ReadingMode.Deferred, ReadSymbols = (readSymbols && pdbExists), InMemory = true)
+                ReaderParameters(
+                    ReadingMode = ReadingMode.Deferred,
+                    ReadSymbols = (readSymbols && pdbExists),
+                    InMemory = true,
+                    AssemblyResolver = resolver
+                )
 
             let md =
                 try
                     ModuleDefinition.ReadModule(path, parameters)
                 with _ when parameters.ReadSymbols ->
                     // A PDB that does not match is not fatal: read without it.
-                    ModuleDefinition.ReadModule(path, ReaderParameters(ReadingMode = ReadingMode.Deferred, InMemory = true))
+                    ModuleDefinition.ReadModule(path, ReaderParameters(ReadingMode = ReadingMode.Deferred, InMemory = true, AssemblyResolver = resolver))
 
             lock opened (fun () -> opened.Add md)
             let asm = md.Assembly.Name.Name
@@ -465,6 +482,12 @@ type CecilAssemblyReader() =
               EntryPoint = if isNull md.EntryPoint then None else Some(methodRef asm md.EntryPoint) }
 
         member _.Dispose() =
+            lock resolvers (fun () ->
+                for r in resolvers do
+                    r.Dispose()
+
+                resolvers.Clear())
+
             lock opened (fun () ->
                 for m in opened do
                     m.Dispose()
