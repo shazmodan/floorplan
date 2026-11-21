@@ -24,7 +24,7 @@ Work that is known and not yet done. Remove an item when its branch is merged.
   `RedisChannel.Literal("...")`.
 - **Not read yet**: Blazor's interactive events (`@onclick`) as inputs; Razor Pages route conventions
   (`AddPageRoute`); Azure Functions in the in-process model (a class library, not an application); a Hangfire
-  recurring job's schedule; NServiceBus handlers (found by assembly scanning, with no registration).
+  recurring job's schedule; Elasticsearch's client (checked on a probe: its calls are low-confidence HTTP).
 - **Checked only outside the fixtures**: the Kafka (`Produce`, `Consume`, `Subscribe`) and Azure Cosmos DB rules, on
   probe applications: Kafka's native library and the Cosmos DB client's analysis time keep them out of the
   fixtures.
