@@ -312,3 +312,20 @@ The website places each relationship label at the first spot along its line (the
 it overlaps no label placed before and no box; on Shop's containers view "reads files; writes files" and "sends
 HTTP requests" no longer overlap. In dense views (the C# containers view, about 70 relationships) labels still
 crowd one another where many lines run side by side.
+
+### 2026-11-21: uses between types (TODO item 9, `claude/c4-type-dependencies`)
+
+The C# structure analyzer now also gives `TypeDependency` (from unit and type, to unit and type, weight): for
+every name it already resolves for unit dependencies, the outermost type the use is in and the outermost type the
+symbol is or is declared in, named "Namespace.Type" as a unit's `Types` are. Uses within one type are left out;
+uses within one unit are kept (they are what a code view shows). `AnalysisModel.TypeDependencies` carries them,
+the schema version is 3 (this and `EntryPoint.RegisteredThrough`), and the C# structure cache key is v3. The F#
+analyzer gives none: an F# module is its component's one code element, so its unit dependencies say the same.
+
+The C4 model stores a "uses" between code elements for each type dependency inside a container whose types are
+the ones their units declare (a Razor component, generated from a `.razor` file, lands in the global namespace's
+unit and is left out until TODO item 1). Unit dependencies that a type dependency covers are no longer stored
+between components; they are lifted from the code level, so component views are unchanged, and the others
+(F# modules) stay as they were. "handles requests" and "reaches out" on a code element no longer count "uses".
+Top-level statements appear as a `Program` code element, gRPC's generated message types as types of their
+namespace. 70 uses in the C# fixtures.

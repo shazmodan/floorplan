@@ -66,6 +66,16 @@ type Dependency =
       CrossProject: bool
       SampleLocations: Location list }
 
+/// One type's uses of another in the solution's own code, for the code level of the C4 model. A type is named
+/// by its namespace and its outermost declared type ("Shop.Storage.Archive"), as a unit's `Types` are.
+type TypeDependency =
+    { FromUnit: string
+      FromType: string
+      ToUnit: string
+      ToType: string
+      /// Number of symbol uses behind this edge.
+      Weight: int }
+
 [<RequireQualifiedAccess>]
 type EffectCategory =
     | HttpIn
@@ -327,6 +337,8 @@ type AnalysisModel =
       Projects: Project list
       Units: CodeUnit list
       Dependencies: Dependency list
+      /// Uses between types, where a language's analyzer gives them (C#): the code level's "uses".
+      TypeDependencies: TypeDependency list
       EntryPoints: EntryPoint list
       ExitPoints: ExitPoint list
       Traces: Trace list
@@ -337,9 +349,10 @@ type AnalysisModel =
       Diagnostics: Diagnostic list }
 
 module AnalysisModel =
-    /// 2: the C4 model (Architecture).
+    /// 2: the C4 model (Architecture). 3: dependencies between types, and what an entry point is registered
+    /// through.
     [<Literal>]
-    let CurrentSchemaVersion = 2
+    let CurrentSchemaVersion = 3
 
     let emptyArchitecture =
         { Elements = []
@@ -368,6 +381,7 @@ module AnalysisModel =
           Projects = []
           Units = []
           Dependencies = []
+          TypeDependencies = []
           EntryPoints = []
           ExitPoints = []
           Traces = []

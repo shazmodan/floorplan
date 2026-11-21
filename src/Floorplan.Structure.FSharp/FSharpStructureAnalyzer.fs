@@ -112,6 +112,7 @@ module FSharpStructureAnalyzer =
 
         { Units = units
           Dependencies = edges
+          TypeDependencies = []
           Diagnostics = errors }
 
     /// What a project's structure depends on: its sources, compiler options, referenced assemblies, and which

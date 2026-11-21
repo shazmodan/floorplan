@@ -109,6 +109,7 @@ code | code:CSharp.Controllers|CSharp.Controllers:|AspNetCoreGeneratedDocument.A
 code | code:CSharp.Conventional|CSharp.Conventional:CSharp.Conventional.Controllers|CSharp.Conventional.Controllers.HomeController | HomeController | type | in component:CSharp.Conventional|CSharp.Conventional:CSharp.Conventional.Controllers | handles requests | 1 sources
 code | code:CSharp.Conventional|CSharp.Conventional:CSharp.Conventional.Controllers|CSharp.Conventional.Controllers.RouteController | RouteController | type | in component:CSharp.Conventional|CSharp.Conventional:CSharp.Conventional.Controllers | handles requests | 1 sources
 code | code:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated|CSharp.Delegated.Orders | Orders | type | in component:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated | handles requests | 1 sources
+code | code:CSharp.Delegated|CSharp.Delegated:|Program | Program | type | in component:CSharp.Delegated|CSharp.Delegated: | - | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing|CSharp.Effects.Billing.Invoices | Invoices | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing | reaches out | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing|CSharp.Effects.Billing.Refunds | Refunds | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing | - | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Labels|CSharp.Effects.Labels.Printer | Printer | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Labels | reaches out | 1 sources
@@ -152,9 +153,13 @@ code | code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.
 code | code:CSharp.Endpoints|CSharp.Endpoints:|Program | Program | type | in component:CSharp.Endpoints|CSharp.Endpoints: | handles requests | 1 sources
 code | code:CSharp.Functions|CSharp.Functions:CSharp.Functions.Maintenance|CSharp.Functions.Maintenance.Cleanup | Cleanup | type | in component:CSharp.Functions|CSharp.Functions:CSharp.Functions.Maintenance | reaches out | 1 sources
 code | code:CSharp.Functions|CSharp.Functions:CSharp.Functions.Orders|CSharp.Functions.Orders.OrderFunctions | OrderFunctions | type | in component:CSharp.Functions|CSharp.Functions:CSharp.Functions.Orders | handles requests,reaches out | 1 sources
+code | code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.ReserveReply | ReserveReply | type | in component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | - | 1 sources
+code | code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.ReserveRequest | ReserveRequest | type | in component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | - | 1 sources
+code | code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.Stock | Stock | type | in component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | - | 1 sources
 code | code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.StockService | StockService | type | in component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | handles requests,reaches out | 1 sources
 code | code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking|CSharp.Grpc.Restocking.Restocker | Restocker | type | in component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking | reaches out | 1 sources
 code | code:CSharp.Grpc|CSharp.Grpc:| (response built by a library function) |  (response built by a library function) | type | in component:CSharp.Grpc|CSharp.Grpc: | handles requests | 1 sources
+code | code:CSharp.Grpc|CSharp.Grpc:|Program | Program | type | in component:CSharp.Grpc|CSharp.Grpc: | - | 1 sources
 code | code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.AuditQueue | AuditQueue | type | in component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | - | 1 sources
 code | code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices | Invoices | type | in component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | handles requests,reaches out | 1 sources
 code | code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders|CSharp.Messaging.Orders.Listener | Listener | type | in component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders | handles requests,reaches out | 1 sources
@@ -168,13 +173,17 @@ code | code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.M
 code | code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.IdleConsumer | IdleConsumer | type | in component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping | - | 1 sources
 code | code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.OrderShipped | OrderShipped | type | in component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping | - | 1 sources
 code | code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.ShippedConsumer | ShippedConsumer | type | in component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping | handles requests,reaches out | 1 sources
+code | code:CSharp.Messaging|CSharp.Messaging:|Program | Program | type | in component:CSharp.Messaging|CSharp.Messaging: | - | 1 sources
 code | code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.AddressUses | AddressUses | type | in component:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware | handles requests | 1 sources
 code | code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Handlers | Handlers | type | in component:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware | handles requests | 1 sources
 code | code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Router | Router | type | in component:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware | - | 1 sources
+code | code:CSharp.Middleware|CSharp.Middleware:|Program | Program | type | in component:CSharp.Middleware|CSharp.Middleware: | - | 1 sources
 code | code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Orders | Orders | type | in component:CSharp.Switch|CSharp.Switch:CSharp.Switch | handles requests | 1 sources
 code | code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Router | Router | type | in component:CSharp.Switch|CSharp.Switch:CSharp.Switch | - | 1 sources
+code | code:CSharp.Switch|CSharp.Switch:|Program | Program | type | in component:CSharp.Switch|CSharp.Switch: | - | 1 sources
 code | code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Handlers | Handlers | type | in component:CSharp.Table|CSharp.Table:CSharp.Table | handles requests | 1 sources
 code | code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Router | Router | type | in component:CSharp.Table|CSharp.Table:CSharp.Table | - | 1 sources
+code | code:CSharp.Table|CSharp.Table:|Program | Program | type | in component:CSharp.Table|CSharp.Table: | - | 1 sources
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.Archiver | Archiver | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup | reaches out | 1 sources
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.PurgeJob | PurgeJob | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup | reaches out | 1 sources
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.Sweeper | Sweeper | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup | reaches out | 1 sources
@@ -182,6 +191,7 @@ code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports|CSharp.Worker.Impo
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring|CSharp.Worker.Monitoring.Heartbeat | Heartbeat | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring | reaches out | 1 sources
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Reports | Reports | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | reaches out | 1 sources
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule | Schedule | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | - | 1 sources
+code | code:CSharp.Worker|CSharp.Worker:|Program | Program | type | in component:CSharp.Worker|CSharp.Worker: | - | 1 sources
 external-system | external:database | Database | - | in - | - | 45 sources
 external-system | external:filesystem | File system | - | in - | - | 87 sources
 external-system | external:http | HTTP services | - | in - | - | 7 sources
@@ -213,16 +223,24 @@ code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching|CSharp.Clients.Caching
 code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching|CSharp.Clients.Caching.Cache -> external:library:StackExchange.Redis | reads and writes data | StackExchange.Redis | 3 sources
 code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching|CSharp.Clients.Caching.Cache -> external:library:StackExchange.Redis | sends and receives over the network | StackExchange.Redis | 1 sources
 code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching|CSharp.Clients.Caching.Cache -> external:network | sends and receives over the network | StackExchange.Redis | 1 sources
+code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog|CSharp.Clients.Catalog.ICatalogApi -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog|CSharp.Clients.Catalog.Product | uses | - | 1 sources
+code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog|CSharp.Clients.Catalog.Products -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog|CSharp.Clients.Catalog.ICatalogApi | uses | - | 1 sources
+code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog|CSharp.Clients.Catalog.Products -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog|CSharp.Clients.Catalog.Product | uses | - | 1 sources
 code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog|CSharp.Clients.Catalog.Products -> external:http | sends HTTP requests | HTTP | 2 sources
 code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Chat|CSharp.Clients.Chat.Room -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Chat|CSharp.Clients.Chat.Room -> external:library:Microsoft.AspNetCore.SignalR.Client | sends and receives over the network | Microsoft.AspNetCore.SignalR.Client | 1 sources
+code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Documents|CSharp.Clients.Documents.Store -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Documents|CSharp.Clients.Documents.Doc | uses | - | 1 sources
 code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Documents|CSharp.Clients.Documents.Store -> external:library:MongoDB.Driver | reads and writes data | MongoDB.Driver | 3 sources
 code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Files|CSharp.Clients.Files.Archive -> external:filesystem | reads files | - | 1 sources
 code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Files|CSharp.Clients.Files.Archive -> external:library:Azure.Storage.Blobs | sends HTTP requests | Azure.Storage.Blobs | 2 sources
 code:CSharp.Clients|CSharp.Clients:CSharp.Clients.GitHub|CSharp.Clients.GitHub.GitHubClient -> external:http:api.github.com | sends HTTP requests | HTTP | 2 sources
+code:CSharp.Clients|CSharp.Clients:CSharp.Clients.GitHub|CSharp.Clients.GitHub.Setup -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.GitHub|CSharp.Clients.GitHub.GitHubClient | uses | - | 1 sources
 code:CSharp.Clients|CSharp.Clients:CSharp.Clients.GitHub|CSharp.Clients.GitHub.Status -> external:http:status.example.org | sends HTTP requests | HTTP | 1 sources
 code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Notifications|CSharp.Clients.Notifications.Mail -> external:library:MailKit | sends and receives over the network | MailKit | 2 sources
 code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Notifications|CSharp.Clients.Notifications.Mail -> external:library:SendGrid | sends HTTP requests | SendGrid | 1 sources
+code:CSharp.Clients|CSharp.Clients:|Program -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching|CSharp.Clients.Caching.Cache | uses | - | 1 sources
+code:CSharp.Clients|CSharp.Clients:|Program -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Documents|CSharp.Clients.Documents.Store | uses | - | 1 sources
+code:CSharp.Clients|CSharp.Clients:|Program -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Files|CSharp.Clients.Files.Archive | uses | - | 1 sources
 code:CSharp.Clients|CSharp.Clients:|Program -> external:filesystem | reads files | MongoDB.Driver | 1 sources
 code:CSharp.Clients|CSharp.Clients:|Program -> external:library:StackExchange.Redis | sends and receives over the network | StackExchange.Redis | 1 sources
 code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs|CSharp.Cloud.Jobs.Queue -> external:filesystem | reads files | AWSSDK.SQS | 1 sources
@@ -232,10 +250,16 @@ code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs|CSharp.Cloud.Jobs.Queue -> exte
 code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs|CSharp.Cloud.Jobs.Queue -> external:network | sends and receives over the network | AWSSDK.SQS | 1 sources
 code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Orders|CSharp.Cloud.Orders.Table -> external:library:Amazon.DynamoDBv2 | reads and writes data | Amazon.DynamoDBv2 | 1 sources
 code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Reports|CSharp.Cloud.Reports.Archive -> external:library:Amazon.S3 | sends HTTP requests | Amazon.S3 | 2 sources
+code:CSharp.Cloud|CSharp.Cloud:|Program -> code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs|CSharp.Cloud.Jobs.Queue | uses | - | 1 sources
+code:CSharp.Cloud|CSharp.Cloud:|Program -> code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Orders|CSharp.Cloud.Orders.Table | uses | - | 1 sources
+code:CSharp.Cloud|CSharp.Cloud:|Program -> code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Reports|CSharp.Cloud.Reports.Archive | uses | - | 1 sources
 code:CSharp.Cloud|CSharp.Cloud:|Program -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS | 3 sources
 code:CSharp.Cloud|CSharp.Cloud:|Program -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS | 3 sources
+code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Admin|CSharp.Controllers.Admin.BaseController -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Admin|CSharp.Controllers.Admin.ILanguageService | uses | - | 1 sources
+code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Admin|CSharp.Controllers.Admin.UsersController -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Admin|CSharp.Controllers.Admin.ILanguageService | uses | - | 1 sources
 code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop|CSharp.Controllers.Pages.Shop.IndexModel -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop|CSharp.Controllers.Pages.Shop.ItemModel -> external:filesystem | writes files | - | 2 sources
+code:CSharp.Delegated|CSharp.Delegated:|Program -> code:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated|CSharp.Delegated.Orders | uses | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing|CSharp.Effects.Billing.Invoices -> external:filesystem | reads files | Serilog | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing|CSharp.Effects.Billing.Invoices -> external:filesystem | writes files | Serilog | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Labels|CSharp.Effects.Labels.Printer -> external:filesystem | reads files | Serilog.Extensions.Logging | 1 sources
@@ -244,13 +268,31 @@ code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Orders -> external:filesystem | writes files | Serilog | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Setup -> external:filesystem | reads files | Serilog.Sinks.File | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Setup -> external:filesystem | writes files | Serilog.Sinks.File | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext | uses | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> external:database | reads and writes data | - | 7 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | Microsoft.EntityFrameworkCore | 8 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing|CSharp.Effects.Packing.Boxes -> external:filesystem | reads files | NLog | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing|CSharp.Effects.Packing.Setup -> external:filesystem | reads files | NLog | 3 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing|CSharp.Effects.Packing.Setup -> external:processes | starts or inspects processes | NLog | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.OrderPrinting -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.OrderPrinting -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.OrderPrinting -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Printer | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.OrderPrinting -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Summary | uses | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.OrderPrinting -> external:database | reads and writes data | CSharp.Wrappers | 10 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Printer -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Summary -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.IOrders -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderQueries -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderReports -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderReports -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.IOrders | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderReports -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderQueries | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderReports -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderRepository | uses | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderReports -> external:database | reads and writes data | - | 4 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderRepository -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderRepository -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderRepository -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.IOrders | uses | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Shipping|CSharp.Effects.Shipping.Parcels -> external:filesystem | reads files | Serilog.Extensions.Logging | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Shipping|CSharp.Effects.Shipping.Parcels -> external:filesystem | writes files | Serilog.Extensions.Logging | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Shipping|CSharp.Effects.Shipping.Setup -> external:filesystem | reads files | Serilog.Sinks.File | 1 sources
@@ -270,6 +312,9 @@ code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Direct -> exter
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Direct -> external:processes | starts or inspects processes | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.FileStore -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Hidden -> external:native | calls native code | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.HigherOrder -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.AuditStore | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.HigherOrder -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.FileStore | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.HigherOrder -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.IStore | uses | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.HigherOrder -> external:filesystem | reads files | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.HigherOrder -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.HigherOrder -> external:http:api.example.org | sends HTTP requests | HTTP | 1 sources
@@ -283,31 +328,60 @@ code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Wrapped -> exte
 code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing|CSharp.Endpoints.Auditing.Audit -> external:filesystem | reads files | Serilog, Serilog.Sinks.File | 2 sources
 code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing|CSharp.Endpoints.Auditing.Audit -> external:filesystem | writes files | Serilog, Serilog.Sinks.File | 2 sources
 code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat|CSharp.Endpoints.Chat.ChatHub -> external:filesystem | writes files | - | 1 sources
+code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.Routes -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.StatusOptions | uses | - | 1 sources
 code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Parcels -> external:filesystem | reads files | Serilog.Extensions.Logging | 1 sources
 code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Parcels -> external:filesystem | writes files | Serilog.Extensions.Logging | 1 sources
 code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Setup -> external:filesystem | reads files | Serilog.Sinks.File | 1 sources
 code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Setup -> external:filesystem | writes files | Serilog.Sinks.File | 1 sources
 code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Api -> external:filesystem | reads files | - | 1 sources
 code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Api -> external:filesystem | writes files | - | 1 sources
+code:CSharp.Endpoints|CSharp.Endpoints:|Program -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing|CSharp.Endpoints.Auditing.Audit | uses | - | 1 sources
+code:CSharp.Endpoints|CSharp.Endpoints:|Program -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat|CSharp.Endpoints.Chat.ChatHub | uses | - | 1 sources
+code:CSharp.Endpoints|CSharp.Endpoints:|Program -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.Routes | uses | - | 1 sources
+code:CSharp.Endpoints|CSharp.Endpoints:|Program -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Setup | uses | - | 1 sources
+code:CSharp.Endpoints|CSharp.Endpoints:|Program -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Admin | uses | - | 1 sources
+code:CSharp.Endpoints|CSharp.Endpoints:|Program -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Api | uses | - | 1 sources
 code:CSharp.Functions|CSharp.Functions:CSharp.Functions.Maintenance|CSharp.Functions.Maintenance.Cleanup -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Functions|CSharp.Functions:CSharp.Functions.Orders|CSharp.Functions.Orders.OrderFunctions -> external:filesystem | writes files | - | 3 sources
+code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.StockService -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.ReserveReply | uses | - | 1 sources
+code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.StockService -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.ReserveRequest | uses | - | 1 sources
 code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.StockService -> external:filesystem | writes files | - | 1 sources
+code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking|CSharp.Grpc.Restocking.Restocker -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.ReserveReply | uses | - | 1 sources
+code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking|CSharp.Grpc.Restocking.Restocker -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.ReserveRequest | uses | - | 1 sources
+code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking|CSharp.Grpc.Restocking.Restocker -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.Stock | uses | - | 1 sources
 code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking|CSharp.Grpc.Restocking.Restocker -> external:library:Grpc.Core | sends HTTP requests | Grpc.Core | 1 sources
+code:CSharp.Grpc|CSharp.Grpc:|Program -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.StockService | uses | - | 1 sources
+code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.AuditQueue | uses | - | 1 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices -> external:filesystem | writes files | - | 4 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices -> external:library:RabbitMQ.Client | sends and receives over the network | RabbitMQ.Client | 2 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders|CSharp.Messaging.Orders.Listener -> external:filesystem | writes files | - | 2 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders|CSharp.Messaging.Orders.Listener -> external:network | sends and receives over the network | RabbitMQ.Client | 1 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Payments|CSharp.Messaging.Payments.Listener -> external:filesystem | writes files | - | 1 sources
+code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Publishing|CSharp.Messaging.Publishing.Publisher -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.OrderShipped | uses | - | 1 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Publishing|CSharp.Messaging.Publishing.Publisher -> external:library:Azure.Messaging.ServiceBus | sends and receives over the network | Azure.Messaging.ServiceBus | 1 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Publishing|CSharp.Messaging.Publishing.Publisher -> external:library:MassTransit | sends and receives over the network | MassTransit | 1 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Publishing|CSharp.Messaging.Publishing.Publisher -> external:library:RabbitMQ.Client | sends and receives over the network | RabbitMQ.Client | 1 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Refunds|CSharp.Messaging.Refunds.Poller -> external:filesystem | writes files | - | 2 sources
+code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.PlaceOrderHandler -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.PlaceOrder | uses | - | 1 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.PlaceOrderHandler -> external:filesystem | writes files | - | 1 sources
+code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.SalesEndpoint -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.PlaceOrder | uses | - | 1 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.SalesEndpoint -> external:filesystem | reads files | NServiceBus.Core | 1 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.SalesEndpoint -> external:filesystem | writes files | NServiceBus.Core | 1 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.SalesEndpoint -> external:library:NServiceBus | sends and receives over the network | NServiceBus | 1 sources
+code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.Bus -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.ShippedConsumer | uses | - | 1 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.Bus -> external:processes | starts or inspects processes | MassTransit | 1 sources
+code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.IdleConsumer -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.OrderShipped | uses | - | 1 sources
+code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.ShippedConsumer -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.OrderShipped | uses | - | 1 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.ShippedConsumer -> external:filesystem | writes files | - | 1 sources
+code:CSharp.Messaging|CSharp.Messaging:|Program -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders|CSharp.Messaging.Orders.Listener | uses | - | 1 sources
+code:CSharp.Messaging|CSharp.Messaging:|Program -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Payments|CSharp.Messaging.Payments.Listener | uses | - | 1 sources
+code:CSharp.Messaging|CSharp.Messaging:|Program -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.Bus | uses | - | 1 sources
+code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Router -> code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Handlers | uses | - | 1 sources
+code:CSharp.Middleware|CSharp.Middleware:|Program -> code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Router | uses | - | 1 sources
+code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Router -> code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Orders | uses | - | 1 sources
+code:CSharp.Switch|CSharp.Switch:|Program -> code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Router | uses | - | 1 sources
+code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Router -> code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Handlers | uses | - | 1 sources
+code:CSharp.Table|CSharp.Table:|Program -> code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Router | uses | - | 1 sources
 code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.Archiver -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.PurgeJob -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.Sweeper -> external:filesystem | reads files | - | 1 sources
@@ -317,33 +391,12 @@ code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports|CSharp.Worker.Imports.Inb
 code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring|CSharp.Worker.Monitoring.Heartbeat -> external:filesystem | writes files | - | 3 sources
 code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring|CSharp.Worker.Monitoring.Heartbeat -> external:http | sends HTTP requests | HTTP | 1 sources
 code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Reports -> external:filesystem | writes files | - | 2 sources
-component:CSharp.Clients|CSharp.Clients: -> component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching | uses | - | 1 sources
-component:CSharp.Clients|CSharp.Clients: -> component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Documents | uses | - | 1 sources
-component:CSharp.Clients|CSharp.Clients: -> component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Files | uses | - | 1 sources
-component:CSharp.Cloud|CSharp.Cloud: -> component:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs | uses | - | 1 sources
-component:CSharp.Cloud|CSharp.Cloud: -> component:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Orders | uses | - | 1 sources
-component:CSharp.Cloud|CSharp.Cloud: -> component:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Reports | uses | - | 1 sources
-component:CSharp.Delegated|CSharp.Delegated: -> component:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated | uses | - | 1 sources
-component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 1 sources
-component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 1 sources
-component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints | uses | - | 1 sources
-component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing | uses | - | 1 sources
-component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat | uses | - | 1 sources
-component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured | uses | - | 1 sources
-component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping | uses | - | 1 sources
-component:CSharp.Grpc|CSharp.Grpc: -> component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | uses | - | 1 sources
-component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking -> component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | uses | - | 1 sources
-component:CSharp.Messaging|CSharp.Messaging: -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders | uses | - | 1 sources
-component:CSharp.Messaging|CSharp.Messaging: -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Payments | uses | - | 1 sources
-component:CSharp.Messaging|CSharp.Messaging: -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping | uses | - | 1 sources
-component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Publishing -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping | uses | - | 1 sources
-component:CSharp.Middleware|CSharp.Middleware: -> component:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware | uses | - | 1 sources
-component:CSharp.Switch|CSharp.Switch: -> component:CSharp.Switch|CSharp.Switch:CSharp.Switch | uses | - | 1 sources
-component:CSharp.Table|CSharp.Table: -> component:CSharp.Table|CSharp.Table:CSharp.Table | uses | - | 1 sources
-component:CSharp.Worker|CSharp.Worker: -> component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup | uses | - | 1 sources
-component:CSharp.Worker|CSharp.Worker: -> component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports | uses | - | 1 sources
-component:CSharp.Worker|CSharp.Worker: -> component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring | uses | - | 1 sources
-component:CSharp.Worker|CSharp.Worker: -> component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | uses | - | 1 sources
+code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Reports | uses | - | 1 sources
+code:CSharp.Worker|CSharp.Worker:|Program -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.PurgeJob | uses | - | 1 sources
+code:CSharp.Worker|CSharp.Worker:|Program -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.Sweeper | uses | - | 1 sources
+code:CSharp.Worker|CSharp.Worker:|Program -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports|CSharp.Worker.Imports.Inbox | uses | - | 1 sources
+code:CSharp.Worker|CSharp.Worker:|Program -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring|CSharp.Worker.Monitoring.Heartbeat | uses | - | 1 sources
+code:CSharp.Worker|CSharp.Worker:|Program -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule | uses | - | 1 sources
 external:filesystem -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports|CSharp.Worker.Imports.Inbox | notifies of changed files | - | 1 sources
 external:library:Amazon.SQS -> code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs|CSharp.Cloud.Jobs.Queue | delivers messages to | Amazon.SQS | 1 sources
 external:library:Azure.Messaging.ServiceBus -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Payments|CSharp.Messaging.Payments.Listener | delivers messages to | Azure.Messaging.ServiceBus | 1 sources
@@ -554,9 +607,9 @@ view components:CSharp.Effects | components of container:CSharp.Effects | 19 ele
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | Microsoft.EntityFrameworkCore | 8 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing -> external:filesystem | reads files | NLog | 4 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing -> external:processes | starts or inspects processes | NLog | 1 sources
-  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 1 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 4 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing -> external:database | reads and writes data | CSharp.Wrappers | 10 sources
-  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 1 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 5 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting -> external:database | reads and writes data | - | 4 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Shipping -> external:filesystem | reads files | Serilog.Extensions.Logging, Serilog.Sinks.File | 2 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Shipping -> external:filesystem | writes files | Serilog.Extensions.Logging, Serilog.Sinks.File | 2 sources
@@ -565,7 +618,7 @@ view components:CSharp.Effects | components of container:CSharp.Effects | 19 ele
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage -> external:http | sends HTTP requests | log4net | 2 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage -> external:network | sends and receives over the network | log4net | 1 sources
 view components:CSharp.Endpoints | components of container:CSharp.Endpoints | 8 elements | 1392 x 1032
-  component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints | uses | - | 1 sources
+  component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints | uses | - | 2 sources
   component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing | uses | - | 1 sources
   component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat | uses | - | 1 sources
   component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured | uses | - | 1 sources
@@ -590,7 +643,7 @@ view components:CSharp.Functions | components of container:CSharp.Functions | 6 
 view components:CSharp.Grpc | components of container:CSharp.Grpc | 6 elements | 565 x 1032
   component:CSharp.Grpc|CSharp.Grpc: -> component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | uses | - | 1 sources
   component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory -> external:filesystem | writes files | - | 1 sources
-  component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking -> component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | uses | - | 1 sources
+  component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking -> component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | uses | - | 3 sources
   component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking -> external:library:Grpc.Core | sends HTTP requests | Grpc.Core | 1 sources
   person:user -> component:CSharp.Grpc|CSharp.Grpc: | sends HTTP requests to | HTTP | 1 sources
   person:user -> component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | sends HTTP requests to | HTTP | 1 sources
@@ -630,7 +683,7 @@ view components:CSharp.Table | components of container:CSharp.Table | 3 elements
   component:CSharp.Table|CSharp.Table: -> component:CSharp.Table|CSharp.Table:CSharp.Table | uses | - | 1 sources
   person:user -> component:CSharp.Table|CSharp.Table:CSharp.Table | sends HTTP requests to | HTTP | 2 sources
 view components:CSharp.Worker | components of container:CSharp.Worker | 7 elements | 1104 x 802
-  component:CSharp.Worker|CSharp.Worker: -> component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup | uses | - | 1 sources
+  component:CSharp.Worker|CSharp.Worker: -> component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup | uses | - | 2 sources
   component:CSharp.Worker|CSharp.Worker: -> component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports | uses | - | 1 sources
   component:CSharp.Worker|CSharp.Worker: -> component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring | uses | - | 1 sources
   component:CSharp.Worker|CSharp.Worker: -> component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | uses | - | 1 sources
@@ -646,53 +699,72 @@ view code:CSharp.Blazor|CSharp.Blazor: | code of component:CSharp.Blazor|CSharp.
   code:CSharp.Blazor|CSharp.Blazor:|CSharp.Blazor.Components.Pages.Order -> external:filesystem | writes files | - | 1 sources
   person:user -> code:CSharp.Blazor|CSharp.Blazor:|CSharp.Blazor.Components.Pages.Home | sends HTTP requests to | HTTP | 1 sources
   person:user -> code:CSharp.Blazor|CSharp.Blazor:|CSharp.Blazor.Components.Pages.Order | sends HTTP requests to | HTTP | 2 sources
-view code:CSharp.Clients|CSharp.Clients: | code of component:CSharp.Clients|CSharp.Clients: | 3 elements | 528 x 572
+view code:CSharp.Clients|CSharp.Clients: | code of component:CSharp.Clients|CSharp.Clients: | 6 elements | 1392 x 572
+  code:CSharp.Clients|CSharp.Clients:|Program -> component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching | uses | - | 1 sources
+  code:CSharp.Clients|CSharp.Clients:|Program -> component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Documents | uses | - | 1 sources
+  code:CSharp.Clients|CSharp.Clients:|Program -> component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Files | uses | - | 1 sources
   code:CSharp.Clients|CSharp.Clients:|Program -> external:filesystem | reads files | MongoDB.Driver | 1 sources
   code:CSharp.Clients|CSharp.Clients:|Program -> external:library:StackExchange.Redis | sends and receives over the network | StackExchange.Redis | 1 sources
-view code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching | code of component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching | 4 elements | 528 x 691
+view code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching | code of component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching | 5 elements | 632 x 691
   code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching|CSharp.Clients.Caching.Cache -> external:filesystem | writes files | - | 1 sources
   code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching|CSharp.Clients.Caching.Cache -> external:library:StackExchange.Redis | reads and writes data | StackExchange.Redis | 3 sources
   code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching|CSharp.Clients.Caching.Cache -> external:library:StackExchange.Redis | sends and receives over the network | StackExchange.Redis | 1 sources
   code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching|CSharp.Clients.Caching.Cache -> external:network | sends and receives over the network | StackExchange.Redis | 1 sources
+  component:CSharp.Clients|CSharp.Clients: -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching|CSharp.Clients.Caching.Cache | uses | - | 1 sources
   external:library:StackExchange.Redis -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching|CSharp.Clients.Caching.Cache | delivers messages to | StackExchange.Redis | 1 sources
-view code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog | code of component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog | 4 elements | 816 x 572
+view code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog | code of component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog | 4 elements | 372 x 1032
+  code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog|CSharp.Clients.Catalog.ICatalogApi -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog|CSharp.Clients.Catalog.Product | uses | - | 1 sources
+  code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog|CSharp.Clients.Catalog.Products -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog|CSharp.Clients.Catalog.ICatalogApi | uses | - | 1 sources
+  code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog|CSharp.Clients.Catalog.Products -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog|CSharp.Clients.Catalog.Product | uses | - | 1 sources
   code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Catalog|CSharp.Clients.Catalog.Products -> external:http | sends HTTP requests | HTTP | 2 sources
 view code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Chat | code of component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Chat | 3 elements | 324 x 691
   code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Chat|CSharp.Clients.Chat.Room -> external:filesystem | writes files | - | 1 sources
   code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Chat|CSharp.Clients.Chat.Room -> external:library:Microsoft.AspNetCore.SignalR.Client | sends and receives over the network | Microsoft.AspNetCore.SignalR.Client | 1 sources
   external:library:Microsoft.AspNetCore.SignalR.Client -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Chat|CSharp.Clients.Chat.Room | delivers messages to | Microsoft.AspNetCore.SignalR.Client | 1 sources
-view code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Documents | code of component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Documents | 3 elements | 528 x 572
+view code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Documents | code of component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Documents | 4 elements | 314 x 1032
+  code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Documents|CSharp.Clients.Documents.Store -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Documents|CSharp.Clients.Documents.Doc | uses | - | 1 sources
   code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Documents|CSharp.Clients.Documents.Store -> external:library:MongoDB.Driver | reads and writes data | MongoDB.Driver | 3 sources
-view code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Files | code of component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Files | 3 elements | 528 x 572
+  component:CSharp.Clients|CSharp.Clients: -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Documents|CSharp.Clients.Documents.Store | uses | - | 1 sources
+view code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Files | code of component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Files | 4 elements | 528 x 691
   code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Files|CSharp.Clients.Files.Archive -> external:filesystem | reads files | - | 1 sources
   code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Files|CSharp.Clients.Files.Archive -> external:library:Azure.Storage.Blobs | sends HTTP requests | Azure.Storage.Blobs | 2 sources
-view code:CSharp.Clients|CSharp.Clients:CSharp.Clients.GitHub | code of component:CSharp.Clients|CSharp.Clients:CSharp.Clients.GitHub | 5 elements | 816 x 572
+  component:CSharp.Clients|CSharp.Clients: -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Files|CSharp.Clients.Files.Archive | uses | - | 1 sources
+view code:CSharp.Clients|CSharp.Clients:CSharp.Clients.GitHub | code of component:CSharp.Clients|CSharp.Clients:CSharp.Clients.GitHub | 5 elements | 528 x 802
   code:CSharp.Clients|CSharp.Clients:CSharp.Clients.GitHub|CSharp.Clients.GitHub.GitHubClient -> external:http:api.github.com | sends HTTP requests | HTTP | 2 sources
+  code:CSharp.Clients|CSharp.Clients:CSharp.Clients.GitHub|CSharp.Clients.GitHub.Setup -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.GitHub|CSharp.Clients.GitHub.GitHubClient | uses | - | 1 sources
   code:CSharp.Clients|CSharp.Clients:CSharp.Clients.GitHub|CSharp.Clients.GitHub.Status -> external:http:status.example.org | sends HTTP requests | HTTP | 1 sources
 view code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Notifications | code of component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Notifications | 3 elements | 528 x 572
   code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Notifications|CSharp.Clients.Notifications.Mail -> external:library:MailKit | sends and receives over the network | MailKit | 2 sources
   code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Notifications|CSharp.Clients.Notifications.Mail -> external:library:SendGrid | sends HTTP requests | SendGrid | 1 sources
-view code:CSharp.Cloud|CSharp.Cloud: | code of component:CSharp.Cloud|CSharp.Cloud: | 2 elements | 245 x 572
+view code:CSharp.Cloud|CSharp.Cloud: | code of component:CSharp.Cloud|CSharp.Cloud: | 5 elements | 1104 x 572
+  code:CSharp.Cloud|CSharp.Cloud:|Program -> component:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs | uses | - | 1 sources
+  code:CSharp.Cloud|CSharp.Cloud:|Program -> component:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Orders | uses | - | 1 sources
+  code:CSharp.Cloud|CSharp.Cloud:|Program -> component:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Reports | uses | - | 1 sources
   code:CSharp.Cloud|CSharp.Cloud:|Program -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS | 3 sources
   code:CSharp.Cloud|CSharp.Cloud:|Program -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS | 3 sources
-view code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs | code of component:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs | 5 elements | 816 x 691
+view code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs | code of component:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs | 6 elements | 816 x 691
   code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs|CSharp.Cloud.Jobs.Queue -> external:filesystem | reads files | AWSSDK.SQS | 1 sources
   code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs|CSharp.Cloud.Jobs.Queue -> external:filesystem | writes files | AWSSDK.SQS | 2 sources
   code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs|CSharp.Cloud.Jobs.Queue -> external:http | sends HTTP requests | AWSSDK.SQS | 1 sources
   code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs|CSharp.Cloud.Jobs.Queue -> external:library:Amazon.SQS | sends and receives over the network | Amazon.SQS | 1 sources
   code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs|CSharp.Cloud.Jobs.Queue -> external:network | sends and receives over the network | AWSSDK.SQS | 1 sources
+  component:CSharp.Cloud|CSharp.Cloud: -> code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs|CSharp.Cloud.Jobs.Queue | uses | - | 1 sources
   external:library:Amazon.SQS -> code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Jobs|CSharp.Cloud.Jobs.Queue | delivers messages to | Amazon.SQS | 1 sources
-view code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Orders | code of component:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Orders | 2 elements | 245 x 572
+view code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Orders | code of component:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Orders | 3 elements | 324 x 691
   code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Orders|CSharp.Cloud.Orders.Table -> external:library:Amazon.DynamoDBv2 | reads and writes data | Amazon.DynamoDBv2 | 1 sources
-view code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Reports | code of component:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Reports | 2 elements | 245 x 572
+  component:CSharp.Cloud|CSharp.Cloud: -> code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Orders|CSharp.Cloud.Orders.Table | uses | - | 1 sources
+view code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Reports | code of component:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Reports | 3 elements | 324 x 691
   code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Reports|CSharp.Cloud.Reports.Archive -> external:library:Amazon.S3 | sends HTTP requests | Amazon.S3 | 2 sources
+  component:CSharp.Cloud|CSharp.Cloud: -> code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Reports|CSharp.Cloud.Reports.Archive | uses | - | 1 sources
 view code:CSharp.Controllers|CSharp.Controllers: | code of component:CSharp.Controllers|CSharp.Controllers: | 2 elements | 324 x 461
   person:user -> code:CSharp.Controllers|CSharp.Controllers:|AspNetCoreGeneratedDocument.Areas_Admin_Pages_Audit | sends HTTP requests to | HTTP | 1 sources
 view code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers | code of component:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers | 4 elements | 816 x 461
   person:user -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers|CSharp.Controllers.HomeController | sends HTTP requests to | HTTP | 3 sources
   person:user -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers|CSharp.Controllers.OrdersController | sends HTTP requests to | HTTP | 3 sources
   person:user -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers|CSharp.Controllers.PagesController | sends HTTP requests to | HTTP | 2 sources
-view code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Admin | code of component:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Admin | 5 elements | 1104 x 461
+view code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Admin | code of component:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Admin | 5 elements | 816 x 802
+  code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Admin|CSharp.Controllers.Admin.BaseController -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Admin|CSharp.Controllers.Admin.ILanguageService | uses | - | 1 sources
+  code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Admin|CSharp.Controllers.Admin.UsersController -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Admin|CSharp.Controllers.Admin.ILanguageService | uses | - | 1 sources
   person:user -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Admin|CSharp.Controllers.Admin.UsersController | sends HTTP requests to | HTTP | 1 sources
 view code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop | code of component:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop | 4 elements | 528 x 691
   code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop|CSharp.Controllers.Pages.Shop.IndexModel -> external:filesystem | writes files | - | 1 sources
@@ -702,9 +774,12 @@ view code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop | 
 view code:CSharp.Conventional|CSharp.Conventional:CSharp.Conventional.Controllers | code of component:CSharp.Conventional|CSharp.Conventional:CSharp.Conventional.Controllers | 3 elements | 528 x 461
   person:user -> code:CSharp.Conventional|CSharp.Conventional:CSharp.Conventional.Controllers|CSharp.Conventional.Controllers.HomeController | sends HTTP requests to | HTTP | 1 sources
   person:user -> code:CSharp.Conventional|CSharp.Conventional:CSharp.Conventional.Controllers|CSharp.Conventional.Controllers.RouteController | sends HTTP requests to | HTTP | 5 sources
-view code:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated | code of component:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated | 2 elements | 324 x 461
+view code:CSharp.Delegated|CSharp.Delegated: | code of component:CSharp.Delegated|CSharp.Delegated: | 2 elements | 245 x 572
+  code:CSharp.Delegated|CSharp.Delegated:|Program -> component:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated | uses | - | 1 sources
+view code:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated | code of component:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated | 3 elements | 577 x 461
+  component:CSharp.Delegated|CSharp.Delegated: -> code:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated|CSharp.Delegated.Orders | uses | - | 1 sources
   person:user -> code:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated|CSharp.Delegated.Orders | sends HTTP requests to | HTTP | 6 sources
-view code:CSharp.Effects|CSharp.Effects:CSharp.Effects | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects | 16 elements | 1749 x 913
+view code:CSharp.Effects|CSharp.Effects:CSharp.Effects | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects | 16 elements | 1968 x 802
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.AuditStore -> external:filesystem | writes files | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Database -> external:database | reads and writes data | - | 6 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Direct -> external:filesystem | reads files | - | 1 sources
@@ -713,6 +788,9 @@ view code:CSharp.Effects|CSharp.Effects:CSharp.Effects | code of component:CShar
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Direct -> external:processes | starts or inspects processes | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.FileStore -> external:filesystem | writes files | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Hidden -> external:native | calls native code | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.HigherOrder -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.AuditStore | uses | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.HigherOrder -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.FileStore | uses | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.HigherOrder -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.IStore | uses | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.HigherOrder -> external:filesystem | reads files | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.HigherOrder -> external:filesystem | writes files | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.HigherOrder -> external:http:api.example.org | sends HTTP requests | HTTP | 1 sources
@@ -734,17 +812,37 @@ view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging | code of compone
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Orders -> external:filesystem | writes files | Serilog | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Setup -> external:filesystem | reads files | Serilog.Sinks.File | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Setup -> external:filesystem | writes files | Serilog.Sinks.File | 1 sources
-view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | 5 elements | 816 x 572
+view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | 7 elements | 555 x 1262
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext | uses | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> external:database | reads and writes data | - | 7 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | Microsoft.EntityFrameworkCore | 8 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 3 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext | uses | - | 1 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 4 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext | uses | - | 1 sources
 view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing | 4 elements | 569 x 572
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing|CSharp.Effects.Packing.Boxes -> external:filesystem | reads files | NLog | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing|CSharp.Effects.Packing.Setup -> external:filesystem | reads files | NLog | 3 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing|CSharp.Effects.Packing.Setup -> external:processes | starts or inspects processes | NLog | 1 sources
-view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing | 4 elements | 816 x 572
+view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing | 5 elements | 661 x 802
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.OrderPrinting -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Printer | uses | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.OrderPrinting -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Summary | uses | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.OrderPrinting -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 2 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.OrderPrinting -> external:database | reads and writes data | CSharp.Wrappers | 10 sources
-view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting | 5 elements | 1104 x 572
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Printer -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Summary -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 1 sources
+view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting | 6 elements | 667 x 1032
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.IOrders -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderQueries -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderReports -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.IOrders | uses | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderReports -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderQueries | uses | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderReports -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderRepository | uses | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderReports -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderReports -> external:database | reads and writes data | - | 4 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderRepository -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.IOrders | uses | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderRepository -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 2 sources
 view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Shipping | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Shipping | 3 elements | 528 x 572
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Shipping|CSharp.Effects.Shipping.Parcels -> external:filesystem | reads files | Serilog.Extensions.Logging | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Shipping|CSharp.Effects.Shipping.Parcels -> external:filesystem | writes files | Serilog.Extensions.Logging | 1 sources
@@ -758,53 +856,81 @@ view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage | code of compone
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage|CSharp.Effects.Storage.Shelves -> external:filesystem | writes files | log4net | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage|CSharp.Effects.Storage.Shelves -> external:http | sends HTTP requests | log4net | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage|CSharp.Effects.Storage.Shelves -> external:network | sends and receives over the network | log4net | 1 sources
-view code:CSharp.Endpoints|CSharp.Endpoints: | code of component:CSharp.Endpoints|CSharp.Endpoints: | 2 elements | 324 x 461
+view code:CSharp.Endpoints|CSharp.Endpoints: | code of component:CSharp.Endpoints|CSharp.Endpoints: | 7 elements | 1392 x 691
+  code:CSharp.Endpoints|CSharp.Endpoints:|Program -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints | uses | - | 2 sources
+  code:CSharp.Endpoints|CSharp.Endpoints:|Program -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing | uses | - | 1 sources
+  code:CSharp.Endpoints|CSharp.Endpoints:|Program -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat | uses | - | 1 sources
+  code:CSharp.Endpoints|CSharp.Endpoints:|Program -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured | uses | - | 1 sources
+  code:CSharp.Endpoints|CSharp.Endpoints:|Program -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping | uses | - | 1 sources
   person:user -> code:CSharp.Endpoints|CSharp.Endpoints:|Program | sends HTTP requests to | HTTP | 3 sources
-view code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints | code of component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints | 4 elements | 528 x 691
+view code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints | code of component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints | 5 elements | 632 x 691
   code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Api -> external:filesystem | reads files | - | 1 sources
   code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Api -> external:filesystem | writes files | - | 1 sources
+  component:CSharp.Endpoints|CSharp.Endpoints: -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Admin | uses | - | 1 sources
+  component:CSharp.Endpoints|CSharp.Endpoints: -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Api | uses | - | 1 sources
   person:user -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Admin | sends HTTP requests to | HTTP | 2 sources
   person:user -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Api | sends HTTP requests to | HTTP | 3 sources
-view code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing | code of component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing | 3 elements | 324 x 691
+view code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing | code of component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing | 4 elements | 577 x 691
   code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing|CSharp.Endpoints.Auditing.Audit -> external:filesystem | reads files | Serilog, Serilog.Sinks.File | 2 sources
   code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing|CSharp.Endpoints.Auditing.Audit -> external:filesystem | writes files | Serilog, Serilog.Sinks.File | 2 sources
+  component:CSharp.Endpoints|CSharp.Endpoints: -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing|CSharp.Endpoints.Auditing.Audit | uses | - | 1 sources
   person:user -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing|CSharp.Endpoints.Auditing.Audit | sends HTTP requests to | HTTP | 1 sources
-view code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat | code of component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat | 4 elements | 528 x 691
+view code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat | code of component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat | 5 elements | 595 x 691
   code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat|CSharp.Endpoints.Chat.ChatHub -> external:filesystem | writes files | - | 1 sources
+  component:CSharp.Endpoints|CSharp.Endpoints: -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat|CSharp.Endpoints.Chat.ChatHub | uses | - | 1 sources
   person:user -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat|CSharp.Endpoints.Chat.ChatHub | sends HTTP requests to | HTTP | 2 sources
   person:user -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat|CSharp.Endpoints.Chat.RoomHub | sends HTTP requests to | HTTP | 1 sources
-view code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured | code of component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured | 3 elements | 528 x 461
+view code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured | code of component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured | 4 elements | 528 x 802
+  code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.Routes -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.StatusOptions | uses | - | 1 sources
+  component:CSharp.Endpoints|CSharp.Endpoints: -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.Routes | uses | - | 1 sources
   person:user -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.Routes | sends HTTP requests to | HTTP | 3 sources
-view code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping | code of component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping | 3 elements | 528 x 572
+view code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping | code of component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping | 4 elements | 528 x 691
   code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Parcels -> external:filesystem | reads files | Serilog.Extensions.Logging | 1 sources
   code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Parcels -> external:filesystem | writes files | Serilog.Extensions.Logging | 1 sources
   code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Setup -> external:filesystem | reads files | Serilog.Sinks.File | 1 sources
   code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Setup -> external:filesystem | writes files | Serilog.Sinks.File | 1 sources
+  component:CSharp.Endpoints|CSharp.Endpoints: -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Setup | uses | - | 1 sources
 view code:CSharp.Functions|CSharp.Functions:CSharp.Functions.Maintenance | code of component:CSharp.Functions|CSharp.Functions:CSharp.Functions.Maintenance | 2 elements | 245 x 572
   code:CSharp.Functions|CSharp.Functions:CSharp.Functions.Maintenance|CSharp.Functions.Maintenance.Cleanup -> external:filesystem | writes files | - | 1 sources
 view code:CSharp.Functions|CSharp.Functions:CSharp.Functions.Orders | code of component:CSharp.Functions|CSharp.Functions:CSharp.Functions.Orders | 4 elements | 577 x 691
   code:CSharp.Functions|CSharp.Functions:CSharp.Functions.Orders|CSharp.Functions.Orders.OrderFunctions -> external:filesystem | writes files | - | 3 sources
   external:library:Microsoft.Azure.Functions.Worker -> code:CSharp.Functions|CSharp.Functions:CSharp.Functions.Orders|CSharp.Functions.Orders.OrderFunctions | delivers messages to | Microsoft.Azure.Functions.Worker | 1 sources
   person:user -> code:CSharp.Functions|CSharp.Functions:CSharp.Functions.Orders|CSharp.Functions.Orders.OrderFunctions | sends HTTP requests to | HTTP | 2 sources
-view code:CSharp.Grpc|CSharp.Grpc: | code of component:CSharp.Grpc|CSharp.Grpc: | 2 elements | 324 x 461
+view code:CSharp.Grpc|CSharp.Grpc: | code of component:CSharp.Grpc|CSharp.Grpc: | 4 elements | 528 x 691
+  code:CSharp.Grpc|CSharp.Grpc:|Program -> component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | uses | - | 1 sources
   person:user -> code:CSharp.Grpc|CSharp.Grpc:| (response built by a library function) | sends HTTP requests to | HTTP | 1 sources
-view code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | code of component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | 3 elements | 324 x 691
+view code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | code of component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | 8 elements | 816 x 1032
+  code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.StockService -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.ReserveReply | uses | - | 1 sources
+  code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.StockService -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.ReserveRequest | uses | - | 1 sources
   code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.StockService -> external:filesystem | writes files | - | 1 sources
+  component:CSharp.Grpc|CSharp.Grpc: -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.StockService | uses | - | 1 sources
+  component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.ReserveReply | uses | - | 1 sources
+  component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.ReserveRequest | uses | - | 1 sources
+  component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.Stock | uses | - | 1 sources
   person:user -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.StockService | sends HTTP requests to | HTTP | 1 sources
-view code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking | code of component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking | 2 elements | 245 x 572
+view code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking | code of component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking | 3 elements | 528 x 572
+  code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking|CSharp.Grpc.Restocking.Restocker -> component:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory | uses | - | 3 sources
   code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking|CSharp.Grpc.Restocking.Restocker -> external:library:Grpc.Core | sends HTTP requests | Grpc.Core | 1 sources
-view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | code of component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | 4 elements | 528 x 691
+view code:CSharp.Messaging|CSharp.Messaging: | code of component:CSharp.Messaging|CSharp.Messaging: | 4 elements | 816 x 572
+  code:CSharp.Messaging|CSharp.Messaging:|Program -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders | uses | - | 1 sources
+  code:CSharp.Messaging|CSharp.Messaging:|Program -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Payments | uses | - | 1 sources
+  code:CSharp.Messaging|CSharp.Messaging:|Program -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping | uses | - | 1 sources
+view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | code of component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | 4 elements | 314 x 1032
+  code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.AuditQueue | uses | - | 1 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices -> external:filesystem | writes files | - | 4 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices -> external:library:RabbitMQ.Client | sends and receives over the network | RabbitMQ.Client | 2 sources
   external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices | delivers messages to | RabbitMQ.Client | 4 sources
-view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders | code of component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders | 4 elements | 528 x 691
+view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders | code of component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders | 5 elements | 632 x 691
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders|CSharp.Messaging.Orders.Listener -> external:filesystem | writes files | - | 2 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders|CSharp.Messaging.Orders.Listener -> external:network | sends and receives over the network | RabbitMQ.Client | 1 sources
+  component:CSharp.Messaging|CSharp.Messaging: -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders|CSharp.Messaging.Orders.Listener | uses | - | 1 sources
   external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders|CSharp.Messaging.Orders.Listener | delivers messages to | RabbitMQ.Client | 2 sources
-view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Payments | code of component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Payments | 3 elements | 324 x 691
+view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Payments | code of component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Payments | 4 elements | 577 x 691
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Payments|CSharp.Messaging.Payments.Listener -> external:filesystem | writes files | - | 1 sources
+  component:CSharp.Messaging|CSharp.Messaging: -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Payments|CSharp.Messaging.Payments.Listener | uses | - | 1 sources
   external:library:Azure.Messaging.ServiceBus -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Payments|CSharp.Messaging.Payments.Listener | delivers messages to | Azure.Messaging.ServiceBus | 1 sources
-view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Publishing | code of component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Publishing | 4 elements | 816 x 572
+view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Publishing | code of component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Publishing | 5 elements | 1104 x 572
+  code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Publishing|CSharp.Messaging.Publishing.Publisher -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping | uses | - | 1 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Publishing|CSharp.Messaging.Publishing.Publisher -> external:library:Azure.Messaging.ServiceBus | sends and receives over the network | Azure.Messaging.ServiceBus | 1 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Publishing|CSharp.Messaging.Publishing.Publisher -> external:library:MassTransit | sends and receives over the network | MassTransit | 1 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Publishing|CSharp.Messaging.Publishing.Publisher -> external:library:RabbitMQ.Client | sends and receives over the network | RabbitMQ.Client | 1 sources
@@ -812,34 +938,64 @@ view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Refunds | code of c
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Refunds|CSharp.Messaging.Refunds.Poller -> external:filesystem | writes files | - | 2 sources
   external:library:Azure.Messaging.ServiceBus -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Refunds|CSharp.Messaging.Refunds.Poller | delivers messages to | Azure.Messaging.ServiceBus | 1 sources
   external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Refunds|CSharp.Messaging.Refunds.Poller | delivers messages to | RabbitMQ.Client | 1 sources
-view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales | code of component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales | 5 elements | 816 x 691
+view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales | code of component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales | 5 elements | 528 x 1032
+  code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.PlaceOrderHandler -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.PlaceOrder | uses | - | 1 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.PlaceOrderHandler -> external:filesystem | writes files | - | 1 sources
+  code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.SalesEndpoint -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.PlaceOrder | uses | - | 1 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.SalesEndpoint -> external:filesystem | reads files | NServiceBus.Core | 1 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.SalesEndpoint -> external:filesystem | writes files | NServiceBus.Core | 1 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.SalesEndpoint -> external:library:NServiceBus | sends and receives over the network | NServiceBus | 1 sources
   external:library:NServiceBus -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.PlaceOrderHandler | delivers messages to | NServiceBus | 1 sources
-view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping | code of component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping | 7 elements | 1104 x 691
+view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping | code of component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping | 9 elements | 816 x 1262
+  code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.Bus -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.ShippedConsumer | uses | - | 1 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.Bus -> external:processes | starts or inspects processes | MassTransit | 1 sources
+  code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.IdleConsumer -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.OrderShipped | uses | - | 1 sources
+  code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.ShippedConsumer -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.OrderShipped | uses | - | 1 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.ShippedConsumer -> external:filesystem | writes files | - | 1 sources
+  component:CSharp.Messaging|CSharp.Messaging: -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.Bus | uses | - | 1 sources
+  component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Publishing -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.OrderShipped | uses | - | 1 sources
   external:library:MassTransit -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.ShippedConsumer | delivers messages to | MassTransit | 1 sources
-view code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware | code of component:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware | 4 elements | 816 x 461
+view code:CSharp.Middleware|CSharp.Middleware: | code of component:CSharp.Middleware|CSharp.Middleware: | 2 elements | 245 x 572
+  code:CSharp.Middleware|CSharp.Middleware:|Program -> component:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware | uses | - | 1 sources
+view code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware | code of component:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware | 5 elements | 560 x 802
+  code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Router -> code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Handlers | uses | - | 1 sources
+  component:CSharp.Middleware|CSharp.Middleware: -> code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Router | uses | - | 1 sources
   person:user -> code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.AddressUses | sends HTTP requests to | HTTP | 1 sources
   person:user -> code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Handlers | sends HTTP requests to | HTTP | 7 sources
-view code:CSharp.Switch|CSharp.Switch:CSharp.Switch | code of component:CSharp.Switch|CSharp.Switch:CSharp.Switch | 3 elements | 528 x 461
+view code:CSharp.Switch|CSharp.Switch: | code of component:CSharp.Switch|CSharp.Switch: | 2 elements | 245 x 572
+  code:CSharp.Switch|CSharp.Switch:|Program -> component:CSharp.Switch|CSharp.Switch:CSharp.Switch | uses | - | 1 sources
+view code:CSharp.Switch|CSharp.Switch:CSharp.Switch | code of component:CSharp.Switch|CSharp.Switch:CSharp.Switch | 4 elements | 528 x 802
+  code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Router -> code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Orders | uses | - | 1 sources
+  component:CSharp.Switch|CSharp.Switch: -> code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Router | uses | - | 1 sources
   person:user -> code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Orders | sends HTTP requests to | HTTP | 9 sources
-view code:CSharp.Table|CSharp.Table:CSharp.Table | code of component:CSharp.Table|CSharp.Table:CSharp.Table | 3 elements | 528 x 461
+view code:CSharp.Table|CSharp.Table: | code of component:CSharp.Table|CSharp.Table: | 2 elements | 245 x 572
+  code:CSharp.Table|CSharp.Table:|Program -> component:CSharp.Table|CSharp.Table:CSharp.Table | uses | - | 1 sources
+view code:CSharp.Table|CSharp.Table:CSharp.Table | code of component:CSharp.Table|CSharp.Table:CSharp.Table | 4 elements | 528 x 802
+  code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Router -> code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Handlers | uses | - | 1 sources
+  component:CSharp.Table|CSharp.Table: -> code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Router | uses | - | 1 sources
   person:user -> code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Handlers | sends HTTP requests to | HTTP | 2 sources
-view code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup | code of component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup | 4 elements | 816 x 572
+view code:CSharp.Worker|CSharp.Worker: | code of component:CSharp.Worker|CSharp.Worker: | 5 elements | 1104 x 572
+  code:CSharp.Worker|CSharp.Worker:|Program -> component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup | uses | - | 2 sources
+  code:CSharp.Worker|CSharp.Worker:|Program -> component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports | uses | - | 1 sources
+  code:CSharp.Worker|CSharp.Worker:|Program -> component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring | uses | - | 1 sources
+  code:CSharp.Worker|CSharp.Worker:|Program -> component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | uses | - | 1 sources
+view code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup | code of component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup | 5 elements | 816 x 691
   code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.Archiver -> external:filesystem | writes files | - | 1 sources
   code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.PurgeJob -> external:filesystem | writes files | - | 1 sources
   code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.Sweeper -> external:filesystem | reads files | - | 1 sources
   code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.Sweeper -> external:filesystem | writes files | - | 1 sources
-view code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports | code of component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports | 2 elements | 324 x 461
+  component:CSharp.Worker|CSharp.Worker: -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.PurgeJob | uses | - | 1 sources
+  component:CSharp.Worker|CSharp.Worker: -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.Sweeper | uses | - | 1 sources
+view code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports | code of component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports | 3 elements | 577 x 461
   code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports|CSharp.Worker.Imports.Inbox -> external:filesystem | reads files | - | 1 sources
   code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports|CSharp.Worker.Imports.Inbox -> external:filesystem | writes files | - | 1 sources
+  component:CSharp.Worker|CSharp.Worker: -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports|CSharp.Worker.Imports.Inbox | uses | - | 1 sources
   external:filesystem -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports|CSharp.Worker.Imports.Inbox | notifies of changed files | - | 1 sources
-view code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring | code of component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring | 3 elements | 528 x 572
+view code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring | code of component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring | 4 elements | 528 x 691
   code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring|CSharp.Worker.Monitoring.Heartbeat -> external:filesystem | writes files | - | 3 sources
   code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring|CSharp.Worker.Monitoring.Heartbeat -> external:http | sends HTTP requests | HTTP | 1 sources
-view code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | code of component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | 3 elements | 528 x 572
+  component:CSharp.Worker|CSharp.Worker: -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring|CSharp.Worker.Monitoring.Heartbeat | uses | - | 1 sources
+view code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | code of component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | 4 elements | 249 x 1032
   code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Reports -> external:filesystem | writes files | - | 2 sources
+  code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Reports | uses | - | 1 sources
+  component:CSharp.Worker|CSharp.Worker: -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule | uses | - | 1 sources
