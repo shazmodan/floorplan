@@ -45,13 +45,13 @@ let tests =
     testSequenced
     <| testList
         "Rendering"
-        [ test "the website writes four files and embeds the model as a script" {
+        [ test "the website writes four files and the C4 model's workspace, and embeds the model as a script" {
               let dir = tempDir ()
 
               match (WebsiteRenderer.create ()).Render(shopModel.Force(), { Path = dir; SingleFile = false }) with
               | Error(RenderError e) -> failtest e
               | Ok() ->
-                  for f in [ "index.html"; "app.css"; "app.js"; "data.js" ] do
+                  for f in [ "index.html"; "app.css"; "app.js"; "data.js"; "workspace.dsl" ] do
                       Expect.isTrue (File.Exists(Path.Combine(dir, f))) f
 
                   let data = File.ReadAllText(Path.Combine(dir, "data.js"))
@@ -67,6 +67,7 @@ let tests =
               Expect.isFalse (html.Contains "href=\"app.css\"") "app.css inlined"
               Expect.isFalse (html.Contains "http://" && html.Contains "<script src=\"http") "no remote scripts"
               Expect.stringContains html "window.FLOORPLAN_DATA" "data inlined"
+              Expect.isFalse (File.Exists(Path.Combine(dir, "workspace.dsl"))) "one file only"
           }
 
           test "data cannot close the script element" {

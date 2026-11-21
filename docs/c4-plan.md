@@ -56,8 +56,8 @@ The website gets an **Architecture** page: the four levels as diagrams in C4's n
 to the next level (a container opens its components, a component its code) and to the existing unit and evidence
 pages. The JSON output carries the model too.
 
-Not goals: hand-written C4 models or merging with them, deployment diagrams, dynamic diagrams, exporting to other
-C4 tools (Structurizr DSL, PlantUML). Possible later.
+Not goals: hand-written C4 models or merging with them, deployment diagrams, dynamic diagrams. Exporting to other
+C4 tools came later: a Structurizr DSL workspace (see the Log, 2026-11-21: Structurizr DSL export).
 
 ## Where things are today
 
@@ -248,3 +248,29 @@ and the C# fixtures, each with sensible containers and external systems. Found t
 WebSocket messages, which are network entry points, so a "Message broker" calls it; and the C# fixtures'
 containers view is 24 external systems wide, readable only zoomed in. Both are in TODO item 9.
 
+### 2026-11-21: Structurizr DSL export (TODO item 10, `claude/structurizr-dsl-export`)
+
+`Floorplan.Rendering.StructurizrDsl.write` writes the C4 model as a Structurizr DSL workspace; the website renderer
+writes it as `workspace.dsl` next to `index.html` (not with `--single-file`, which promises one file). Goldens:
+`tests/golden/shop.workspace.dsl` and `csharp.workspace.dsl`, plus a test of identifiers, names and relationships.
+
+- People are `person`, the system and external systems `softwareSystem` (externals tagged "External"),
+  applications `container`, units `component`, each with its description, technology and Floorplan's tags, and
+  the colours of the site's legend as styles.
+- The DSL has no code level: a code element's relationships are written at its component, merged by description
+  (their technologies joined), and code views are left out. Relationships are written at the most specific level
+  left; `!impliedRelationships` is `CreateImpliedRelationshipsUnlessSameRelationshipExistsStrategy`, because the
+  default lifts only the first relationship between two elements and dropped "writes files" where "reads files"
+  was already lifted.
+- Identifiers are Floorplan's ids with every character but letters, digits and `_` made `_`, numbered when two
+  coincide. Structurizr wants names unique among siblings: a library's unit named like another library's (`Util`
+  in Shop.Core and Shop.Data) is qualified by its project, `Util (Shop.Data)`.
+- Each Floorplan view but the code level is a view with explicit `include`s and `autoLayout tb`. A Structurizr
+  component view also draws relationships between the outside elements it includes (`CSharp.Messaging` writing
+  files, in `components:CSharp.Functions`), which Floorplan's view leaves out.
+
+Checked with Structurizr's own tooling in Docker (the `structurizr/cli` image is deprecated and validates nothing;
+`structurizr/structurizr` replaces it): both goldens pass `validate` and export to Mermaid, a broken file fails,
+and every view's relationship count matches Floorplan's apart from the case above. To repeat:
+`docker run --rm -v <dir>:/usr/local/structurizr structurizr/structurizr validate -workspace /usr/local/structurizr/workspace.dsl`.
+The suite does not run it (Docker and a network pull are not assumed).

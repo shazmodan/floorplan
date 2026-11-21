@@ -25,7 +25,8 @@ writes a static website to `./floorplan-out` that shows:
    above: the system with its users and the external systems it reaches, its applications (containers), each
    application's components (the modules of its own project and of the libraries it references) and each
    component's code (its types). Each element opens the level below, and each relationship lists the entry and
-   exit points behind it.
+   exit points behind it. The site's folder also holds the model as a [Structurizr DSL](https://docs.structurizr.com/dsl)
+   workspace, `workspace.dsl`, to open in Structurizr or export to PlantUML or Mermaid with its tools.
 
 Floorplan knows no web framework. It reads the compiled code of the solution and its dependencies and follows it
 down to the .NET primitives that actually touch the network, the disk or a database. A versioned, data-driven
@@ -55,7 +56,7 @@ floorplan analyze [<path/to/App.sln>]    default: the solution in the current di
       [-f|--framework <tfm>]         preferred target framework for multi-targeting projects
       [-c|--configuration <name>]    default Debug
       [--format site|json]           default site; json writes the analysis model
-      [--single-file]                one self-contained HTML file
+      [--single-file]                one self-contained HTML file (without workspace.dsl)
       [--catalog <file>]             additional catalog rules, e.g. an in-house library as a boundary
       [--show <category,...>]        include categories hidden by default (environment, nondeterminism)
       [--no-build]

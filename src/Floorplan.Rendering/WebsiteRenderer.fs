@@ -1,4 +1,5 @@
-/// The website (plan section 7.2): plain HTML, CSS and JavaScript that opens from file:// with no network.
+/// The website (plan section 7.2): plain HTML, CSS and JavaScript that opens from file:// with no network. Beside
+/// it, the C4 model as a Structurizr DSL workspace (not with --single-file, which writes one file).
 module Floorplan.Rendering.WebsiteRenderer
 
 open System.IO
@@ -51,6 +52,7 @@ let render (model: AnalysisModel) (output: OutputTarget) =
         File.WriteAllText(Path.Combine(output.Path, "app.css"), css)
         File.WriteAllText(Path.Combine(output.Path, "app.js"), js)
         File.WriteAllText(Path.Combine(output.Path, "data.js"), data)
+        File.WriteAllText(Path.Combine(output.Path, StructurizrDsl.FileName), StructurizrDsl.write model)
         Path.Combine(output.Path, "index.html")
 
 let create () =

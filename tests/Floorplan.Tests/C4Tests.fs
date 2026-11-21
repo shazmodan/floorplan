@@ -1,8 +1,10 @@
 module Floorplan.Tests.C4Tests
 
+open System.Text.RegularExpressions
 open Expecto
 open Floorplan.Model
 open Floorplan.Architecture
+open Floorplan.Rendering
 
 let private render (model: AnalysisModel) =
     (C4.describe model.Architecture |> String.concat "\n") + "\n"
@@ -150,6 +152,45 @@ let tests =
                           (v.Layout.Edges |> List.map (fun e -> e.From, e.To) |> List.sort)
                           (v.Relationships |> List.map (fun r -> r.From, r.To) |> List.distinct |> List.sort)
                           $"{v.Id}: a line per pair of related elements"
+          }
+
+          test "golden: Shop as Structurizr DSL" { Golden.check "shop.workspace.dsl" (StructurizrDsl.write (ExitPointTests.shopModel.Force())) }
+
+          test "golden: C# fixtures as Structurizr DSL" {
+              Golden.check "csharp.workspace.dsl" (StructurizrDsl.write (CSharpTests.csharpModel.Force()))
+          }
+
+          test "Structurizr DSL: safe identifiers, each declared once, names unique among siblings, no repeated relationship" {
+              for m in [ ExitPointTests.shopModel.Force(); CSharpTests.csharpModel.Force() ] do
+                  let lines = (StructurizrDsl.write m).Split('\n') |> Array.map (fun l -> l.Trim())
+                  let declaration = Regex(@"^([A-Za-z_][A-Za-z0-9_]*) = (person|softwareSystem|container|component) ""([^""]*)""")
+                  let relationship = Regex(@"^([A-Za-z0-9_]+) -> ([A-Za-z0-9_]+) ""([^""]*)""")
+
+                  let declared = lines |> Array.choose (fun l -> let d = declaration.Match l in if d.Success then Some d else None)
+                  let ids = declared |> Array.map (fun d -> d.Groups[1].Value)
+                  Expect.equal (Array.distinct ids).Length ids.Length "each identifier declared once"
+
+                  Expect.equal
+                      ids.Length
+                      (m.Architecture.Elements |> List.filter (fun e -> e.Kind <> C4Kind.Code) |> List.length)
+                      "every element but the code level"
+
+                  let known = Set.ofArray ids
+                  let rels = lines |> Array.choose (fun l -> let r = relationship.Match l in if r.Success then Some r else None)
+                  Expect.isNonEmpty rels "relationships"
+
+                  for r in rels do
+                      Expect.isTrue (known.Contains r.Groups[1].Value && known.Contains r.Groups[2].Value) $"declared ends: {r.Value}"
+
+                  let triples = rels |> Array.map (fun r -> r.Groups[1].Value, r.Groups[2].Value, r.Groups[3].Value)
+                  Expect.equal (Array.distinct triples).Length triples.Length "no relationship repeated"
+
+                  for v in [ "systemContext"; "container"; "component" ] do
+                      Expect.isTrue (lines |> Array.exists (fun l -> l.StartsWith(v + " "))) $"a {v} view"
+
+              let shop = StructurizrDsl.write (ExitPointTests.shopModel.Force())
+              Expect.stringContains shop "component \"Util (Shop.Data)\"" "a library's unit named like another's is qualified by its project"
+              Expect.stringContains shop "component_Shop_Worker_Shop_Worker_Shop_Worker_Program -> component_Shop_Web_Shop_Web_Shop_Web_Handlers \"sends HTTP requests to /api/orders\" \"HTTP\"" "code-level relationships are written at their components"
           }
 
           test "system context of the C# fixtures: client libraries name the systems they reach" {

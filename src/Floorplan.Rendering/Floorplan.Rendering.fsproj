@@ -10,6 +10,7 @@
   <ItemGroup>
     <Compile Include="Renderer.fs" />
     <Compile Include="JsonRenderer.fs" />
+    <Compile Include="StructurizrDsl.fs" />
     <Compile Include="WebsiteRenderer.fs" />
   </ItemGroup>
   <ItemGroup>
