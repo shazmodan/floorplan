@@ -67,6 +67,9 @@ filesystem-write | CSharp.Cloud:CSharp.Cloud.Jobs | CSharp.Cloud.Jobs.Queue/<Run
 database | CSharp.Cloud:CSharp.Cloud.Orders | CSharp.Cloud.Orders.Table::Save | Amazon.DynamoDBv2.IAmazonDynamoDB::PutItemAsync | via - | literal:orders | CSharp/CSharp.Cloud/Program.cs:30
 http-out | CSharp.Cloud:CSharp.Cloud.Reports | CSharp.Cloud.Reports.Archive::Store | Amazon.S3.IAmazonS3::PutObjectAsync | via - | literal:reports | CSharp/CSharp.Cloud/Program.cs:19
 http-out | CSharp.Cloud:CSharp.Cloud.Reports | CSharp.Cloud.Reports.Archive::Load | Amazon.S3.IAmazonS3::GetObjectAsync | via - | literal:reports | CSharp/CSharp.Cloud/Program.cs:21
+filesystem-write | CSharp.Controllers:CSharp.Controllers.Pages.Shop | CSharp.Controllers.Pages.Shop.IndexModel::OnGet | System.IO.File::AppendAllText | via - | literal:shop.log | CSharp/CSharp.Controllers/Pages/Shop/Index.cshtml.cs:8
+filesystem-write | CSharp.Controllers:CSharp.Controllers.Pages.Shop | CSharp.Controllers.Pages.Shop.ItemModel::OnGetAsync | System.IO.File::AppendAllTextAsync | via - | literal:items.log | CSharp/CSharp.Controllers/Pages/Shop/Item.cshtml.cs:9
+filesystem-write | CSharp.Controllers:CSharp.Controllers.Pages.Shop | CSharp.Controllers.Pages.Shop.ItemModel::OnPostRemove | System.IO.File::Delete | via - | template:items/{…} | CSharp/CSharp.Controllers/Pages/Shop/Item.cshtml.cs:13
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Sqlite | System.Data.Common.DbConnection::Open | via - | - | CSharp/CSharp.Effects/Database.cs:12
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Sqlite | System.Data.Common.DbCommand::ExecuteNonQuery | via - | literal:DELETE FROM sessions | CSharp/CSharp.Effects/Database.cs:15
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Postgres | System.Data.Common.DbConnection::Open | via - | - | CSharp/CSharp.Effects/Database.cs:21

@@ -1700,3 +1700,168 @@ let functionEntries (ctx: AppContext) : EntryPoint list =
                   Evidence =
                     { Steps =
                         [ step $"{handler.Display} is function \"{functionName}\", run by the host when its trigger fires: {trigger.Type.FullName} (rule {rule.Id})" handler point ] } })))
+
+// ---- Razor Pages ----
+
+/// Razor Pages mapped by a registration whose rule has a "razor-pages" payload (MapRazorPages). Each page is compiled
+/// into a class carrying metadata attributes: the catalog's rule for the metadata attribute names, by its payload's
+/// properties, the key whose value is the page's file ("razor-identifier", `/Pages/Orders/Details.cshtml`) and the
+/// key whose value is its `@page` template ("razor-route-template"). The route is the file's path under `/Pages`
+/// (`/Areas/{area}/Pages` for an area), without `Index`, followed by the template unless it starts with `/`. The
+/// page's model (its Model property) handles requests with its `On{Verb}[Name][Async]` methods: one entry point per
+/// method, at its HTTP method, a named handler with the query condition `handler=Name`. A page whose model has
+/// none answers GET itself.
+let razorPageEntries (ctx: AppContext) : EntryPoint list =
+    let set = ctx.Program.Set
+
+    let mapping =
+        PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
+        |> List.filter (fun r -> hasRole "razor-pages" r.Rule)
+
+    let metadataRule =
+        ctx.Matcher.Catalog.Rules
+        |> List.tryFind (fun r -> r.Kind = RuleKind.Metadata && hasRole "razor-identifier" r)
+
+    match mapping, metadataRule with
+    | registration :: _, Some rule ->
+        let keyOf (role: string) =
+            rule.Payload |> List.tryFind (fun p -> p.Role = role) |> Option.bind (fun p -> p.Property)
+
+        let metadata (t: TypeDef) (key: string option) =
+            key
+            |> Option.bind (fun k ->
+                t.Attributes
+                |> List.tryPick (fun a ->
+                    match a.Arguments with
+                    | [ AttributeValue.Text name; AttributeValue.Text value ] when a.Type.FullName = rule.Type && name = k -> Some value
+                    | _ -> None))
+
+        let registrationPoint = Instruction.pointAt registration.Caller.Body.Value.Value.Instructions registration.Index
+
+        // The routes of a page file: `/Pages/Orders/Index.cshtml` is `/Orders/Index` and `/Orders`.
+        let routesOf (identifier: string) (template: string option) =
+            let path = identifier.Replace('\\', '/')
+            let withoutExtension = if path.EndsWith ".cshtml" then path.Substring(0, path.Length - 7) else path
+
+            let relative =
+                let parts = withoutExtension.TrimStart('/').Split('/') |> Array.toList
+
+                match parts with
+                | "Pages" :: rest -> Some rest
+                | "Areas" :: area :: "Pages" :: rest -> Some(area :: rest)
+                | _ -> None
+
+            relative
+            |> Option.map (fun parts ->
+                let bases =
+                    match List.rev parts with
+                    | "Index" :: folder -> [ parts; List.rev folder ]
+                    | _ -> [ parts ]
+
+                bases
+                |> List.map (fun b ->
+                    match template with
+                    | Some t when t.StartsWith "/" || t.StartsWith "~/" -> PlatformRouting.normalizeRoute [ t.TrimStart('~') ]
+                    | Some t when t <> "" -> PlatformRouting.normalizeRoute (b @ [ t ])
+                    | _ -> PlatformRouting.normalizeRoute b)
+                |> List.distinct)
+            |> Option.defaultValue []
+
+        let verbs = [ "Get"; "Post"; "Put"; "Delete"; "Patch"; "Head"; "Options" ]
+
+        // A model's handler methods, with the HTTP method and the handler's name if it has one.
+        let handlersOf (model: TypeRef) =
+            (model :: set.BaseChain model)
+            |> List.filter (fun t -> set.Origin t.Assembly <> Framework)
+            |> List.choose set.TryType
+            |> List.collect (fun (t, _) -> t.Methods |> List.filter (fun m -> m.IsPublic && not m.IsStatic && m.Ref.Name.StartsWith "On"))
+            |> List.choose (fun m ->
+                let name = m.Ref.Name.Substring 2
+                let name = if name.EndsWith "Async" then name.Substring(0, name.Length - 5) else name
+
+                verbs
+                |> List.tryFind (fun v -> name.StartsWith v)
+                |> Option.map (fun v ->
+                    let handler = name.Substring v.Length
+                    m, v.ToUpperInvariant(), (if handler = "" then None else Some handler)))
+            |> List.distinctBy (fun (m, _, _) -> m.Ref.Name, m.Ref.ParameterTypes)
+
+        ctx.Program.Users
+        |> List.filter (fun (p, _) -> p.ProjectId = ctx.Project.ProjectId)
+        |> List.collect (fun (_, a) -> a.Types)
+        |> List.choose (fun t ->
+            metadata t (keyOf "razor-identifier") |> Option.map (fun identifier -> t, identifier, metadata t (keyOf "razor-route-template")))
+        |> List.collect (fun (page, identifier, template) ->
+            let model =
+                page.Methods
+                |> List.tryFind (fun m -> m.Ref.Name = "get_Model")
+                |> Option.bind (fun m -> set.TryType { Assembly = page.Ref.Assembly; FullName = m.Ref.ReturnType })
+                |> Option.map (fun (d, _) -> d.Ref)
+
+            let handlers =
+                match model |> Option.map handlersOf with
+                | Some(_ :: _ as hs) -> hs
+                | _ ->
+                    page.Methods
+                    |> List.filter (fun m -> m.Ref.Name = "ExecuteAsync")
+                    |> List.map (fun m -> m, "GET", None)
+
+            routesOf identifier template
+            |> List.collect (fun route ->
+                handlers
+                |> List.choose (fun (m, httpMethod, named) ->
+                    let handler = m.Ref
+                    let point = firstPoint set handler
+                    let location = registrationPoint |> Option.map Attribution.toLocation
+
+                    let projectId =
+                        match set.Origin handler.Type.Assembly with
+                        | User pid -> pid
+                        | _ -> ctx.Project.ProjectId
+
+                    ctx.Program.Attributor.Attribute(projectId, handler, point)
+                    |> Option.map (fun unit ->
+                        let methodPredicate =
+                            { Part = RequestPart.Method
+                              Operator = PredicateOperator.Equals
+                              Index = None
+                              Value = httpMethod
+                              Location = location }
+
+                        let withTemplate =
+                            match template with
+                            | Some t -> " with the template \"" + t + "\""
+                            | None -> ""
+
+                        let forHandler =
+                            match named with
+                            | Some n -> " for the handler \"" + n + "\""
+                            | None -> ""
+
+                        let handlerPredicate =
+                            named
+                            |> Option.map (fun n ->
+                                { Part = RequestPart.Query
+                                  Operator = PredicateOperator.Equals
+                                  Index = None
+                                  Value = $"handler={n}"
+                                  Location = location })
+                            |> Option.toList
+
+                        { Id = ""
+                          ApplicationId = ctx.Project.ProjectId
+                          HandlerUnit = unit.Id
+                          HandlerMember = handler.Display
+                          Location = point |> Option.map Attribution.toLocation
+                          Category = EffectCategory.HttpIn
+                          Predicates = methodPredicate :: PlatformRouting.templatePredicates route location @ handlerPredicate
+                          HttpMethod = Some httpMethod
+                          Route = Some route
+                          Completeness = Completeness.Complete
+                          Forms = [ RouteForm.PlatformRouting ]
+                          Evidence =
+                            { Steps =
+                                [ step $"{registration.Caller.Ref.Display} maps Razor Pages with {registration.Declared.Display} (rule {registration.Rule.Id})" registration.Caller.Ref registrationPoint
+                                  step $"{page.Ref.FullName} is the page {identifier}{withTemplate} (rule {rule.Id})" handler None
+                                  step $"{handler.Display} handles its {httpMethod} requests{forHandler}" handler point ] } }))))
+    | _ -> []

@@ -381,6 +381,14 @@
     { "id": "http-in.grpc-method", "assembly": "Grpc.Core.Api", "type": "Grpc.Core.Method`2",
       "members": [".ctor"], "kind": "metadata", "category": "http-in",
       "payload": [{ "argument": 1, "role": "grpc-service-name" }, { "argument": 2, "role": "grpc-method-name" }] },
+    // Razor Pages: MapRazorPages() maps the pages compiled into the application. Each is a class carrying
+    // [RazorCompiledItemMetadata(key, value)]: the "Identifier" key's value is the page's file, "RouteTemplate" its
+    // @page template (the payload's property names the key, argument 1 is the value).
+    { "id": "http-in.map-razor-pages", "assembly": "Microsoft.AspNetCore.Mvc.RazorPages", "type": "Microsoft.AspNetCore.Builder.RazorPagesEndpointRouteBuilderExtensions",
+      "members": ["MapRazorPages"], "kind": "registration", "category": "http-in", "payload": [{ "argument": 0, "role": "razor-pages" }] },
+    { "id": "http-in.razor-page-metadata", "assembly": "Microsoft.AspNetCore.Razor.Runtime", "type": "Microsoft.AspNetCore.Razor.Hosting.RazorCompiledItemMetadataAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in",
+      "payload": [{ "argument": 1, "property": "Identifier", "role": "razor-identifier" }, { "argument": 1, "property": "RouteTemplate", "role": "razor-route-template" }] },
     // SignalR: MapHub<THub>(endpoints, pattern) maps a hub. Clients connect at the pattern and invoke the hub's public
     // methods by name; "hub-type" is the index of the type argument that is the hub. [HubMethodName] renames one.
     { "id": "http-in.map-hub", "assembly": "Microsoft.AspNetCore.SignalR", "type": "Microsoft.AspNetCore.Builder.HubEndpointRouteBuilderExtensions",

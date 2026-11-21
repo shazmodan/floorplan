@@ -43,6 +43,29 @@ let tests =
               Golden.check "csharp.exit-points.txt" (ExitPointTests.render (csharpModelNet10.Force()))
           }
 
+          test "Razor Pages: each page model handler is an entry point at the page's route" {
+              let m = csharpModel.Force()
+
+              let pages =
+                  entries m "CSharp.Controllers"
+                  |> List.filter (fun e -> e.HandlerMember.Contains ".Pages.Shop." || e.HandlerMember.StartsWith "AspNetCoreGeneratedDocument.")
+                  |> List.map (fun e ->
+                      e.HttpMethod,
+                      e.Route,
+                      e.HandlerMember,
+                      e.Predicates |> List.filter (fun p -> p.Part = RequestPart.Query) |> List.map (fun p -> p.Value))
+                  |> List.sort
+
+              Expect.equal
+                  pages
+                  [ Some "GET", Some "/Admin/Audit", "AspNetCoreGeneratedDocument.Areas_Admin_Pages_Audit::ExecuteAsync", []
+                    Some "GET", Some "/Shop", "CSharp.Controllers.Pages.Shop.IndexModel::OnGet", []
+                    Some "GET", Some "/Shop/Index", "CSharp.Controllers.Pages.Shop.IndexModel::OnGet", []
+                    Some "GET", Some "/Shop/Item/{id:int}", "CSharp.Controllers.Pages.Shop.ItemModel::OnGetAsync", []
+                    Some "POST", Some "/Shop/Item/{id:int}", "CSharp.Controllers.Pages.Shop.ItemModel::OnPostRemove", [ "handler=Remove" ] ]
+                  "an Index page at its folder too, a template after the path, a named handler, an area page without a model"
+          }
+
           test "SignalR: each hub method clients can invoke is an entry point at the hub's pattern" {
               let m = csharpModel.Force()
 
@@ -758,7 +781,11 @@ let tests =
               let m = csharpModel.Force()
 
               let routes =
-                  entries m "CSharp.Controllers" |> List.map (fun e -> defaultArg e.HttpMethod "*", defaultArg e.Route "-") |> List.sort
+                  entries m "CSharp.Controllers"
+                  // The application's Razor Pages have a test of their own.
+                  |> List.filter (fun e -> not (e.HandlerMember.Contains ".Pages.Shop." || e.HandlerMember.StartsWith "AspNetCoreGeneratedDocument."))
+                  |> List.map (fun e -> defaultArg e.HttpMethod "*", defaultArg e.Route "-")
+                  |> List.sort
 
               Expect.equal
                   routes

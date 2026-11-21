@@ -146,6 +146,16 @@ Also new, outside the recognizer:
   an argument count as well: `String.Join`, `String.Concat`, and the `System.Collections.Generic` methods that
   take a sequence (`AddRange`, `UnionWith`). Fixture: `CSharp.Effects/EntityFramework.cs`
   (`CSharp.Effects.Reporting` for queries across methods, `CSharp.Effects.Printing` for queries passed in).
+- **Razor Pages**: `MapRazorPages()` (`http-in.map-razor-pages`, role `"razor-pages"`) maps the pages compiled
+  into the application. Each page is a class carrying `[RazorCompiledItemMetadata(key, value)]`; the rule
+  `http-in.razor-page-metadata` names the keys whose values are the page's file (`"Identifier"`,
+  `/Pages/Shop/Item.cshtml`) and its `@page` template (`"RouteTemplate"`). The route is the file's path under
+  `/Pages` (`/Areas/{area}/Pages` for an area, `/{area}/...`), an `Index` page at its folder too, followed by the
+  template unless it starts with `/`. The page's model (the type of its `Model` property) handles requests with
+  its `On{Verb}[Name][Async]` methods: one complete entry point per method, at its HTTP method; a named handler
+  (`OnPostRemove`) has the query condition `handler=Remove`. A page whose model has none answers GET itself (its
+  generated `ExecuteAsync`). Conventions that change page routes (`AddPageRoute`) are not read. Fixture:
+  `CSharp.Controllers` (`Pages/`, `Areas/Admin/Pages/`).
 - **SignalR hubs**: `MapHub<THub>(pattern)` is a registration (`http-in.map-hub`) whose `"hub-type"` payload is
   the index of the type argument that is the hub. SignalR is part of the shared framework, which is not followed,
   and invokes hub methods by name through reflection, so they are read from the hub's declaration, as MVC actions
