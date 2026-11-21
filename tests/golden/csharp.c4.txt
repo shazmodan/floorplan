@@ -1,0 +1,57 @@
+software-system | system | CSharp | - | in - | - | 15 sources
+external-system | external:database | Database | - | in - | - | 45 sources
+external-system | external:filesystem | File system | - | in - | - | 87 sources
+external-system | external:http | HTTP services | - | in - | - | 7 sources
+external-system | external:http:api.example.org | api.example.org | - | in - | - | 7 sources
+external-system | external:http:api.github.com | api.github.com | - | in - | - | 2 sources
+external-system | external:http:status.example.org | status.example.org | - | in - | - | 1 sources
+external-system | external:library:Amazon.DynamoDBv2 | Amazon.DynamoDBv2 | - | in - | - | 1 sources
+external-system | external:library:Amazon.S3 | Amazon.S3 | - | in - | - | 2 sources
+external-system | external:library:Amazon.SQS | Amazon.SQS | - | in - | - | 1 sources
+external-system | external:library:Azure.Messaging.ServiceBus | Azure.Messaging.ServiceBus | - | in - | - | 1 sources
+external-system | external:library:Azure.Storage.Blobs | Azure.Storage.Blobs | - | in - | - | 2 sources
+external-system | external:library:Grpc.Core | Grpc.Core | - | in - | - | 1 sources
+external-system | external:library:MailKit | MailKit | - | in - | - | 2 sources
+external-system | external:library:MassTransit | MassTransit | - | in - | - | 1 sources
+external-system | external:library:Microsoft.AspNetCore.SignalR.Client | Microsoft.AspNetCore.SignalR.Client | - | in - | - | 1 sources
+external-system | external:library:Microsoft.EntityFrameworkCore | Microsoft.EntityFrameworkCore | - | in - | - | 8 sources
+external-system | external:library:MongoDB.Driver | MongoDB.Driver | - | in - | - | 3 sources
+external-system | external:library:NServiceBus | NServiceBus | - | in - | - | 1 sources
+external-system | external:library:RabbitMQ.Client | RabbitMQ.Client | - | in - | - | 3 sources
+external-system | external:library:SendGrid | SendGrid | - | in - | - | 1 sources
+external-system | external:library:StackExchange.Redis | StackExchange.Redis | - | in - | - | 5 sources
+external-system | external:messaging | Message broker | - | in - | - | 15 sources
+external-system | external:native | Native libraries | - | in - | - | 1 sources
+external-system | external:network | Network | - | in - | - | 4 sources
+external-system | external:processes | Operating system | - | in - | - | 3 sources
+person | person:user | User | - | in - | - | 67 sources
+external:filesystem -> system | notifies of changed files | - | 1 sources
+external:messaging -> system | delivers messages to | - | 15 sources
+person:user -> system | sends HTTP requests to | HTTP | 67 sources
+system -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 45 sources
+system -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 30 sources
+system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 6 more | 56 sources
+system -> external:http | sends HTTP requests | AWSSDK.SQS, Flurl.Http, HTTP and 1 more | 7 sources
+system -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
+system -> external:http:api.github.com | sends HTTP requests | HTTP | 2 sources
+system -> external:http:status.example.org | sends HTTP requests | HTTP | 1 sources
+system -> external:library:Amazon.DynamoDBv2 | reads and writes data | Amazon.DynamoDBv2 | 1 sources
+system -> external:library:Amazon.S3 | sends HTTP requests | Amazon.S3 | 2 sources
+system -> external:library:Amazon.SQS | sends and receives over the network | Amazon.SQS | 1 sources
+system -> external:library:Azure.Messaging.ServiceBus | sends and receives over the network | Azure.Messaging.ServiceBus | 1 sources
+system -> external:library:Azure.Storage.Blobs | sends HTTP requests | Azure.Storage.Blobs | 2 sources
+system -> external:library:Grpc.Core | sends HTTP requests | Grpc.Core | 1 sources
+system -> external:library:MailKit | sends and receives over the network | MailKit | 2 sources
+system -> external:library:MassTransit | sends and receives over the network | MassTransit | 1 sources
+system -> external:library:Microsoft.AspNetCore.SignalR.Client | sends and receives over the network | Microsoft.AspNetCore.SignalR.Client | 1 sources
+system -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | Microsoft.EntityFrameworkCore | 8 sources
+system -> external:library:MongoDB.Driver | reads and writes data | MongoDB.Driver | 3 sources
+system -> external:library:NServiceBus | sends and receives over the network | NServiceBus | 1 sources
+system -> external:library:RabbitMQ.Client | sends and receives over the network | RabbitMQ.Client | 3 sources
+system -> external:library:SendGrid | sends HTTP requests | SendGrid | 1 sources
+system -> external:library:StackExchange.Redis | reads and writes data | StackExchange.Redis | 3 sources
+system -> external:library:StackExchange.Redis | sends and receives over the network | StackExchange.Redis | 2 sources
+system -> external:native | calls native code | - | 1 sources
+system -> external:network | sends and receives over the network | AWSSDK.SQS, RabbitMQ.Client, StackExchange.Redis and 1 more | 4 sources
+system -> external:processes | starts or inspects processes | MassTransit, NLog | 3 sources
+view context | context of system | 27 elements

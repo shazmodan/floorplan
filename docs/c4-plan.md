@@ -27,7 +27,7 @@ stopped.
 | # | Iteration | Branch | Status |
 |---|---|---|---|
 | 1 | Plan, model types, an empty model in every run | `claude/c4-model-plan` | done |
-| 2 | Level 1, system context: the system, its users and the external systems | `claude/c4-system-context` | |
+| 2 | Level 1, system context: the system, its users and the external systems | `claude/c4-system-context` | done |
 | 3 | Level 2, containers: applications, libraries, and links between applications | `claude/c4-containers` | |
 | 4 | Level 3, components: the units of each container | `claude/c4-components` | |
 | 5 | Level 4, code: the types and members of each component | `claude/c4-code` | |
@@ -133,3 +133,29 @@ nothing but the finished analysis model: no IL, no compiler. It depends on `Floo
 `Floorplan.Layout`, and is checked as language-neutral by the architecture tests. `Pipeline.buildModel` derives
 the model last ("Deriving the C4 model"); for now `derive` returns an empty one. The JSON round-trip test covers
 the new types.
+
+### 2026-11-21: iteration 2
+
+`C4.derive` gives the system context: the solution as the software system (`system`), a `person:user` for HTTP
+routes, and an external system per thing reached, with relationships between them and one view, `context`.
+`C4.describe` renders the model as text for the goldens `tests/golden/shop.c4.txt` and `csharp.c4.txt`
+(`tests/Floorplan.Tests/C4Tests.fs`).
+
+How external systems are named, as found on the fixtures:
+- An HTTP call names the host of an absolute URL (`prices.example.org`, `api.github.com`). Without one, the
+  primitive's own library names the system when it is not the platform's (`Amazon.S3`, `Azure.Storage.Blobs`);
+  otherwise it is "HTTP services". Flurl, AWS's HTTP pipeline and log4net's appenders end there.
+- A database or network call names the primitive's library (`StackExchange.Redis`, `MongoDB.Driver`,
+  `Microsoft.EntityFrameworkCore`, `RabbitMQ.Client`); the platform's own (`System.Data`, `System.Net`) give
+  "Database" and "Network". The library a call goes through (`ViaAssembly`, e.g. Dapper) is the technology.
+- A namespace of the solution names no library: a Refit interface is the primitive of its calls and is declared
+  in the solution, so its calls are "HTTP services". A namespace under another library's is that library
+  (`Azure.Storage.Blobs.Specialized` is `Azure.Storage.Blobs`).
+- Files, processes and native code are one element each. Environment and nondeterminism, and low-confidence exit
+  points, are left out, as the website hides them by default.
+
+Left over: who sends a message is not known. `EntryPoint` keeps no rule, and its evidence names only the
+solution's own members, so every message consumer is called by one "Message broker". Carrying the registration
+rule (or its assembly) on `EntryPoint` would name it; 13 places make entry points. A queue an application both
+sends to and consumes could also give it, from the exit point's library.
+

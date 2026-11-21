@@ -1,0 +1,11 @@
+software-system | system | Shop | - | in - | - | 5 sources
+external-system | external:filesystem | File system | - | in - | - | 4 sources
+external-system | external:http:prices.example.org | prices.example.org | - | in - | - | 1 sources
+external-system | external:processes | Operating system | - | in - | - | 2 sources
+person | person:user | User | - | in - | - | 3 sources
+person:user -> system | sends HTTP requests to | HTTP | 3 sources
+system -> external:filesystem | reads files | - | 2 sources
+system -> external:filesystem | writes files | - | 2 sources
+system -> external:http:prices.example.org | sends HTTP requests | HTTP | 1 sources
+system -> external:processes | starts or inspects processes | - | 2 sources
+view context | context of system | 5 elements
