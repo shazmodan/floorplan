@@ -78,6 +78,31 @@ namespace CSharp.Messaging.Publishing
     }
 }
 
+namespace CSharp.Messaging.Sales
+{
+    using NServiceBus;
+
+    public record PlaceOrder(string Id) : ICommand;
+
+    // NServiceBus: the endpoint finds its handlers by scanning the application; Handle runs for each message.
+    public class PlaceOrderHandler : IHandleMessages<PlaceOrder>
+    {
+        public Task Handle(PlaceOrder message, IMessageHandlerContext context) => File.AppendAllTextAsync("sales.log", message.Id);
+    }
+
+    public static class SalesEndpoint
+    {
+        public static async Task StartAsync()
+        {
+            var config = new EndpointConfiguration("Sales");
+            config.UseTransport(new LearningTransport());
+            config.UseSerialization<SystemJsonSerializer>();
+            var endpoint = await Endpoint.Start(config);
+            await endpoint.Send("Sales", new PlaceOrder("1"));
+        }
+    }
+}
+
 namespace CSharp.Messaging.Refunds
 {
     // Receiving in a loop of its own: the method that receives is the handler.

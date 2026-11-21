@@ -1959,3 +1959,71 @@ let componentEntries (ctx: AppContext) : EntryPoint list =
                                 [ step $"{r.Caller.Ref.Display} maps the routed components of {assembly} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
                                   step $"{component.Ref.FullName} is routed at \"{template}\"; {handler.Display} runs when it is rendered" handler point ] } }))))
     |> Option.defaultValue []
+
+// ---- Handlers found by scanning ----
+
+/// Handlers a library finds by scanning the application's assembly, with no registration of their own: a
+/// registration whose rule has a "scanned-handlers" payload (NServiceBus's Endpoint.Start) makes every type of the
+/// application that implements a member of the callback rule for the type the payload's property names a handler
+/// (IHandleMessages<T>.Handle). Each is an entry point at the message type its first parameter is.
+let scannedEntries (ctx: AppContext) : EntryPoint list =
+    let set = ctx.Program.Set
+
+    PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
+    |> List.filter (fun r -> hasRole "scanned-handlers" r.Rule)
+    |> List.tryHead
+    |> Option.map (fun r ->
+        let category = defaultArg r.Rule.Category EffectCategory.Network
+        let registrationPoint = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
+        let scanned = (r.Rule.Payload |> List.find (fun p -> p.Role = "scanned-handlers")).Property
+
+        ctx.Program.Users
+        |> List.filter (fun (p, _) -> p.ProjectId = ctx.Project.ProjectId)
+        |> List.collect (fun (_, a) -> a.Types)
+        |> List.filter (fun t -> not t.IsAbstract && not t.IsInterface && not t.IsCompilerGenerated)
+        |> List.collect (fun t ->
+            ctx.Matcher.Callbacks t.Ref
+            |> List.filter (fun rule -> rule.Category = Some category && Some rule.Type = scanned)
+            |> List.collect (fun rule ->
+                match set.TryType { Assembly = rule.Assembly; FullName = rule.Type } with
+                | None -> []
+                | Some(declaring, _) ->
+                    // A generic interface implemented for several message types gives one method per type.
+                    t.Methods
+                    |> List.filter (fun m ->
+                        m.IsPublic
+                        && not m.IsStatic
+                        && rule.Members |> List.exists (fun p -> Matcher.MemberMatches p m.Ref.Name)
+                        && declaring.Methods |> List.exists (fun d -> d.Ref.Name = m.Ref.Name && d.Ref.ParameterCount = m.Ref.ParameterCount))
+                    |> List.map (fun m -> t, rule, m)))
+        |> List.distinctBy (fun (_, _, m) -> m.Ref.Key)
+        |> List.choose (fun (t, rule, m) ->
+            let handler = m.Ref
+            let point = firstPoint set handler
+
+            let projectId =
+                match set.Origin handler.Type.Assembly with
+                | User pid -> pid
+                | _ -> ctx.Project.ProjectId
+
+            ctx.Program.Attributor.Attribute(projectId, handler, point)
+            |> Option.map (fun unit ->
+                let message = handler.ParameterTypes |> List.tryHead
+                let messageName = defaultArg message "message"
+
+                { Id = ""
+                  ApplicationId = ctx.Project.ProjectId
+                  HandlerUnit = unit.Id
+                  HandlerMember = handler.Display
+                  Location = point |> Option.map Attribution.toLocation
+                  Category = category
+                  Predicates = []
+                  HttpMethod = None
+                  Route = message
+                  Completeness = if message.IsSome then Completeness.Complete else Completeness.Unresolved
+                  Forms = [ RouteForm.PlatformRouting ]
+                  Evidence =
+                    { Steps =
+                        [ step $"{r.Caller.Ref.Display} starts {r.Declared.Display}, which finds the handlers of the application by scanning it (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
+                          step $"{t.Ref.FullName} implements {rule.Type}: {handler.Display} handles each {messageName} (rule {rule.Id})" handler point ] } })))
+    |> Option.defaultValue []
