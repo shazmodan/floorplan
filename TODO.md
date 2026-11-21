@@ -6,11 +6,13 @@ Work that is known and not yet done. Remove an item when its branch is merged.
 
 In the order they are worth doing: the first ones change results already shown, the later ones add new inputs.
 
-1. **Resolve names read from configuration**: a queue, topic or route named in `appsettings.json` or an options
-   class (`options.Value.QueueName`) is unresolved. Next step: `Configured.fs` already reads `appsettings*.json`;
-   evaluate `IConfiguration["Section:Key"]` and `GetSection(...).Bind`/`Configure<TOptions>(section)` to the value
-   there. Also: a Redis channel made with `RedisChannel.Literal("...")` shows as `unresolved` (the Redis
-   subscription in `CSharp.Clients`); `RedisChannel.Literal` should be transparent, as `op_Implicit(string)` is.
+1. **Resolve names read from configuration in routes**: a payload or queue name read from `appsettings.json`
+   (`configuration["Queues:Orders"]`, `IOptions<T>.Value.Name`) has its value, but the symbolic run that finds
+   minimal API routes and other registrations (`Symbolic.fs`) does not read settings, so
+   `app.MapGet(configuration["Routes:Health"], ...)` is unresolved. Also unread: a property of a nested options
+   object (`options.Value.Rabbit.Queue`), an options object kept in a field (`_options = options.Value`), and
+   named options (`Configure<T>("name", section)`). Next step: give `Machine` the project's `Values.Settings`
+   and evaluate a setting call to a constant there.
 2. **Give Razor-generated code units**: Blazor components and Razor pages compile from `.razor`/`.cshtml` files
    into generated code, which structure analysis compiles but makes no units of, so their handlers are attributed
    to the project's global namespace unit. Next step: map a generated type to its source file through the

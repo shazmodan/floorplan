@@ -324,7 +324,7 @@ let platformEntries (ctx: AppContext) : EntryPoint list =
         match handlerSpec, templateSpec with
         | Some hs, Some ts ->
             let operands = r.Flow.OperandsAt r.Offset
-            let evaluator = Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set)
+            let evaluator = Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set, (fun _ _ -> Values.Origin.unknown), ctx.Program.SettingsFor ctx.Project)
             let handlerOperand = List.tryItem (Values.operandIndex r.Declared false hs.Argument) operands
 
             match handlerOperand |> Option.bind (PlatformRouting.handlerOf set r.Flow) with
@@ -568,7 +568,7 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
             r.Rule.Payload
             |> List.tryFind (fun p -> p.Role = role)
             |> Option.bind (fun spec ->
-                let evaluator = Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set)
+                let evaluator = Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set, (fun _ _ -> Values.Origin.unknown), ctx.Program.SettingsFor ctx.Project)
 
                 match evaluator.Operand(r.Offset, Values.operandIndex r.Declared false spec.Argument) with
                 | Values.Text t -> Some t
@@ -589,7 +589,7 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                     | Some { Op = NewObj ctor } when ctor.Type.Name.Contains "AnonymousType" ->
                         match set.TryMethod ctor with
                         | Some(def, _) when def.ParameterNames.Length = ctor.ParameterCount ->
-                            let evaluator = Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set)
+                            let evaluator = Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set, (fun _ _ -> Values.Origin.unknown), ctx.Program.SettingsFor ctx.Project)
 
                             let routing =
                                 List.zip def.ParameterNames (r.Flow.OperandsAt o)
@@ -1032,7 +1032,7 @@ let hubEntries (ctx: AppContext) : EntryPoint list =
         match List.tryItem hubSpec.Argument r.Declared.TypeArguments with
         | None -> []
         | Some hub ->
-            let evaluator = Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set)
+            let evaluator = Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set, (fun _ _ -> Values.Origin.unknown), ctx.Program.SettingsFor ctx.Project)
             let registrationPoint = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
             let location = registrationPoint |> Option.map Attribution.toLocation
 
@@ -1365,7 +1365,7 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
     // A queue named by an argument, or by a property of one (an SQS request's QueueUrl).
     let text (r: PlatformRouting.Registration) (spec: PayloadSpec) =
         let evaluator =
-            Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set, fun m n -> ctx.Program.Producers.Member(m, n))
+            Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set, (fun m n -> ctx.Program.Producers.Member(m, n)), ctx.Program.SettingsFor ctx.Project)
 
         let index = Values.operandIndex r.Declared (isNewObj r) spec.Argument
 

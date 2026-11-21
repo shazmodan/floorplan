@@ -42,6 +42,7 @@ let private kind (text: string) context =
     | "query" -> Query
     | "configured" -> Configured
     | "self-log" -> SelfLog
+    | "setting" -> Setting
     | other -> fail $"{context}: unknown kind \"{other}\"."
 
 let private requestPart (text: string) context =
@@ -141,6 +142,35 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
         | Some "attribute" -> LogCall.Attribute
         | Some other -> fail $"{context}: unknown logCall \"{other}\"."
 
+    let setting =
+        match e.TryGetProperty "setting" with
+        | true, s when s.ValueKind = JsonValueKind.Object ->
+            if k <> Setting then
+                fail $"{context}: only setting rules read a setting."
+
+            let reads =
+                match required s "reads" context with
+                | "value" -> SettingRead.Value
+                | "section" -> SettingRead.Section
+                | "own" -> SettingRead.Own
+                | "options" -> SettingRead.Options
+                | "bind-section" -> SettingRead.BindSection
+                | "bind-path" -> SettingRead.BindPath
+                | other -> fail $"{context}: unknown setting read \"{other}\"."
+
+            let argument =
+                match s.TryGetProperty "argument" with
+                | true, a -> a.GetInt32()
+                | _ when reads = SettingRead.Own || reads = SettingRead.Options -> -1
+                | _ -> fail $"{context}: a setting read by key names its argument."
+
+            Some
+                { Reads = reads
+                  Argument = argument
+                  Prefix = str s "prefix" }
+        | _ when k = Setting -> fail $"{context}: setting rules say what they read."
+        | _ -> None
+
     { Id = id
       Assembly = defaultArg (str e "assembly") ""
       Type = required e "type" context
@@ -188,6 +218,7 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
 
             true
         | _ -> false
+      Setting = setting
       Source = source }
 
 /// A catalog document as written, before `extends` is resolved.

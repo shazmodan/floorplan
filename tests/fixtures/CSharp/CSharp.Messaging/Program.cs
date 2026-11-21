@@ -147,3 +147,48 @@ namespace CSharp.Messaging.Payments
         }
     }
 }
+
+namespace CSharp.Messaging.Configured
+{
+    using Microsoft.Extensions.Configuration;
+    using Microsoft.Extensions.DependencyInjection;
+    using Microsoft.Extensions.Options;
+
+    public class AuditQueue
+    {
+        public string Name { get; set; } = "";
+    }
+
+    // Queues named in appsettings.json: read by key, through a section, and through an options class bound to one.
+    public class Invoices(IConfiguration configuration, IOptions<AuditQueue> audit)
+    {
+        public static void Configure(IServiceCollection services, IConfiguration configuration) =>
+            services.Configure<AuditQueue>(configuration.GetSection("Queues:Audit"));
+
+        public void Start(IModel channel)
+        {
+            var invoices = new EventingBasicConsumer(channel);
+            invoices.Received += (_, e) => File.AppendAllText("invoices.log", Encoding.UTF8.GetString(e.Body.ToArray()));
+            channel.BasicConsume(configuration["Queues:Invoices"], true, invoices);
+
+            var credits = new EventingBasicConsumer(channel);
+            credits.Received += (_, e) => File.AppendAllText("credits.log", e.RoutingKey);
+            channel.BasicConsume(configuration.GetSection("Queues").GetSection("Credits").Value, true, credits);
+
+            var reminders = new EventingBasicConsumer(channel);
+            reminders.Received += (_, e) => File.AppendAllText("reminders.log", e.RoutingKey);
+            channel.BasicConsume(configuration.GetValue<string>("Queues:Reminders"), true, reminders);
+
+            var audits = new EventingBasicConsumer(channel);
+            audits.Received += (_, e) => File.AppendAllText("audits.log", e.RoutingKey);
+            channel.BasicConsume(audit.Value.Name, true, audits);
+        }
+
+        // A queue the configuration does not name: unresolved.
+        public void Missing(IModel channel) =>
+            channel.BasicPublish("", configuration["Queues:Missing"], null, Encoding.UTF8.GetBytes("x"));
+
+        public void Notify(IModel channel) =>
+            channel.BasicPublish("", configuration["Queues:Invoices"], null, Encoding.UTF8.GetBytes("x"));
+    }
+}

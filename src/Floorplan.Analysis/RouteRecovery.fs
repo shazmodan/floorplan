@@ -54,7 +54,7 @@ type Recovery(ctx: AppContext) =
             g
 
     let evaluator (flow: Flow) =
-        Values.Evaluator(flow, ctx.Program.Recognizers, Values.constantReturn set)
+        Values.Evaluator(flow, ctx.Program.Recognizers, Values.constantReturn set, (fun _ _ -> Values.Origin.unknown), ctx.Program.SettingsFor ctx.Project)
 
     /// The constant operand `index` of the instruction at `offset`. `captured` holds constants known from the
     /// caller: those a closure was created with, by field (in the closure's own code, a read of one of its fields

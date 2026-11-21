@@ -821,6 +821,43 @@
     { "id": "callback.log4net-appender", "assembly": "log4net", "type": "log4net.Appender.IAppender",
       "members": ["DoAppend"], "includeDerivedTypes": true, "kind": "callback" },
     { "id": "configured.log4net-appender", "assembly": "log4net", "type": "log4net.Appender.IAppender", "kind": "configured",
-      "configuration": { "xml": { "root": "log4net", "elements": ["appender"], "typeAttribute": "type" } } }
+      "configuration": { "xml": { "root": "log4net", "elements": ["appender"], "typeAttribute": "type" } } },
+    // Settings read from the application's configuration (Microsoft.Extensions.Configuration): a key read with a
+    // constant name has the value appsettings.json in the output folder gives it (appsettings.Production.json
+    // overriding, as in the default environment). An options class bound to a section (Configure<T>(section))
+    // has the values under that section, read through IOptions<T>.Value.
+    { "id": "setting.configuration-item", "assembly": "Microsoft.Extensions.Configuration.Abstractions",
+      "type": "Microsoft.Extensions.Configuration.IConfiguration", "members": ["get_Item"], "includeDerivedTypes": true,
+      "kind": "setting", "setting": { "reads": "value", "argument": 0 } },
+    { "id": "setting.configuration-section", "assembly": "Microsoft.Extensions.Configuration.Abstractions",
+      "type": "Microsoft.Extensions.Configuration.IConfiguration", "members": ["GetSection"], "includeDerivedTypes": true,
+      "kind": "setting", "setting": { "reads": "section", "argument": 0 } },
+    { "id": "setting.configuration-required-section", "assembly": "Microsoft.Extensions.Configuration.Abstractions",
+      "type": "Microsoft.Extensions.Configuration.ConfigurationExtensions", "members": ["GetRequiredSection"],
+      "kind": "setting", "setting": { "reads": "section", "argument": 1 } },
+    { "id": "setting.configuration-section-value", "assembly": "Microsoft.Extensions.Configuration.Abstractions",
+      "type": "Microsoft.Extensions.Configuration.IConfigurationSection", "members": ["get_Value"], "includeDerivedTypes": true,
+      "kind": "setting", "setting": { "reads": "own" } },
+    { "id": "setting.connection-string", "assembly": "Microsoft.Extensions.Configuration.Abstractions",
+      "type": "Microsoft.Extensions.Configuration.ConfigurationExtensions", "members": ["GetConnectionString"],
+      "kind": "setting", "setting": { "reads": "value", "argument": 1, "prefix": "ConnectionStrings" } },
+    { "id": "setting.configuration-get-value", "assembly": "Microsoft.Extensions.Configuration.Binder",
+      "type": "Microsoft.Extensions.Configuration.ConfigurationBinder", "members": ["GetValue"],
+      "whenParameters": ["Microsoft.Extensions.Configuration.IConfiguration", "System.String"],
+      "kind": "setting", "setting": { "reads": "value", "argument": 1 } },
+    { "id": "setting.options-value", "assembly": "Microsoft.Extensions.Options", "type": "Microsoft.Extensions.Options.IOptions`1",
+      "members": ["get_Value"], "includeDerivedTypes": true, "kind": "setting", "setting": { "reads": "options" } },
+    { "id": "setting.options-monitor-value", "assembly": "Microsoft.Extensions.Options", "type": "Microsoft.Extensions.Options.IOptionsMonitor`1",
+      "members": ["get_CurrentValue"], "includeDerivedTypes": true, "kind": "setting", "setting": { "reads": "options" } },
+    { "id": "setting.options-configure", "assembly": "Microsoft.Extensions.Options.ConfigurationExtensions",
+      "type": "Microsoft.Extensions.DependencyInjection.OptionsConfigurationServiceCollectionExtensions", "members": ["Configure"],
+      "whenParameters": ["Microsoft.Extensions.DependencyInjection.IServiceCollection", "Microsoft.Extensions.Configuration.IConfiguration"],
+      "kind": "setting", "setting": { "reads": "bind-section", "argument": 1 } },
+    { "id": "setting.options-bind", "assembly": "Microsoft.Extensions.Options.ConfigurationExtensions",
+      "type": "Microsoft.Extensions.DependencyInjection.OptionsBuilderConfigurationExtensions", "members": ["Bind"],
+      "kind": "setting", "setting": { "reads": "bind-section", "argument": 1 } },
+    { "id": "setting.options-bind-configuration", "assembly": "Microsoft.Extensions.Options.ConfigurationExtensions",
+      "type": "Microsoft.Extensions.DependencyInjection.OptionsBuilderConfigurationExtensions", "members": ["BindConfiguration"],
+      "kind": "setting", "setting": { "reads": "bind-path", "argument": 1 } }
   ]
 }

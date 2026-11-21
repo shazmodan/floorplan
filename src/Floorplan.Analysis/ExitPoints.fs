@@ -21,7 +21,9 @@ type ProjectContext =
       Attributor: Attribution.Attributor
       Recognizers: ICodegenRecognizer list
       /// What constructors and other methods set on the objects they produce, read from their bodies.
-      Producers: Values.Producers }
+      Producers: Values.Producers
+      /// The application's configuration, for values read from it.
+      Settings: Values.Settings }
 
 /// An exit point before ids are assigned.
 type Found =
@@ -108,7 +110,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
     let found = ResizeArray<Found>()
 
     let evaluatorOf (flow: DataFlow.Flow) =
-        Values.Evaluator(flow, ctx.Recognizers, Values.constantReturn ctx.Set, fun m n -> ctx.Producers.Member(m, n))
+        Values.Evaluator(flow, ctx.Recognizers, Values.constantReturn ctx.Set, (fun m n -> ctx.Producers.Member(m, n)), ctx.Settings)
     let diagnostics = ResizeArray<Diagnostic>()
     let projectId = ctx.Project.ProjectId
 

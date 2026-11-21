@@ -281,6 +281,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
             seen
 
     let graphs = Dictionary<string, CallGraph>()
+    let settings = Dictionary<string, Values.Settings>()
 
     member _.Set = set
 
@@ -322,6 +323,83 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
     member _.CachedAssemblies = List.ofSeq cachedAssemblies
 
     member _.CatalogFor(project: AnalyzedProject) = catalogFor project
+
+    /// A project's configuration: the settings its output folder's appsettings.json gives, and the options
+    /// types code in its reference closure binds to a section of them.
+    member this.SettingsFor(project: AnalyzedProject) : Values.Settings =
+        match settings.TryGetValue project.ProjectId with
+        | true, s -> s
+        | _ ->
+            let matcher: Matcher = this.MatcherFor project
+            let values = Configured.appSettings (IO.Path.GetDirectoryName project.AssemblyPath)
+
+            let unbound: Values.Settings =
+                { Read = matcher.Setting
+                  Value =
+                    fun k ->
+                        match values.TryGetValue k with
+                        | true, v -> Some v
+                        | _ -> None
+                  Bound = fun _ -> None
+                  SectionTypes =
+                    matcher.Catalog.Rules
+                    |> List.filter (fun r -> r.Kind = Setting && r.Setting |> Option.exists (fun s -> s.Reads = SettingRead.Own))
+                    |> List.map (fun r -> r.Type)
+                    |> Set.ofList }
+
+            // Configure<T>(section), AddOptions<T>().Bind(section) and BindConfiguration(path), with a constant
+            // section: an options type bound to two sections is bound to neither.
+            let closure = closureOf project
+
+            let binds =
+                [ for (_, a) in userList do
+                      if closure.Contains a.Name then
+                          for t in a.Types do
+                              for m in t.Methods do
+                                  match m.Body.Value with
+                                  | Some body ->
+                                      let calls =
+                                          body.Instructions
+                                          |> Array.choose (fun i ->
+                                              match i.Op with
+                                              | Call r
+                                              | CallVirt r when not r.TypeArguments.IsEmpty ->
+                                                  match matcher.Setting r with
+                                                  | Some spec when spec.Reads = SettingRead.BindSection || spec.Reads = SettingRead.BindPath ->
+                                                      Some(i.Offset, r, spec)
+                                                  | _ -> None
+                                              | _ -> None)
+
+                                      if calls.Length > 0 then
+                                          match DataFlow.ofMethod m with
+                                          | Some flow ->
+                                              let evaluator =
+                                                  Values.Evaluator(flow, recognizers, Values.constantReturn set, (fun m n -> producers.Member(m, n)), unbound)
+
+                                              for (offset, r, spec) in calls do
+                                                  let index = if r.HasThis then spec.Argument + 1 else spec.Argument
+
+                                                  let section =
+                                                      if spec.Reads = SettingRead.BindPath then
+                                                          match evaluator.Operand(offset, index) with
+                                                          | Values.Text path -> Some path
+                                                          | _ -> None
+                                                      else
+                                                          evaluator.Section(offset, index)
+
+                                                  yield r.TypeArguments.Head.FullName, section
+                                          | None -> ()
+                                  | None -> () ]
+                |> List.groupBy fst
+                |> List.choose (fun (t, sections) ->
+                    match sections |> List.map snd |> List.distinct with
+                    | [ Some s ] -> Some(t, s)
+                    | _ -> None)
+                |> Map.ofList
+
+            let s = { unbound with Bound = fun t -> Map.tryFind t binds }
+            settings[project.ProjectId] <- s
+            s
 
     member this.MatcherFor(project: AnalyzedProject) =
         let catalog = (this.CatalogFor project).Catalog
@@ -569,7 +647,8 @@ let exitPoints (program: Program) (input: AnalysisInput) : EffectResult =
                   Dispatch = program.DispatchFor project
                   Attributor = attributor
                   Recognizers = program.Recognizers
-                  Producers = program.Producers }
+                  Producers = program.Producers
+                  Settings = program.SettingsFor project }
 
             ExitPoints.analyze ctx assembly)
 
