@@ -21,6 +21,11 @@ writes a static website to `./floorplan-out` that shows:
 4. **Exit points**: outbound HTTP, database, file, process, messages sent and other side-effects, the module each
    belongs to, and the dependency it goes through.
 5. **Traces**: the side-effects each entry point can cause.
+6. **Architecture**: a [C4 model](https://c4model.com) of the solution in its four levels, derived from the
+   above: the system with its users and the external systems it reaches, its applications (containers), each
+   application's components (the modules of its own project and of the libraries it references) and each
+   component's code (its types). Each element opens the level below, and each relationship lists the entry and
+   exit points behind it.
 
 Floorplan knows no web framework. It reads the compiled code of the solution and its dependencies and follows it
 down to the .NET primitives that actually touch the network, the disk or a database. A versioned, data-driven
@@ -78,6 +83,7 @@ application data folder), so a second run is about twice as fast.
 | Entry points | Handlers from platform registrations, from handler tables, and from request-data tracking (a user function called on a branch that request data decides); read from declarations where the platform finds them by reflection (MVC controllers, Razor Pages, Blazor components, SignalR hubs, gRPC services, Azure Functions) |
 | Other inputs | Message consumers (RabbitMQ, Azure Service Bus, MassTransit, NServiceBus, Kafka, SQS, Redis, a SignalR client) at their queue, background work (hosted services, timers, Quartz.NET and Hangfire jobs), file watchers at their path, and a command-line program's start |
 | Outputs through client libraries | Where a library sends from loops or pipelines of its own, the catalog names the calls: Entity Framework Core, Redis, MongoDB, Cosmos DB, DynamoDB, S3, Azure Blob Storage, Refit and gRPC clients, message publishing, email (MailKit, SendGrid); NLog, log4net and Serilog targets named in configuration files |
+| Architecture (C4) | Derived from the results above, with no list of products: an external system is named after a URL's host or the namespace of the client library that reaches it; applications that send to a queue another consumes, or call another's route on a local host, are linked (`docs/c4-plan.md`) |
 | Routes | Recovered from the conditions on request data: equality, prefixes, constant regexes, path segments, list patterns, active patterns, table keys. Reported as complete, partial or unresolved; never guessed |
 
 Blind spots (reflection, run-time code generation, `dynamic`) are listed under Diagnostics. C# projects get
