@@ -49,6 +49,14 @@ In the order they are worth doing: the first ones change results already shown, 
    external systems (the C# fixtures' containers view puts 24 in one row); keep relationship labels from
    overlapping where lines meet; dependencies between types, for "uses" at the code level. Next step: carry the
    registration rule's assembly on `EntryPoint`.
+10. **Export the C4 model as Structurizr DSL**: write a `workspace.dsl` next to the site (or behind an option such
+    as `--c4-dsl`), so the model opens in Structurizr Lite and its PlantUML and Mermaid exporters. People map to
+    `person`, the system and external systems to `softwareSystem`, applications to `container`, modules to
+    `component`, each with its technology, description and tags; relationships are written at their most specific
+    level (Structurizr lifts them itself), with a `systemContext`, `container` and `component` view per Floorplan
+    view. The DSL has no code level: write types as components tagged "Code", or leave them out. Identifiers must
+    be DSL-safe (Floorplan's ids hold `:`, `|` and `.`). Next step: a golden `workspace.dsl` for Shop, checked
+    by parsing it with the Structurizr CLI if it is available.
 
 ## Later, if wanted (from docs/library-payloads-plan.md)
 
