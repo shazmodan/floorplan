@@ -104,10 +104,11 @@ let tests =
 
               Expect.equal
                   consumers
-                  [ Some "orders", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Orders.Listener/<>c::<Start>b__0_0"
+                  [ Some "CSharp.Messaging.Shipping.OrderShipped", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Shipping.ShippedConsumer::Consume"
+                    Some "orders", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Orders.Listener/<>c::<Start>b__0_0"
                     Some "payments", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Payments.Listener::Handle"
                     Some "returns", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Orders.Listener::OnReturn" ]
-                  "RabbitMQ's Received with BasicConsume (two overloads), Service Bus's ProcessMessageAsync with CreateProcessor; not the error handler"
+                  "RabbitMQ's Received with BasicConsume (two overloads), Service Bus's ProcessMessageAsync with CreateProcessor, MassTransit's AddConsumer at its message type; not the error handler, nor a consumer never registered"
 
               let traced (handler: string) =
                   let e = entries m "CSharp.Messaging" |> List.find (fun e -> e.HandlerMember = handler)

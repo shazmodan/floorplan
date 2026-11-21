@@ -464,6 +464,13 @@
     { "id": "network.rabbitmq-model-consume", "assembly": "RabbitMQ.Client", "type": "RabbitMQ.Client.IModel",
       "members": ["BasicConsume"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
       "payload": [{ "argument": 0, "role": "message-queue" }, { "argument": -1, "role": "message-consumer" }] },
+    // MassTransit: AddConsumer<T>() registers a consumer ("consumer-type" is the index of the type argument), and the
+    // bus calls its IConsumer<TMessage>.Consume for each message of that type.
+    { "id": "network.masstransit-add-consumer", "assembly": "MassTransit", "type": "MassTransit.IRegistrationConfigurator",
+      "members": ["AddConsumer"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
+      "payload": [{ "argument": 0, "role": "consumer-type" }] },
+    { "id": "network.masstransit-consumer", "assembly": "MassTransit.Abstractions", "type": "MassTransit.IConsumer`1",
+      "members": ["Consume"], "includeDerivedTypes": true, "kind": "callback", "category": "network" },
     { "id": "network.servicebus-process-message", "assembly": "Azure.Messaging.ServiceBus", "type": "Azure.Messaging.ServiceBus.ServiceBusProcessor",
       "members": ["add_ProcessMessageAsync"], "includeDerivedTypes": true, "kind": "registration", "category": "network",
       "payload": [{ "argument": 0, "role": "message-handler" }] },
