@@ -343,6 +343,113 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
             generatedReach[target.Key] <- r
             r
 
+    // Typed HTTP clients: a registration whose rule has a "typed-http-client" payload (AddHttpClient<TClient>(c =>
+    // c.BaseAddress = new Uri(...))) gives the client type a base address, set by the configuration delegate it is
+    // handed. A relative URL the client sends through the HttpClient it keeps in a field is relative to it.
+    let baseAddresses =
+        lazy
+            (let delegateTarget (f: DataFlow.Flow) (values: DataFlow.Values) =
+                values
+                |> Set.toList
+                |> List.tryPick (function
+                    | DataFlow.Pushed o ->
+                        match f.InstructionAt o with
+                        | Some { Op = NewObj _ } ->
+                            f.OperandsAt o
+                            |> List.tryPick (fun vs ->
+                                vs
+                                |> Set.toList
+                                |> List.tryPick (function
+                                    | DataFlow.Pushed fo ->
+                                        match f.InstructionAt fo with
+                                        | Some { Op = (LdFtn m | LdVirtFtn m) } -> Some m
+                                        | _ -> None
+                                    | _ -> None))
+                        | _ -> None
+                    | _ -> None)
+
+             // The constant a configuration method sets the client's BaseAddress to, by the catalog's rule for it.
+             let baseAddressIn (configure: MethodRef) =
+                 match ctx.Set.TryMethod configure with
+                 | Some(def, _) ->
+                     match def.Body.Value, DataFlow.ofMethod def with
+                     | Some body, Some f ->
+                         body.Instructions
+                         |> Array.tryPick (fun ins ->
+                             match ins.Op with
+                             | CallVirt setter
+                             | Call setter when
+                                 ctx.Matcher.Match setter |> List.exists (fun r -> r.Payload |> List.exists (fun p -> p.Role = "base-address"))
+                                 ->
+                                 match (evaluatorOf f).Operand(ins.Offset, 1) with
+                                 | Values.Text t -> Some t
+                                 | _ -> None
+                             | _ -> None)
+                     | _ -> None
+                 | None -> None
+
+             assembly.Types
+             |> List.collect (fun t -> t.Methods)
+             |> List.collect (fun m ->
+                 match m.Body.Value with
+                 | None -> []
+                 | Some body ->
+                     body.Instructions
+                     |> Array.toList
+                     |> List.choose (fun ins ->
+                         match ins.Op with
+                         | Call d
+                         | CallVirt d ->
+                             match ctx.Matcher.Registration d with
+                             | Some rule when rule.Payload |> List.exists (fun p -> p.Role = "typed-http-client") ->
+                                 let spec = rule.Payload |> List.find (fun p -> p.Role = "typed-http-client")
+
+                                 match List.tryItem spec.Argument d.TypeArguments, DataFlow.ofMethod m with
+                                 | Some client, Some f ->
+                                     f.OperandsAt ins.Offset
+                                     |> List.tryPick (delegateTarget f)
+                                     |> Option.bind baseAddressIn
+                                     |> Option.map (fun b -> client.FullName, b)
+                                 | _ -> None
+                             | _ -> None
+                         | _ -> None))
+             |> dict)
+
+    // A relative URL sent through a typed client's HttpClient field, with the client's base address before it.
+    let withBaseAddress (m: MethodDef) (f: DataFlow.Flow) (offset: int) (payload: Payload option) =
+        match payload with
+        | Some p when p.Role = "url" && baseAddresses.Value.ContainsKey m.Ref.Type.FullName ->
+            let relative =
+                match p.Value with
+                | Some v when v.StartsWith "http://" || v.StartsWith "https://" -> None
+                | Some v -> Some v
+                | None -> if p.Kind = PayloadKind.Dynamic then Some "{…}" else None
+
+            // Only through a field of the client itself (the HttpClient its constructor is given).
+            let throughField =
+                match f.OperandsAt offset with
+                | receiver :: _ ->
+                    receiver
+                    |> Set.toList
+                    |> List.exists (function
+                        | DataFlow.Pushed o ->
+                            match f.InstructionAt o, f.OperandsAt o with
+                            | Some { Op = LdFld fld }, [ owner ] -> owner.Contains(DataFlow.Argument 0) && fld.Type.FullName = m.Ref.Type.FullName
+                            | _ -> false
+                        | _ -> false)
+                | [] -> false
+
+            match relative with
+            | Some r when throughField ->
+                let joined = baseAddresses.Value[m.Ref.Type.FullName].TrimEnd('/') + "/" + r.TrimStart('/')
+
+                Some
+                    { p with
+                        Value = Some joined
+                        Kind = if joined.Contains "{…}" then PayloadKind.Template else p.Kind }
+            | _ -> payload
+        | _ -> payload
+
     for t in assembly.Types do
         let implementsMarked = markedImplementations t
 
@@ -602,7 +709,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
 
                             let payload =
                                 flow.Value
-                                |> Option.bind (fun f -> sinkPayload f ins.Offset declared isNewObj hit)
+                                |> Option.bind (fun f -> sinkPayload f ins.Offset declared isNewObj hit |> withBaseAddress m f ins.Offset)
                                 |> Option.orElseWith (fun () -> if hit.Rule.Payload.IsEmpty then ofQuery () else None)
 
                             // In generated code, the call that reaches it reports it (generatedSinks).

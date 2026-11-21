@@ -273,6 +273,12 @@ let tests =
                     EffectCategory.Network, "MailTransport::SendAsync", None ]
                   "email: MailKit's connection and send, SendGrid's request"
 
+              Expect.equal
+                  (calls "GitHub.GitHubClient")
+                  [ EffectCategory.HttpOut, "HttpClient::GetStringAsync", Some "https://api.github.com/repos/{…}"
+                    EffectCategory.HttpOut, "HttpClient::GetStringAsync", Some "https://api.github.com/zen" ]
+                  "a typed client's relative URLs, under the base address AddHttpClient gives it"
+
               // A SignalR client: the server invokes the handlers On registers; InvokeAsync calls a hub method.
               Expect.equal
                   (calls "Chat.Room")

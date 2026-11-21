@@ -91,6 +91,25 @@ namespace CSharp.Clients.Chat
     }
 }
 
+namespace CSharp.Clients.GitHub
+{
+    using Microsoft.Extensions.DependencyInjection;
+
+    // A typed HTTP client: AddHttpClient gives it an HttpClient with a base address, and its relative URLs are under it.
+    public class GitHubClient(HttpClient http)
+    {
+        public Task<string> Repo(string name) => http.GetStringAsync($"repos/{name}");
+
+        public Task<string> Zen() => http.GetStringAsync("zen");
+    }
+
+    public static class Setup
+    {
+        public static IHttpClientBuilder Configure(IServiceCollection services) =>
+            services.AddHttpClient<GitHubClient>(c => c.BaseAddress = new Uri("https://api.github.com/"));
+    }
+}
+
 namespace CSharp.Clients.Notifications
 {
     // Email: MailKit over SMTP, SendGrid over HTTP.

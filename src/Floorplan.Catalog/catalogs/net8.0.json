@@ -33,6 +33,13 @@
     { "id": "http-out.grpc-client", "assembly": "Grpc.Core.Api", "type": "Grpc.Core.CallInvoker",
       "members": ["BlockingUnaryCall", "AsyncUnaryCall", "AsyncServerStreamingCall", "AsyncClientStreamingCall", "AsyncDuplexStreamingCall"],
       "includeDerivedTypes": true, "kind": "sink", "category": "http-out", "payload": [{ "argument": 0, "role": "grpc-method" }] },
+    // Typed HTTP clients: AddHttpClient<TClient>(configure) gives the client type ("typed-http-client" is the index of
+    // the type argument) an HttpClient that the configuration delegate sets up; the constant it sets BaseAddress to
+    // ("base-address") comes before the relative URLs the client sends.
+    { "id": "http-out.typed-client", "assembly": "Microsoft.Extensions.Http", "type": "Microsoft.Extensions.DependencyInjection.HttpClientFactoryServiceCollectionExtensions",
+      "members": ["AddHttpClient"], "kind": "registration", "category": "http-out", "payload": [{ "argument": 0, "role": "typed-http-client" }] },
+    { "id": "http-out.base-address", "assembly": "System.Net.Http", "type": "System.Net.Http.HttpClient",
+      "members": ["set_BaseAddress"], "kind": "metadata", "category": "http-out", "payload": [{ "argument": 0, "role": "base-address" }] },
     { "id": "http-out.websocket-client", "assembly": "System.Net.WebSockets.Client", "type": "System.Net.WebSockets.ClientWebSocket",
       "members": ["ConnectAsync"], "kind": "sink", "category": "http-out", "payload": [{ "argument": 0, "role": "url" }] },
 
