@@ -28,7 +28,7 @@ stopped.
 |---|---|---|---|
 | 1 | Plan, model types, an empty model in every run | `claude/c4-model-plan` | done |
 | 2 | Level 1, system context: the system, its users and the external systems | `claude/c4-system-context` | done |
-| 3 | Level 2, containers: applications, libraries, and links between applications | `claude/c4-containers` | |
+| 3 | Level 2, containers: applications, libraries, and links between applications | `claude/c4-containers` | done |
 | 4 | Level 3, components: the units of each container | `claude/c4-components` | |
 | 5 | Level 4, code: the types and members of each component | `claude/c4-code` | |
 | 6 | Diagram layout of every view | `claude/c4-layout` | |
@@ -83,7 +83,9 @@ C4 tools (Structurizr DSL, PlantUML). Possible later.
 - `C4Relationship`: `From`, `To`, `Description` (e.g. "GET /api/orders", "reads and writes", "sends to queue
   orders"), `Technology` (e.g. "HTTP", "RabbitMQ"), and `Sources`.
 - `C4View`: `Id`, `Level` (context, containers, components, code), `Scope` (the element the view is of: the
-  system, a container, a component), the element ids it shows, and its `Layout` (a `GraphLayout`, iteration 6).
+  system, a container, a component), the element ids it shows, the relationships between them (iteration 3: the
+  model's relationships lifted to the shown elements that contain their ends, and merged, so a renderer draws a
+  view without knowing the model's hierarchy), and its `Layout` (a `GraphLayout`, iteration 6).
 - `C4Model`: elements, relationships, views. A relationship is stored between the most specific elements
   (a code element and an external system); a view shows it between the elements it shows that contain them, so
   the levels agree with one another by construction.
@@ -158,4 +160,25 @@ Left over: who sends a message is not known. `EntryPoint` keeps no rule, and its
 solution's own members, so every message consumer is called by one "Message broker". Carrying the registration
 rule (or its assembly) on `EntryPoint` would name it; 13 places make entry points. A queue an application both
 sends to and consumes could also give it, from the exit point's library.
+
+### 2026-11-21: iteration 3
+
+Containers are the application projects, and library projects no application references (tagged "library"),
+inside the system. Each is tagged with what starts its code: "web application", "message consumer", "file
+watcher", "background worker"; its technology is language and target framework. Relationships are now stored
+from containers, and each view has its own (`C4View.Relationships`, lifted and merged): `context` shows them
+from the system, `containers` from each container.
+
+An exit point in library code belongs to the applications whose entry points are traced to it, or to every
+application referencing the library when none is (code the traces do not reach). On Shop, Shop.Storage's file
+write belongs to Shop.Web only.
+
+Between applications, as found on the fixtures: a message to a queue another application consumes links them
+(every consumer). An HTTP call links them only when its URL names no host, a local host or the application's own
+name, and exactly one other application has the route: matching by path alone linked `CSharp.Clients`' call to
+`https://status.example.org/health` to four applications with a `/health` route. A matched call is not also an
+external system. Shop's worker now calls the web application's `/api/orders` on `localhost:5000` (a new exit
+point in `shop.exit-points.txt`). `CSharp.Messaging` sending to `orders` links it to `CSharp.Functions`, which
+consumes a queue of that name: in the fixtures the two are different brokers, which only knowing the library of
+the consumer's entry point (left over from iteration 2) would tell apart.
 

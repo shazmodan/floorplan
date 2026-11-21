@@ -302,8 +302,11 @@ type C4View =
       Level: C4Level
       /// The element the view is of.
       Scope: string
-      /// The elements it shows; the relationships between them follow from the model's.
+      /// The elements it shows.
       Elements: string list
+      /// The model's relationships between the elements shown: each between the shown elements that contain its
+      /// ends, those with the same ends and description merged.
+      Relationships: C4Relationship list
       Layout: GraphLayout }
 
 /// The C4 model of the solution, in four levels (docs/c4-plan.md).

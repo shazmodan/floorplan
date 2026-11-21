@@ -55,6 +55,7 @@ let private sample =
                     Level = C4Level.Context
                     Scope = "system"
                     Elements = [ "system" ]
+                    Relationships = []
                     Layout = AnalysisModel.emptyGraph } ] } }
 
 [<Tests>]

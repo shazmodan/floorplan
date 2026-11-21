@@ -6,4 +6,5 @@ http-out | Shop.Web:Shop.Web.Handlers | Shop.Web.Handlers::price | System.Net.Ht
 process | Shop.Worker:Shop.Worker.Program | Shop.Worker.Program/ProcessNotifier::Shop.Core.Orders.INotifier.Notify | System.Diagnostics.Process::Start | via - | literal:notify | Shop/Shop.Worker/Program.fs:8
 environment | Shop.Worker:Shop.Worker.Program | Shop.Worker.Program::main | System.Console::get_Out | via FSharp.Core | - | Shop/Shop.Worker/Program.fs:14
 process | Shop.Worker:Shop.Worker.Program | Shop.Worker.Program::main | System.Diagnostics.Process::Start | via - | literal:echo | Shop/Shop.Worker/Program.fs:15
+http-out | Shop.Worker:Shop.Worker.Program | Shop.Worker.Program::main | System.Net.Http.HttpClient::GetStringAsync | via - | literal:http://localhost:5000/api/orders | Shop/Shop.Worker/Program.fs:19
 -- diagnostics

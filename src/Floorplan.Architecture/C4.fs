@@ -160,9 +160,140 @@ let private element (id: string) (kind: C4Kind) (name: string) (description: str
       Tags = []
       Sources = [] }
 
-/// Level 1: the solution as one system, who calls it and what it uses.
-let private context (model: AnalysisModel) : C4Element list * C4Relationship list =
+let private languageName (language: Language) =
+    match language with
+    | Language.FSharp -> "F#"
+    | Language.CSharp -> "C#"
+    | Language.OtherLanguage -> "other language"
+
+let private idOf (kind: C4Kind) (ext: External) =
+    (if kind = C4Kind.Person then "person:" else "external:") + ext.Key
+
+/// The id of a project's container.
+let containerId (projectId: string) = "container:" + projectId
+
+/// A relationship as found, before relationships with the same ends and description are merged.
+type private Link =
+    { From: string
+      To: string
+      Description: string
+      Technology: string option
+      Source: string }
+
+let private merge (links: Link list) : C4Relationship list =
+    links
+    |> List.groupBy (fun l -> l.From, l.To, l.Description)
+    |> List.map (fun ((from, target, description), ls) ->
+        { From = from
+          To = target
+          Description = description
+          Technology = joined (ls |> List.choose (fun l -> l.Technology))
+          Sources = ls |> List.map (fun l -> l.Source) |> List.distinct |> List.sort })
+    |> List.sortBy (fun r -> r.From, r.To, r.Description)
+
+/// The path of a URL, without its scheme and host: what another application's route would be.
+let private pathOf (url: string) =
+    if url.StartsWith "http://" || url.StartsWith "https://" then
+        let rest = url.Substring(url.IndexOf "//" + 2)
+
+        match rest.IndexOf '/' with
+        | -1 -> "/"
+        | i -> rest.Substring i
+    elif url.StartsWith "/" then
+        url
+    else
+        "/" + url
+
+/// What an application is, from how its code is started: the kinds of its entry points.
+let private kindsOf (entries: EntryPoint list) =
+    let has (categories: EffectCategory list) =
+        entries |> List.exists (fun e -> List.contains e.Category categories)
+
+    [ if has [ EffectCategory.HttpIn ] then "web application"
+      if has [ EffectCategory.Network ] then "message consumer"
+      if has [ EffectCategory.FilesystemRead; EffectCategory.FilesystemWrite ] then "file watcher"
+      if has [ EffectCategory.Background ] then "background worker" ]
+
+let private sentence (kinds: string list) =
+    match kinds with
+    | [] -> "An application"
+    | [ one ] -> $"A {one}"
+    | many -> "A " + String.Join(", ", List.take (many.Length - 1) many) + " and " + List.last many
+
+/// Everything the levels are derived from, worked out once.
+type private Facts =
+    { Model: AnalysisModel
+      Exits: ExitPoint list
+      Solution: Solution
+      Library: ExitPoint -> string option
+      /// The containers each exit point belongs to: its application's, or for library code, the applications
+      /// whose entry points reach it (every one that references the library, when none is traced to it).
+      ContainersOf: ExitPoint -> string list
+      /// The projects that are containers: applications, and libraries no application references.
+      Containers: Project list }
+
+let private factsOf (model: AnalysisModel) : Facts =
     let exits = model.ExitPoints |> List.filter (shown model)
+
+    let solution =
+        { Namespaces = model.Units |> List.map (fun u -> u.Name) |> Set.ofList
+          Assemblies = model.Projects |> List.map (fun p -> p.Name) |> Set.ofList }
+
+    let root = rootsOf (exits |> List.choose (libraryIn solution))
+    let projects = model.Projects |> List.filter (fun p -> not p.IsTestProject)
+    let byId = projects |> List.map (fun p -> p.Id, p) |> Map.ofList
+    let projectOfUnit = model.Units |> List.map (fun u -> u.Id, u.ProjectId) |> Map.ofList
+
+    // Every project a project references, directly or not, itself included.
+    let rec closure (seen: Set<string>) (id: string) =
+        if seen.Contains id then
+            seen
+        else
+            match byId.TryFind id with
+            | Some p -> p.ProjectReferences |> List.fold closure (seen.Add id)
+            | None -> seen.Add id
+
+    let applications = projects |> List.filter (fun p -> p.IsApplication)
+    let closures = applications |> List.map (fun a -> a.Id, closure Set.empty a.Id) |> Map.ofList
+
+    let usedBy (projectId: string) =
+        applications |> List.filter (fun a -> closures[a.Id].Contains projectId) |> List.map (fun a -> a.Id)
+
+    let applicationOfEntry = model.EntryPoints |> List.map (fun e -> e.Id, e.ApplicationId) |> Map.ofList
+
+    let reachedBy =
+        model.Traces
+        |> List.collect (fun t ->
+            match applicationOfEntry.TryFind t.EntryPointId with
+            | Some app -> t.ExitPointIds |> List.map (fun x -> x, app)
+            | None -> [])
+        |> List.groupBy fst
+        |> List.map (fun (x, apps) -> x, apps |> List.map snd |> Set.ofList)
+        |> Map.ofList
+
+    let containersOf (x: ExitPoint) =
+        match projectOfUnit.TryFind x.Unit with
+        | None -> []
+        | Some p when byId.TryFind p |> Option.exists (fun p -> p.IsApplication) -> [ containerId p ]
+        | Some p ->
+            let users = usedBy p
+            let traced = users |> List.filter (fun a -> reachedBy.TryFind x.Id |> Option.exists (fun s -> s.Contains a))
+
+            match traced, users with
+            | _ :: _, _ -> traced |> List.map containerId
+            | [], _ :: _ -> users |> List.map containerId
+            | [], [] -> [ containerId p ]
+
+    { Model = model
+      Exits = exits
+      Solution = solution
+      Library = fun x -> libraryIn solution x |> Option.map root
+      ContainersOf = containersOf
+      Containers = applications @ (projects |> List.filter (fun p -> not p.IsApplication && (usedBy p.Id).IsEmpty)) }
+
+/// Level 1 and 2: the solution as one system, its containers, who calls them and what they use.
+let private containers (facts: Facts) : C4Element list * Link list =
+    let model = facts.Model
     let applications = model.Projects |> List.filter (fun p -> p.IsApplication)
 
     let system =
@@ -170,70 +301,157 @@ let private context (model: AnalysisModel) : C4Element list * C4Relationship lis
               $"The {model.Solution.Name} solution: {applications.Length} applications in {model.Projects.Length} projects" with
             Sources = model.Projects |> List.map (fun p -> p.Id) }
 
-    let solution =
-        { Namespaces = model.Units |> List.map (fun u -> u.Name) |> Set.ofList
-          Assemblies = model.Projects |> List.map (fun p -> p.Name) |> Set.ofList }
+    let containerElements =
+        facts.Containers
+        |> List.map (fun p ->
+            let entries = model.EntryPoints |> List.filter (fun e -> e.ApplicationId = p.Id)
+            let kinds = if p.IsApplication then kindsOf entries else [ "library" ]
+            let description = if p.IsApplication then sentence kinds else "A library no application references"
 
-    let root = rootsOf (exits |> List.choose (libraryIn solution))
-    let library (x: ExitPoint) = libraryIn solution x |> Option.map root
-    let outbound = exits |> List.map (fun x -> externalOf library x, x)
+            { element (containerId p.Id) C4Kind.Container p.Name description with
+                Technology = Some $"{languageName p.Language} · {p.TargetFramework}"
+                Parent = Some SystemId
+                Tags = kinds
+                Sources = p.Id :: (entries |> List.map (fun e -> e.Id)) })
+
+    // One application sends what another receives: a message to a queue it consumes (every consumer of the
+    // queue), or a request to its route, when the URL names no host but a local one or the application's own name
+    // and exactly one other application has the route. Only exact matches of known text.
+    let localHost (url: string) (application: string) =
+        match hostOf (Some { Role = ""; Kind = PayloadKind.Literal; Value = Some url }) with
+        | None -> true
+        | Some host ->
+            let name = host.Split(':').[0].ToLowerInvariant()
+            name = "localhost" || name = "127.0.0.1" || name = application.ToLowerInvariant()
+
+    let between =
+        [ for x in facts.Exits do
+              match x.Category, x.Payload with
+              | EffectCategory.Network, Some { Kind = PayloadKind.Literal; Value = Some queue } ->
+                  for e in model.EntryPoints do
+                      if e.Category = EffectCategory.Network && e.Route = Some queue then
+                          for c in facts.ContainersOf x do
+                              if c <> containerId e.ApplicationId then
+                                  yield
+                                      { From = c
+                                        To = containerId e.ApplicationId
+                                        Description = $"sends messages to {queue}"
+                                        Technology = technologyOf facts.Solution facts.Library x
+                                        Source = x.Id }
+              | EffectCategory.HttpOut, Some { Kind = PayloadKind.Literal; Value = Some url } ->
+                  let path = pathOf url
+
+                  for c in facts.ContainersOf x do
+                      let receivers =
+                          model.EntryPoints
+                          |> List.filter (fun e -> e.Category = EffectCategory.HttpIn && e.Route = Some path && containerId e.ApplicationId <> c)
+                          |> List.map (fun e -> e.ApplicationId)
+                          |> List.distinct
+
+                      match receivers with
+                      | [ application ] when localHost url application ->
+                          yield
+                              { From = c
+                                To = containerId application
+                                Description = $"sends HTTP requests to {path}"
+                                Technology = technologyOf facts.Solution facts.Library x
+                                Source = x.Id }
+                      | _ -> ()
+              | _ -> () ]
+
+    // A call matched to another application goes there, not to an external system.
+    let matched = between |> List.map (fun l -> l.Source) |> Set.ofList
+
+    let outbound =
+        facts.Exits |> List.filter (fun x -> not (matched.Contains x.Id)) |> List.map (fun x -> externalOf facts.Library x, x)
+
     let inbound = model.EntryPoints |> List.choose (fun e -> callerOf e |> Option.map (fun c -> c, e))
 
     let externals =
         (outbound |> List.map (fun (ext, x) -> (C4Kind.ExternalSystem, ext), x.Id))
         @ (inbound |> List.map (fun (c, e) -> c, e.Id))
-        |> List.groupBy (fun ((_, ext), _) -> ext.Key)
-        |> List.map (fun (key, items) ->
+        |> List.groupBy (fun ((kind, ext), _) -> idOf kind ext)
+        |> List.map (fun (id, items) ->
             let (kind, ext), _ = items.Head
-            let id = (if kind = C4Kind.Person then "person:" else "external:") + key
             { element id kind ext.Name ext.Description with Sources = items |> List.map snd |> List.distinct |> List.sort })
-
-    let idOf (kind: C4Kind) (ext: External) = (if kind = C4Kind.Person then "person:" else "external:") + ext.Key
 
     let uses =
         outbound
-        |> List.groupBy (fun (ext, x) -> ext.Key, verb x.Category)
-        |> List.map (fun ((_, description), items) ->
-            let ext, _ = items.Head
-            let xs = items |> List.map snd
-
-            { From = SystemId
-              To = idOf C4Kind.ExternalSystem ext
-              Description = description
-              Technology = joined (xs |> List.choose (technologyOf solution library))
-              Sources = xs |> List.map (fun x -> x.Id) |> List.sort })
+        |> List.collect (fun (ext, x) ->
+            facts.ContainersOf x
+            |> List.map (fun c ->
+                { From = c
+                  To = idOf C4Kind.ExternalSystem ext
+                  Description = verb x.Category
+                  Technology = technologyOf facts.Solution facts.Library x
+                  Source = x.Id }))
 
     let calls =
         inbound
-        |> List.groupBy (fun ((kind, ext), e) -> idOf kind ext, callerVerb e)
-        |> List.map (fun ((from, description), items) ->
-            { From = from
-              To = SystemId
-              Description = description
-              Technology =
-                match (snd items.Head).Category with
-                | EffectCategory.HttpIn -> Some "HTTP"
-                | _ -> None
-              Sources = items |> List.map (fun (_, e) -> e.Id) |> List.sort })
+        |> List.map (fun ((kind, ext), e) ->
+            { From = idOf kind ext
+              To = containerId e.ApplicationId
+              Description = callerVerb e
+              Technology = (if e.Category = EffectCategory.HttpIn then Some "HTTP" else None)
+              Source = e.Id })
 
-    system :: (externals |> List.sortBy (fun e -> e.Id)), (calls @ uses) |> List.sortBy (fun r -> r.From, r.To, r.Description)
+    system :: containerElements @ (externals |> List.sortBy (fun e -> e.Id)), calls @ uses @ between
+
+/// The model's links as one view shows them: each end moved up to the shown element that contains it, links
+/// within one shown element dropped, and the rest merged.
+let private lifted (elements: Map<string, C4Element>) (shown: string list) (links: Link list) =
+    let shownSet = Set.ofList shown
+
+    let rec within (id: string) (guard: int) =
+        if shownSet.Contains id then
+            Some id
+        elif guard > 16 then
+            None
+        else
+            match elements.TryFind id |> Option.bind (fun e -> e.Parent) with
+            | Some parent -> within parent (guard + 1)
+            | None -> None
+
+    links
+    |> List.choose (fun l ->
+        match within l.From 0, within l.To 0 with
+        | Some f, Some t when f <> t -> Some { l with From = f; To = t }
+        | _ -> None)
+    |> merge
 
 /// The C4 model of the solution the analysis model describes.
 let derive (model: AnalysisModel) : C4Model =
-    let elements, relationships = context model
+    let facts = factsOf model
+    let elements, links = containers facts
+    let byId = elements |> List.map (fun e -> e.Id, e) |> Map.ofList
+
+    let ofKind (kinds: C4Kind list) =
+        elements |> List.filter (fun e -> List.contains e.Kind kinds) |> List.map (fun e -> e.Id)
+
+    let outside = ofKind [ C4Kind.Person; C4Kind.ExternalSystem ]
+
+    let view (id: string) (level: C4Level) (scope: string) (shown: string list) =
+        { Id = id
+          Level = level
+          Scope = scope
+          Elements = shown
+          Relationships = lifted byId shown links
+          Layout = AnalysisModel.emptyGraph }
 
     { Elements = elements
-      Relationships = relationships
+      Relationships = merge links
       Views =
-        [ { Id = "context"
-            Level = C4Level.Context
-            Scope = SystemId
-            Elements = elements |> List.map (fun e -> e.Id)
-            Layout = AnalysisModel.emptyGraph } ] }
+        [ view "context" C4Level.Context SystemId (SystemId :: outside)
+          view "containers" C4Level.Containers SystemId (ofKind [ C4Kind.Container ] @ outside) ] }
 
-/// The model as text, one line per element and relationship, for people and golden files.
+/// The model as text, one line per element and relationship, then each view with its relationships, for people
+/// and golden files.
 let describe (c4: C4Model) : string list =
     let kind (k: C4Kind) = Json.unionName k
+
+    let relationship (r: C4Relationship) =
+        let tech = r.Technology |> Option.defaultValue "-"
+        $"{r.From} -> {r.To} | {r.Description} | {tech} | {r.Sources.Length} sources"
 
     [ for e in c4.Elements do
           let tech = e.Technology |> Option.defaultValue "-"
@@ -241,7 +459,9 @@ let describe (c4: C4Model) : string list =
           let tags = if e.Tags.IsEmpty then "-" else String.Join(",", e.Tags)
           yield $"{kind e.Kind} | {e.Id} | {e.Name} | {tech} | in {parent} | {tags} | {e.Sources.Length} sources"
       for r in c4.Relationships do
-          let tech = r.Technology |> Option.defaultValue "-"
-          yield $"{r.From} -> {r.To} | {r.Description} | {tech} | {r.Sources.Length} sources"
+          yield relationship r
       for v in c4.Views do
-          yield $"view {v.Id} | {Json.unionName v.Level} of {v.Scope} | {v.Elements.Length} elements" ]
+          yield $"view {v.Id} | {Json.unionName v.Level} of {v.Scope} | {v.Elements.Length} elements"
+
+          for r in v.Relationships do
+              yield "  " + relationship r ]

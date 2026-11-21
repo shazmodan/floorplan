@@ -1,4 +1,19 @@
 software-system | system | CSharp | - | in - | - | 15 sources
+container | container:CSharp.Blazor | CSharp.Blazor | C# · net8.0 | in system | web application | 4 sources
+container | container:CSharp.Clients | CSharp.Clients | C# · net8.0 | in system | message consumer | 3 sources
+container | container:CSharp.Cloud | CSharp.Cloud | C# · net8.0 | in system | message consumer | 2 sources
+container | container:CSharp.Controllers | CSharp.Controllers | C# · net8.0 | in system | web application | 15 sources
+container | container:CSharp.Conventional | CSharp.Conventional | C# · net8.0 | in system | web application | 7 sources
+container | container:CSharp.Delegated | CSharp.Delegated | C# · net8.0 | in system | web application | 7 sources
+container | container:CSharp.Effects | CSharp.Effects | C# · net8.0 | in system | background worker | 2 sources
+container | container:CSharp.Endpoints | CSharp.Endpoints | C# · net8.0 | in system | web application | 16 sources
+container | container:CSharp.Functions | CSharp.Functions | C# · net8.0 | in system | web application,message consumer,background worker | 5 sources
+container | container:CSharp.Grpc | CSharp.Grpc | C# · net8.0 | in system | web application | 3 sources
+container | container:CSharp.Messaging | CSharp.Messaging | C# · net8.0 | in system | message consumer | 12 sources
+container | container:CSharp.Middleware | CSharp.Middleware | C# · net8.0 | in system | web application | 9 sources
+container | container:CSharp.Switch | CSharp.Switch | C# · net8.0 | in system | web application | 10 sources
+container | container:CSharp.Table | CSharp.Table | C# · net8.0 | in system | web application | 3 sources
+container | container:CSharp.Worker | CSharp.Worker | C# · net8.0 | in system | file watcher,background worker | 10 sources
 external-system | external:database | Database | - | in - | - | 45 sources
 external-system | external:filesystem | File system | - | in - | - | 87 sources
 external-system | external:http | HTTP services | - | in - | - | 7 sources
@@ -17,7 +32,7 @@ external-system | external:library:Microsoft.AspNetCore.SignalR.Client | Microso
 external-system | external:library:Microsoft.EntityFrameworkCore | Microsoft.EntityFrameworkCore | - | in - | - | 8 sources
 external-system | external:library:MongoDB.Driver | MongoDB.Driver | - | in - | - | 3 sources
 external-system | external:library:NServiceBus | NServiceBus | - | in - | - | 1 sources
-external-system | external:library:RabbitMQ.Client | RabbitMQ.Client | - | in - | - | 3 sources
+external-system | external:library:RabbitMQ.Client | RabbitMQ.Client | - | in - | - | 2 sources
 external-system | external:library:SendGrid | SendGrid | - | in - | - | 1 sources
 external-system | external:library:StackExchange.Redis | StackExchange.Redis | - | in - | - | 5 sources
 external-system | external:messaging | Message broker | - | in - | - | 15 sources
@@ -25,33 +40,160 @@ external-system | external:native | Native libraries | - | in - | - | 1 sources
 external-system | external:network | Network | - | in - | - | 4 sources
 external-system | external:processes | Operating system | - | in - | - | 3 sources
 person | person:user | User | - | in - | - | 67 sources
-external:filesystem -> system | notifies of changed files | - | 1 sources
-external:messaging -> system | delivers messages to | - | 15 sources
-person:user -> system | sends HTTP requests to | HTTP | 67 sources
-system -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 45 sources
-system -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 30 sources
-system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 6 more | 56 sources
-system -> external:http | sends HTTP requests | AWSSDK.SQS, Flurl.Http, HTTP and 1 more | 7 sources
-system -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
-system -> external:http:api.github.com | sends HTTP requests | HTTP | 2 sources
-system -> external:http:status.example.org | sends HTTP requests | HTTP | 1 sources
-system -> external:library:Amazon.DynamoDBv2 | reads and writes data | Amazon.DynamoDBv2 | 1 sources
-system -> external:library:Amazon.S3 | sends HTTP requests | Amazon.S3 | 2 sources
-system -> external:library:Amazon.SQS | sends and receives over the network | Amazon.SQS | 1 sources
-system -> external:library:Azure.Messaging.ServiceBus | sends and receives over the network | Azure.Messaging.ServiceBus | 1 sources
-system -> external:library:Azure.Storage.Blobs | sends HTTP requests | Azure.Storage.Blobs | 2 sources
-system -> external:library:Grpc.Core | sends HTTP requests | Grpc.Core | 1 sources
-system -> external:library:MailKit | sends and receives over the network | MailKit | 2 sources
-system -> external:library:MassTransit | sends and receives over the network | MassTransit | 1 sources
-system -> external:library:Microsoft.AspNetCore.SignalR.Client | sends and receives over the network | Microsoft.AspNetCore.SignalR.Client | 1 sources
-system -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | Microsoft.EntityFrameworkCore | 8 sources
-system -> external:library:MongoDB.Driver | reads and writes data | MongoDB.Driver | 3 sources
-system -> external:library:NServiceBus | sends and receives over the network | NServiceBus | 1 sources
-system -> external:library:RabbitMQ.Client | sends and receives over the network | RabbitMQ.Client | 3 sources
-system -> external:library:SendGrid | sends HTTP requests | SendGrid | 1 sources
-system -> external:library:StackExchange.Redis | reads and writes data | StackExchange.Redis | 3 sources
-system -> external:library:StackExchange.Redis | sends and receives over the network | StackExchange.Redis | 2 sources
-system -> external:native | calls native code | - | 1 sources
-system -> external:network | sends and receives over the network | AWSSDK.SQS, RabbitMQ.Client, StackExchange.Redis and 1 more | 4 sources
-system -> external:processes | starts or inspects processes | MassTransit, NLog | 3 sources
+container:CSharp.Blazor -> external:filesystem | writes files | - | 1 sources
+container:CSharp.Clients -> external:filesystem | reads files | MongoDB.Driver | 2 sources
+container:CSharp.Clients -> external:filesystem | writes files | - | 2 sources
+container:CSharp.Clients -> external:http | sends HTTP requests | HTTP | 2 sources
+container:CSharp.Clients -> external:http:api.github.com | sends HTTP requests | HTTP | 2 sources
+container:CSharp.Clients -> external:http:status.example.org | sends HTTP requests | HTTP | 1 sources
+container:CSharp.Clients -> external:library:Azure.Storage.Blobs | sends HTTP requests | Azure.Storage.Blobs | 2 sources
+container:CSharp.Clients -> external:library:MailKit | sends and receives over the network | MailKit | 2 sources
+container:CSharp.Clients -> external:library:Microsoft.AspNetCore.SignalR.Client | sends and receives over the network | Microsoft.AspNetCore.SignalR.Client | 1 sources
+container:CSharp.Clients -> external:library:MongoDB.Driver | reads and writes data | MongoDB.Driver | 3 sources
+container:CSharp.Clients -> external:library:SendGrid | sends HTTP requests | SendGrid | 1 sources
+container:CSharp.Clients -> external:library:StackExchange.Redis | reads and writes data | StackExchange.Redis | 3 sources
+container:CSharp.Clients -> external:library:StackExchange.Redis | sends and receives over the network | StackExchange.Redis | 2 sources
+container:CSharp.Clients -> external:network | sends and receives over the network | StackExchange.Redis | 1 sources
+container:CSharp.Cloud -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS | 4 sources
+container:CSharp.Cloud -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS | 5 sources
+container:CSharp.Cloud -> external:http | sends HTTP requests | AWSSDK.SQS | 1 sources
+container:CSharp.Cloud -> external:library:Amazon.DynamoDBv2 | reads and writes data | Amazon.DynamoDBv2 | 1 sources
+container:CSharp.Cloud -> external:library:Amazon.S3 | sends HTTP requests | Amazon.S3 | 2 sources
+container:CSharp.Cloud -> external:library:Amazon.SQS | sends and receives over the network | Amazon.SQS | 1 sources
+container:CSharp.Cloud -> external:network | sends and receives over the network | AWSSDK.SQS | 1 sources
+container:CSharp.Controllers -> external:filesystem | writes files | - | 3 sources
+container:CSharp.Effects -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 45 sources
+container:CSharp.Effects -> external:filesystem | reads files | NLog, Serilog, Serilog.Extensions.Logging and 2 more | 16 sources
+container:CSharp.Effects -> external:filesystem | writes files | CSharp.Wrappers, Serilog, Serilog.Extensions.Logging and 2 more | 13 sources
+container:CSharp.Effects -> external:http | sends HTTP requests | Flurl.Http, log4net | 3 sources
+container:CSharp.Effects -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
+container:CSharp.Effects -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | Microsoft.EntityFrameworkCore | 8 sources
+container:CSharp.Effects -> external:native | calls native code | - | 1 sources
+container:CSharp.Effects -> external:network | sends and receives over the network | log4net | 1 sources
+container:CSharp.Effects -> external:processes | starts or inspects processes | NLog | 2 sources
+container:CSharp.Endpoints -> external:filesystem | reads files | Serilog, Serilog.Extensions.Logging, Serilog.Sinks.File | 5 sources
+container:CSharp.Endpoints -> external:filesystem | writes files | Serilog, Serilog.Extensions.Logging, Serilog.Sinks.File | 6 sources
+container:CSharp.Functions -> external:filesystem | writes files | - | 4 sources
+container:CSharp.Grpc -> external:filesystem | writes files | - | 1 sources
+container:CSharp.Grpc -> external:library:Grpc.Core | sends HTTP requests | Grpc.Core | 1 sources
+container:CSharp.Messaging -> container:CSharp.Functions | sends messages to orders | RabbitMQ.Client | 1 sources
+container:CSharp.Messaging -> external:filesystem | reads files | NServiceBus.Core | 1 sources
+container:CSharp.Messaging -> external:filesystem | writes files | NServiceBus.Core | 12 sources
+container:CSharp.Messaging -> external:library:Azure.Messaging.ServiceBus | sends and receives over the network | Azure.Messaging.ServiceBus | 1 sources
+container:CSharp.Messaging -> external:library:MassTransit | sends and receives over the network | MassTransit | 1 sources
+container:CSharp.Messaging -> external:library:NServiceBus | sends and receives over the network | NServiceBus | 1 sources
+container:CSharp.Messaging -> external:library:RabbitMQ.Client | sends and receives over the network | RabbitMQ.Client | 2 sources
+container:CSharp.Messaging -> external:network | sends and receives over the network | RabbitMQ.Client | 1 sources
+container:CSharp.Messaging -> external:processes | starts or inspects processes | MassTransit | 1 sources
+container:CSharp.Worker -> external:filesystem | reads files | - | 2 sources
+container:CSharp.Worker -> external:filesystem | writes files | - | 9 sources
+container:CSharp.Worker -> external:http | sends HTTP requests | HTTP | 1 sources
+external:filesystem -> container:CSharp.Worker | notifies of changed files | - | 1 sources
+external:messaging -> container:CSharp.Clients | delivers messages to | - | 2 sources
+external:messaging -> container:CSharp.Cloud | delivers messages to | - | 1 sources
+external:messaging -> container:CSharp.Functions | delivers messages to | - | 1 sources
+external:messaging -> container:CSharp.Messaging | delivers messages to | - | 11 sources
+person:user -> container:CSharp.Blazor | sends HTTP requests to | HTTP | 3 sources
+person:user -> container:CSharp.Controllers | sends HTTP requests to | HTTP | 14 sources
+person:user -> container:CSharp.Conventional | sends HTTP requests to | HTTP | 6 sources
+person:user -> container:CSharp.Delegated | sends HTTP requests to | HTTP | 6 sources
+person:user -> container:CSharp.Endpoints | sends HTTP requests to | HTTP | 15 sources
+person:user -> container:CSharp.Functions | sends HTTP requests to | HTTP | 2 sources
+person:user -> container:CSharp.Grpc | sends HTTP requests to | HTTP | 2 sources
+person:user -> container:CSharp.Middleware | sends HTTP requests to | HTTP | 8 sources
+person:user -> container:CSharp.Switch | sends HTTP requests to | HTTP | 9 sources
+person:user -> container:CSharp.Table | sends HTTP requests to | HTTP | 2 sources
 view context | context of system | 27 elements
+  external:filesystem -> system | notifies of changed files | - | 1 sources
+  external:messaging -> system | delivers messages to | - | 15 sources
+  person:user -> system | sends HTTP requests to | HTTP | 67 sources
+  system -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 45 sources
+  system -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 30 sources
+  system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 6 more | 56 sources
+  system -> external:http | sends HTTP requests | AWSSDK.SQS, Flurl.Http, HTTP and 1 more | 7 sources
+  system -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
+  system -> external:http:api.github.com | sends HTTP requests | HTTP | 2 sources
+  system -> external:http:status.example.org | sends HTTP requests | HTTP | 1 sources
+  system -> external:library:Amazon.DynamoDBv2 | reads and writes data | Amazon.DynamoDBv2 | 1 sources
+  system -> external:library:Amazon.S3 | sends HTTP requests | Amazon.S3 | 2 sources
+  system -> external:library:Amazon.SQS | sends and receives over the network | Amazon.SQS | 1 sources
+  system -> external:library:Azure.Messaging.ServiceBus | sends and receives over the network | Azure.Messaging.ServiceBus | 1 sources
+  system -> external:library:Azure.Storage.Blobs | sends HTTP requests | Azure.Storage.Blobs | 2 sources
+  system -> external:library:Grpc.Core | sends HTTP requests | Grpc.Core | 1 sources
+  system -> external:library:MailKit | sends and receives over the network | MailKit | 2 sources
+  system -> external:library:MassTransit | sends and receives over the network | MassTransit | 1 sources
+  system -> external:library:Microsoft.AspNetCore.SignalR.Client | sends and receives over the network | Microsoft.AspNetCore.SignalR.Client | 1 sources
+  system -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | Microsoft.EntityFrameworkCore | 8 sources
+  system -> external:library:MongoDB.Driver | reads and writes data | MongoDB.Driver | 3 sources
+  system -> external:library:NServiceBus | sends and receives over the network | NServiceBus | 1 sources
+  system -> external:library:RabbitMQ.Client | sends and receives over the network | RabbitMQ.Client | 2 sources
+  system -> external:library:SendGrid | sends HTTP requests | SendGrid | 1 sources
+  system -> external:library:StackExchange.Redis | reads and writes data | StackExchange.Redis | 3 sources
+  system -> external:library:StackExchange.Redis | sends and receives over the network | StackExchange.Redis | 2 sources
+  system -> external:native | calls native code | - | 1 sources
+  system -> external:network | sends and receives over the network | AWSSDK.SQS, RabbitMQ.Client, StackExchange.Redis and 1 more | 4 sources
+  system -> external:processes | starts or inspects processes | MassTransit, NLog | 3 sources
+view containers | containers of system | 41 elements
+  container:CSharp.Blazor -> external:filesystem | writes files | - | 1 sources
+  container:CSharp.Clients -> external:filesystem | reads files | MongoDB.Driver | 2 sources
+  container:CSharp.Clients -> external:filesystem | writes files | - | 2 sources
+  container:CSharp.Clients -> external:http | sends HTTP requests | HTTP | 2 sources
+  container:CSharp.Clients -> external:http:api.github.com | sends HTTP requests | HTTP | 2 sources
+  container:CSharp.Clients -> external:http:status.example.org | sends HTTP requests | HTTP | 1 sources
+  container:CSharp.Clients -> external:library:Azure.Storage.Blobs | sends HTTP requests | Azure.Storage.Blobs | 2 sources
+  container:CSharp.Clients -> external:library:MailKit | sends and receives over the network | MailKit | 2 sources
+  container:CSharp.Clients -> external:library:Microsoft.AspNetCore.SignalR.Client | sends and receives over the network | Microsoft.AspNetCore.SignalR.Client | 1 sources
+  container:CSharp.Clients -> external:library:MongoDB.Driver | reads and writes data | MongoDB.Driver | 3 sources
+  container:CSharp.Clients -> external:library:SendGrid | sends HTTP requests | SendGrid | 1 sources
+  container:CSharp.Clients -> external:library:StackExchange.Redis | reads and writes data | StackExchange.Redis | 3 sources
+  container:CSharp.Clients -> external:library:StackExchange.Redis | sends and receives over the network | StackExchange.Redis | 2 sources
+  container:CSharp.Clients -> external:network | sends and receives over the network | StackExchange.Redis | 1 sources
+  container:CSharp.Cloud -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS | 4 sources
+  container:CSharp.Cloud -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS | 5 sources
+  container:CSharp.Cloud -> external:http | sends HTTP requests | AWSSDK.SQS | 1 sources
+  container:CSharp.Cloud -> external:library:Amazon.DynamoDBv2 | reads and writes data | Amazon.DynamoDBv2 | 1 sources
+  container:CSharp.Cloud -> external:library:Amazon.S3 | sends HTTP requests | Amazon.S3 | 2 sources
+  container:CSharp.Cloud -> external:library:Amazon.SQS | sends and receives over the network | Amazon.SQS | 1 sources
+  container:CSharp.Cloud -> external:network | sends and receives over the network | AWSSDK.SQS | 1 sources
+  container:CSharp.Controllers -> external:filesystem | writes files | - | 3 sources
+  container:CSharp.Effects -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 45 sources
+  container:CSharp.Effects -> external:filesystem | reads files | NLog, Serilog, Serilog.Extensions.Logging and 2 more | 16 sources
+  container:CSharp.Effects -> external:filesystem | writes files | CSharp.Wrappers, Serilog, Serilog.Extensions.Logging and 2 more | 13 sources
+  container:CSharp.Effects -> external:http | sends HTTP requests | Flurl.Http, log4net | 3 sources
+  container:CSharp.Effects -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
+  container:CSharp.Effects -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | Microsoft.EntityFrameworkCore | 8 sources
+  container:CSharp.Effects -> external:native | calls native code | - | 1 sources
+  container:CSharp.Effects -> external:network | sends and receives over the network | log4net | 1 sources
+  container:CSharp.Effects -> external:processes | starts or inspects processes | NLog | 2 sources
+  container:CSharp.Endpoints -> external:filesystem | reads files | Serilog, Serilog.Extensions.Logging, Serilog.Sinks.File | 5 sources
+  container:CSharp.Endpoints -> external:filesystem | writes files | Serilog, Serilog.Extensions.Logging, Serilog.Sinks.File | 6 sources
+  container:CSharp.Functions -> external:filesystem | writes files | - | 4 sources
+  container:CSharp.Grpc -> external:filesystem | writes files | - | 1 sources
+  container:CSharp.Grpc -> external:library:Grpc.Core | sends HTTP requests | Grpc.Core | 1 sources
+  container:CSharp.Messaging -> container:CSharp.Functions | sends messages to orders | RabbitMQ.Client | 1 sources
+  container:CSharp.Messaging -> external:filesystem | reads files | NServiceBus.Core | 1 sources
+  container:CSharp.Messaging -> external:filesystem | writes files | NServiceBus.Core | 12 sources
+  container:CSharp.Messaging -> external:library:Azure.Messaging.ServiceBus | sends and receives over the network | Azure.Messaging.ServiceBus | 1 sources
+  container:CSharp.Messaging -> external:library:MassTransit | sends and receives over the network | MassTransit | 1 sources
+  container:CSharp.Messaging -> external:library:NServiceBus | sends and receives over the network | NServiceBus | 1 sources
+  container:CSharp.Messaging -> external:library:RabbitMQ.Client | sends and receives over the network | RabbitMQ.Client | 2 sources
+  container:CSharp.Messaging -> external:network | sends and receives over the network | RabbitMQ.Client | 1 sources
+  container:CSharp.Messaging -> external:processes | starts or inspects processes | MassTransit | 1 sources
+  container:CSharp.Worker -> external:filesystem | reads files | - | 2 sources
+  container:CSharp.Worker -> external:filesystem | writes files | - | 9 sources
+  container:CSharp.Worker -> external:http | sends HTTP requests | HTTP | 1 sources
+  external:filesystem -> container:CSharp.Worker | notifies of changed files | - | 1 sources
+  external:messaging -> container:CSharp.Clients | delivers messages to | - | 2 sources
+  external:messaging -> container:CSharp.Cloud | delivers messages to | - | 1 sources
+  external:messaging -> container:CSharp.Functions | delivers messages to | - | 1 sources
+  external:messaging -> container:CSharp.Messaging | delivers messages to | - | 11 sources
+  person:user -> container:CSharp.Blazor | sends HTTP requests to | HTTP | 3 sources
+  person:user -> container:CSharp.Controllers | sends HTTP requests to | HTTP | 14 sources
+  person:user -> container:CSharp.Conventional | sends HTTP requests to | HTTP | 6 sources
+  person:user -> container:CSharp.Delegated | sends HTTP requests to | HTTP | 6 sources
+  person:user -> container:CSharp.Endpoints | sends HTTP requests to | HTTP | 15 sources
+  person:user -> container:CSharp.Functions | sends HTTP requests to | HTTP | 2 sources
+  person:user -> container:CSharp.Grpc | sends HTTP requests to | HTTP | 2 sources
+  person:user -> container:CSharp.Middleware | sends HTTP requests to | HTTP | 8 sources
+  person:user -> container:CSharp.Switch | sends HTTP requests to | HTTP | 9 sources
+  person:user -> container:CSharp.Table | sends HTTP requests to | HTTP | 2 sources
