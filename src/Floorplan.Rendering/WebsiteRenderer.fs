@@ -54,10 +54,13 @@ let render (model: AnalysisModel) (output: OutputTarget) =
         // The files beside the site, which its pages link to (not in a single file, which has none).
         let files = $"window.FLOORPLAN_FILES = [\"{StructurizrDsl.FileName}\", \"{StructurizrDsl.LayoutFileName}\"];\n"
         File.WriteAllText(Path.Combine(output.Path, "data.js"), data + files)
-        // The layout first: Structurizr merges a workspace.json older than the DSL into it, and takes a newer one
-        // as the whole workspace.
-        File.WriteAllText(Path.Combine(output.Path, StructurizrDsl.LayoutFileName), StructurizrDsl.writeLayout model)
-        File.WriteAllText(Path.Combine(output.Path, StructurizrDsl.FileName), StructurizrDsl.write model)
+        // Structurizr merges a workspace.json older than the DSL into it, and takes one that is not as the whole
+        // workspace. Written one after the other, both can get the same time, so the layout is dated back.
+        let layout = Path.Combine(output.Path, StructurizrDsl.LayoutFileName)
+        let dsl = Path.Combine(output.Path, StructurizrDsl.FileName)
+        File.WriteAllText(layout, StructurizrDsl.writeLayout model)
+        File.WriteAllText(dsl, StructurizrDsl.write model)
+        File.SetLastWriteTimeUtc(layout, File.GetLastWriteTimeUtc(dsl).AddSeconds -2.0)
         Path.Combine(output.Path, "index.html")
 
 let create () =
