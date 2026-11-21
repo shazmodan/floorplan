@@ -103,10 +103,19 @@ namespace CSharp.Clients.GitHub
         public Task<string> Zen() => http.GetStringAsync("zen");
     }
 
+    // A named client: the factory makes it by the name it was registered with.
+    public class Status(IHttpClientFactory factory)
+    {
+        public Task<string> Check() => factory.CreateClient("status").GetStringAsync("health");
+    }
+
     public static class Setup
     {
-        public static IHttpClientBuilder Configure(IServiceCollection services) =>
+        public static void Configure(IServiceCollection services)
+        {
             services.AddHttpClient<GitHubClient>(c => c.BaseAddress = new Uri("https://api.github.com/"));
+            services.AddHttpClient("status", c => c.BaseAddress = new Uri("https://status.example.org/"));
+        }
     }
 }
 

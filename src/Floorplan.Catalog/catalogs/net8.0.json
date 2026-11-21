@@ -38,6 +38,14 @@
     // ("base-address") comes before the relative URLs the client sends.
     { "id": "http-out.typed-client", "assembly": "Microsoft.Extensions.Http", "type": "Microsoft.Extensions.DependencyInjection.HttpClientFactoryServiceCollectionExtensions",
       "members": ["AddHttpClient"], "kind": "registration", "category": "http-out", "payload": [{ "argument": 0, "role": "typed-http-client" }] },
+    // Named clients: AddHttpClient("github", configure) ("named-http-client" is the name's argument) and the client a
+    // factory makes by that name ("http-client-name").
+    { "id": "http-out.named-client", "assembly": "Microsoft.Extensions.Http", "type": "Microsoft.Extensions.DependencyInjection.HttpClientFactoryServiceCollectionExtensions",
+      "members": ["AddHttpClient"], "whenParameters": ["Microsoft.Extensions.DependencyInjection.IServiceCollection", "System.String"],
+      "kind": "registration", "category": "http-out", "payload": [{ "argument": 1, "role": "named-http-client" }] },
+    { "id": "http-out.client-factory", "assembly": "Microsoft.Extensions.Http", "type": "System.Net.Http.IHttpClientFactory",
+      "members": ["CreateClient"], "includeDerivedTypes": true, "kind": "metadata", "category": "http-out",
+      "payload": [{ "argument": 0, "role": "http-client-name" }] },
     { "id": "http-out.base-address", "assembly": "System.Net.Http", "type": "System.Net.Http.HttpClient",
       "members": ["set_BaseAddress"], "kind": "metadata", "category": "http-out", "payload": [{ "argument": 0, "role": "base-address" }] },
     { "id": "http-out.websocket-client", "assembly": "System.Net.WebSockets.Client", "type": "System.Net.WebSockets.ClientWebSocket",
