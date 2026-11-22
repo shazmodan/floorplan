@@ -155,7 +155,11 @@ Also new, outside the recognizer:
   A query passed to a method that enumerates the parameter (an `IEnumerable<T>` or `IQueryable<T>`), itself or
   through the methods it passes it on to, or through a compiler-generated type it is stored in whose methods
   enumerate the field (an async method's state machine, a lambda's closure), runs at the call that passes it,
-  which is the exit point: in user code or in a dependency, not in an iterator. Framework methods that enumerate
+  which is the exit point: in user code or in a dependency, not in an iterator. A query passed to an iterator
+  does not run at that call: the iterator keeps it (`<>3__orders`, copied into `orders` when it is enumerated)
+  and runs it where what the iterator returns is enumerated (`Titles.Of("#", db.Orders).ToList()`), or at the
+  call to a method that enumerates it so (`int Count(IEnumerable<Order> orders) => Of("#", orders).Count()`),
+  whichever argument the iterator is passed it as. Framework methods that enumerate
   an argument count as well: `String.Join`, `String.Concat`, and the `System.Collections.Generic` methods that
   take a sequence (`AddRange`, `UnionWith`). Fixture: `CSharp.Effects/EntityFramework.cs`
   (`CSharp.Effects.Reporting` for queries across methods, `CSharp.Effects.Printing` for queries passed in).

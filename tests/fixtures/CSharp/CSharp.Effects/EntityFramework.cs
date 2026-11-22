@@ -191,4 +191,26 @@ namespace CSharp.Effects.Printing
         // A list is not a query.
         public int Local(List<Order> list) => Printer.Print(list);
     }
+
+    public static class Titles
+    {
+        // An iterator: it keeps what it is passed, and enumerates it only when what it returns is enumerated.
+        public static IEnumerable<string> Of(string prefix, IEnumerable<Order> orders)
+        {
+            foreach (var o in orders)
+                yield return prefix + o.Name;
+        }
+
+        public static int Count(IEnumerable<Order> orders) => Of("#", orders).Count();
+    }
+
+    public class TitlePrinting(ShopContext db)
+    {
+        // Not run here: nothing enumerates the iterator.
+        public IEnumerable<string> Made() => Titles.Of("#", db.Orders);
+
+        public List<string> Listed() => Titles.Of("#", db.Orders).ToList();
+
+        public int Counted() => Titles.Count(db.Orders);
+    }
 }

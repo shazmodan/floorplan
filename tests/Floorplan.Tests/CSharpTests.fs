@@ -784,6 +784,33 @@ let tests =
                   "nothing where the parameter is enumerated"
           }
 
+          test "Entity Framework Core: a query passed to an iterator runs where the iterator is enumerated" {
+              let m = csharpModel.Force()
+
+              let database (memberName: string) =
+                  m.ExitPoints
+                  |> List.filter (fun x -> x.Member = memberName && x.Category = EffectCategory.Database)
+
+              Expect.isEmpty (database "CSharp.Effects.Printing.TitlePrinting::Made") "making the iterator does not run it"
+
+              let listed = database "CSharp.Effects.Printing.TitlePrinting::Listed"
+              Expect.equal (listed |> List.map (fun x -> x.Primitive)) [ "System.Linq.Enumerable::ToList" ] "enumerating the iterator runs it"
+
+              Expect.exists
+                  listed.Head.Evidence.Steps
+                  (fun s -> s.Description.Contains "enumerated by the iterator CSharp.Effects.Printing.Titles::Of")
+                  "through the iterator, which is passed the query as its second argument"
+
+              Expect.equal
+                  (database "CSharp.Effects.Printing.TitlePrinting::Counted" |> List.map (fun x -> x.Primitive))
+                  [ "System.Linq.Enumerable::Count" ]
+                  "a method that enumerates the iterator it passes its parameter to runs the query passed"
+
+              Expect.isEmpty
+                  (m.ExitPoints |> List.filter (fun x -> x.Member.StartsWith "CSharp.Effects.Printing.Titles"))
+                  "nothing in the iterator, or where it is enumerated"
+          }
+
           test "effects in C#: every category, behind lambdas, interfaces, a container, async methods and iterators" {
               let m = csharpModel.Force()
 

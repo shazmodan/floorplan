@@ -135,6 +135,8 @@ code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing|CSharp.Effects.
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.OrderPrinting | OrderPrinting | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing | reaches out | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Printer | Printer | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing | - | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Summary | Summary | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing | - | 1 sources
+code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.TitlePrinting | TitlePrinting | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing | reaches out | 1 sources
+code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Titles | Titles | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing | - | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.IOrders | IOrders | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting | - | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderQueries | OrderQueries | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting | - | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderReports | OrderReports | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting | reaches out | 1 sources
@@ -204,7 +206,7 @@ code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring|CSharp.Worker.M
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Reports | Reports | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | reaches out | 1 sources
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule | Schedule | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | - | 1 sources
 code | code:CSharp.Worker|CSharp.Worker:|Program | Program | type | in component:CSharp.Worker|CSharp.Worker: | - | 1 sources
-external-system | external:database | Database | - | in - | - | 45 sources
+external-system | external:database | Database | - | in - | - | 47 sources
 external-system | external:filesystem | File system | - | in - | - | 93 sources
 external-system | external:http | HTTP services | - | in - | - | 8 sources
 external-system | external:http:api.example.org | api.example.org | - | in - | - | 7 sources
@@ -303,6 +305,10 @@ code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printi
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.OrderPrinting -> external:database | reads and writes data | CSharp.Wrappers | 10 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Printer -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Summary -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.TitlePrinting -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.TitlePrinting -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Titles | uses | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.TitlePrinting -> external:database | reads and writes data | - | 2 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Titles -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.IOrders -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderQueries -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderReports -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
@@ -466,7 +472,7 @@ view context | context of system | 27 elements | 1980 x 1714
   external:library:RabbitMQ.Client -> system | delivers messages to | - | 7 sources
   external:library:StackExchange.Redis -> system | delivers messages to | - | 1 sources
   person:user -> system | sends HTTP requests to | HTTP | 67 sources
-  system -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 45 sources
+  system -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 47 sources
   system -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 9 more | 33 sources
   system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 59 sources
   system -> external:http | sends HTTP requests | AWSSDK.SQS, Flurl.Http, HTTP and 1 more | 8 sources
@@ -515,7 +521,7 @@ view containers | containers of system | 41 elements | 2280 x 2507
   container:CSharp.Cloud -> external:library:Amazon.SQS | sends and receives over the network | - | 1 sources
   container:CSharp.Cloud -> external:network | sends and receives over the network | AWSSDK.SQS | 1 sources
   container:CSharp.Controllers -> external:filesystem | writes files | - | 3 sources
-  container:CSharp.Effects -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 45 sources
+  container:CSharp.Effects -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 47 sources
   container:CSharp.Effects -> external:filesystem | reads files | NLog, NLog.Extensions.Logging, Serilog and 4 more | 19 sources
   container:CSharp.Effects -> external:filesystem | writes files | CSharp.Wrappers, NLog.Extensions.Logging, Serilog and 3 more | 16 sources
   container:CSharp.Effects -> external:http | sends HTTP requests | Flurl.Http, log4net | 4 sources
@@ -634,8 +640,8 @@ view components:CSharp.Effects | components of container:CSharp.Effects | 20 ele
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | - | 8 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing -> external:filesystem | reads files | NLog | 4 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing -> external:processes | starts or inspects processes | NLog | 1 sources
-  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 4 sources
-  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing -> external:database | reads and writes data | CSharp.Wrappers | 10 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 6 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing -> external:database | reads and writes data | CSharp.Wrappers | 12 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 5 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting -> external:database | reads and writes data | - | 4 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Shipping -> external:filesystem | reads files | Serilog.Extensions.Logging, Serilog.Sinks.File | 2 sources
@@ -859,21 +865,25 @@ view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | code of compon
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> external:database | reads and writes data | - | 7 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | - | 8 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
-  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 3 sources
-  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext | uses | - | 1 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 4 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext | uses | - | 2 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 4 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext | uses | - | 1 sources
 view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing | 4 elements | 569 x 572
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing|CSharp.Effects.Packing.Boxes -> external:filesystem | reads files | NLog | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing|CSharp.Effects.Packing.Setup -> external:filesystem | reads files | NLog | 3 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing|CSharp.Effects.Packing.Setup -> external:processes | starts or inspects processes | NLog | 1 sources
-view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing | 5 elements | 661 x 802
+view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing | 7 elements | 912 x 802
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.OrderPrinting -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Printer | uses | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.OrderPrinting -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Summary | uses | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.OrderPrinting -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 2 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.OrderPrinting -> external:database | reads and writes data | CSharp.Wrappers | 10 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Printer -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Summary -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.TitlePrinting -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Titles | uses | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.TitlePrinting -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.TitlePrinting -> external:database | reads and writes data | - | 2 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing|CSharp.Effects.Printing.Titles -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 1 sources
 view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting | 6 elements | 667 x 1032
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.IOrders -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Reporting|CSharp.Effects.Reporting.OrderQueries -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 1 sources
