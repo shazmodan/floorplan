@@ -28,6 +28,12 @@ let private render (s: Symbolic) =
         | _ -> "{…}")
     |> String.concat ""
 
+/// Parts that are all text as one text, which is what readers of a constant look for.
+let private collapse (s: Symbolic) =
+    match s with
+    | Parts _ when flatten s |> List.forall (function Text _ -> true | _ -> false) -> Text(render s)
+    | other -> other
+
 /// One piece of a payload as a dependency method sees it (docs/library-payloads-plan.md): text fixed in the
 /// library, something it cannot follow, or a value its caller passes.
 type Segment =
@@ -51,6 +57,19 @@ module Origin =
 
 /// The platform type C# (10 and later) builds interpolated strings with.
 let private interpolationHandler = "System.Runtime.CompilerServices.DefaultInterpolatedStringHandler"
+
+/// Integer types, which format as their digits whatever the culture (a negative number aside).
+let private isInteger (t: TypeRef) =
+    match t.FullName with
+    | "System.Int32"
+    | "System.Int64"
+    | "System.Int16"
+    | "System.Byte"
+    | "System.UInt32"
+    | "System.UInt64"
+    | "System.UInt16"
+    | "System.SByte" -> true
+    | _ -> false
 
 let isTransparent (m: MethodRef) =
     // Calls that return their (first) argument's text unchanged, as far as a reader is concerned.
@@ -151,6 +170,8 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                 match ins.Op with
                 | LdStr s -> Text s
                 | LdNull -> Text ""
+                // A boxed integer is formatted as its digits (Hangfire's Cron.Daily(hour, minute) formats both).
+                | Box t when not operands.IsEmpty && isInteger t -> integer (depth + 1) operands.Head
                 | Call m
                 | CallVirt m when (settings.Read m).IsSome -> setting depth m (settings.Read m).Value operands
                 // A property of an options object: the value under the section its type is bound to.
@@ -175,7 +196,13 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                     ->
                     match value (depth + 1) operands.Head with
                     | Text format ->
-                        formatHoles (Text(System.Text.RegularExpressions.Regex.Replace(format, @"\{\d+(,[^}]*)?(:[^}]*)?\}", "\u0000")))
+                        // The arguments: each passed on its own (Format(format, a, b)), or in an array.
+                        let arguments =
+                            match operands.Tail with
+                            | [ single ] when m.ParameterTypes = [ "System.String"; "System.Object[]" ] -> arrayItems depth single
+                            | rest -> rest |> List.map (value (depth + 1))
+
+                        composite format arguments
                     | _ -> Hole
                 | Call m when m.Type.FullName = "System.IO.Path" && m.Name = "Combine" ->
                     let parts =
@@ -378,6 +405,7 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
     /// A callee's origin evaluated at the call at `offset`: its arguments replaced by what is passed there.
     and resolveAt (depth: int) (origin: Origin) (offset: int) (isNewObj: bool) : Symbolic =
         let operands = flow.OperandsAt offset
+        let formats = origin |> List.exists (function Literal _ -> true | _ -> false)
 
         origin
         |> List.map (function
@@ -388,11 +416,25 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                 let index = if isNewObj then i - 1 else i
 
                 match List.tryItem index operands with
+                // An integer the callee formats into text (Cron.Daily() passes 0 to Daily(hour)); one it only
+                // passes on (an enum) is no text.
+                | Some v when index >= 0 && path.IsEmpty && formats -> integer (depth + 1) v
                 | Some v when index >= 0 -> memberPath depth v path offset
                 | _ -> Hole)
         |> function
             | [ single ] -> single
-            | parts -> Parts parts
+            | parts -> collapse (Parts parts)
+
+    /// A value that may be an integer constant, as text: only where a string is made of it. An integer argument on
+    /// its own (an enum, a count) is not text.
+    and integer (depth: int) (v: Values) : Symbolic =
+        match Set.toList v with
+        | [ Pushed o ] ->
+            match flow.InstructionAt o with
+            | Some { Op = LdcI4 n } -> Text(string n)
+            | Some { Op = LdcI8 n } -> Text(string n)
+            | _ -> value depth v
+        | _ -> value depth v
 
     and memberPath (depth: int) (v: Values) (path: string list) (before: int) : Symbolic =
         match path with
@@ -447,13 +489,41 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                     | _ -> Hole)
                 |> Parts
 
-    and formatHoles (t: Symbolic) =
-        match t with
-        | Text s -> Parts(s.Split('\u0000') |> Array.toList |> List.map Text |> List.reduce (fun a b -> Parts [ a; Hole; b ]) |> List.singleton)
-        | other -> other
+    /// A composite format with its arguments in place: a plain `{n}` is argument n, an item with an alignment or a
+    /// format string is formatted at run time.
+    and composite (format: string) (arguments: Symbolic list) =
+        let items = System.Text.RegularExpressions.Regex.Matches(format, @"\{(\d+)(,[^}]*)?(:[^}]*)?\}")
+
+        let parts, last =
+            items
+            |> Seq.fold
+                (fun (parts, start) (item: System.Text.RegularExpressions.Match) ->
+                    let argument =
+                        if item.Groups[2].Success || item.Groups[3].Success then
+                            Hole
+                        else
+                            List.tryItem (int item.Groups[1].Value) arguments |> Option.defaultValue Hole
+
+                    argument :: Text(format.Substring(start, item.Index - start)) :: parts, item.Index + item.Length)
+                ([], 0)
+
+        collapse (Parts(List.rev (Text(format.Substring last) :: parts)))
+
+    /// Elements stored into a freshly created array, by position: none unless they are stored at 0, 1, 2, ...
+    and arrayItems (depth: int) (array: Values) : Symbolic list =
+        let stores = arrayStores depth array
+
+        if stores |> Array.mapi (fun i (n, _) -> i = n) |> Array.forall id then
+            stores |> Array.map snd |> Array.toList
+        else
+            []
 
     /// Elements stored into a freshly created array: newarr; dup; ldc i; value; stelem ...
     and arrayElements (depth: int) (array: Values) : Symbolic =
+        let stores = arrayStores depth array
+        if stores.Length = 0 then Hole else Parts(stores |> Array.map snd |> Array.toList)
+
+    and arrayStores (depth: int) (array: Values) : (int * Symbolic)[] =
         match Set.toList array with
         | [ Pushed newarr ] ->
             let stores =
@@ -474,8 +544,8 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                     | _ -> None)
                 |> Array.sortBy fst
 
-            if stores.Length = 0 then Hole else Parts(stores |> Array.map snd |> Array.toList)
-        | _ -> Hole
+            stores
+        | _ -> [||]
 
     and formatLiteral (depth: int) (offset: int) : Symbolic option =
         if depth > 6 then

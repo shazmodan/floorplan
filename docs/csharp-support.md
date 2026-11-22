@@ -63,7 +63,10 @@ string switches, array length and element access in list patterns, `string.Forma
 Also new, outside the recognizer:
 
 - **Interpolated strings** built with the platform's `DefaultInterpolatedStringHandler` are read as payload
-  templates (`$"orders/{id}.json"` gives `orders/{…}.json`), as `string.Format` already was.
+  templates (`$"orders/{id}.json"` gives `orders/{…}.json`), as `string.Format` already was. Since 2026-11-22
+  `string.Format` puts the values of its arguments into plain `{n}` items (an item with an alignment or a format
+  string stays a hole), and an integer constant is its digits where a string is made of it: boxed for a format,
+  or passed for a parameter the callee formats. An integer argument on its own (an enum, a count) is no text.
 - **Readable C# names on the website**: a lambda is shown by its enclosing method (`Admin › lambda in Map`,
   `Program › lambda in top-level statements`), an async body as `Store › async body of Load`, a local function by
   its name. The compiler's name stays in the tooltip.
@@ -327,7 +330,11 @@ Also new, outside the recognizer:
   `BackgroundJob.Enqueue`, and the client and manager extension methods; `background.hangfire-*`), whose method
   its server runs: the `"expression-handler"` role finds the method by the token the tree's construction loads for
   `Expression.Call` (the IL reader now keeps a method token's method, `LdToken`), and that method is background
-  work. Fixture:
+  work. A recurring job is at its cron expression (`"job-schedule"`), whose index depends on the overload: the
+  rules are split by the parameters before the job (`whenParameters`), the longer prefixes first. The expression
+  is read through Hangfire's own `Cron` helpers (`Cron.Daily()` calls `Daily(0)`, which calls `Daily(0, 0)`, which
+  formats its arguments: `0 0 * * *`); a helper handed over as a method group (`Cron.Hourly`, a `Func<string>`) is
+  what the method returns. A schedule that is not constant leaves the entry unresolved. Fixture:
   `CSharp.Worker` (Microsoft.Extensions.Hosting as a package, on the Worker SDK).
 - **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
   built assembly (a dependency, like a package), with the application's handlers passed as method groups in a
