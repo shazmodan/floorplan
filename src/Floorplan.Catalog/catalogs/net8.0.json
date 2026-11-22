@@ -764,11 +764,14 @@
       "members": ["Write", "Verbose", "Debug", "Information", "Warning", "Error", "Fatal"], "kind": "logger" },
     // Serilog's sinks and enrichers named in the "Serilog" section of appsettings.json (Serilog.Settings.Configuration)
     // are added by calling the method of that name by reflection ("WriteTo": [{ "Name": "File" }] calls
-    // WriteTo.File): each is analyzed as called, so the log calls reach the sinks it adds.
+    // WriteTo.File): each is analyzed as called, so the log calls reach the sinks it adds. What the method does
+    // itself (opening the file) happens where ReadFrom.Configuration is called.
     { "id": "configured.serilog-sink", "assembly": "Serilog", "type": "Serilog.Configuration.LoggerSinkConfiguration", "kind": "configured",
-      "configuration": { "json": { "section": "Serilog", "properties": ["WriteTo", "AuditTo", "configure"], "typeProperty": "Name" }, "names": "methods" } },
+      "configuration": { "json": { "section": "Serilog", "properties": ["WriteTo", "AuditTo", "configure"], "typeProperty": "Name",
+        "loadedBy": ["Serilog.ConfigurationLoggerConfigurationExtensions::Configuration", "Serilog.ConfigurationLoggerConfigurationExtensions::ConfigurationSection"] }, "names": "methods" } },
     { "id": "configured.serilog-enricher", "assembly": "Serilog", "type": "Serilog.Configuration.LoggerEnrichmentConfiguration", "kind": "configured",
-      "configuration": { "json": { "section": "Serilog", "properties": ["Enrich"], "typeProperty": "Name" }, "names": "methods" } },
+      "configuration": { "json": { "section": "Serilog", "properties": ["Enrich"], "typeProperty": "Name",
+        "loadedBy": ["Serilog.ConfigurationLoggerConfigurationExtensions::Configuration", "Serilog.ConfigurationLoggerConfigurationExtensions::ConfigurationSection"] }, "names": "methods" } },
     // Microsoft.Extensions.Logging hands every log call on to the loggers its providers make (Serilog's, the
     // console's, ...). In ASP.NET Core it is part of the shared framework and its code is not followed; elsewhere
     // the container builds its loggers. Either way, a log call reaches what each constructed ILogger.Log reaches,
@@ -806,22 +809,31 @@
     // NLog's targets named in a configuration file (nlog.config, an <nlog> section of app.config, or the "NLog"
     // section of appsettings.json that NLog.Extensions.Logging reads) are made by reflection: each is constructed
     // as if in code, so the log calls reach it. Its type names a target by the alias its [Target] attribute gives.
+    // What its constructor does happens where the file is loaded: nlog.config when the first logger is made or the
+    // configuration is first read, the "NLog" section where NLog.Extensions.Logging or NLog.Web is told to read it.
     { "id": "configured.nlog-target", "assembly": "NLog", "type": "NLog.Targets.Target", "kind": "configured",
       "configuration": {
-        "xml": { "root": "nlog", "elements": ["target", "wrapper-target", "compound-target", "default-wrapper"], "typeAttribute": "type" },
-        "json": { "section": "NLog", "properties": ["targets", "target", "default-wrapper"], "typeProperty": "type" },
+        "xml": { "root": "nlog", "elements": ["target", "wrapper-target", "compound-target", "default-wrapper"], "typeAttribute": "type",
+          "loadedBy": ["NLog.LogManager::GetCurrentClassLogger", "NLog.LogManager::GetLogger", "NLog.LogManager::get_Configuration",
+            "NLog.LogManager::LoadConfiguration", "NLog.LogFactory::GetCurrentClassLogger", "NLog.LogFactory::GetLogger",
+            "NLog.LogFactory::get_Configuration", "NLog.LogFactory::LoadConfiguration", "NLog.SetupBuilderExtensions::LoadConfigurationFromFile"] },
+        "json": { "section": "NLog", "properties": ["targets", "target", "default-wrapper"], "typeProperty": "type",
+          "loadedBy": ["NLog.Extensions.Logging.SetupBuilderExtensions::LoadConfigurationFromSection", "NLog.Extensions.Logging.ConfigureExtensions::AddNLog",
+            "NLog.Web.SetupBuilderExtensions::LoadConfigurationFromAppSettings", "NLog.Web.AspNetExtensions::AddNLog*", "NLog.Web.AspNetExtensions::UseNLog"] },
         "alias": "NLog.Targets.TargetAttribute" } },
     // log4net: its loggers are made by reflection (the repository type is created with Activator) and through a
     // delegate, which are not followed. Every log call ends at the appenders the repository is configured with: a
     // log call reaches what each constructed appender's DoAppend reaches, which the callback links. Appenders named
-    // in an XML configuration (log4net.config, or a <log4net> section of app.config) are constructed as configured.
+    // in an XML configuration (log4net.config, or a <log4net> section of app.config) are constructed as configured,
+    // where XmlConfigurator loads it.
     { "id": "logger.log4net", "assembly": "log4net", "type": "log4net.ILog",
       "members": ["Debug", "Info", "Warn", "Error", "Fatal", "DebugFormat", "InfoFormat", "WarnFormat", "ErrorFormat", "FatalFormat"],
       "includeDerivedTypes": true, "kind": "logger", "dispatch": "log4net.Appender.IAppender::DoAppend" },
     { "id": "callback.log4net-appender", "assembly": "log4net", "type": "log4net.Appender.IAppender",
       "members": ["DoAppend"], "includeDerivedTypes": true, "kind": "callback" },
     { "id": "configured.log4net-appender", "assembly": "log4net", "type": "log4net.Appender.IAppender", "kind": "configured",
-      "configuration": { "xml": { "root": "log4net", "elements": ["appender"], "typeAttribute": "type" } } },
+      "configuration": { "xml": { "root": "log4net", "elements": ["appender"], "typeAttribute": "type",
+        "loadedBy": ["log4net.Config.XmlConfigurator::Configure", "log4net.Config.XmlConfigurator::ConfigureAndWatch"] } } },
     // Settings read from the application's configuration (Microsoft.Extensions.Configuration): a key read with a
     // constant name has the value appsettings.json in the output folder gives it (appsettings.Production.json
     // overriding, as in the default environment). An options class bound to a section (Configure<T>(section))

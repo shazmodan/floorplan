@@ -320,8 +320,47 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                  | Configured.Called m ->
                      $"{IO.Path.GetFileName c.File} names \"{c.Named}\": {m.Display} is analyzed as called (rule {c.Rule.Id})."
                ProjectId = None
-               Location = None }))
+               Location = None })
+         |> List.distinct)
         @ snd configured
+
+    /// What a call to a member that loads one of a project's configuration files makes, by the member called:
+    /// for each object the file names, a description ("nlog.config names \"WebService\"") and the method that
+    /// makes it, a type's parameterless constructor or a method called by name.
+    member _.LoadedFor(project: AnalyzedProject) : MethodRef -> (string * MethodRef) list =
+        let folder = IO.Path.GetFullPath(IO.Path.GetDirectoryName project.AssemblyPath)
+
+        let mine =
+            fst configured
+            |> List.filter (fun c ->
+                String.Equals(IO.Path.GetFullPath(IO.Path.GetDirectoryName c.File), folder, StringComparison.OrdinalIgnoreCase))
+
+        let matches (declared: MethodRef) (pattern: string) =
+            match pattern.LastIndexOf "::" with
+            | -1 -> false
+            | i ->
+                let typeName = pattern.Substring(0, i)
+                let name = pattern.Substring(i + 2)
+
+                declared.Type.FullName = typeName
+                && (if name.EndsWith "*" then declared.Name.StartsWith(name.TrimEnd '*') else declared.Name = name)
+
+        let makers (c: Configured.ConfiguredType) =
+            match c.Made with
+            | Configured.Constructed t ->
+                match set.TryType t with
+                | Some(def, _) ->
+                    def.Methods
+                    |> List.filter (fun m -> m.IsConstructor && not m.IsStatic && m.Ref.ParameterCount = 0)
+                    |> List.map (fun m -> m.Ref)
+                | None -> []
+            | Configured.Called m -> [ m ]
+
+        fun (declared: MethodRef) ->
+            mine
+            |> List.filter (fun c -> c.LoadedBy |> List.exists (matches declared))
+            |> List.collect (fun c ->
+                makers c |> List.map (fun m -> $"{IO.Path.GetFileName c.File} names \"{c.Named}\"", m))
     member _.Users = userList
     member _.Recognizers = recognizers
     member _.Producers = producers
@@ -658,6 +697,7 @@ let exitPoints (program: Program) (input: AnalysisInput) : EffectResult =
                   Matcher = program.MatcherFor project
                   Effects = program.EffectsFor project
                   Dispatch = program.DispatchFor project
+                  Loaded = program.LoadedFor project
                   Attributor = attributor
                   Recognizers = program.Recognizers
                   Producers = program.Producers

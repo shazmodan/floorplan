@@ -42,6 +42,7 @@ component | component:CSharp.Effects|CSharp.Effects: | (global namespace) | C# n
 component | component:CSharp.Effects|CSharp.Effects:CSharp.Effects | CSharp.Effects | C# namespace | in container:CSharp.Effects | reaches out | 1 sources
 component | component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing | CSharp.Effects.Billing | C# namespace | in container:CSharp.Effects | reaches out | 1 sources
 component | component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Labels | CSharp.Effects.Labels | C# namespace | in container:CSharp.Effects | reaches out | 1 sources
+component | component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading | CSharp.Effects.Loading | C# namespace | in container:CSharp.Effects | reaches out | 1 sources
 component | component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging | CSharp.Effects.Logging | C# namespace | in container:CSharp.Effects | reaches out | 1 sources
 component | component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | CSharp.Effects.Ordering | C# namespace | in container:CSharp.Effects | reaches out | 1 sources
 component | component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing | C# namespace | in container:CSharp.Effects | reaches out | 1 sources
@@ -123,6 +124,7 @@ code | code:CSharp.Delegated|CSharp.Delegated:|Program | Program | type | in com
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing|CSharp.Effects.Billing.Invoices | Invoices | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing | reaches out | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing|CSharp.Effects.Billing.Refunds | Refunds | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing | - | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Labels|CSharp.Effects.Labels.Printer | Printer | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Labels | reaches out | 1 sources
+code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading|CSharp.Effects.Loading.Setup | Setup | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading | reaches out | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Orders | Orders | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging | reaches out | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Setup | Setup | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging | reaches out | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | Order | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | - | 1 sources
@@ -203,8 +205,8 @@ code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Re
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule | Schedule | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | - | 1 sources
 code | code:CSharp.Worker|CSharp.Worker:|Program | Program | type | in component:CSharp.Worker|CSharp.Worker: | - | 1 sources
 external-system | external:database | Database | - | in - | - | 45 sources
-external-system | external:filesystem | File system | - | in - | - | 87 sources
-external-system | external:http | HTTP services | - | in - | - | 7 sources
+external-system | external:filesystem | File system | - | in - | - | 93 sources
+external-system | external:http | HTTP services | - | in - | - | 8 sources
 external-system | external:http:api.example.org | api.example.org | - | in - | - | 7 sources
 external-system | external:http:api.github.com | api.github.com | - | in - | - | 2 sources
 external-system | external:http:status.example.org | status.example.org | - | in - | - | 1 sources
@@ -226,7 +228,7 @@ external-system | external:library:SendGrid | SendGrid | - | in - | - | 1 source
 external-system | external:library:StackExchange.Redis | StackExchange.Redis | - | in - | - | 6 sources
 external-system | external:native | Native libraries | - | in - | - | 1 sources
 external-system | external:network | Network | - | in - | - | 4 sources
-external-system | external:processes | Operating system | - | in - | - | 3 sources
+external-system | external:processes | Operating system | - | in - | - | 4 sources
 person | person:user | User | - | in - | - | 67 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Order -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.App -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.Routes | uses | - | 1 sources
@@ -278,6 +280,10 @@ code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing|CSharp.Effects.Billing
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing|CSharp.Effects.Billing.Invoices -> external:filesystem | writes files | Serilog | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Labels|CSharp.Effects.Labels.Printer -> external:filesystem | reads files | Serilog.Extensions.Logging | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Labels|CSharp.Effects.Labels.Printer -> external:filesystem | writes files | Serilog.Extensions.Logging | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading|CSharp.Effects.Loading.Setup -> external:filesystem | reads files | NLog.Extensions.Logging, Serilog.Settings.Configuration, log4net | 3 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading|CSharp.Effects.Loading.Setup -> external:filesystem | writes files | NLog.Extensions.Logging, Serilog.Sinks.File, log4net | 3 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading|CSharp.Effects.Loading.Setup -> external:http | sends HTTP requests | log4net | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading|CSharp.Effects.Loading.Setup -> external:processes | starts or inspects processes | NLog.Extensions.Logging | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Orders -> external:filesystem | reads files | Serilog | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Orders -> external:filesystem | writes files | Serilog | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Setup -> external:filesystem | reads files | Serilog.Sinks.File | 1 sources
@@ -461,9 +467,9 @@ view context | context of system | 27 elements | 1980 x 1714
   external:library:StackExchange.Redis -> system | delivers messages to | - | 1 sources
   person:user -> system | sends HTTP requests to | HTTP | 67 sources
   system -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 45 sources
-  system -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 30 sources
-  system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 6 more | 56 sources
-  system -> external:http | sends HTTP requests | AWSSDK.SQS, Flurl.Http, HTTP and 1 more | 7 sources
+  system -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 9 more | 33 sources
+  system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 59 sources
+  system -> external:http | sends HTTP requests | AWSSDK.SQS, Flurl.Http, HTTP and 1 more | 8 sources
   system -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
   system -> external:http:api.github.com | sends HTTP requests | HTTP | 2 sources
   system -> external:http:status.example.org | sends HTTP requests | HTTP | 1 sources
@@ -485,7 +491,7 @@ view context | context of system | 27 elements | 1980 x 1714
   system -> external:library:StackExchange.Redis | sends and receives over the network | - | 2 sources
   system -> external:native | calls native code | - | 1 sources
   system -> external:network | sends and receives over the network | AWSSDK.SQS, RabbitMQ.Client, StackExchange.Redis and 1 more | 4 sources
-  system -> external:processes | starts or inspects processes | MassTransit, NLog | 3 sources
+  system -> external:processes | starts or inspects processes | MassTransit, NLog, NLog.Extensions.Logging | 4 sources
 view containers | containers of system | 41 elements | 2280 x 2507
   container:CSharp.Blazor -> external:filesystem | writes files | - | 1 sources
   container:CSharp.Clients -> external:filesystem | reads files | MongoDB.Driver | 2 sources
@@ -510,14 +516,14 @@ view containers | containers of system | 41 elements | 2280 x 2507
   container:CSharp.Cloud -> external:network | sends and receives over the network | AWSSDK.SQS | 1 sources
   container:CSharp.Controllers -> external:filesystem | writes files | - | 3 sources
   container:CSharp.Effects -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 45 sources
-  container:CSharp.Effects -> external:filesystem | reads files | NLog, Serilog, Serilog.Extensions.Logging and 2 more | 16 sources
-  container:CSharp.Effects -> external:filesystem | writes files | CSharp.Wrappers, Serilog, Serilog.Extensions.Logging and 2 more | 13 sources
-  container:CSharp.Effects -> external:http | sends HTTP requests | Flurl.Http, log4net | 3 sources
+  container:CSharp.Effects -> external:filesystem | reads files | NLog, NLog.Extensions.Logging, Serilog and 4 more | 19 sources
+  container:CSharp.Effects -> external:filesystem | writes files | CSharp.Wrappers, NLog.Extensions.Logging, Serilog and 3 more | 16 sources
+  container:CSharp.Effects -> external:http | sends HTTP requests | Flurl.Http, log4net | 4 sources
   container:CSharp.Effects -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
   container:CSharp.Effects -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | - | 8 sources
   container:CSharp.Effects -> external:native | calls native code | - | 1 sources
   container:CSharp.Effects -> external:network | sends and receives over the network | log4net | 1 sources
-  container:CSharp.Effects -> external:processes | starts or inspects processes | NLog | 2 sources
+  container:CSharp.Effects -> external:processes | starts or inspects processes | NLog, NLog.Extensions.Logging | 3 sources
   container:CSharp.Endpoints -> external:filesystem | reads files | Serilog, Serilog.Extensions.Logging, Serilog.Sinks.File | 5 sources
   container:CSharp.Endpoints -> external:filesystem | writes files | Serilog, Serilog.Extensions.Logging, Serilog.Sinks.File | 6 sources
   container:CSharp.Functions -> external:filesystem | writes files | - | 4 sources
@@ -606,7 +612,7 @@ view components:CSharp.Conventional | components of container:CSharp.Conventiona
 view components:CSharp.Delegated | components of container:CSharp.Delegated | 3 elements | 314 x 802
   component:CSharp.Delegated|CSharp.Delegated: -> component:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated | uses | - | 1 sources
   person:user -> component:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated | sends HTTP requests to | HTTP | 6 sources
-view components:CSharp.Effects | components of container:CSharp.Effects | 19 elements | 2256 x 1373
+view components:CSharp.Effects | components of container:CSharp.Effects | 20 elements | 2282 x 1373
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 24 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects -> external:filesystem | reads files | - | 4 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects -> external:filesystem | writes files | CSharp.Wrappers | 5 sources
@@ -618,6 +624,10 @@ view components:CSharp.Effects | components of container:CSharp.Effects | 19 ele
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing -> external:filesystem | writes files | Serilog | 1 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Labels -> external:filesystem | reads files | Serilog.Extensions.Logging | 1 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Labels -> external:filesystem | writes files | Serilog.Extensions.Logging | 1 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading -> external:filesystem | reads files | NLog.Extensions.Logging, Serilog.Settings.Configuration, log4net | 3 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading -> external:filesystem | writes files | NLog.Extensions.Logging, Serilog.Sinks.File, log4net | 3 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading -> external:http | sends HTTP requests | log4net | 1 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading -> external:processes | starts or inspects processes | NLog.Extensions.Logging | 1 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging -> external:filesystem | reads files | Serilog, Serilog.Sinks.File | 2 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging -> external:filesystem | writes files | Serilog, Serilog.Sinks.File | 2 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering -> external:database | reads and writes data | - | 7 sources
@@ -833,6 +843,11 @@ view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing | code of compone
 view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Labels | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Labels | 2 elements | 245 x 572
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Labels|CSharp.Effects.Labels.Printer -> external:filesystem | reads files | Serilog.Extensions.Logging | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Labels|CSharp.Effects.Labels.Printer -> external:filesystem | writes files | Serilog.Extensions.Logging | 1 sources
+view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading | 4 elements | 816 x 572
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading|CSharp.Effects.Loading.Setup -> external:filesystem | reads files | NLog.Extensions.Logging, Serilog.Settings.Configuration, log4net | 3 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading|CSharp.Effects.Loading.Setup -> external:filesystem | writes files | NLog.Extensions.Logging, Serilog.Sinks.File, log4net | 3 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading|CSharp.Effects.Loading.Setup -> external:http | sends HTTP requests | log4net | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading|CSharp.Effects.Loading.Setup -> external:processes | starts or inspects processes | NLog.Extensions.Logging | 1 sources
 view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging | 3 elements | 528 x 572
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Orders -> external:filesystem | reads files | Serilog | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Orders -> external:filesystem | writes files | Serilog | 1 sources

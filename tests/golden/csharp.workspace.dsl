@@ -43,6 +43,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
                 component_CSharp_Effects_CSharp_Effects_CSharp_Effects = component "CSharp.Effects" "A C# namespace of CSharp.Effects" "C# namespace" "reaches out"
                 component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Billing = component "CSharp.Effects.Billing" "A C# namespace of CSharp.Effects" "C# namespace" "reaches out"
                 component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Labels = component "CSharp.Effects.Labels" "A C# namespace of CSharp.Effects" "C# namespace" "reaches out"
+                component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Loading = component "CSharp.Effects.Loading" "A C# namespace of CSharp.Effects" "C# namespace" "reaches out"
                 component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Logging = component "CSharp.Effects.Logging" "A C# namespace of CSharp.Effects" "C# namespace" "reaches out"
                 component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Ordering = component "CSharp.Effects.Ordering" "A C# namespace of CSharp.Effects" "C# namespace" "reaches out"
                 component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Packing = component "CSharp.Effects.Packing" "A C# namespace of CSharp.Effects" "C# namespace" "reaches out"
@@ -174,6 +175,10 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Billing -> external_filesystem "writes files" "Serilog"
         component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Labels -> external_filesystem "reads files" "Serilog.Extensions.Logging"
         component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Labels -> external_filesystem "writes files" "Serilog.Extensions.Logging"
+        component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Loading -> external_filesystem "reads files" "NLog.Extensions.Logging, Serilog.Settings.Configuration, log4net"
+        component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Loading -> external_filesystem "writes files" "NLog.Extensions.Logging, Serilog.Sinks.File, log4net"
+        component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Loading -> external_http "sends HTTP requests" "log4net"
+        component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Loading -> external_processes "starts or inspects processes" "NLog.Extensions.Logging"
         component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Logging -> external_filesystem "reads files" "Serilog, Serilog.Sinks.File"
         component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Logging -> external_filesystem "writes files" "Serilog, Serilog.Sinks.File"
         component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Ordering -> external_database "reads and writes data"
@@ -300,7 +305,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
             include component_CSharp_Delegated_CSharp_Delegated_ component_CSharp_Delegated_CSharp_Delegated_CSharp_Delegated person_user
         }
         component container_CSharp_Effects "components_CSharp_Effects" {
-            include component_CSharp_Effects_CSharp_Effects_ component_CSharp_Effects_CSharp_Effects_CSharp_Effects component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Billing component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Labels component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Logging component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Ordering component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Packing component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Printing component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Reporting component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Shipping component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Storage external_database external_filesystem external_http external_http_api_example_org external_library_Microsoft_EntityFrameworkCore external_native external_network external_processes
+            include component_CSharp_Effects_CSharp_Effects_ component_CSharp_Effects_CSharp_Effects_CSharp_Effects component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Billing component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Labels component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Loading component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Logging component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Ordering component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Packing component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Printing component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Reporting component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Shipping component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Storage external_database external_filesystem external_http external_http_api_example_org external_library_Microsoft_EntityFrameworkCore external_native external_network external_processes
         }
         component container_CSharp_Endpoints "components_CSharp_Endpoints" {
             include component_CSharp_Endpoints_CSharp_Endpoints_ component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Auditing component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Chat component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Configured component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Shipping external_filesystem person_user

@@ -22,6 +22,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.10" />
     <PackageReference Include="NLog" Version="5.3.4" />
     <PackageReference Include="log4net" Version="2.0.17" />
+    <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.0" />
+    <PackageReference Include="NLog.Extensions.Logging" Version="5.3.15" />
   </ItemGroup>
   <!-- Logging configured in files, found next to the assembly as the libraries find them at run time. -->
   <ItemGroup>

@@ -18,6 +18,9 @@ type ProjectContext =
       Effects: MethodRef -> DependencyEffect list
       /// What a callback member reaches through its constructed implementations, with each one's assembly.
       Dispatch: string -> (string * DependencyEffect) list
+      /// What a call to a member that loads a configuration file makes: for each object the file names, what
+      /// names it and the method that makes it.
+      Loaded: MethodRef -> (string * MethodRef) list
       Attributor: Attribution.Attributor
       Recognizers: ICodegenRecognizer list
       /// What constructors and other methods set on the objects they produce, read from their bodies.
@@ -54,6 +57,18 @@ let private step (description: string) (m: MethodRef) (point: SourcePoint option
       Location = point |> Option.map Attribution.toLocation }
 
 let private categoryName (c: EffectCategory) = EffectCategory.name c
+
+/// A payload as fixed in a dependency's code, whatever the call's arguments: only its literal parts are known.
+let private fixedPayload (d: DependencyEffect) =
+    d.Payload
+    |> Option.map (fun p ->
+        let parts =
+            p.Origin
+            |> List.map (function
+                | Values.Literal t -> Values.Text t
+                | _ -> Values.Hole)
+
+        Values.Evaluator.ToPayload(Values.Parts parts, p.Role))
 
 /// Confidence from the evidence path through a dependency: each call is one step, each virtual call one more,
 /// because virtual dispatch is where a static call graph over-approximates.
@@ -595,19 +610,8 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                             ctx.Dispatch callback
                             |> List.groupBy (fun (via, d) -> via, d.Category)
                             |> List.iter (fun ((via, category), ds) ->
-                                let payloadOf (d: DependencyEffect) =
-                                    d.Payload
-                                    |> Option.map (fun p ->
-                                        let parts =
-                                            p.Origin
-                                            |> List.map (function
-                                                | Values.Literal t -> Values.Text t
-                                                | _ -> Values.Hole)
-
-                                        Values.Evaluator.ToPayload(Values.Parts parts, p.Role))
-
                                 // As through a dependency: the shortest route whose payload is known, else the shortest.
-                                let resolved = ds |> List.map (fun (_, d) -> d, payloadOf d)
+                                let resolved = ds |> List.map (fun (_, d) -> d, fixedPayload d)
                                 let shortest = List.minBy (fun (d: DependencyEffect, _) -> d.Steps.Length, d.RuleId)
 
                                 let d, payload =
@@ -797,6 +801,32 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                         let steps = step $"{m.Ref.Display} calls {edge.Target.Display}" m.Ref point :: dependencySteps d category
                                         add category d.RuleId d.Primitive (Some via) payload (confidenceOf d.Steps) steps)
                             | _ -> ()
+
+                    // A call that loads a configuration file makes the objects it names: what their constructors
+                    // (or the methods called by name) do happens here, after what the call itself reaches. Their
+                    // arguments come from the file, so a payload keeps only what is fixed in the library's code.
+                    if not isLogCall then
+                        for (named, maker) in ctx.Loaded declared do
+                            ctx.Effects maker
+                            |> List.groupBy (fun d -> d.Category)
+                            |> List.iter (fun (category, ds) ->
+                                let resolved = ds |> List.map (fun d -> d, fixedPayload d)
+                                let shortest = List.minBy (fun (d: DependencyEffect, _) -> d.Steps.Length, d.RuleId)
+
+                                let d, payload =
+                                    match resolved |> List.filter (fun (_, p) -> p |> Option.exists (fun p -> p.Kind <> PayloadKind.Dynamic)) with
+                                    | [] -> shortest resolved
+                                    | known -> shortest known
+
+                                let steps =
+                                    [ step $"{m.Ref.Display} calls {declared.Display}" m.Ref point
+                                      { Description = $"{declared.Display} loads the configuration: {named}, made by {maker.Display}"
+                                        Member = maker.Display
+                                        Assembly = maker.Type.Assembly
+                                        Location = None } ]
+                                    @ dependencySteps d category
+
+                                add category d.RuleId d.Primitive (Some maker.Type.Assembly) payload (confidenceOf d.Steps) steps)
 
     for g in logGroups.Values do
         let location (s: LogSite) = s.Point |> Option.map Attribution.toLocation
