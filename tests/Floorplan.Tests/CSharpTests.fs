@@ -70,11 +70,46 @@ let tests =
               let m = csharpModel.Force()
 
               Expect.equal
-                  (entries m "CSharp.Blazor" |> List.map (fun e -> e.HttpMethod, e.Route, e.HandlerMember, e.Completeness) |> List.sort)
+                  (entries m "CSharp.Blazor"
+                   |> List.filter (fun e -> e.HttpMethod.IsSome)
+                   |> List.map (fun e -> e.HttpMethod, e.Route, e.HandlerMember, e.Completeness)
+                   |> List.sort)
                   [ Some "GET", Some "/", "CSharp.Blazor.Components.Pages.Home::BuildRenderTree", Completeness.Complete
+                    Some "GET", Some "/counter", "CSharp.Blazor.Components.Pages.Counter::BuildRenderTree", Completeness.Complete
                     Some "GET", Some "/order/{Id:int}", "CSharp.Blazor.Components.Pages.Order::OnInitializedAsync", Completeness.Complete
                     Some "GET", Some "/orders/{Id:int}", "CSharp.Blazor.Components.Pages.Order::OnInitializedAsync", Completeness.Complete ]
                   "two @page directives, a page without lifecycle methods; not a component without @page"
+          }
+
+          test "Blazor: an interactive component's events are entry points at the circuit's hub" {
+              let m = csharpModel.Force()
+
+              let events =
+                  entries m "CSharp.Blazor" |> List.filter (fun e -> e.HttpMethod.IsNone)
+
+              Expect.isTrue
+                  (events |> List.forall (fun e -> e.Route = Some "/_blazor" && e.Completeness = Completeness.Partial))
+                  "at the hub's path; the circuit's message, not the request, chooses the handler"
+
+              let bound =
+                  events
+                  |> List.collect (fun e -> e.Evidence.Steps |> List.choose (fun s -> if s.Description.Contains " binds its " then Some(e.HandlerMember, s.Description) else None))
+
+              let boundTo (event: string) =
+                  bound
+                  |> List.filter (fun (_, d) -> d.StartsWith $"CSharp.Blazor.Components.Pages.Counter binds its \"{event}\" event")
+                  |> List.map fst
+                  |> List.sort
+
+              Expect.equal (boundTo "onclick").Length 2 "@onclick, to a method and to a lambda"
+              Expect.contains (boundTo "onclick") "CSharp.Blazor.Components.Pages.Counter::Increment" "a method"
+              Expect.equal (boundTo "onchange").Length 1 "@bind's setter"
+              Expect.equal events.Length 3 "no other events"
+
+              Expect.exists
+                  m.ExitPoints
+                  (fun x -> x.Member = "CSharp.Blazor.Components.Pages.Counter::Increment" && x.Category = EffectCategory.FilesystemWrite)
+                  "what the handler does"
           }
 
           test "SignalR: each hub method clients can invoke is an entry point at the hub's pattern" {
@@ -966,7 +1001,7 @@ let tests =
               let m = csharpModel.Force()
               let pages = m.Units |> List.find (fun u -> u.Id = "CSharp.Blazor:CSharp.Blazor.Components.Pages")
 
-              Expect.equal pages.Types [ "Badge"; "Home"; "Order" ] "the components of the folder, from their .razor files"
+              Expect.equal pages.Types [ "Badge"; "Counter"; "Home"; "Order" ] "the components of the folder, from their .razor files"
               Expect.stringEnds pages.Location.Value.File ".razor" "located in a Razor file, not in generated code"
 
               Expect.isTrue

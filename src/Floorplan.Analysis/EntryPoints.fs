@@ -1970,6 +1970,133 @@ let componentEntries (ctx: AppContext) : EntryPoint list =
                                   step $"{component.Ref.FullName} is routed at \"{template}\"; {handler.Display} runs when it is rendered" handler point ] } }))))
     |> Option.defaultValue []
 
+/// The path of the circuit's hub, over which an interactive component's events arrive: Blazor's default.
+let private circuitPath = "/_blazor"
+
+/// Interactive Razor components' events: with interactive server rendering on (a registration whose rule has a
+/// "component-events" payload: AddInteractiveServerRenderMode(), MapBlazorHub()), the browser sends a component's
+/// events over the circuit's hub, and each runs the handler the component bound it to. The generated
+/// BuildRenderTree binds an event by a call whose metadata rule has "component-event-name" and
+/// "component-event-handler" payloads (RenderTreeBuilder.AddAttribute(1, "onclick", EventCallback.Factory.Create(this,
+/// Increment))): an "on..." name, and a value made from a delegate to the handler (a method, a lambda, the setter
+/// lambda @bind makes). One entry point per event and handler, at the hub's path: the handler is chosen by the
+/// circuit's message, not the request, so the route is partial. Every component of the mapped assembly counts,
+/// whether or not it is rendered interactively.
+let componentEventEntries (ctx: AppContext) : EntryPoint list =
+    let set = ctx.Program.Set
+    let registrations = PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
+
+    let eventRules =
+        ctx.Matcher.Catalog.Rules
+        |> List.filter (fun r -> r.Kind = RuleKind.Metadata && hasRole "component-event-name" r && hasRole "component-event-handler" r)
+
+    // The handler a value's delegate runs: in the value itself, or in the arguments of the calls that make it
+    // (EventCallback.Factory.Create(this, handler), CreateBinder(this, setter, value)).
+    let rec handlersIn (flow: Flow) (depth: int) (values: Values) : MethodRef list =
+        match delegateTargets flow values with
+        | [] when depth < 3 ->
+            values
+            |> Set.toList
+            |> List.collect (function
+                | Pushed o ->
+                    match flow.InstructionAt o with
+                    | Some { Op = (Call _ | CallVirt _ | NewObj _) } -> flow.OperandsAt o |> List.collect (handlersIn flow (depth + 1))
+                    | _ -> []
+                | _ -> [])
+            |> List.distinctBy (fun m -> m.Key)
+        | found -> found
+
+    let components =
+        registrations
+        |> List.tryFind (fun r -> hasRole "components" r.Rule)
+
+    let events =
+        registrations
+        |> List.tryFind (fun r -> hasRole "component-events" r.Rule)
+
+    match components, events with
+    | Some c, Some ev ->
+        let spec = c.Rule.Payload |> List.find (fun p -> p.Role = "components")
+
+        let assembly =
+            match List.tryItem spec.Argument c.Declared.TypeArguments with
+            | Some root -> root.Assembly
+            | None -> System.IO.Path.GetFileNameWithoutExtension ctx.Project.AssemblyPath
+
+        let registrationPoint = Instruction.pointAt ev.Caller.Body.Value.Value.Instructions ev.Index
+        let location = registrationPoint |> Option.map Attribution.toLocation
+        let route = PlatformRouting.normalizeRoute [ circuitPath ]
+
+        match set.TryLoad assembly with
+        | None -> []
+        | Some a ->
+            [ for t in a.Types do
+                  for render in t.Methods |> List.filter (fun m -> m.Ref.Name = "BuildRenderTree" && not m.IsStatic) do
+                      match render.Body.Value, DataFlow.ofMethod render with
+                      | Some body, Some flow ->
+                          let evaluator =
+                              Values.Evaluator(flow, ctx.Program.Recognizers, Values.constantReturn set, (fun _ _ -> Values.Origin.unknown), ctx.Program.SettingsFor ctx.Project)
+
+                          for index in 0 .. body.Instructions.Length - 1 do
+                              let ins = body.Instructions[index]
+
+                              match ins.Op with
+                              | Call d
+                              | CallVirt d ->
+                                  for rule in eventRules |> List.filter (fun r -> ctx.Matcher.Match d |> List.exists (fun m -> m.Id = r.Id)) do
+                                      let nameSpec = rule.Payload |> List.find (fun p -> p.Role = "component-event-name")
+                                      let handlerSpec = rule.Payload |> List.find (fun p -> p.Role = "component-event-handler")
+
+                                      match evaluator.Operand(ins.Offset, Values.operandIndex d false nameSpec.Argument) with
+                                      | Values.Text name when name.StartsWith "on" ->
+                                          let handlers =
+                                              List.tryItem (Values.operandIndex d false handlerSpec.Argument) (flow.OperandsAt ins.Offset)
+                                              |> Option.map (handlersIn flow 0)
+                                              |> Option.defaultValue []
+
+                                          let bound = Instruction.pointAt body.Instructions index
+
+                                          for handler in handlers do
+                                              let point = firstPoint set handler
+
+                                              let projectId =
+                                                  match set.Origin handler.Type.Assembly with
+                                                  | User pid -> pid
+                                                  | _ -> ctx.Project.ProjectId
+
+                                              match ctx.Program.Attributor.Attribute(projectId, handler, point) with
+                                              | Some unit ->
+                                                  yield
+                                                      { Id = ""
+                                                        ApplicationId = ctx.Project.ProjectId
+                                                        HandlerUnit = unit.Id
+                                                        HandlerMember = handler.Display
+                                                        Location = point |> Option.map Attribution.toLocation
+                                                        Category = EffectCategory.HttpIn
+                                                        RegisteredThrough = None
+                                                        Predicates = PlatformRouting.templatePredicates route location
+                                                        HttpMethod = None
+                                                        Route = Some route
+                                                        Completeness = Completeness.Partial
+                                                        Forms = [ RouteForm.PlatformRouting ]
+                                                        Evidence =
+                                                          { Steps =
+                                                              [ step
+                                                                    $"{ev.Caller.Ref.Display} lets components handle the browser's events over the circuit at {circuitPath} with {ev.Declared.Display} (rule {ev.Rule.Id})"
+                                                                    ev.Caller.Ref
+                                                                    registrationPoint
+                                                                step
+                                                                    $"{t.Ref.FullName} binds its \"{name}\" event to {handler.Display} with {d.Display} (rule {rule.Id})"
+                                                                    render.Ref
+                                                                    bound
+                                                                step $"{handler.Display} runs when the browser sends the event" handler point ] } }
+                                              | None -> ()
+                                      | _ -> ()
+                              | _ -> ()
+                      | _ -> () ]
+            |> List.distinctBy (fun e -> e.HandlerMember, e.Evidence.Steps[1].Description)
+    | _ -> []
+
 // ---- Handlers found by scanning ----
 
 /// Handlers a library finds by scanning the application's assembly, with no registration of their own: a

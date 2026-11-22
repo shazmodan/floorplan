@@ -104,7 +104,7 @@ let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoin
 
         let recovery = Recovery ctx
 
-        let platform = platformEntries ctx @ controllerEntries ctx @ razorPageEntries ctx @ componentEntries ctx @ hubEntries ctx @ grpcEntries ctx @ backgroundEntries ctx @ messageEntries ctx @ scannedEntries ctx @ functionEntries ctx
+        let platform = platformEntries ctx @ controllerEntries ctx @ razorPageEntries ctx @ componentEntries ctx @ componentEventEntries ctx @ hubEntries ctx @ grpcEntries ctx @ backgroundEntries ctx @ messageEntries ctx @ scannedEntries ctx @ functionEntries ctx
 
         let tables =
             tableEntries ctx recovery

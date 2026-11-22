@@ -7,8 +7,6 @@ Work that is known and not yet done. Remove an item when its branch is merged.
 In the order they are worth doing: the first ones change results already shown, the later ones add new inputs.
 
 1. **Read the inputs not read yet**, each a new fixture case in an existing project:
-   - Blazor's interactive events (`@onclick`, `@bind`) as inputs of the component (`CSharp.Blazor`): the
-     generated `BuildRenderTree` passes the handler to `RenderTreeBuilder.AddAttribute` with an `on...` name.
    - Razor Pages route conventions (`AddPageRoute("/Index", "home")`) in `CSharp.Controllers`.
    - Azure Functions in the in-process model (a class library with `[FunctionName]`), as a new net8.0 fixture.
    - A Hangfire recurring job's schedule (`RecurringJob.AddOrUpdate(id, job, Cron.Daily())`) as the entry's address.
