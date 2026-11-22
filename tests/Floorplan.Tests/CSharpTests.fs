@@ -30,9 +30,10 @@ let tests =
 
           test "golden: CSharp fixture on net10.0 gives the net8.0 results" {
               let m = csharpModelNet10.Force()
-              // CSharp.Functions targets net8.0 only: the Functions worker SDK it uses does not build for net10.0.
+              // The Functions fixtures target net8.0 only: the Functions SDKs they use do not build for net10.0.
               Expect.isTrue
-                  (m.Projects |> List.forall (fun p -> p.TargetFramework = "net10.0" || p.Name = "CSharp.Functions"))
+                  (m.Projects
+                   |> List.forall (fun p -> p.TargetFramework = "net10.0" || p.Name = "CSharp.Functions" || p.Name = "CSharp.FunctionsInProcess"))
                   "every project that targets net10.0 on net10.0"
               Golden.check "csharp.entry-points.txt" (EntryPointTests.render m)
           }
@@ -278,6 +279,23 @@ let tests =
                   (m.ExitPoints |> List.filter (fun x -> List.contains x.Id trace.ExitPointIds))
                   (fun x -> x.Primitive = "System.IO.File::AppendAllText")
                   "GetOrder logs the read"
+          }
+
+          test "Azure Functions in-process: each [FunctionName] method is an entry point of its trigger's kind" {
+              let m = csharpModel.Force()
+
+              let functions =
+                  entries m "CSharp.FunctionsInProcess"
+                  |> List.map (fun e -> e.HandlerMember, e.Category, e.HttpMethod, e.Route, e.Completeness)
+                  |> List.sort
+
+              Expect.equal
+                  functions
+                  [ "CSharp.FunctionsInProcess.Maintenance.Cleanup::Run", EffectCategory.Background, None, Some "0 */5 * * * *", Completeness.Complete
+                    "CSharp.FunctionsInProcess.Orders.OrderFunctions::Get", EffectCategory.HttpIn, Some "GET", Some "/api/orders/{id}", Completeness.Complete
+                    "CSharp.FunctionsInProcess.Orders.OrderFunctions::OnOrder", EffectCategory.Network, None, Some "orders", Completeness.Complete
+                    "CSharp.FunctionsInProcess.Orders.OrderFunctions::Place", EffectCategory.HttpIn, Some "POST,PUT", Some "/api/PlaceOrder", Completeness.Complete ]
+                  "HTTP under the default prefix with a route and without one, a timer, a queue; not a method without [FunctionName]"
           }
 
           test "an application nothing starts but the process has its entry point where the process starts" {

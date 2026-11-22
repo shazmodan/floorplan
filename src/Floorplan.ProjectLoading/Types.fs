@@ -12,7 +12,7 @@ type LoadedProject =
       Language: Language
       TargetFramework: string
       TargetFrameworks: string list
-      /// An executable or web project (plan section 3.2).
+      /// An executable, web or Azure Functions project (plan section 3.2).
       IsApplication: bool
       IsTestProject: bool
       /// Source files in compile order, absolute.

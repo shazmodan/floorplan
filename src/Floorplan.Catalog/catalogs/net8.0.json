@@ -760,6 +760,28 @@
     { "id": "network.functions-eventhub-trigger", "assembly": "Microsoft.Azure.Functions.Worker.Extensions.EventHubs", "type": "Microsoft.Azure.Functions.Worker.EventHubTriggerAttribute",
       "members": [".ctor"], "kind": "metadata", "category": "network",
       "payload": [{ "argument": -1, "role": "function-trigger" }, { "argument": 0, "role": "trigger-address" }] },
+    // The in-process model: the host loads a class library and runs each method marked [FunctionName("Name")] the
+    // same way, its triggers in the WebJobs SDK's extensions.
+    { "id": "http-in.webjobs-function-name", "assembly": "Microsoft.Azure.WebJobs", "type": "Microsoft.Azure.WebJobs.FunctionNameAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "function-name" }] },
+    { "id": "http-in.webjobs-http-trigger", "assembly": "Microsoft.Azure.WebJobs.Extensions.Http", "type": "Microsoft.Azure.WebJobs.HttpTriggerAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "http-in",
+      "payload": [{ "argument": -1, "role": "function-trigger" }, { "argument": -1, "role": "http-methods" }, { "argument": -1, "property": "Route", "role": "route-template" }] },
+    { "id": "background.webjobs-timer-trigger", "assembly": "Microsoft.Azure.WebJobs.Extensions", "type": "Microsoft.Azure.WebJobs.TimerTriggerAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "background",
+      "payload": [{ "argument": -1, "role": "function-trigger" }, { "argument": 0, "role": "trigger-address" }] },
+    { "id": "network.webjobs-queue-trigger", "assembly": "Microsoft.Azure.WebJobs.Extensions.Storage.Queues", "type": "Microsoft.Azure.WebJobs.QueueTriggerAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "network",
+      "payload": [{ "argument": -1, "role": "function-trigger" }, { "argument": 0, "role": "trigger-address" }] },
+    { "id": "network.webjobs-servicebus-trigger", "assembly": "Microsoft.Azure.WebJobs.Extensions.ServiceBus", "type": "Microsoft.Azure.WebJobs.ServiceBusTriggerAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "network",
+      "payload": [{ "argument": -1, "role": "function-trigger" }, { "argument": 0, "role": "trigger-address" }] },
+    { "id": "network.webjobs-blob-trigger", "assembly": "Microsoft.Azure.WebJobs.Extensions.Storage.Blobs", "type": "Microsoft.Azure.WebJobs.BlobTriggerAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "network",
+      "payload": [{ "argument": -1, "role": "function-trigger" }, { "argument": 0, "role": "trigger-address" }] },
+    { "id": "network.webjobs-eventhub-trigger", "assembly": "Microsoft.Azure.WebJobs.Extensions.EventHubs", "type": "Microsoft.Azure.WebJobs.EventHubTriggerAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "network",
+      "payload": [{ "argument": -1, "role": "function-trigger" }, { "argument": 0, "role": "trigger-address" }] },
 
     // ---------------- background ----------------
     // The generic host starts each hosted service it is given, not on a request: AddHostedService<T>() registers T

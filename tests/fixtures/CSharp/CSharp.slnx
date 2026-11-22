@@ -8,6 +8,7 @@
   <Project Path="CSharp.Effects/CSharp.Effects.csproj" />
   <Project Path="CSharp.Endpoints/CSharp.Endpoints.csproj" />
   <Project Path="CSharp.Functions/CSharp.Functions.csproj" />
+  <Project Path="CSharp.FunctionsInProcess/CSharp.FunctionsInProcess.csproj" />
   <Project Path="CSharp.Grpc/CSharp.Grpc.csproj" />
   <Project Path="CSharp.Messaging/CSharp.Messaging.csproj" />
   <Project Path="CSharp.Middleware/CSharp.Middleware.csproj" />

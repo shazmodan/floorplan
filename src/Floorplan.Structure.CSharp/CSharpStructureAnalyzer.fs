@@ -238,8 +238,12 @@ module CSharpStructureAnalyzer =
             |> List.filter File.Exists
             |> List.map (fun r -> MetadataReference.CreateFromFile r :> MetadataReference)
 
+        // The assembly's own kind: an application can be a library a host loads (an in-process Azure Function).
         let kind =
-            if project.IsApplication then OutputKind.ConsoleApplication else OutputKind.DynamicallyLinkedLibrary
+            match (property project "OutputType").ToLowerInvariant() with
+            | "exe"
+            | "winexe" -> OutputKind.ConsoleApplication
+            | _ -> OutputKind.DynamicallyLinkedLibrary
 
         let compilation =
             CSharpCompilation.Create(
