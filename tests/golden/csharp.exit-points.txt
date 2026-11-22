@@ -212,6 +212,8 @@ database | CSharp.Effects:CSharp.Effects.Printing | CSharp.Effects.Printing.Orde
 database | CSharp.Effects:CSharp.Effects.Printing | CSharp.Effects.Printing.OrderPrinting::Listed | System.String::Join | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:180
 database | CSharp.Effects:CSharp.Effects.Printing | CSharp.Effects.Printing.OrderPrinting::Names | System.String::Concat | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:182
 database | CSharp.Effects:CSharp.Effects.Printing | CSharp.Effects.Printing.OrderPrinting::Added | System.Collections.Generic.List`1::AddRange | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:187
+database | CSharp.Effects:CSharp.Effects.Printing | CSharp.Effects.Printing.TitlePrinting::Listed | System.Linq.Enumerable::ToList | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:212
+database | CSharp.Effects:CSharp.Effects.Printing | CSharp.Effects.Printing.TitlePrinting::Counted | System.Linq.Enumerable::Count | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:214
 database | CSharp.Effects:CSharp.Effects.Reporting | CSharp.Effects.Reporting.OrderReports::All | System.Linq.Enumerable::ToList | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:106
 database | CSharp.Effects:CSharp.Effects.Reporting | CSharp.Effects.Reporting.OrderReports::Count | System.Linq.Queryable::Count | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:108
 database | CSharp.Effects:CSharp.Effects.Reporting | CSharp.Effects.Reporting.OrderReports::Named | System.Linq.Queryable::FirstOrDefault | via - | - | CSharp/CSharp.Effects/EntityFramework.cs:110
