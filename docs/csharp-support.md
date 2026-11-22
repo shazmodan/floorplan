@@ -257,8 +257,13 @@ Also new, outside the recognizer:
   methods, partial without. A timer (`background.functions-timer-trigger`) is background work at its schedule;
   queue, Service Bus, blob and Event Hubs triggers are of category `network` at their queue or path
   (`"trigger-address"`). Enum arguments of attributes, such as the trigger's `AuthorizationLevel`, are decoded
-  with their types found next to the assembly. The in-process model (a class library) is not an application and
-  is not covered. Fixture: `CSharp.Functions` (net8.0 only: the worker SDK it uses does not build for net10.0).
+  with their types found next to the assembly. Fixture: `CSharp.Functions` (net8.0 only: the worker SDK it uses
+  does not build for net10.0).
+- **Azure Functions** (in-process model): the host loads a class library and runs each method with
+  `[FunctionName("Name")]` (`http-in.webjobs-function-name`) the same way, its triggers in the WebJobs SDK's
+  extensions (`http-in.webjobs-http-trigger`, `background.webjobs-timer-trigger`, `network.webjobs-*-trigger`).
+  A project that sets `AzureFunctionsVersion` is an application in either model, though this one's output is a
+  library (its structure is still compiled as one). Fixture: `CSharp.FunctionsInProcess` (net8.0 only).
 - **Data clients**: clients of databases and storage services send their commands from connections of their
   own (a multiplexer, a connection pool, an HTTP pipeline of policies), which a call is followed to only by long,
   virtual routes: a MongoDB insert reached the database not at all, only low-confidence routes through its

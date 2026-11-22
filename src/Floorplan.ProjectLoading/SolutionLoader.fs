@@ -71,8 +71,11 @@ let private toLoaded (ids: Map<string, string>) (options: ProjectOptions) =
       Language = languageOf options.ProjectFileName
       TargetFramework = options.TargetFramework
       TargetFrameworks = options.ProjectSdkInfo.TargetFrameworks
+      // An Azure Functions project is an application in either model: the in-process one is a class library the
+      // Functions host loads.
       IsApplication =
         isWeb
+        || property options "AzureFunctionsVersion" <> ""
         || System.String.Equals(outputType, "Exe", StringComparison.OrdinalIgnoreCase)
         || System.String.Equals(outputType, "WinExe", StringComparison.OrdinalIgnoreCase)
       IsTestProject = options.ProjectSdkInfo.IsTestProject || isTrue (property options "IsTestProject")
