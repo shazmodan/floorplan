@@ -1,0 +1,21 @@
+@page "/counter"
+@rendermode InteractiveServer
+@* Interactive: the browser sends its events over the circuit, and they run these handlers on the server. *@
+<button @onclick="Increment">Add</button>
+<button @onclick="() => Reset(0)">Reset</button>
+<input @bind="Note" />
+<p>@count</p>
+
+@code {
+    private int count;
+
+    public string Note { get; set; } = "";
+
+    private void Increment()
+    {
+        count++;
+        System.IO.File.AppendAllText("clicks.log", count.ToString());
+    }
+
+    private void Reset(int to) => count = to;
+}

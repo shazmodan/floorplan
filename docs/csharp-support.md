@@ -178,8 +178,15 @@ Also new, outside the recognizer:
   assembly, and `MapBlazorHub()` (`http-in.map-blazor-hub`) those of the application. A routed component carries a
   `[Route(template)]` for each `@page` directive (`http-in.component-route`): each is a complete GET entry point.
   Its handler is the first lifecycle method the component defines (`OnInitializedAsync`, `OnInitialized`,
-  `OnParametersSetAsync`, `OnParametersSet`), or else its `BuildRenderTree`. Interactive events (`@onclick`) are not
-  entry points. Source generators are given what the compiler gives them, the additional files
+  `OnParametersSetAsync`, `OnParametersSet`), or else its `BuildRenderTree`. With interactive server rendering on
+  (`AddInteractiveServerRenderMode()`, `http-in.blazor-interactive-server`, or `MapBlazorHub()`: a `"component-events"`
+  payload), the browser sends a component's events over the circuit's hub, and each runs a handler: the generated
+  `BuildRenderTree` binds it with `RenderTreeBuilder.AddAttribute(sequence, "onclick", EventCallback.Factory.Create(this,
+  handler))` (`http-in.component-event`, whose payloads are the name and the value). Each `on...` attribute whose value
+  is made from a delegate is an entry point at `/_blazor`, the hub's default path, with no HTTP method and partial,
+  as a SignalR hub method is; its handler is the method or lambda the delegate runs (`@onclick="Increment"`,
+  `@onclick="() => Reset(0)"`, and the setter lambda `@bind` makes for `onchange`). Every component of the mapped
+  assembly counts, whether or not it is rendered interactively; without interactive rendering, no event is. Source generators are given what the compiler gives them, the additional files
   (`/additionalfile:`, the `.razor` components) and the analyzer configuration (`/analyzerconfig:`, resolved from
   the project folder), so the Razor generator compiles the components and code that names them (`App` in
   `Program.cs`) binds. Generated code gives no units, so a component is attributed to its project's global

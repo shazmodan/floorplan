@@ -410,7 +410,19 @@
     { "id": "http-in.map-razor-components", "assembly": "Microsoft.AspNetCore.Components.Endpoints", "type": "Microsoft.AspNetCore.Builder.RazorComponentsEndpointRouteBuilderExtensions",
       "members": ["MapRazorComponents"], "kind": "registration", "category": "http-in", "payload": [{ "argument": 0, "role": "components" }] },
     { "id": "http-in.map-blazor-hub", "assembly": "Microsoft.AspNetCore.Components.Server", "type": "Microsoft.AspNetCore.Builder.ComponentEndpointRouteBuilderExtensions",
-      "members": ["MapBlazorHub"], "kind": "registration", "category": "http-in", "payload": [{ "argument": 0, "role": "components" }] },
+      "members": ["MapBlazorHub"], "kind": "registration", "category": "http-in",
+      "payload": [{ "argument": 0, "role": "components" }, { "argument": 0, "role": "component-events" }] },
+    // Interactive server rendering: the browser sends a component's events (a click, a changed input) over the
+    // circuit's hub, and they run its handlers on the server. AddInteractiveServerRenderMode() (or MapBlazorHub)
+    // turns it on; without it, rendering is static and no handler runs. The generated BuildRenderTree binds each
+    // event to its handler with RenderTreeBuilder.AddAttribute(sequence, "onclick", EventCallback.Factory.Create(...)).
+    { "id": "http-in.blazor-interactive-server", "assembly": "Microsoft.AspNetCore.Components.Server",
+      "type": "Microsoft.AspNetCore.Builder.ServerRazorComponentsEndpointConventionBuilderExtensions",
+      "members": ["AddInteractiveServerRenderMode"], "kind": "registration", "category": "http-in",
+      "payload": [{ "argument": 0, "role": "component-events" }] },
+    { "id": "http-in.component-event", "assembly": "Microsoft.AspNetCore.Components", "type": "Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder",
+      "members": ["AddAttribute"], "kind": "metadata", "category": "http-in",
+      "payload": [{ "argument": 1, "role": "component-event-name" }, { "argument": 2, "role": "component-event-handler" }] },
     { "id": "http-in.component-route", "assembly": "Microsoft.AspNetCore.Components", "type": "Microsoft.AspNetCore.Components.RouteAttribute",
       "members": [".ctor"], "kind": "metadata", "category": "http-in", "payload": [{ "argument": 0, "role": "component-route" }] },
     // A SignalR client: the server invokes the handlers On registers by a hub method's name, and InvokeAsync, SendAsync

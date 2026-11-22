@@ -1,5 +1,5 @@
 software-system | system | CSharp | - | in - | - | 15 sources
-container | container:CSharp.Blazor | CSharp.Blazor | C# · net8.0 | in system | web application | 4 sources
+container | container:CSharp.Blazor | CSharp.Blazor | C# · net8.0 | in system | web application | 8 sources
 container | container:CSharp.Clients | CSharp.Clients | C# · net8.0 | in system | message consumer | 3 sources
 container | container:CSharp.Cloud | CSharp.Cloud | C# · net8.0 | in system | message consumer | 2 sources
 container | container:CSharp.Controllers | CSharp.Controllers | C# · net8.0 | in system | web application | 15 sources
@@ -82,6 +82,7 @@ component | component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports | CSharp
 component | component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring | C# namespace | in container:CSharp.Worker | reaches out | 1 sources
 component | component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | CSharp.Worker.Reporting | C# namespace | in container:CSharp.Worker | reaches out | 1 sources
 code | code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Badge | Badge | type | in component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages | - | 1 sources
+code | code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Counter | Counter | type | in component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages | handles requests,reaches out | 1 sources
 code | code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Home | Home | type | in component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages | handles requests | 1 sources
 code | code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Order | Order | type | in component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages | handles requests,reaches out | 1 sources
 code | code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.App | App | type | in component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components | - | 1 sources
@@ -207,7 +208,7 @@ code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Re
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule | Schedule | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | - | 1 sources
 code | code:CSharp.Worker|CSharp.Worker:|Program | Program | type | in component:CSharp.Worker|CSharp.Worker: | - | 1 sources
 external-system | external:database | Database | - | in - | - | 47 sources
-external-system | external:filesystem | File system | - | in - | - | 93 sources
+external-system | external:filesystem | File system | - | in - | - | 94 sources
 external-system | external:http | HTTP services | - | in - | - | 8 sources
 external-system | external:http:api.example.org | api.example.org | - | in - | - | 7 sources
 external-system | external:http:api.github.com | api.github.com | - | in - | - | 2 sources
@@ -231,7 +232,8 @@ external-system | external:library:StackExchange.Redis | StackExchange.Redis | -
 external-system | external:native | Native libraries | - | in - | - | 1 sources
 external-system | external:network | Network | - | in - | - | 4 sources
 external-system | external:processes | Operating system | - | in - | - | 4 sources
-person | person:user | User | - | in - | - | 67 sources
+person | person:user | User | - | in - | - | 71 sources
+code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Counter -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Order -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.App -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.Routes | uses | - | 1 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.Routes -> code:CSharp.Blazor|CSharp.Blazor:|Program | uses | - | 1 sources
@@ -435,6 +437,7 @@ external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CShar
 external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders|CSharp.Messaging.Orders.Listener | delivers messages to | - | 2 sources
 external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Refunds|CSharp.Messaging.Refunds.Poller | delivers messages to | - | 1 sources
 external:library:StackExchange.Redis -> code:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching|CSharp.Clients.Caching.Cache | delivers messages to | - | 1 sources
+person:user -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Counter | sends HTTP requests to | HTTP | 4 sources
 person:user -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Home | sends HTTP requests to | HTTP | 1 sources
 person:user -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Order | sends HTTP requests to | HTTP | 2 sources
 person:user -> code:CSharp.Controllers|CSharp.Controllers:AspNetCoreGeneratedDocument|AspNetCoreGeneratedDocument.Areas_Admin_Pages_Audit | sends HTTP requests to | HTTP | 1 sources
@@ -471,10 +474,10 @@ view context | context of system | 27 elements | 1980 x 1714
   external:library:NServiceBus -> system | delivers messages to | - | 1 sources
   external:library:RabbitMQ.Client -> system | delivers messages to | - | 7 sources
   external:library:StackExchange.Redis -> system | delivers messages to | - | 1 sources
-  person:user -> system | sends HTTP requests to | HTTP | 67 sources
+  person:user -> system | sends HTTP requests to | HTTP | 71 sources
   system -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 47 sources
   system -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 9 more | 33 sources
-  system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 59 sources
+  system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 60 sources
   system -> external:http | sends HTTP requests | AWSSDK.SQS, Flurl.Http, HTTP and 1 more | 8 sources
   system -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
   system -> external:http:api.github.com | sends HTTP requests | HTTP | 2 sources
@@ -499,7 +502,7 @@ view context | context of system | 27 elements | 1980 x 1714
   system -> external:network | sends and receives over the network | AWSSDK.SQS, RabbitMQ.Client, StackExchange.Redis and 1 more | 4 sources
   system -> external:processes | starts or inspects processes | MassTransit, NLog, NLog.Extensions.Logging | 4 sources
 view containers | containers of system | 41 elements | 2280 x 2507
-  container:CSharp.Blazor -> external:filesystem | writes files | - | 1 sources
+  container:CSharp.Blazor -> external:filesystem | writes files | - | 2 sources
   container:CSharp.Clients -> external:filesystem | reads files | MongoDB.Driver | 2 sources
   container:CSharp.Clients -> external:filesystem | writes files | - | 2 sources
   container:CSharp.Clients -> external:http | sends HTTP requests | HTTP | 2 sources
@@ -555,7 +558,7 @@ view containers | containers of system | 41 elements | 2280 x 2507
   external:library:NServiceBus -> container:CSharp.Messaging | delivers messages to | - | 1 sources
   external:library:RabbitMQ.Client -> container:CSharp.Messaging | delivers messages to | - | 7 sources
   external:library:StackExchange.Redis -> container:CSharp.Clients | delivers messages to | - | 1 sources
-  person:user -> container:CSharp.Blazor | sends HTTP requests to | HTTP | 3 sources
+  person:user -> container:CSharp.Blazor | sends HTTP requests to | HTTP | 7 sources
   person:user -> container:CSharp.Controllers | sends HTTP requests to | HTTP | 14 sources
   person:user -> container:CSharp.Conventional | sends HTTP requests to | HTTP | 6 sources
   person:user -> container:CSharp.Delegated | sends HTTP requests to | HTTP | 6 sources
@@ -568,8 +571,8 @@ view containers | containers of system | 41 elements | 2280 x 2507
 view components:CSharp.Blazor | components of container:CSharp.Blazor | 5 elements | 528 x 1032
   component:CSharp.Blazor|CSharp.Blazor: -> component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components | uses | - | 1 sources
   component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components -> component:CSharp.Blazor|CSharp.Blazor: | uses | - | 1 sources
-  component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages -> external:filesystem | writes files | - | 1 sources
-  person:user -> component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages | sends HTTP requests to | HTTP | 3 sources
+  component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages -> external:filesystem | writes files | - | 2 sources
+  person:user -> component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages | sends HTTP requests to | HTTP | 7 sources
 view components:CSharp.Clients | components of container:CSharp.Clients | 19 elements | 1830 x 1373
   component:CSharp.Clients|CSharp.Clients: -> component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Caching | uses | - | 1 sources
   component:CSharp.Clients|CSharp.Clients: -> component:CSharp.Clients|CSharp.Clients:CSharp.Clients.Documents | uses | - | 1 sources
@@ -735,8 +738,10 @@ view code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components | code of compone
   code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.App -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.Routes | uses | - | 1 sources
   code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.Routes -> component:CSharp.Blazor|CSharp.Blazor: | uses | - | 1 sources
   component:CSharp.Blazor|CSharp.Blazor: -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.App | uses | - | 1 sources
-view code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages | code of component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages | 5 elements | 816 x 691
+view code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages | code of component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages | 6 elements | 1104 x 691
+  code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Counter -> external:filesystem | writes files | - | 1 sources
   code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Order -> external:filesystem | writes files | - | 1 sources
+  person:user -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Counter | sends HTTP requests to | HTTP | 4 sources
   person:user -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Home | sends HTTP requests to | HTTP | 1 sources
   person:user -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Order | sends HTTP requests to | HTTP | 2 sources
 view code:CSharp.Clients|CSharp.Clients: | code of component:CSharp.Clients|CSharp.Clients: | 6 elements | 1392 x 572
