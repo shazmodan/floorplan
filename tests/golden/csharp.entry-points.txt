@@ -92,6 +92,9 @@ CSharp.Switch | http-in | GET /api/stock | complete | CSharp.Switch:CSharp.Switc
 CSharp.Switch | http-in | GET /api/suppliers | complete | CSharp.Switch:CSharp.Switch | CSharp.Switch.Orders::Suppliers | forms [control-flow] | [method equals GET; path equals /api/suppliers]
 CSharp.Table | http-in | - /health | partial | CSharp.Table:CSharp.Table | CSharp.Table.Handlers::Health | forms [table-lookup] | [path equals /health]
 CSharp.Table | http-in | - /orders | partial | CSharp.Table:CSharp.Table | CSharp.Table.Handlers::Orders | forms [table-lookup] | [path equals /orders]
+CSharp.Worker | background | - 0 * * * * | complete | CSharp.Worker:CSharp.Worker.Reporting | CSharp.Worker.Reporting.Reports::Hourly | forms [platform-routing] | [] | through Hangfire.RecurringJob
+CSharp.Worker | background | - 0 0 * * * | complete | CSharp.Worker:CSharp.Worker.Reporting | CSharp.Worker.Reporting.Reports::Nightly | forms [platform-routing] | [] | through Hangfire.RecurringJob
+CSharp.Worker | background | - 0 6 * * 1 | complete | CSharp.Worker:CSharp.Worker.Reporting | CSharp.Worker.Reporting.Reports::Weekly | forms [platform-routing] | [] | through Hangfire.RecurringJob
 CSharp.Worker | filesystem-read | - inbox | complete | CSharp.Worker:CSharp.Worker.Imports | CSharp.Worker.Imports.Inbox/<lambda> | forms [platform-routing] | [] | through System.IO.FileSystemWatcher
 CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Cleanup | CSharp.Worker.Cleanup.PurgeJob::Execute | forms [platform-routing] | [] | through Quartz.ServiceCollectionExtensions
 CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Cleanup | CSharp.Worker.Cleanup.Sweeper::ExecuteAsync | forms [platform-routing] | [] | through Microsoft.Extensions.DependencyInjection.ServiceCollectionHostedServiceExtensions
@@ -99,5 +102,4 @@ CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Monito
 CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::OnAudit | forms [platform-routing] | [] | through System.Timers.Timer
 CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::StartAsync | forms [platform-routing] | [] | through Microsoft.Extensions.DependencyInjection.ServiceCollectionHostedServiceExtensions
 CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Monitoring | CSharp.Worker.Monitoring.Heartbeat::StopAsync | forms [platform-routing] | [] | through Microsoft.Extensions.DependencyInjection.ServiceCollectionHostedServiceExtensions
-CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Reporting | CSharp.Worker.Reporting.Reports::Nightly | forms [platform-routing] | [] | through Hangfire.RecurringJob
 CSharp.Worker | background | - - | complete | CSharp.Worker:CSharp.Worker.Reporting | CSharp.Worker.Reporting.Reports::Send | forms [platform-routing] | [] | through Hangfire.BackgroundJob

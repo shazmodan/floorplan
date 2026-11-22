@@ -1382,6 +1382,21 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
 
         match value with
         | Values.Text t -> Some t
+        | _ when spec.Role = "job-schedule" ->
+            // A schedule handed over as a function the scheduler calls (Hangfire's `Cron.Daily` method group): what
+            // the method returns, when that is constant.
+            List.tryItem index (r.Flow.OperandsAt r.Offset)
+            // C# caches a method group's delegate in a static field: the values are the cached one and the new one.
+            |> Option.bind (fun values ->
+                values |> Set.toList |> List.tryPick (fun v -> PlatformRouting.handlerOf set r.Flow (Set.singleton v)))
+            |> Option.filter (fun m -> m.ParameterCount = 0)
+            |> Option.bind (fun m ->
+                let origin = ctx.Program.Producers.Member(m, "")
+
+                if origin |> List.forall (function Values.Literal _ -> true | _ -> false) && not origin.IsEmpty then
+                    Some(origin |> List.map (function Values.Literal t -> t | _ -> "") |> String.concat "")
+                else
+                    None)
         | _ -> None
 
     // The method a delegate among the values runs. Roslyn caches a lambda's delegate in a static field and makes it
@@ -1413,8 +1428,13 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
         | _ -> None
 
     // The roles that name where messages come from, and what to call it: a queue (RabbitMQ, Service Bus), a channel
-    // (Redis), a hub method a server invokes (a SignalR client).
-    let addressRoles = [ "message-queue", "queue"; "message-channel", "channel"; "message-method", "hub method" ]
+    // (Redis), a hub method a server invokes (a SignalR client); for background work, when it runs (a recurring
+    // Hangfire job's cron expression).
+    let addressRoles =
+        [ "message-queue", "queue"
+          "message-channel", "channel"
+          "message-method", "hub method"
+          "job-schedule", "schedule" ]
     let addressOf (rule: Rule) = addressRoles |> List.tryPick (fun (role, _) -> specOf rule role)
 
     let nounOf (rule: Rule) =
@@ -1562,6 +1582,7 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                             match category, nounOf q.Rule with
                             | EffectCategory.FilesystemRead, _ -> "path", "watches"
                             | _, "hub method" -> "hub method", "receives it as"
+                            | _, "schedule" -> "schedule", "runs it on"
                             | _, noun -> noun, "reads it from"
                         let named = match name with Some n -> $"{noun} \"{n}\"" | None -> $"a {noun} that is not a constant"
                         [ step $"{q.Caller.Ref.Display} {verb} {named} with {q.Declared.Display} (rule {q.Rule.Id})" q.Caller.Ref (Instruction.pointAt q.Caller.Body.Value.Value.Instructions q.Index) ]
@@ -1577,8 +1598,13 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                   Predicates = []
                   HttpMethod = None
                   Route = queue
-                  // Background work (a timer) has no address; a message comes from a queue.
-                  Completeness = if queue.IsSome || category = EffectCategory.Background then Completeness.Complete else Completeness.Unresolved
+                  // Background work (a timer) has no address unless it names its schedule; a message comes from a
+                  // queue.
+                  Completeness =
+                      if queue.IsSome || (category = EffectCategory.Background && source.IsNone) then
+                          Completeness.Complete
+                      else
+                          Completeness.Unresolved
                   Forms = [ RouteForm.PlatformRouting ]
                   Evidence =
                     { Steps =

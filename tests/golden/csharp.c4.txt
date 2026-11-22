@@ -14,7 +14,7 @@ container | container:CSharp.Messaging | CSharp.Messaging | C# · net8.0 | in sy
 container | container:CSharp.Middleware | CSharp.Middleware | C# · net8.0 | in system | web application | 9 sources
 container | container:CSharp.Switch | CSharp.Switch | C# · net8.0 | in system | web application | 10 sources
 container | container:CSharp.Table | CSharp.Table | C# · net8.0 | in system | web application | 3 sources
-container | container:CSharp.Worker | CSharp.Worker | C# · net8.0 | in system | file watcher,background worker | 10 sources
+container | container:CSharp.Worker | CSharp.Worker | C# · net8.0 | in system | file watcher,background worker | 12 sources
 component | component:CSharp.Blazor|CSharp.Blazor: | (global namespace) | C# namespace | in container:CSharp.Blazor | - | 1 sources
 component | component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components | CSharp.Blazor.Components | C# namespace | in container:CSharp.Blazor | - | 1 sources
 component | component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages | CSharp.Blazor.Components.Pages | C# namespace | in container:CSharp.Blazor | handles requests,reaches out | 1 sources
@@ -213,7 +213,7 @@ code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Re
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule | Schedule | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | - | 1 sources
 code | code:CSharp.Worker|CSharp.Worker:|Program | Program | type | in component:CSharp.Worker|CSharp.Worker: | - | 1 sources
 external-system | external:database | Database | - | in - | - | 47 sources
-external-system | external:filesystem | File system | - | in - | - | 98 sources
+external-system | external:filesystem | File system | - | in - | - | 100 sources
 external-system | external:http | HTTP services | - | in - | - | 8 sources
 external-system | external:http:api.example.org | api.example.org | - | in - | - | 7 sources
 external-system | external:http:api.github.com | api.github.com | - | in - | - | 2 sources
@@ -426,7 +426,7 @@ code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports|CSharp.Worker.Imports.Inb
 code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports|CSharp.Worker.Imports.Inbox -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring|CSharp.Worker.Monitoring.Heartbeat -> external:filesystem | writes files | - | 3 sources
 code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring|CSharp.Worker.Monitoring.Heartbeat -> external:http | sends HTTP requests | HTTP | 1 sources
-code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Reports -> external:filesystem | writes files | - | 2 sources
+code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Reports -> external:filesystem | writes files | - | 4 sources
 code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Reports | uses | - | 1 sources
 code:CSharp.Worker|CSharp.Worker:|Program -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.PurgeJob | uses | - | 1 sources
 code:CSharp.Worker|CSharp.Worker:|Program -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Cleanup|CSharp.Worker.Cleanup.Sweeper | uses | - | 1 sources
@@ -488,7 +488,7 @@ view context | context of system | 28 elements | 1980 x 1714
   person:user -> system | sends HTTP requests to | HTTP | 75 sources
   system -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 47 sources
   system -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 9 more | 33 sources
-  system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 64 sources
+  system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 66 sources
   system -> external:http | sends HTTP requests | AWSSDK.SQS, Flurl.Http, HTTP and 1 more | 8 sources
   system -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
   system -> external:http:api.github.com | sends HTTP requests | HTTP | 2 sources
@@ -559,7 +559,7 @@ view containers | containers of system | 43 elements | 2425 x 2507
   container:CSharp.Messaging -> external:network | sends and receives over the network | RabbitMQ.Client | 1 sources
   container:CSharp.Messaging -> external:processes | starts or inspects processes | MassTransit | 1 sources
   container:CSharp.Worker -> external:filesystem | reads files | - | 2 sources
-  container:CSharp.Worker -> external:filesystem | writes files | - | 9 sources
+  container:CSharp.Worker -> external:filesystem | writes files | - | 11 sources
   container:CSharp.Worker -> external:http | sends HTTP requests | HTTP | 1 sources
   external:filesystem -> container:CSharp.Worker | notifies of changed files | - | 1 sources
   external:library:Amazon.SQS -> container:CSharp.Cloud | delivers messages to | - | 1 sources
@@ -748,7 +748,7 @@ view components:CSharp.Worker | components of container:CSharp.Worker | 7 elemen
   component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports -> external:filesystem | writes files | - | 1 sources
   component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring -> external:filesystem | writes files | - | 3 sources
   component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring -> external:http | sends HTTP requests | HTTP | 1 sources
-  component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting -> external:filesystem | writes files | - | 2 sources
+  component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting -> external:filesystem | writes files | - | 4 sources
   external:filesystem -> component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Imports | notifies of changed files | - | 1 sources
 view code:CSharp.Blazor|CSharp.Blazor: | code of component:CSharp.Blazor|CSharp.Blazor: | 2 elements | 324 x 461
   code:CSharp.Blazor|CSharp.Blazor:|Program -> component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components | uses | - | 1 sources
@@ -1077,6 +1077,6 @@ view code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring | code of compone
   code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring|CSharp.Worker.Monitoring.Heartbeat -> external:http | sends HTTP requests | HTTP | 1 sources
   component:CSharp.Worker|CSharp.Worker: -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Monitoring|CSharp.Worker.Monitoring.Heartbeat | uses | - | 1 sources
 view code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | code of component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | 4 elements | 249 x 1032
-  code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Reports -> external:filesystem | writes files | - | 2 sources
+  code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Reports -> external:filesystem | writes files | - | 4 sources
   code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Reports | uses | - | 1 sources
   component:CSharp.Worker|CSharp.Worker: -> code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule | uses | - | 1 sources

@@ -713,19 +713,31 @@
       "members": ["Execute"], "includeDerivedTypes": true, "kind": "callback", "category": "background" },
 
     // Hangfire: a job is handed over as an expression tree (`() => reports.Daily()`), and its server runs the method the
-    // tree calls ("expression-handler": whichever argument the tree is), now, later or on a schedule.
+    // tree calls ("expression-handler": whichever argument the tree is), now, later or on a schedule. A recurring
+    // job's cron expression ("job-schedule") follows the tree, so its index depends on what comes before: the job's
+    // id and a queue (id, queue, job, cron), the id alone (id, job, cron), or nothing in obsolete overloads (job,
+    // cron). The first rule that applies is used, so the longer prefixes come first.
     { "id": "background.hangfire-job", "assembly": "Hangfire.Core", "type": "Hangfire.BackgroundJob",
       "members": ["Enqueue", "Schedule", "ContinueJobWith"], "kind": "registration", "category": "background",
       "payload": [{ "argument": -1, "role": "expression-handler" }] },
+    { "id": "background.hangfire-recurring-job-queue", "assembly": "Hangfire.Core", "type": "Hangfire.RecurringJob",
+      "members": ["AddOrUpdate"], "whenParameters": ["System.String", "System.String"], "kind": "registration", "category": "background",
+      "payload": [{ "argument": -1, "role": "expression-handler" }, { "argument": 3, "role": "job-schedule" }] },
     { "id": "background.hangfire-recurring-job", "assembly": "Hangfire.Core", "type": "Hangfire.RecurringJob",
+      "members": ["AddOrUpdate"], "whenFirstParameter": "System.String", "kind": "registration", "category": "background",
+      "payload": [{ "argument": -1, "role": "expression-handler" }, { "argument": 2, "role": "job-schedule" }] },
+    { "id": "background.hangfire-recurring-job-unnamed", "assembly": "Hangfire.Core", "type": "Hangfire.RecurringJob",
       "members": ["AddOrUpdate"], "kind": "registration", "category": "background",
-      "payload": [{ "argument": -1, "role": "expression-handler" }] },
+      "payload": [{ "argument": -1, "role": "expression-handler" }, { "argument": 1, "role": "job-schedule" }] },
     { "id": "background.hangfire-client", "assembly": "Hangfire.Core", "type": "Hangfire.BackgroundJobClientExtensions",
       "members": ["Enqueue", "Schedule", "ContinueJobWith"], "kind": "registration", "category": "background",
       "payload": [{ "argument": -1, "role": "expression-handler" }] },
+    { "id": "background.hangfire-recurring-manager-queue", "assembly": "Hangfire.Core", "type": "Hangfire.RecurringJobManagerExtensions",
+      "members": ["AddOrUpdate"], "whenParameters": ["Hangfire.IRecurringJobManager", "System.String", "System.String"], "kind": "registration", "category": "background",
+      "payload": [{ "argument": -1, "role": "expression-handler" }, { "argument": 4, "role": "job-schedule" }] },
     { "id": "background.hangfire-recurring-manager", "assembly": "Hangfire.Core", "type": "Hangfire.RecurringJobManagerExtensions",
       "members": ["AddOrUpdate"], "kind": "registration", "category": "background",
-      "payload": [{ "argument": -1, "role": "expression-handler" }] },
+      "payload": [{ "argument": -1, "role": "expression-handler" }, { "argument": 3, "role": "job-schedule" }] },
 
     // ---------------- timers ----------------
     // A timer calls its callback each time it fires: background work, with "message-handler" naming the delegate.

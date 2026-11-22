@@ -48,10 +48,15 @@ namespace CSharp.Worker.Cleanup
 
 namespace CSharp.Worker.Reporting
 {
-    // Hangfire: a job is an expression tree, and its server runs the method the tree calls.
+    // Hangfire: a job is an expression tree, and its server runs the method the tree calls; a recurring job runs on
+    // its cron expression.
     public class Reports
     {
         public void Nightly() => File.WriteAllText("nightly.txt", DateTime.UtcNow.ToString("O"));
+
+        public void Weekly() => File.WriteAllText("weekly.txt", "");
+
+        public void Hourly() => File.WriteAllText("hourly.txt", "");
 
         public Task Send(string to) => File.AppendAllTextAsync("outbox.log", to);
     }
@@ -60,7 +65,10 @@ namespace CSharp.Worker.Reporting
     {
         public static void Jobs()
         {
-            Hangfire.RecurringJob.AddOrUpdate<Reports>("nightly", r => r.Nightly(), Hangfire.Cron.Daily);
+            // A schedule from Hangfire's Cron helpers, a literal one with a queue, and a helper the server calls.
+            Hangfire.RecurringJob.AddOrUpdate<Reports>("nightly", r => r.Nightly(), Hangfire.Cron.Daily());
+            Hangfire.RecurringJob.AddOrUpdate<Reports>("weekly", "reports", r => r.Weekly(), "0 6 * * 1");
+            Hangfire.RecurringJob.AddOrUpdate<Reports>("hourly", r => r.Hourly(), Hangfire.Cron.Hourly);
             Hangfire.BackgroundJob.Enqueue<Reports>(r => r.Send("ops@example.org"));
         }
     }
