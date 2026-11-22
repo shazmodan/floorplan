@@ -299,17 +299,16 @@ Also new, outside the recognizer:
   queue URL as an argument or the request's `QueueUrl`), and Cosmos DB's container and item operations, a query
   iterator's `ReadNextAsync` and a transactional batch's `ExecuteAsync` (`database.cosmos-*`). A loop that calls
   SQS's `ReceiveMessage*` is a network entry point at its queue (`network.aws-sqs-receive*`; a `message-queue`
-  can now be a property of an argument). Constructing a client still shows its credential lookup. Fixture:
-  `CSharp.Cloud` (AWS); the Cosmos DB rules were checked on an application outside the fixtures, as the client's
-  analysis is slow. So were Elasticsearch's (`database.elasticsearch`, the request methods of
-  `ElasticsearchClient`), whose calls were low-confidence HTTP through the client's transport.
+  can now be a property of an argument). Constructing a client still shows its credential lookup. Elasticsearch's
+  calls were low-confidence HTTP through the client's transport; `database.elasticsearch` names the request methods
+  of `ElasticsearchClient`. Fixture: `CSharp.Cloud` (AWS, Cosmos DB, Elasticsearch).
 - **Sending messages**: the messaging libraries write a message from their own loops (RabbitMQ's frame writer,
   Kafka's native library, a bus's transport), which a call is not followed to: publishing showed only the
   connection's DNS lookup. Sink rules of category `network` name the calls that send, as for Entity Framework
   Core: RabbitMQ's `BasicPublish` (the routing key is the payload; `whenParameters` tells the overloads apart),
   Kafka's `Produce`/`ProduceAsync` (the topic), Azure Service Bus's `ServiceBusSender.Send*`/`Schedule*`, and
-  MassTransit's `Publish` and `Send`. Fixture: `CSharp.Messaging` (`CSharp.Messaging.Publishing`); Kafka's rule
-  was checked on an application outside the fixtures, as its native library is not in them.
+  MassTransit's `Publish` and `Send`. Fixture: `CSharp.Messaging` (`CSharp.Messaging.Publishing`, and a loop over
+  Kafka's `Consume` in `CSharp.Messaging.Refunds`).
 - **Hosted services**: background work the generic host starts by itself is an entry point of category
   `background`. `AddHostedService<T>()` is a registration (`background.add-hosted-service`) whose
   `"hosted-service-type"` payload is the index of the type argument that is the service, and callback rules of

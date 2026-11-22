@@ -68,13 +68,18 @@ namespace CSharp.Messaging.Publishing
 
     // Sending messages: each call that sends is an exit point of category network, with the routing key where the
     // call has one.
-    public class Publisher(IModel channel, ServiceBusSender sender, IPublishEndpoint bus)
+    public class Publisher(IModel channel, ServiceBusSender sender, IPublishEndpoint bus, Confluent.Kafka.IProducer<string, string> producer)
     {
         public void Order(string id) => channel.BasicPublish("", "orders", null, Encoding.UTF8.GetBytes(id));
 
         public Task Payment(string id) => sender.SendMessageAsync(new ServiceBusMessage(id));
 
         public Task Shipped(string id) => bus.Publish(new Shipping.OrderShipped(id));
+
+        // Kafka: the topic is the first argument.
+        public Task Placed(string id) => producer.ProduceAsync("placed", new Confluent.Kafka.Message<string, string> { Key = id, Value = id });
+
+        public void Cancelled(string id) => producer.Produce("cancelled", new Confluent.Kafka.Message<string, string> { Key = id, Value = id });
     }
 }
 
@@ -116,6 +121,20 @@ namespace CSharp.Messaging.Refunds
             {
                 var message = await receiver.ReceiveMessageAsync(cancellationToken: ct);
                 await File.AppendAllTextAsync("refunds.log", message.Body.ToString(), ct);
+            }
+        }
+
+        // Kafka: a loop that consumes receives from the topic the consumer subscribed to.
+        public static void Consume(CancellationToken ct)
+        {
+            var config = new Confluent.Kafka.ConsumerConfig { BootstrapServers = "localhost:9092", GroupId = "refunds" };
+            using var consumer = new Confluent.Kafka.ConsumerBuilder<string, string>(config).Build();
+            consumer.Subscribe("refunds-requested");
+
+            while (!ct.IsCancellationRequested)
+            {
+                var result = consumer.Consume(ct);
+                File.AppendAllText("requested.log", result.Message.Value);
             }
         }
 

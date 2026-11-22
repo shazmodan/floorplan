@@ -506,10 +506,11 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                 | true, ws ->
                     ws
                     |> List.map (fun w ->
-                        // Follow the next hops through the cached tables to rebuild the path.
+                        // Follow the next hops through the cached tables to rebuild the path; the guard only
+                        // stops a cycle, as in Summaries.Path.
                         let rec path (w: CachedWitness) (acc: Summaries.PathStep list) (guard: int) =
                             match w.Next with
-                            | Some next when guard < 128 ->
+                            | Some next when guard < 4096 ->
                                 match witness next w.RuleId with
                                 | Some n -> path n (w.Step :: acc) (guard + 1)
                                 | None -> List.rev (w.Step :: acc)
