@@ -401,6 +401,14 @@
     // @page template (the payload's property names the key, argument 1 is the value).
     { "id": "http-in.map-razor-pages", "assembly": "Microsoft.AspNetCore.Mvc.RazorPages", "type": "Microsoft.AspNetCore.Builder.RazorPagesEndpointRouteBuilderExtensions",
       "members": ["MapRazorPages"], "kind": "registration", "category": "http-in", "payload": [{ "argument": 0, "role": "razor-pages" }] },
+    // Razor Pages route conventions: a page answers at one more route, a template from the application's root that
+    // replaces the page's own (AddPageRoute("/Shop/Index", "home"); AddAreaPageRoute("Admin", "/Audit", "audit")).
+    { "id": "http-in.razor-page-route", "assembly": "Microsoft.AspNetCore.Mvc.RazorPages", "type": "Microsoft.Extensions.DependencyInjection.PageConventionCollectionExtensions",
+      "members": ["AddPageRoute"], "kind": "registration", "category": "http-in",
+      "payload": [{ "argument": 1, "role": "razor-page-name" }, { "argument": 2, "role": "razor-page-route" }] },
+    { "id": "http-in.razor-area-page-route", "assembly": "Microsoft.AspNetCore.Mvc.RazorPages", "type": "Microsoft.Extensions.DependencyInjection.PageConventionCollectionExtensions",
+      "members": ["AddAreaPageRoute"], "kind": "registration", "category": "http-in",
+      "payload": [{ "argument": 1, "role": "razor-page-area" }, { "argument": 2, "role": "razor-page-name" }, { "argument": 3, "role": "razor-page-route" }] },
     { "id": "http-in.razor-page-metadata", "assembly": "Microsoft.AspNetCore.Razor.Runtime", "type": "Microsoft.AspNetCore.Razor.Hosting.RazorCompiledItemMetadataAttribute",
       "members": [".ctor"], "kind": "metadata", "category": "http-in",
       "payload": [{ "argument": 1, "property": "Identifier", "role": "razor-identifier" }, { "argument": 1, "property": "RouteTemplate", "role": "razor-route-template" }] },

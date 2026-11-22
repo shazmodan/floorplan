@@ -2,7 +2,7 @@ software-system | system | CSharp | - | in - | - | 15 sources
 container | container:CSharp.Blazor | CSharp.Blazor | C# · net8.0 | in system | web application | 8 sources
 container | container:CSharp.Clients | CSharp.Clients | C# · net8.0 | in system | message consumer | 3 sources
 container | container:CSharp.Cloud | CSharp.Cloud | C# · net8.0 | in system | message consumer | 2 sources
-container | container:CSharp.Controllers | CSharp.Controllers | C# · net8.0 | in system | web application | 15 sources
+container | container:CSharp.Controllers | CSharp.Controllers | C# · net8.0 | in system | web application | 17 sources
 container | container:CSharp.Conventional | CSharp.Conventional | C# · net8.0 | in system | web application | 7 sources
 container | container:CSharp.Delegated | CSharp.Delegated | C# · net8.0 | in system | web application | 7 sources
 container | container:CSharp.Effects | CSharp.Effects | C# · net8.0 | in system | background worker | 2 sources
@@ -232,7 +232,7 @@ external-system | external:library:StackExchange.Redis | StackExchange.Redis | -
 external-system | external:native | Native libraries | - | in - | - | 1 sources
 external-system | external:network | Network | - | in - | - | 4 sources
 external-system | external:processes | Operating system | - | in - | - | 4 sources
-person | person:user | User | - | in - | - | 71 sources
+person | person:user | User | - | in - | - | 73 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Counter -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Order -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.App -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.Routes | uses | - | 1 sources
@@ -440,9 +440,9 @@ external:library:StackExchange.Redis -> code:CSharp.Clients|CSharp.Clients:CShar
 person:user -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Counter | sends HTTP requests to | HTTP | 4 sources
 person:user -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Home | sends HTTP requests to | HTTP | 1 sources
 person:user -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Order | sends HTTP requests to | HTTP | 2 sources
-person:user -> code:CSharp.Controllers|CSharp.Controllers:AspNetCoreGeneratedDocument|AspNetCoreGeneratedDocument.Areas_Admin_Pages_Audit | sends HTTP requests to | HTTP | 1 sources
+person:user -> code:CSharp.Controllers|CSharp.Controllers:AspNetCoreGeneratedDocument|AspNetCoreGeneratedDocument.Areas_Admin_Pages_Audit | sends HTTP requests to | HTTP | 2 sources
 person:user -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Admin|CSharp.Controllers.Admin.UsersController | sends HTTP requests to | HTTP | 1 sources
-person:user -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop|CSharp.Controllers.Pages.Shop.IndexModel | sends HTTP requests to | HTTP | 2 sources
+person:user -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop|CSharp.Controllers.Pages.Shop.IndexModel | sends HTTP requests to | HTTP | 3 sources
 person:user -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop|CSharp.Controllers.Pages.Shop.ItemModel | sends HTTP requests to | HTTP | 2 sources
 person:user -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers|CSharp.Controllers.HomeController | sends HTTP requests to | HTTP | 3 sources
 person:user -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers|CSharp.Controllers.OrdersController | sends HTTP requests to | HTTP | 3 sources
@@ -474,7 +474,7 @@ view context | context of system | 27 elements | 1980 x 1714
   external:library:NServiceBus -> system | delivers messages to | - | 1 sources
   external:library:RabbitMQ.Client -> system | delivers messages to | - | 7 sources
   external:library:StackExchange.Redis -> system | delivers messages to | - | 1 sources
-  person:user -> system | sends HTTP requests to | HTTP | 71 sources
+  person:user -> system | sends HTTP requests to | HTTP | 73 sources
   system -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 47 sources
   system -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 9 more | 33 sources
   system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 60 sources
@@ -559,7 +559,7 @@ view containers | containers of system | 41 elements | 2280 x 2507
   external:library:RabbitMQ.Client -> container:CSharp.Messaging | delivers messages to | - | 7 sources
   external:library:StackExchange.Redis -> container:CSharp.Clients | delivers messages to | - | 1 sources
   person:user -> container:CSharp.Blazor | sends HTTP requests to | HTTP | 7 sources
-  person:user -> container:CSharp.Controllers | sends HTTP requests to | HTTP | 14 sources
+  person:user -> container:CSharp.Controllers | sends HTTP requests to | HTTP | 16 sources
   person:user -> container:CSharp.Conventional | sends HTTP requests to | HTTP | 6 sources
   person:user -> container:CSharp.Delegated | sends HTTP requests to | HTTP | 6 sources
   person:user -> container:CSharp.Endpoints | sends HTTP requests to | HTTP | 15 sources
@@ -612,10 +612,10 @@ view components:CSharp.Cloud | components of container:CSharp.Cloud | 10 element
 view components:CSharp.Controllers | components of container:CSharp.Controllers | 7 elements | 1177 x 1032
   component:CSharp.Controllers|CSharp.Controllers:AspNetCoreGeneratedDocument -> component:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop | uses | - | 1 sources
   component:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop -> external:filesystem | writes files | - | 3 sources
-  person:user -> component:CSharp.Controllers|CSharp.Controllers:AspNetCoreGeneratedDocument | sends HTTP requests to | HTTP | 1 sources
+  person:user -> component:CSharp.Controllers|CSharp.Controllers:AspNetCoreGeneratedDocument | sends HTTP requests to | HTTP | 2 sources
   person:user -> component:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers | sends HTTP requests to | HTTP | 8 sources
   person:user -> component:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Admin | sends HTTP requests to | HTTP | 1 sources
-  person:user -> component:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop | sends HTTP requests to | HTTP | 4 sources
+  person:user -> component:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop | sends HTTP requests to | HTTP | 5 sources
 view components:CSharp.Conventional | components of container:CSharp.Conventional | 3 elements | 528 x 461
   person:user -> component:CSharp.Conventional|CSharp.Conventional:CSharp.Conventional.Controllers | sends HTTP requests to | HTTP | 6 sources
 view components:CSharp.Delegated | components of container:CSharp.Delegated | 3 elements | 314 x 802
@@ -803,7 +803,7 @@ view code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Reports | code of component:CSh
   component:CSharp.Cloud|CSharp.Cloud: -> code:CSharp.Cloud|CSharp.Cloud:CSharp.Cloud.Reports|CSharp.Cloud.Reports.Archive | uses | - | 1 sources
 view code:CSharp.Controllers|CSharp.Controllers:AspNetCoreGeneratedDocument | code of component:CSharp.Controllers|CSharp.Controllers:AspNetCoreGeneratedDocument | 5 elements | 816 x 691
   code:CSharp.Controllers|CSharp.Controllers:AspNetCoreGeneratedDocument|AspNetCoreGeneratedDocument.Pages_Shop_Item -> component:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop | uses | - | 1 sources
-  person:user -> code:CSharp.Controllers|CSharp.Controllers:AspNetCoreGeneratedDocument|AspNetCoreGeneratedDocument.Areas_Admin_Pages_Audit | sends HTTP requests to | HTTP | 1 sources
+  person:user -> code:CSharp.Controllers|CSharp.Controllers:AspNetCoreGeneratedDocument|AspNetCoreGeneratedDocument.Areas_Admin_Pages_Audit | sends HTTP requests to | HTTP | 2 sources
 view code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers | code of component:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers | 4 elements | 816 x 461
   person:user -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers|CSharp.Controllers.HomeController | sends HTTP requests to | HTTP | 3 sources
   person:user -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers|CSharp.Controllers.OrdersController | sends HTTP requests to | HTTP | 3 sources
@@ -816,7 +816,7 @@ view code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop | 
   code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop|CSharp.Controllers.Pages.Shop.IndexModel -> external:filesystem | writes files | - | 1 sources
   code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop|CSharp.Controllers.Pages.Shop.ItemModel -> external:filesystem | writes files | - | 2 sources
   component:CSharp.Controllers|CSharp.Controllers:AspNetCoreGeneratedDocument -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop|CSharp.Controllers.Pages.Shop.ItemModel | uses | - | 1 sources
-  person:user -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop|CSharp.Controllers.Pages.Shop.IndexModel | sends HTTP requests to | HTTP | 2 sources
+  person:user -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop|CSharp.Controllers.Pages.Shop.IndexModel | sends HTTP requests to | HTTP | 3 sources
   person:user -> code:CSharp.Controllers|CSharp.Controllers:CSharp.Controllers.Pages.Shop|CSharp.Controllers.Pages.Shop.ItemModel | sends HTTP requests to | HTTP | 2 sources
 view code:CSharp.Conventional|CSharp.Conventional:CSharp.Conventional.Controllers | code of component:CSharp.Conventional|CSharp.Conventional:CSharp.Conventional.Controllers | 3 elements | 528 x 461
   person:user -> code:CSharp.Conventional|CSharp.Conventional:CSharp.Conventional.Controllers|CSharp.Conventional.Controllers.HomeController | sends HTTP requests to | HTTP | 1 sources

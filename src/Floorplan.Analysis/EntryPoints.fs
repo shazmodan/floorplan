@@ -1730,13 +1730,36 @@ let functionEntries (ctx: AppContext) : EntryPoint list =
 /// (`/Areas/{area}/Pages` for an area), without `Index`, followed by the template unless it starts with `/`. The
 /// page's model (its Model property) handles requests with its `On{Verb}[Name][Async]` methods: one entry point per
 /// method, at its HTTP method, a named handler with the query condition `handler=Name`. A page whose model has
-/// none answers GET itself.
+/// none answers GET itself. A route convention (a registration whose rule has "razor-page-name" and
+/// "razor-page-route" payloads, and "razor-page-area" for an area's page: AddPageRoute("/Shop/Index", "home")) gives
+/// the page it names one more route, the template from the application's root, which replaces the page's own.
 let razorPageEntries (ctx: AppContext) : EntryPoint list =
     let set = ctx.Program.Set
+    let registrations = PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
 
     let mapping =
-        PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
-        |> List.filter (fun r -> hasRole "razor-pages" r.Rule)
+        registrations |> List.filter (fun r -> hasRole "razor-pages" r.Rule)
+
+    // Route conventions with constant arguments: the area, the page's name and the route.
+    let conventions =
+        registrations
+        |> List.filter (fun r -> hasRole "razor-page-route" r.Rule && hasRole "razor-page-name" r.Rule)
+        |> List.choose (fun r ->
+            let evaluator =
+                Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set, (fun _ _ -> Values.Origin.unknown), ctx.Program.SettingsFor ctx.Project)
+
+            let text (role: string) =
+                r.Rule.Payload
+                |> List.tryFind (fun p -> p.Role = role)
+                |> Option.map (fun p ->
+                    match evaluator.Operand(r.Offset, Values.operandIndex r.Declared false p.Argument) with
+                    | Values.Text t -> Some t
+                    | _ -> None)
+
+            match text "razor-page-area", text "razor-page-name", text "razor-page-route" with
+            | None, Some(Some page), Some(Some route) -> Some(None, page, route, r)
+            | Some(Some area), Some(Some page), Some(Some route) -> Some(Some area, page, route, r)
+            | _ -> None)
 
     let metadataRule =
         ctx.Matcher.Catalog.Rules
@@ -1758,33 +1781,54 @@ let razorPageEntries (ctx: AppContext) : EntryPoint list =
 
         let registrationPoint = Instruction.pointAt registration.Caller.Body.Value.Value.Instructions registration.Index
 
-        // The routes of a page file: `/Pages/Orders/Index.cshtml` is `/Orders/Index` and `/Orders`.
+        // The routes of a page file: `/Pages/Orders/Index.cshtml` is `/Orders/Index` and `/Orders`; and those the
+        // conventions for its name (`/Orders/Index`, in its area) add, each with the convention that adds it.
         let routesOf (identifier: string) (template: string option) =
             let path = identifier.Replace('\\', '/')
             let withoutExtension = if path.EndsWith ".cshtml" then path.Substring(0, path.Length - 7) else path
 
+            // The page's area, and its path under the area's (or the application's) Pages folder.
             let relative =
                 let parts = withoutExtension.TrimStart('/').Split('/') |> Array.toList
 
                 match parts with
-                | "Pages" :: rest -> Some rest
-                | "Areas" :: area :: "Pages" :: rest -> Some(area :: rest)
+                | "Pages" :: rest -> Some(None, rest)
+                | "Areas" :: area :: "Pages" :: rest -> Some(Some area, rest)
                 | _ -> None
 
             relative
-            |> Option.map (fun parts ->
+            |> Option.map (fun (area, rest) ->
+                let parts = Option.toList area @ rest
+
                 let bases =
                     match List.rev parts with
                     | "Index" :: folder -> [ parts; List.rev folder ]
                     | _ -> [ parts ]
 
-                bases
-                |> List.map (fun b ->
-                    match template with
-                    | Some t when t.StartsWith "/" || t.StartsWith "~/" -> PlatformRouting.normalizeRoute [ t.TrimStart('~') ]
-                    | Some t when t <> "" -> PlatformRouting.normalizeRoute (b @ [ t ])
-                    | _ -> PlatformRouting.normalizeRoute b)
-                |> List.distinct)
+                let own =
+                    bases
+                    |> List.map (fun b ->
+                        match template with
+                        | Some t when t.StartsWith "/" || t.StartsWith "~/" -> PlatformRouting.normalizeRoute [ t.TrimStart('~') ]
+                        | Some t when t <> "" -> PlatformRouting.normalizeRoute (b @ [ t ])
+                        | _ -> PlatformRouting.normalizeRoute b)
+                    |> List.distinct
+                    |> List.map (fun route -> route, None)
+
+                let name = "/" + String.concat "/" rest
+                let same (a: string) (b: string) = System.String.Equals(a, b, System.StringComparison.OrdinalIgnoreCase)
+
+                let added =
+                    conventions
+                    |> List.filter (fun (a, page, _, _) ->
+                        same page name
+                        && match a, area with
+                           | None, None -> true
+                           | Some a, Some b -> same a b
+                           | _ -> false)
+                    |> List.map (fun (_, page, route, r) -> PlatformRouting.normalizeRoute [ route.TrimStart('~') ], Some(page, route, r))
+
+                own @ added |> List.distinctBy fst)
             |> Option.defaultValue []
 
         let verbs = [ "Get"; "Post"; "Put"; "Delete"; "Patch"; "Head"; "Options" ]
@@ -1827,7 +1871,7 @@ let razorPageEntries (ctx: AppContext) : EntryPoint list =
                     |> List.map (fun m -> m, "GET", None)
 
             routesOf identifier template
-            |> List.collect (fun route ->
+            |> List.collect (fun (route, convention) ->
                 handlers
                 |> List.choose (fun (m, httpMethod, named) ->
                     let handler = m.Ref
@@ -1858,6 +1902,15 @@ let razorPageEntries (ctx: AppContext) : EntryPoint list =
                             | Some n -> " for the handler \"" + n + "\""
                             | None -> ""
 
+                        let conventionStep =
+                            convention
+                            |> Option.map (fun (page, added, (r: PlatformRouting.Registration)) ->
+                                step
+                                    $"{r.Caller.Ref.Display} adds the route \"{added}\" to the page {page} with {r.Declared.Display} (rule {r.Rule.Id})"
+                                    r.Caller.Ref
+                                    (Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index))
+                            |> Option.toList
+
                         let handlerPredicate =
                             named
                             |> Option.map (fun n ->
@@ -1884,6 +1937,7 @@ let razorPageEntries (ctx: AppContext) : EntryPoint list =
                             { Steps =
                                 [ step $"{registration.Caller.Ref.Display} maps Razor Pages with {registration.Declared.Display} (rule {registration.Rule.Id})" registration.Caller.Ref registrationPoint
                                   step $"{page.Ref.FullName} is the page {identifier}{withTemplate} (rule {rule.Id})" handler None
+                                  yield! conventionStep
                                   step $"{handler.Display} handles its {httpMethod} requests{forHandler}" handler point ] } }))))
     | _ -> []
 

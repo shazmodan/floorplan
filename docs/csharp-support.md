@@ -171,8 +171,12 @@ Also new, outside the recognizer:
   template unless it starts with `/`. The page's model (the type of its `Model` property) handles requests with
   its `On{Verb}[Name][Async]` methods: one complete entry point per method, at its HTTP method; a named handler
   (`OnPostRemove`) has the query condition `handler=Remove`. A page whose model has none answers GET itself (its
-  generated `ExecuteAsync`). Conventions that change page routes (`AddPageRoute`) are not read. Fixture:
-  `CSharp.Controllers` (`Pages/`, `Areas/Admin/Pages/`).
+  generated `ExecuteAsync`). A route convention with constant arguments gives the page it names one more route:
+  `Conventions.AddPageRoute("/Shop/Index", "home")` (`http-in.razor-page-route`) and
+  `AddAreaPageRoute("Admin", "/Audit", "audit/{year:int?}")` (`http-in.razor-area-page-route`), whose route, from the
+  application's root, replaces the page's own template. Other conventions (`AddFolderRouteModelConvention`, a
+  page route model convention class) are not read. Fixture: `CSharp.Controllers` (`Pages/`, `Areas/Admin/Pages/`,
+  the conventions in `Program.cs`).
 - **Blazor (Razor components)**: `MapRazorComponents<TRootComponent>()` (`http-in.map-razor-components`, whose
   `"components"` payload is the index of the type argument) maps the routed components of the root component's
   assembly, and `MapBlazorHub()` (`http-in.map-blazor-hub`) those of the application. A routed component carries a
