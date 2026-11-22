@@ -51,6 +51,12 @@ type Attributor(units: CodeUnit list, projects: AnalyzedProject list) =
         match byProject.TryGetValue projectId with
         | true, candidates ->
             let name = t.FullName.Replace('/', '.')
+            let outer = t.FullName.Split('/').[0]
+
+            // A type known by an alias (a Razor page's) is in the unit that lists it.
+            match candidates |> List.tryFind (fun u -> u.Aliases |> List.exists (fun a -> a.Type = outer)) with
+            | Some u -> Some u
+            | None ->
 
             candidates
             |> List.filter (fun u -> u.Name = "" || name = u.Name || name.StartsWith(u.Name + ".") || name.StartsWith(u.Name + "@"))

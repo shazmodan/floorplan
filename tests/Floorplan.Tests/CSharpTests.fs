@@ -1069,7 +1069,7 @@ let tests =
                   "routes"
           }
 
-          test "Razor components and pages are units of the namespaces their generated code declares" {
+          test "Razor components are units of their namespaces, Razor pages and views of their folders" {
               let m = csharpModel.Force()
               let pages = m.Units |> List.find (fun u -> u.Id = "CSharp.Blazor:CSharp.Blazor.Components.Pages")
 
@@ -1082,12 +1082,39 @@ let tests =
                    |> List.forall (fun e -> e.HandlerUnit = pages.Id))
                   "the routable components' handlers are in it, not in the global namespace"
 
+              // Pages and views compile to types named after their path in a namespace of the generator's own: each is
+              // known by its file, in a unit for its folder, as the file's recorded identifier names them.
+              let folders =
+                  m.Units
+                  |> List.filter (fun u -> u.ProjectId = "CSharp.Controllers" && u.Kind = UnitKind.Folder)
+                  |> List.map (fun u -> u.Name, u.Types, u.Aliases |> List.map (fun a -> a.Type))
+
+              Expect.equal
+                  folders
+                  [ "Areas/Admin/Pages", [ "Audit.cshtml" ], [ "AspNetCoreGeneratedDocument.Areas_Admin_Pages_Audit" ]
+                    "Pages/Shop", [ "Index.cshtml"; "Item.cshtml" ], [ "AspNetCoreGeneratedDocument.Pages_Shop_Index"; "AspNetCoreGeneratedDocument.Pages_Shop_Item" ]
+                    "Views/Pages", [ "About.cshtml" ], [ "AspNetCoreGeneratedDocument.Views_Pages_About" ] ]
+                  "a page with no code in it too (Audit, Index)"
+
+              Expect.isFalse (m.Units |> List.exists (fun u -> u.Name = "AspNetCoreGeneratedDocument")) "no unit for the generator's namespace"
+
               let audit = m.EntryPoints |> List.find (fun e -> e.Route = Some "/Admin/Audit")
-              Expect.equal audit.HandlerUnit "CSharp.Controllers:AspNetCoreGeneratedDocument" "a Razor page without a model, in the namespace it is generated in"
+              Expect.equal audit.HandlerUnit "CSharp.Controllers:Areas/Admin/Pages" "a Razor page without a model, in its folder"
 
               Expect.isFalse
-                  (m.Dependencies |> List.exists (fun d -> d.FromUnit = "CSharp.Controllers:" && d.ToUnit = "CSharp.Controllers:AspNetCoreGeneratedDocument"))
+                  (m.Dependencies |> List.exists (fun d -> d.FromUnit = "CSharp.Controllers:" && d.ToUnit.StartsWith "CSharp.Controllers:Pages/"))
                   "the assembly attributes that list the generated pages are no dependency"
+
+              Expect.isTrue
+                  (m.Dependencies |> List.exists (fun d -> d.FromUnit = "CSharp.Controllers:Pages/Shop" && d.ToUnit = "CSharp.Controllers:CSharp.Controllers.Pages.Shop"))
+                  "a folder's pages use their models' namespace"
+
+              let code =
+                  m.Architecture.Elements
+                  |> List.filter (fun e -> e.Kind = C4Kind.Code && e.Parent = Some "component:CSharp.Controllers|CSharp.Controllers:Pages/Shop")
+                  |> List.map (fun e -> e.Name)
+
+              Expect.equal code [ "Index.cshtml"; "Item.cshtml" ] "the C4 code level names a page by its file"
 
               Expect.isTrue
                   (m.TypeDependencies

@@ -19,6 +19,8 @@ type UnitKind =
     | Module
     | Namespace
     | Type
+    /// A folder of files that compile to types named after their path (Razor pages and views).
+    | Folder
     /// Stands in for a whole project whose language has no structure analyzer.
     | ProjectUnit
 
@@ -45,6 +47,14 @@ type Project =
       CatalogFallback: bool
       ProjectReferences: string list }
 
+/// A type known by another name than the one the compiler gives it: a Razor page's or view's type
+/// (`AspNetCoreGeneratedDocument.Areas_Admin_Pages_Audit`) by its file (`Audit.cshtml`).
+type TypeAlias =
+    { /// The compiled type's full name, as members and type dependencies name it.
+      Type: string
+      /// The name people know it by, as the unit's `Types` list it.
+      Name: string }
+
 type CodeUnit =
     { Id: string
       ProjectId: string
@@ -55,8 +65,17 @@ type CodeUnit =
       DisplayName: string
       Parent: string option
       Location: Location option
-      /// The types a namespace unit declares, by simple name, sorted; empty for other kinds.
-      Types: string list }
+      /// The types a namespace or folder unit declares, by simple name, sorted; empty for other kinds.
+      Types: string list
+      /// The unit's types whose compiled name is not their unit's name and theirs (a folder's files).
+      Aliases: TypeAlias list }
+
+module CodeUnit =
+    /// The full name of a type the unit lists: an alias's compiled type, else the name in the unit's namespace.
+    let typeName (u: CodeUnit) (t: string) =
+        match u.Aliases |> List.tryFind (fun a -> a.Name = t) with
+        | Some a -> a.Type
+        | None -> if u.Name = "" then t else $"{u.Name}.{t}"
 
 type Dependency =
     { FromUnit: string
