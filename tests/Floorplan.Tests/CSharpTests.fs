@@ -62,8 +62,17 @@ let tests =
                     Some "GET", Some "/Shop", "CSharp.Controllers.Pages.Shop.IndexModel::OnGet", []
                     Some "GET", Some "/Shop/Index", "CSharp.Controllers.Pages.Shop.IndexModel::OnGet", []
                     Some "GET", Some "/Shop/Item/{id:int}", "CSharp.Controllers.Pages.Shop.ItemModel::OnGetAsync", []
+                    Some "GET", Some "/audit/{year:int?}", "AspNetCoreGeneratedDocument.Areas_Admin_Pages_Audit::ExecuteAsync", []
+                    Some "GET", Some "/home", "CSharp.Controllers.Pages.Shop.IndexModel::OnGet", []
                     Some "POST", Some "/Shop/Item/{id:int}", "CSharp.Controllers.Pages.Shop.ItemModel::OnPostRemove", [ "handler=Remove" ] ]
-                  "an Index page at its folder too, a template after the path, a named handler, an area page without a model"
+                  "an Index page at its folder too, a template after the path, a named handler, an area page without a model, routes of conventions"
+
+              let home = entries m "CSharp.Controllers" |> List.find (fun e -> e.Route = Some "/home")
+
+              Expect.exists
+                  home.Evidence.Steps
+                  (fun s -> s.Description.Contains "adds the route \"home\" to the page /Shop/Index with Microsoft.Extensions.DependencyInjection.PageConventionCollectionExtensions::AddPageRoute")
+                  "the convention that adds the route"
           }
 
           test "Blazor: each @page of a routed component is a GET entry point" {
