@@ -53,23 +53,13 @@ let tests =
           }
 
           test "a warm summary cache gives the same payloads" {
-              let dir = Path.Combine(Path.GetTempPath(), "floorplan-cache-" + string (Guid.NewGuid()))
-              let store = Caching.Store(Some dir)
-              let solution = Fixtures.csharp.Force()
-
               let payloads (m: AnalysisModel) =
                   m.ExitPoints |> List.map (fun x -> x.Member, x.Category, x.Primitive, x.Payload)
 
-              let cold = Pipeline.buildModel ignore store [] [] solution
-              let cachedOrigins =
-                  Directory.GetFiles(Path.Combine(dir, "summaries"), "*", SearchOption.AllDirectories)
-                  |> Array.exists (fun f -> File.ReadAllText(f).Contains "\"parameter\":1")
-
-              Expect.isTrue cachedOrigins "origins in terms of arguments are cached"
-              let warm = Pipeline.buildModel ignore store [] [] solution
-              Expect.equal (payloads warm) (payloads cold) "same payloads"
-              Expect.equal (payloads cold) (payloads (model ())) "the same as without a cache"
-              try Directory.Delete(dir, true) with _ -> ()
+              let builds = CSharpTests.cachedBuilds.Force()
+              Expect.isTrue builds.CachedOrigins "origins in terms of arguments are cached"
+              Expect.equal (payloads builds.Warm) (payloads builds.Cold) "same payloads"
+              Expect.equal (payloads builds.Cold) (payloads (model ())) "the same as without a cache"
           }
 
           // Iteration 3: values built inside the library (j already passes in iteration 2: the argument is passed through).

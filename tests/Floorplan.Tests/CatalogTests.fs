@@ -73,33 +73,6 @@ let tests =
               Expect.isNone (m.Sink(methodRef "System.String" "Concat" [])) "pure"
           }
 
-          // Rules checked on applications outside the fixtures (their libraries are too slow to analyze, or native):
-          // they still match the calls they were written for.
-          test "client library rules checked outside the fixtures match their calls" {
-              let m = Matcher(CatalogLoader.loadBuiltIn "net8.0", supertypes)
-              let sink t n ps = m.Sink(methodRef t n ps) |> Option.map (fun r -> r.Id)
-              let registration t n ps = m.Registration(methodRef t n ps) |> Option.map (fun r -> r.Id)
-
-              Expect.equal
-                  (sink "Elastic.Clients.Elasticsearch.ElasticsearchClient" "SearchAsync" [ "System.Threading.CancellationToken" ])
-                  (Some "database.elasticsearch")
-                  "Elasticsearch"
-
-              Expect.equal (sink "Microsoft.Azure.Cosmos.Container" "CreateItemAsync" [ "!!0" ]) (Some "database.cosmos-container") "Cosmos DB"
-
-              Expect.equal
-                  (sink "Confluent.Kafka.IProducer`2" "ProduceAsync" [ "System.String"; "Confluent.Kafka.Message`2<!0,!1>" ])
-                  (Some "network.kafka-produce")
-                  "Kafka, to a topic"
-
-              Expect.equal
-                  (registration "Confluent.Kafka.IConsumer`2" "Subscribe" [ "System.String" ])
-                  (Some "network.kafka-subscribe")
-                  "Kafka's subscription"
-
-              Expect.isNone (sink "Elastic.Clients.Elasticsearch.ElasticsearchClient" "get_Transport" []) "not a property"
-          }
-
           test "matches overrides in derived types" {
               let m = Matcher(CatalogLoader.loadBuiltIn "net8.0", supertypes)
               let sink = m.Sink(methodRef "Provider.SqlCommand" "ExecuteReader" [])

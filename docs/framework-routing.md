@@ -122,8 +122,10 @@ What Saturn added:
   how slices compile, but a slice of a middle piece would be read the same way.
 - A regex route whose handler takes its values some other way (one tuple, or more parameters than groups) keeps
   the placeholder names `{param}` (or `{param1}`, ...).
-- The symbolic run only starts for applications that reach a platform registration or request source, so plain
-  console applications cost nothing.
+- The symbolic run only starts for applications that reach a platform registration of an HTTP handler: what it
+  reports comes from such registrations alone. An application that reads requests in a loop of its own (an
+  `HttpListener`, a socket) routes them in its own code, which the static scan reads; running its endless loop
+  spent the whole step budget (1.5 million steps for `CSharp.Switch` and `Routing.Records`) for nothing.
 - The models are tested one at a time in `tests/Floorplan.Tests/SymbolicTests.fs`, over the functions of
   `SymbolicSamples.fs` compiled into the test assembly.
 - Debugging aids: `FLOORPLAN_DEBUG=1` (or `2`) traces the run; `FLOORPLAN_DEBUG_METHOD=<name>` traces every

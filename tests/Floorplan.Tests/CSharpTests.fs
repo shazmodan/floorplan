@@ -13,6 +13,32 @@ let csharpModel = lazy (Pipeline.buildModel ignore Caching.Store.Disabled [] [] 
 let private csharpModelNet10 =
     lazy (Pipeline.buildModel ignore Caching.Store.Disabled [] [] (Fixtures.csharpNet10.Force()))
 
+/// The CSharp fixture built twice through one summary cache: cold, which writes it, then warm, which reads it.
+/// The tests that a warm cache changes nothing share these two builds, the slowest part of the suite otherwise.
+type CachedBuilds =
+    { Cold: AnalysisModel
+      Warm: AnalysisModel
+      /// Whether the cache kept origins in terms of a method's arguments.
+      CachedOrigins: bool }
+
+let cachedBuilds =
+    lazy
+        (let dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "floorplan-cache-" + string (System.Guid.NewGuid()))
+         let store = Caching.Store(Some dir)
+         let solution = Fixtures.csharp.Force()
+         let cold = Pipeline.buildModel ignore store [] [] solution
+
+         let cachedOrigins =
+             System.IO.Directory.GetFiles(System.IO.Path.Combine(dir, "summaries"), "*", System.IO.SearchOption.AllDirectories)
+             |> Array.exists (fun f -> System.IO.File.ReadAllText(f).Contains "\"parameter\":1")
+
+         let warm = Pipeline.buildModel ignore store [] [] solution
+         try System.IO.Directory.Delete(dir, true) with _ -> ()
+
+         { Cold = cold
+           Warm = warm
+           CachedOrigins = cachedOrigins })
+
 let private entries (model: AnalysisModel) (app: string) =
     model.EntryPoints |> List.filter (fun e -> e.ApplicationId = app)
 
@@ -201,8 +227,9 @@ let tests =
                     Some "orders", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Orders.Listener/<>c::<Start>b__0_0"
                     Some "payments", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Payments.Listener::Handle"
                     Some "refunds", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Refunds.Poller::RunAsync"
+                    Some "refunds-requested", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Refunds.Poller::Consume"
                     Some "returns", EffectCategory.Network, Completeness.Complete, "CSharp.Messaging.Orders.Listener::OnReturn" ]
-                  "RabbitMQ's Received with BasicConsume (two overloads), Service Bus's ProcessMessageAsync with CreateProcessor, MassTransit's AddConsumer at its message type, an NServiceBus handler found by scanning; not the error handler, nor a consumer never registered"
+                  "RabbitMQ's Received with BasicConsume (two overloads), Service Bus's ProcessMessageAsync with CreateProcessor, MassTransit's AddConsumer at its message type, an NServiceBus handler found by scanning, a loop over Kafka's Consume at the topic it subscribed to; not the error handler, nor a consumer never registered"
 
               let traced (handler: string) =
                   let e = entries m "CSharp.Messaging" |> List.find (fun e -> e.HandlerMember = handler)
@@ -333,6 +360,26 @@ let tests =
                   "a loop that receives from SQS"
           }
 
+          test "Azure Cosmos DB and Elasticsearch: each request the client sends is a database exit point" {
+              let m = csharpModel.Force()
+
+              let named (memberName: string) =
+                  m.ExitPoints
+                  |> List.filter (fun x -> x.Member = memberName && x.Confidence = Confidence.High && x.Category = EffectCategory.Database)
+                  |> List.map (fun x -> x.Primitive.Substring(x.Primitive.LastIndexOf '.' + 1))
+
+              Expect.equal (named "CSharp.Cloud.Catalog.Products::Save") [ "Container::UpsertItemAsync" ] "an item operation"
+              Expect.equal (named "CSharp.Cloud.Catalog.Products/<All>d__3::MoveNext") [ "FeedIterator`1::ReadNextAsync" ] "a query, a page at a time"
+              Expect.equal (named "CSharp.Cloud.Catalog.Products::Restock") [ "TransactionalBatch::ExecuteAsync" ] "a transactional batch"
+              Expect.equal (named "CSharp.Cloud.Search.ProductIndex::Add") [ "ElasticsearchClient::IndexAsync" ] "Elasticsearch: indexing"
+              Expect.equal (named "CSharp.Cloud.Search.ProductIndex::Find") [ "ElasticsearchClient::SearchAsync" ] "Elasticsearch: a search"
+
+              Expect.isFalse
+                  (m.ExitPoints
+                   |> List.exists (fun x -> x.Member.StartsWith "CSharp.Cloud.Search." && x.Category = EffectCategory.HttpOut))
+                  "not the HTTP the client's transport sends"
+          }
+
           test "data clients: Redis and MongoDB commands are database calls, Azure Blob Storage and Refit calls are HTTP" {
               let m = csharpModel.Force()
 
@@ -424,6 +471,8 @@ let tests =
               Expect.equal (sent "Order") [ "RabbitMQ.Client.IModelExensions::BasicPublish", Some "orders", Confidence.High ] "RabbitMQ, to the routing key"
               Expect.equal (sent "Payment") [ "Azure.Messaging.ServiceBus.ServiceBusSender::SendMessageAsync", None, Confidence.High ] "Service Bus"
               Expect.equal (sent "Shipped") [ "MassTransit.IPublishEndpoint::Publish", None, Confidence.High ] "MassTransit"
+              Expect.equal (sent "Placed") [ "Confluent.Kafka.IProducer`2::ProduceAsync", Some "placed", Confidence.High ] "Kafka, to the topic"
+              Expect.equal (sent "Cancelled") [ "Confluent.Kafka.IProducer`2::Produce", Some "cancelled", Confidence.High ] "Kafka, without waiting"
           }
 
           test "hosted services, timers and scheduled jobs: what a host, a timer or a scheduler starts is background work, an entry point of its own" {
@@ -759,22 +808,16 @@ let tests =
           }
 
           test "a warm summary cache keeps what configured types reach" {
-              let dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "floorplan-cache-" + string (System.Guid.NewGuid()))
-              let store = Caching.Store(Some dir)
-              let solution = Fixtures.csharp.Force()
-
               let logged (m: AnalysisModel) =
                   m.ExitPoints
                   |> List.filter (fun x ->
                       x.ViaAssembly = Some "NLog" || x.ViaAssembly = Some "log4net" || x.Member.StartsWith "CSharp.Effects.Loading.")
                   |> List.map (fun x -> x.Category, x.Member, x.Primitive, x.ViaAssembly, x.Location)
 
-              let cold = Pipeline.buildModel ignore store [] [] solution
-              let warm = Pipeline.buildModel ignore store [] [] solution
+              let { Cold = cold; Warm = warm } = cachedBuilds.Force()
               Expect.exists (logged warm) (fun (_, _, _, via, _) -> via = Some "Serilog.Sinks.File") "what a configured sink does when made"
               Expect.equal (logged warm) (logged cold) "same log effects"
               Expect.equal (logged cold) (logged (csharpModel.Force())) "as without a cache"
-              try System.IO.Directory.Delete(dir, true) with _ -> ()
           }
 
           test "Entity Framework Core: a query returned from another method runs where it is enumerated" {

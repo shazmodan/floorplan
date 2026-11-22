@@ -174,9 +174,11 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
         | _ -> []
 
     /// The call path from `m` to the primitive of `ruleId`: each edge in order, the last one being the sink call.
+    /// The guard only stops a cycle: a client library's path can be long (Cosmos DB's query iterator reaches a file
+    /// read 70 calls down), and a path cut short ends its evidence at a call that is not the primitive's.
     member this.Path(m: MethodRef, ruleId: string) : CallEdge list =
         let rec walk (m: MethodRef) (acc: CallEdge list) (guard: int) =
-            if guard > 64 then
+            if guard > 4096 then
                 List.rev acc
             else
                 match best.TryGetValue m.Key with

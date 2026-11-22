@@ -119,8 +119,10 @@ let private entry (ctx: AppContext) (hit: Hit) (forms: RouteForm list) (steps: E
                    | HandlerMethod _ -> []) } })
 
 /// Whether anything reachable from the application, in its own code or in a dependency, registers a request
-/// handler with the platform or reads request data. Applications that do neither are not run symbolically.
-let private receivesRequests (ctx: AppContext) =
+/// handler with the platform. Only such a registration gives the symbolic run something to explore: an application
+/// that reads requests in a loop of its own (an HttpListener) routes them in its own code, which the other analyses
+/// read, and running its endless loop symbolically would only spend the step budget.
+let private registersHandlers (ctx: AppContext) =
     let graph = ctx.Program.GraphFor ctx.Project
     let seen = System.Collections.Generic.HashSet<string>()
     let stack = System.Collections.Generic.Stack<MethodRef>()
@@ -143,7 +145,7 @@ let private receivesRequests (ctx: AppContext) =
                 let registers =
                     ctx.Matcher.Registration e.Declared |> Option.exists (fun r -> r.Category = Some EffectCategory.HttpIn)
 
-                if registers || (ctx.Matcher.Source e.Declared).IsSome then
+                if registers then
                     found <- true
                 elif not (seen.Contains e.Target.Key) then
                     stack.Push e.Target
@@ -161,7 +163,7 @@ let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list =
 
     match entryPoint with
     | None -> []
-    | Some _ when not (receivesRequests ctx) -> []
+    | Some _ when not (registersHandlers ctx) -> []
     | Some main ->
         let machine = Machine(set, ctx.Matcher, ctx.Program.Recognizers, defaultLimits, ctx.Program.SettingsFor ctx.Project)
         let args = List.replicate main.ParameterCount Unknown
