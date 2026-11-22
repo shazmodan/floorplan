@@ -62,6 +62,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
                 component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Auditing = component "CSharp.Endpoints.Auditing" "A C# namespace of CSharp.Endpoints" "C# namespace" "handles requests,reaches out"
                 component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Chat = component "CSharp.Endpoints.Chat" "A C# namespace of CSharp.Endpoints" "C# namespace" "handles requests,reaches out"
                 component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Configured = component "CSharp.Endpoints.Configured" "A C# namespace of CSharp.Endpoints" "C# namespace" "handles requests"
+                component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Filtered = component "CSharp.Endpoints.Filtered" "A C# namespace of CSharp.Endpoints" "C# namespace" "handles requests,reaches out"
                 component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Shipping = component "CSharp.Endpoints.Shipping" "A C# namespace of CSharp.Endpoints" "C# namespace" "reaches out"
             }
             container_CSharp_Functions = container "CSharp.Functions" "A web application, message consumer and background worker" "C# · net8.0" "web application,message consumer,background worker" {
@@ -217,12 +218,15 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         component_CSharp_Endpoints_CSharp_Endpoints_ -> component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Auditing "uses"
         component_CSharp_Endpoints_CSharp_Endpoints_ -> component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Chat "uses"
         component_CSharp_Endpoints_CSharp_Endpoints_ -> component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Configured "uses"
+        component_CSharp_Endpoints_CSharp_Endpoints_ -> component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Filtered "uses"
         component_CSharp_Endpoints_CSharp_Endpoints_ -> component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Shipping "uses"
         component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints -> external_filesystem "reads files"
         component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints -> external_filesystem "writes files"
         component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Auditing -> external_filesystem "reads files" "Serilog, Serilog.Sinks.File"
         component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Auditing -> external_filesystem "writes files" "Serilog, Serilog.Sinks.File"
         component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Chat -> external_filesystem "writes files"
+        component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Filtered -> external_filesystem "reads files"
+        component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Filtered -> external_filesystem "writes files"
         component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Shipping -> external_filesystem "reads files" "Serilog.Extensions.Logging, Serilog.Sinks.File"
         component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Shipping -> external_filesystem "writes files" "Serilog.Extensions.Logging, Serilog.Sinks.File"
         component_CSharp_FunctionsInProcess_CSharp_FunctionsInProcess_CSharp_FunctionsInProcess_Maintenance -> external_filesystem "writes files"
@@ -293,6 +297,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         person_user -> component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Auditing "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Chat "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Configured "sends HTTP requests to" "HTTP"
+        person_user -> component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Filtered "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_FunctionsInProcess_CSharp_FunctionsInProcess_CSharp_FunctionsInProcess_Orders "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Orders "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_Grpc_CSharp_Grpc_ "sends HTTP requests to" "HTTP"
@@ -333,7 +338,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
             include component_CSharp_Effects_CSharp_Effects_ component_CSharp_Effects_CSharp_Effects_CSharp_Effects component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Billing component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Labels component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Loading component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Logging component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Ordering component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Packing component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Printing component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Reporting component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Shipping component_CSharp_Effects_CSharp_Effects_CSharp_Effects_Storage external_database external_filesystem external_http external_http_api_example_org external_library_Microsoft_EntityFrameworkCore external_native external_network external_processes
         }
         component container_CSharp_Endpoints "components_CSharp_Endpoints" {
-            include component_CSharp_Endpoints_CSharp_Endpoints_ component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Auditing component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Chat component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Configured component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Shipping external_filesystem person_user
+            include component_CSharp_Endpoints_CSharp_Endpoints_ component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Auditing component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Chat component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Configured component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Filtered component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Shipping external_filesystem person_user
         }
         component container_CSharp_Functions "components_CSharp_Functions" {
             include component_CSharp_Functions_CSharp_Functions_ component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Maintenance component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Orders external_filesystem external_library_Microsoft_Azure_Functions_Worker person_user

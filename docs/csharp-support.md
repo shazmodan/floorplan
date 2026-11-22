@@ -49,7 +49,7 @@ net10.0 with the same golden results (`tests/golden/csharp.entry-points.txt`):
 
 | Project | Routing | Result |
 |---|---|---|
-| `CSharp.Endpoints` | Minimal APIs: method groups, lambdas, async lambdas, a group handed to a method, a nested group behind `RequireAuthorization`, a template built at run time | Every constant route complete, one entry each; the run-time template partial |
+| `CSharp.Endpoints` | Minimal APIs: method groups, lambdas, async lambdas, a group handed to a method, a nested group behind `RequireAuthorization`, a template built at run time, route groups with endpoint filters (`CSharp.Endpoints.Filtered`) | Every constant route complete, one entry each; the run-time template partial; a filter's effects in the trace of each endpoint it filters |
 | `CSharp.Controllers` | `[ApiController]` attribute routes and `MapDefaultControllerRoute` | As for F# controllers |
 | `CSharp.Middleware` | `==`, `StartsWith`, `HttpMethods.IsOptions`, `Split` with indexing, a `switch` statement on the method | As for the F# middleware |
 | `CSharp.Switch` | A switch expression on a `(method, path)` tuple with seven string cases (Roslyn compares hashes, then strings), and list patterns over segments (`["api", "orders", var id]`) | Every case complete, with a path parameter for `var id` |
@@ -66,6 +66,19 @@ string switches, array length and element access in list patterns, `string.Forma
   fields now start out null (`ICodegenRecognizer.IsLazyCache`).
 
 Also new, outside the recognizer:
+
+- **Route groups with endpoint filters.** A convention chained on a group before its routes
+  (`app.MapGroup("/v1").AddEndpointFilter(...)`, `.WithTags(...)`, `.RequireAuthorization()`) lost the group's
+  prefix: `/v1/items` was reported as `/items`, complete. A generic method whose result is its first parameter's
+  type argument (`TBuilder M<TBuilder>(this TBuilder builder, ...)`) can only return the builder it is given, so
+  the prefix is followed through it, in the symbolic run and in the static scan (`PlatformRouting.returnsItsBuilder`).
+  Endpoint filters are registrations (`http-in.endpoint-filter`: `AddEndpointFilter`, `AddEndpointFilterFactory`;
+  `"builder"` is the argument the call returns, `"endpoint-filter"` the filter, or without that argument the call's
+  last type argument, `AddEndpointFilter<TFilter>()`). The symbolic run records each filter on the builder it is
+  added to; an endpoint's builder is now an object made on its group, so an endpoint has its own filters and those
+  of its group and the groups around it. What a filter runs (a lambda, a factory, a filter type's `InvokeAsync`) is
+  listed in the entry point's `before`, its trace includes their effects, and the evidence names each filter. A
+  filter's own code is no entry point of its own: a lambda filter that reads the request path had been one.
 
 - **Interpolated strings** built with the platform's `DefaultInterpolatedStringHandler` are read as payload
   templates (`$"orders/{id}.json"` gives `orders/{…}.json`), as `string.Format` already was. Since 2026-11-22

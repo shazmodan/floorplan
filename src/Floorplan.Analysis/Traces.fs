@@ -63,10 +63,13 @@ let compute (program: EffectAnalysis.Program) (entries: EntryPoint list) (exits:
 
     entries
     |> List.map (fun e ->
+        // The handler, and what the platform runs before it (endpoint filters).
         let starts =
-            match methodsByDisplay.TryGetValue e.HandlerMember with
-            | true, ms -> ms
-            | _ -> []
+            e.HandlerMember :: e.Before
+            |> List.collect (fun name ->
+                match methodsByDisplay.TryGetValue name with
+                | true, ms -> ms
+                | _ -> [])
 
         let reached = starts |> List.map (reach e.ApplicationId) |> Set.unionMany
 

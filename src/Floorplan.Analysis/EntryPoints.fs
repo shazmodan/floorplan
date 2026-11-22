@@ -310,6 +310,7 @@ let unresolvedEntry (ctx: AppContext) (h: FoundHandler) : EntryPoint option =
               Route = None
               Completeness = Completeness.Unresolved
               Forms = []
+              Before = []
               Evidence = { Steps = steps } }
 
 /// Entry points registered with the platform's routing (form C).
@@ -397,6 +398,7 @@ let platformEntries (ctx: AppContext) : EntryPoint list =
                           Route = route
                           Completeness = completeness
                           Forms = [ RouteForm.PlatformRouting ]
+                          Before = []
                           Evidence =
                             { Steps =
                                 [ step $"{r.Caller.Ref.Display} registers {handler.Display} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint ] } }
@@ -979,6 +981,7 @@ let controllerEntries (ctx: AppContext) : EntryPoint list =
                           Route = route
                           Completeness = completeness
                           Forms = [ RouteForm.PlatformRouting ]
+                          Before = []
                           Evidence =
                             { Steps =
                                 [ step $"{registration.Caller.Ref.Display} maps controllers with {registration.Declared.Display} (rule {registration.Rule.Id})" registration.Caller.Ref (pointOf registration)
@@ -1083,6 +1086,7 @@ let hubEntries (ctx: AppContext) : EntryPoint list =
                       Route = route
                       Completeness = if route.IsSome then Completeness.Partial else Completeness.Unresolved
                       Forms = if route.IsSome then [ RouteForm.PlatformRouting ] else []
+                      Before = []
                       Evidence =
                         { Steps =
                             [ step $"{r.Caller.Ref.Display} maps hub {hub.FullName} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
@@ -1164,6 +1168,7 @@ let backgroundEntries (ctx: AppContext) : EntryPoint list =
                       Route = route
                       Completeness = if route.IsSome || not isConsumer then Completeness.Complete else Completeness.Unresolved
                       Forms = [ RouteForm.PlatformRouting ]
+                      Before = []
                       Evidence =
                         { Steps =
                             [ step $"{r.Caller.Ref.Display} registers {what} {service.FullName} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
@@ -1306,6 +1311,7 @@ let grpcEntries (ctx: AppContext) : EntryPoint list =
                                   Route = Some route
                                   Completeness = Completeness.Complete
                                   Forms = [ RouteForm.PlatformRouting ]
+                                  Before = []
                                   Evidence =
                                     { Steps =
                                         [ step $"{r.Caller.Ref.Display} maps gRPC service {service.FullName} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
@@ -1606,6 +1612,7 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                       else
                           Completeness.Unresolved
                   Forms = [ RouteForm.PlatformRouting ]
+                  Before = []
                   Evidence =
                     { Steps =
                         (if receives then
@@ -1743,6 +1750,7 @@ let functionEntries (ctx: AppContext) : EntryPoint list =
                   Route = route
                   Completeness = completeness
                   Forms = [ RouteForm.PlatformRouting ]
+                  Before = []
                   Evidence =
                     { Steps =
                         [ step $"{handler.Display} is function \"{functionName}\", run by the host when its trigger fires: {trigger.Type.FullName} (rule {rule.Id})" handler point ] } })))
@@ -1959,6 +1967,7 @@ let razorPageEntries (ctx: AppContext) : EntryPoint list =
                           Route = Some route
                           Completeness = Completeness.Complete
                           Forms = [ RouteForm.PlatformRouting ]
+                          Before = []
                           Evidence =
                             { Steps =
                                 [ step $"{registration.Caller.Ref.Display} maps Razor Pages with {registration.Declared.Display} (rule {registration.Rule.Id})" registration.Caller.Ref registrationPoint
@@ -2044,6 +2053,7 @@ let componentEntries (ctx: AppContext) : EntryPoint list =
                           Route = Some route
                           Completeness = Completeness.Complete
                           Forms = [ RouteForm.PlatformRouting ]
+                          Before = []
                           Evidence =
                             { Steps =
                                 [ step $"{r.Caller.Ref.Display} maps the routed components of {assembly} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
@@ -2159,6 +2169,7 @@ let componentEventEntries (ctx: AppContext) : EntryPoint list =
                                                         Route = Some route
                                                         Completeness = Completeness.Partial
                                                         Forms = [ RouteForm.PlatformRouting ]
+                                                        Before = []
                                                         Evidence =
                                                           { Steps =
                                                               [ step
@@ -2240,6 +2251,7 @@ let scannedEntries (ctx: AppContext) : EntryPoint list =
                   Route = message
                   Completeness = if message.IsSome then Completeness.Complete else Completeness.Unresolved
                   Forms = [ RouteForm.PlatformRouting ]
+                  Before = []
                   Evidence =
                     { Steps =
                         [ step $"{r.Caller.Ref.Display} starts {r.Declared.Display}, which finds the handlers of the application by scanning it (rule {r.Rule.Id})" r.Caller.Ref registrationPoint

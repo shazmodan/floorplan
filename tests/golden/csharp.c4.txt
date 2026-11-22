@@ -6,7 +6,7 @@ container | container:CSharp.Controllers | CSharp.Controllers | C# · net8.0 | i
 container | container:CSharp.Conventional | CSharp.Conventional | C# · net8.0 | in system | web application | 7 sources
 container | container:CSharp.Delegated | CSharp.Delegated | C# · net8.0 | in system | web application | 7 sources
 container | container:CSharp.Effects | CSharp.Effects | C# · net8.0 | in system | background worker | 2 sources
-container | container:CSharp.Endpoints | CSharp.Endpoints | C# · net8.0 | in system | web application | 16 sources
+container | container:CSharp.Endpoints | CSharp.Endpoints | C# · net8.0 | in system | web application | 21 sources
 container | container:CSharp.Functions | CSharp.Functions | C# · net8.0 | in system | web application,message consumer,background worker | 5 sources
 container | container:CSharp.FunctionsInProcess | CSharp.FunctionsInProcess | C# · net8.0 | in system | web application,message consumer,background worker | 5 sources
 container | container:CSharp.Grpc | CSharp.Grpc | C# · net8.0 | in system | web application | 3 sources
@@ -60,6 +60,7 @@ component | component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints | CShar
 component | component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing | C# namespace | in container:CSharp.Endpoints | handles requests,reaches out | 1 sources
 component | component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat | CSharp.Endpoints.Chat | C# namespace | in container:CSharp.Endpoints | handles requests,reaches out | 1 sources
 component | component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured | CSharp.Endpoints.Configured | C# namespace | in container:CSharp.Endpoints | handles requests | 1 sources
+component | component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered | CSharp.Endpoints.Filtered | C# namespace | in container:CSharp.Endpoints | handles requests,reaches out | 1 sources
 component | component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping | C# namespace | in container:CSharp.Endpoints | reaches out | 1 sources
 component | component:CSharp.Functions|CSharp.Functions: | (global namespace) | C# namespace | in container:CSharp.Functions | - | 1 sources
 component | component:CSharp.Functions|CSharp.Functions:CSharp.Functions.Maintenance | CSharp.Functions.Maintenance | C# namespace | in container:CSharp.Functions | reaches out | 1 sources
@@ -172,6 +173,8 @@ code | code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat|CSharp.Endpo
 code | code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat|CSharp.Endpoints.Chat.RoomHub | RoomHub | type | in component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat | handles requests | 1 sources
 code | code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.Routes | Routes | type | in component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured | handles requests | 1 sources
 code | code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.StatusOptions | StatusOptions | type | in component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured | - | 1 sources
+code | code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered|CSharp.Endpoints.Filtered.Routes | Routes | type | in component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered | handles requests,reaches out | 1 sources
+code | code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered|CSharp.Endpoints.Filtered.Throttle | Throttle | type | in component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered | reaches out | 1 sources
 code | code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Parcels | Parcels | type | in component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping | reaches out | 1 sources
 code | code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Setup | Setup | type | in component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping | reaches out | 1 sources
 code | code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Admin | Admin | type | in component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints | handles requests | 1 sources
@@ -221,7 +224,7 @@ code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Re
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule | Schedule | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | - | 1 sources
 code | code:CSharp.Worker|CSharp.Worker:|Program | Program | type | in component:CSharp.Worker|CSharp.Worker: | - | 1 sources
 external-system | external:database | Database | - | in - | - | 47 sources
-external-system | external:filesystem | File system | - | in - | - | 101 sources
+external-system | external:filesystem | File system | - | in - | - | 104 sources
 external-system | external:http | HTTP services | - | in - | - | 8 sources
 external-system | external:http:api.example.org | api.example.org | - | in - | - | 7 sources
 external-system | external:http:api.github.com | api.github.com | - | in - | - | 2 sources
@@ -249,7 +252,7 @@ external-system | external:library:StackExchange.Redis | StackExchange.Redis | -
 external-system | external:native | Native libraries | - | in - | - | 2 sources
 external-system | external:network | Network | - | in - | - | 4 sources
 external-system | external:processes | Operating system | - | in - | - | 5 sources
-person | person:user | User | - | in - | - | 75 sources
+person | person:user | User | - | in - | - | 80 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Counter -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Order -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.App -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.Routes | uses | - | 1 sources
@@ -382,6 +385,9 @@ code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing|CSharp.Endpoint
 code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing|CSharp.Endpoints.Auditing.Audit -> external:filesystem | writes files | Serilog, Serilog.Sinks.File | 2 sources
 code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat|CSharp.Endpoints.Chat.ChatHub -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.Routes -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.StatusOptions | uses | - | 1 sources
+code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered|CSharp.Endpoints.Filtered.Routes -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered|CSharp.Endpoints.Filtered.Throttle | uses | - | 1 sources
+code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered|CSharp.Endpoints.Filtered.Routes -> external:filesystem | writes files | - | 2 sources
+code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered|CSharp.Endpoints.Filtered.Throttle -> external:filesystem | reads files | - | 1 sources
 code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Parcels -> external:filesystem | reads files | Serilog.Extensions.Logging | 1 sources
 code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Parcels -> external:filesystem | writes files | Serilog.Extensions.Logging | 1 sources
 code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Setup -> external:filesystem | reads files | Serilog.Sinks.File | 1 sources
@@ -391,6 +397,7 @@ code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Api -> 
 code:CSharp.Endpoints|CSharp.Endpoints:|Program -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing|CSharp.Endpoints.Auditing.Audit | uses | - | 1 sources
 code:CSharp.Endpoints|CSharp.Endpoints:|Program -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat|CSharp.Endpoints.Chat.ChatHub | uses | - | 1 sources
 code:CSharp.Endpoints|CSharp.Endpoints:|Program -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.Routes | uses | - | 1 sources
+code:CSharp.Endpoints|CSharp.Endpoints:|Program -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered|CSharp.Endpoints.Filtered.Routes | uses | - | 1 sources
 code:CSharp.Endpoints|CSharp.Endpoints:|Program -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Setup | uses | - | 1 sources
 code:CSharp.Endpoints|CSharp.Endpoints:|Program -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Admin | uses | - | 1 sources
 code:CSharp.Endpoints|CSharp.Endpoints:|Program -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Api | uses | - | 1 sources
@@ -485,6 +492,7 @@ person:user -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing|
 person:user -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat|CSharp.Endpoints.Chat.ChatHub | sends HTTP requests to | HTTP | 2 sources
 person:user -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat|CSharp.Endpoints.Chat.RoomHub | sends HTTP requests to | HTTP | 1 sources
 person:user -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.Routes | sends HTTP requests to | HTTP | 3 sources
+person:user -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered|CSharp.Endpoints.Filtered.Routes | sends HTTP requests to | HTTP | 5 sources
 person:user -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Admin | sends HTTP requests to | HTTP | 2 sources
 person:user -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints|CSharp.Endpoints.Api | sends HTTP requests to | HTTP | 3 sources
 person:user -> code:CSharp.Endpoints|CSharp.Endpoints:|Program | sends HTTP requests to | HTTP | 3 sources
@@ -508,10 +516,10 @@ view context | context of system | 31 elements | 2040 x 1714
   external:library:NServiceBus -> system | delivers messages to | - | 1 sources
   external:library:RabbitMQ.Client -> system | delivers messages to | - | 7 sources
   external:library:StackExchange.Redis -> system | delivers messages to | - | 1 sources
-  person:user -> system | sends HTTP requests to | HTTP | 75 sources
+  person:user -> system | sends HTTP requests to | HTTP | 80 sources
   system -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 47 sources
-  system -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 9 more | 33 sources
-  system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 67 sources
+  system -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 9 more | 34 sources
+  system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 69 sources
   system -> external:http | sends HTTP requests | AWSSDK.SQS, Flurl.Http, HTTP and 1 more | 8 sources
   system -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
   system -> external:http:api.github.com | sends HTTP requests | HTTP | 2 sources
@@ -573,8 +581,8 @@ view containers | containers of system | 46 elements | 2565 x 2848
   container:CSharp.Effects -> external:native | calls native code | - | 1 sources
   container:CSharp.Effects -> external:network | sends and receives over the network | log4net | 1 sources
   container:CSharp.Effects -> external:processes | starts or inspects processes | NLog, NLog.Extensions.Logging | 3 sources
-  container:CSharp.Endpoints -> external:filesystem | reads files | Serilog, Serilog.Extensions.Logging, Serilog.Sinks.File | 5 sources
-  container:CSharp.Endpoints -> external:filesystem | writes files | Serilog, Serilog.Extensions.Logging, Serilog.Sinks.File | 6 sources
+  container:CSharp.Endpoints -> external:filesystem | reads files | Serilog, Serilog.Extensions.Logging, Serilog.Sinks.File | 6 sources
+  container:CSharp.Endpoints -> external:filesystem | writes files | Serilog, Serilog.Extensions.Logging, Serilog.Sinks.File | 8 sources
   container:CSharp.Functions -> external:filesystem | writes files | - | 4 sources
   container:CSharp.FunctionsInProcess -> external:filesystem | writes files | - | 4 sources
   container:CSharp.Grpc -> external:filesystem | writes files | - | 1 sources
@@ -607,7 +615,7 @@ view containers | containers of system | 46 elements | 2565 x 2848
   person:user -> container:CSharp.Controllers | sends HTTP requests to | HTTP | 16 sources
   person:user -> container:CSharp.Conventional | sends HTTP requests to | HTTP | 6 sources
   person:user -> container:CSharp.Delegated | sends HTTP requests to | HTTP | 6 sources
-  person:user -> container:CSharp.Endpoints | sends HTTP requests to | HTTP | 15 sources
+  person:user -> container:CSharp.Endpoints | sends HTTP requests to | HTTP | 20 sources
   person:user -> container:CSharp.Functions | sends HTTP requests to | HTTP | 2 sources
   person:user -> container:CSharp.FunctionsInProcess | sends HTTP requests to | HTTP | 2 sources
   person:user -> container:CSharp.Grpc | sends HTTP requests to | HTTP | 2 sources
@@ -705,17 +713,20 @@ view components:CSharp.Effects | components of container:CSharp.Effects | 20 ele
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage -> external:filesystem | writes files | log4net | 2 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage -> external:http | sends HTTP requests | log4net | 2 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage -> external:network | sends and receives over the network | log4net | 1 sources
-view components:CSharp.Endpoints | components of container:CSharp.Endpoints | 8 elements | 1392 x 1032
+view components:CSharp.Endpoints | components of container:CSharp.Endpoints | 9 elements | 1680 x 1032
   component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints | uses | - | 2 sources
   component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing | uses | - | 1 sources
   component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat | uses | - | 1 sources
   component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured | uses | - | 1 sources
+  component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered | uses | - | 1 sources
   component:CSharp.Endpoints|CSharp.Endpoints: -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping | uses | - | 1 sources
   component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints -> external:filesystem | reads files | - | 1 sources
   component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints -> external:filesystem | writes files | - | 1 sources
   component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing -> external:filesystem | reads files | Serilog, Serilog.Sinks.File | 2 sources
   component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing -> external:filesystem | writes files | Serilog, Serilog.Sinks.File | 2 sources
   component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat -> external:filesystem | writes files | - | 1 sources
+  component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered -> external:filesystem | reads files | - | 1 sources
+  component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered -> external:filesystem | writes files | - | 2 sources
   component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping -> external:filesystem | reads files | Serilog.Extensions.Logging, Serilog.Sinks.File | 2 sources
   component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping -> external:filesystem | writes files | Serilog.Extensions.Logging, Serilog.Sinks.File | 2 sources
   person:user -> component:CSharp.Endpoints|CSharp.Endpoints: | sends HTTP requests to | HTTP | 3 sources
@@ -723,6 +734,7 @@ view components:CSharp.Endpoints | components of container:CSharp.Endpoints | 8 
   person:user -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing | sends HTTP requests to | HTTP | 1 sources
   person:user -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat | sends HTTP requests to | HTTP | 3 sources
   person:user -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured | sends HTTP requests to | HTTP | 3 sources
+  person:user -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered | sends HTTP requests to | HTTP | 5 sources
 view components:CSharp.Functions | components of container:CSharp.Functions | 6 elements | 915 x 691
   component:CSharp.Functions|CSharp.Functions:CSharp.Functions.Maintenance -> external:filesystem | writes files | - | 1 sources
   component:CSharp.Functions|CSharp.Functions:CSharp.Functions.Orders -> external:filesystem | writes files | - | 3 sources
@@ -987,11 +999,12 @@ view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage | code of compone
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage|CSharp.Effects.Storage.Shelves -> external:filesystem | writes files | log4net | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage|CSharp.Effects.Storage.Shelves -> external:http | sends HTTP requests | log4net | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage|CSharp.Effects.Storage.Shelves -> external:network | sends and receives over the network | log4net | 1 sources
-view code:CSharp.Endpoints|CSharp.Endpoints: | code of component:CSharp.Endpoints|CSharp.Endpoints: | 7 elements | 1392 x 691
+view code:CSharp.Endpoints|CSharp.Endpoints: | code of component:CSharp.Endpoints|CSharp.Endpoints: | 8 elements | 1680 x 691
   code:CSharp.Endpoints|CSharp.Endpoints:|Program -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints | uses | - | 2 sources
   code:CSharp.Endpoints|CSharp.Endpoints:|Program -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Auditing | uses | - | 1 sources
   code:CSharp.Endpoints|CSharp.Endpoints:|Program -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Chat | uses | - | 1 sources
   code:CSharp.Endpoints|CSharp.Endpoints:|Program -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured | uses | - | 1 sources
+  code:CSharp.Endpoints|CSharp.Endpoints:|Program -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered | uses | - | 1 sources
   code:CSharp.Endpoints|CSharp.Endpoints:|Program -> component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping | uses | - | 1 sources
   person:user -> code:CSharp.Endpoints|CSharp.Endpoints:|Program | sends HTTP requests to | HTTP | 3 sources
 view code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints | code of component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints | 5 elements | 632 x 691
@@ -1015,6 +1028,12 @@ view code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured | code o
   code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.Routes -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.StatusOptions | uses | - | 1 sources
   component:CSharp.Endpoints|CSharp.Endpoints: -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.Routes | uses | - | 1 sources
   person:user -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Configured|CSharp.Endpoints.Configured.Routes | sends HTTP requests to | HTTP | 3 sources
+view code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered | code of component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered | 5 elements | 528 x 1032
+  code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered|CSharp.Endpoints.Filtered.Routes -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered|CSharp.Endpoints.Filtered.Throttle | uses | - | 1 sources
+  code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered|CSharp.Endpoints.Filtered.Routes -> external:filesystem | writes files | - | 2 sources
+  code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered|CSharp.Endpoints.Filtered.Throttle -> external:filesystem | reads files | - | 1 sources
+  component:CSharp.Endpoints|CSharp.Endpoints: -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered|CSharp.Endpoints.Filtered.Routes | uses | - | 1 sources
+  person:user -> code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Filtered|CSharp.Endpoints.Filtered.Routes | sends HTTP requests to | HTTP | 5 sources
 view code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping | code of component:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping | 4 elements | 528 x 691
   code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Parcels -> external:filesystem | reads files | Serilog.Extensions.Logging | 1 sources
   code:CSharp.Endpoints|CSharp.Endpoints:CSharp.Endpoints.Shipping|CSharp.Endpoints.Shipping.Parcels -> external:filesystem | writes files | Serilog.Extensions.Logging | 1 sources

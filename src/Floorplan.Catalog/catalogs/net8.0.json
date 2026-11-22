@@ -311,6 +311,12 @@
     { "id": "http-in.map-group", "assembly": "Microsoft.AspNetCore.Routing", "type": "Microsoft.AspNetCore.Builder.EndpointRouteBuilderExtensions",
       "members": ["MapGroup"], "kind": "registration", "category": "http-in",
       "payload": [{ "argument": 1, "role": "route-prefix" }] },
+    // Endpoint filters run before the handler of each endpoint they are added to: on a group, every endpoint in it.
+    // The call returns the builder it is given ("builder"); the filter is the argument, or without one the call's
+    // last type argument (AddEndpointFilter<TFilter>()). A factory makes the filter: it is followed as one.
+    { "id": "http-in.endpoint-filter", "assembly": "Microsoft.AspNetCore.Routing", "type": "Microsoft.AspNetCore.Http.EndpointFilterExtensions",
+      "members": ["AddEndpointFilter", "AddEndpointFilterFactory"], "kind": "registration", "category": "http-in",
+      "payload": [{ "argument": 0, "role": "builder" }, { "argument": 1, "role": "endpoint-filter" }] },
     { "id": "http-in.route-builder", "assembly": "Microsoft.AspNetCore.Routing", "type": "Microsoft.AspNetCore.Routing.RequestDelegateRouteBuilderExtensions",
       "members": ["MapGet", "MapPost", "MapPut", "MapDelete", "MapRoute", "MapVerb"], "kind": "registration", "category": "http-in",
       "payload": [{ "argument": 1, "role": "route-template" }, { "argument": 2, "role": "handler" }] },

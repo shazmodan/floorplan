@@ -42,6 +42,7 @@ let private entryFor
           Route = route
           Completeness = completeness
           Forms = if predicates.IsEmpty then [] else forms
+          Before = []
           Evidence = { Steps = steps } })
 
 /// Entry points for handlers found by request-data tracking, one per call path, with their predicates.
@@ -172,8 +173,30 @@ let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoin
         let routed =
             all |> List.filter (fun e -> e.Route.IsSome) |> List.map (fun e -> e.HandlerMember, e.HttpMethod) |> Set.ofList
 
+        // Code an endpoint filter runs (its lambda, an async lambda's state machine) is part of the endpoints it
+        // filters, which list it as run before their handler: it is no entry point of its own.
+        let filterCode =
+            let starts = all |> List.collect (fun e -> e.Before) |> Set.ofList
+            let seen = System.Collections.Generic.HashSet<string>()
+
+            let stack =
+                System.Collections.Generic.Stack<MethodRef>(
+                    methods.Values |> Seq.filter (fun m -> starts.Contains m.Ref.Display) |> Seq.map (fun m -> m.Ref)
+                )
+
+            while stack.Count > 0 do
+                let m = stack.Pop()
+
+                if seen.Add m.Display then
+                    for e in (program.GraphFor project).Callees m do
+                        if methods.ContainsKey e.Target.Key && not (seen.Contains e.Target.Display) then
+                            stack.Push e.Target
+
+            seen
+
         let found =
             all
+            |> List.filter (fun e -> e.Route.IsSome || not (filterCode.Contains e.HandlerMember))
             |> List.filter (fun e ->
                 e.Route.IsSome
                 || e.Forms <> [ RouteForm.PlatformRouting ]

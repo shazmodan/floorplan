@@ -93,6 +93,12 @@ type Registered =
         site: (MethodRef * int)
     | RequestRoot of rule: Rule * handler: SVal * state: PathState * site: (MethodRef * int)
 
+/// What runs before an endpoint's handler: an endpoint filter, as a value (a delegate, a filter object, a filter
+/// factory) or as a type the platform makes.
+type Filter =
+    | FilterValue of SVal
+    | FilterType of TypeRef
+
 type Limits =
     { Steps: int
       Depth: int
@@ -201,6 +207,10 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
     let registered = ResizeArray<Registered>()
     // User function objects handed to library code while the application registers its routes.
     let handedOver = Dictionary<string, MethodRef * (MethodRef * int)>()
+    // Endpoint filters by the builder they are added to (a group or one endpoint), with where each is added, and
+    // the group each builder is made on. Kept for the whole run, not per path: a filter is added once.
+    let filters = Dictionary<int, ResizeArray<Filter * (MethodRef * int)>>()
+    let groupOf = Dictionary<int, int>()
     let forwarders = Dictionary<string, bool>()
     let initializers = Dictionary<string, MethodRef list>()
 
@@ -417,6 +427,19 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
     /// handed over. Those never reached by a request path are still handlers, with no route recovered.
     member _.HandedOver = handedOver.Values |> List.ofSeq |> List.filter (fun (f, _) -> not (isForwarder f))
     member _.Registered = List.ofSeq registered
+
+    /// The filters that run before the handler of an endpoint made on this builder: the endpoint's own, then
+    /// those of its group and the groups around it.
+    member _.FiltersOf(builder: int) : (Filter * (MethodRef * int)) list =
+        let rec up (id: int) (guard: int) =
+            [ match filters.TryGetValue id with
+              | true, fs -> yield! fs
+              | _ -> ()
+              match groupOf.TryGetValue id with
+              | true, parent when guard < 32 -> yield! up parent (guard + 1)
+              | _ -> () ]
+
+        up builder 0
     member _.Exhausted = steps >= limits.Steps || totalSteps >= hardCap
     member _.Steps = steps
     member _.TotalSteps = totalSteps
@@ -1241,10 +1264,51 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                     | None -> Some []
                 | _ -> Some []
 
+            let receiverId =
+                match operands with
+                | Ref id :: _ -> Some id
+                | _ -> None
+
+            match roleArg "builder", roleArg "endpoint-filter" with
+            | Some builder, filter when rule.Payload |> List.exists (fun p -> p.Role = "endpoint-filter") ->
+                // An endpoint filter: on a group, every endpoint in it; on an endpoint, that one. Without the
+                // filter's argument (AddEndpointFilter<TFilter>()), the filter is the call's last type argument.
+                let filter =
+                    let spec = rule.Payload |> List.find (fun p -> p.Role = "endpoint-filter")
+
+                    if spec.Argument < m.ParameterCount then
+                        match filter with
+                        | Some(Ref rid) -> state.Heap.TryFind rid |> Option.map (fun o -> FilterType o.Type)
+                        | other -> other |> Option.map FilterValue
+                    else
+                        m.TypeArguments |> List.tryLast |> Option.map FilterType
+
+                match builder, filter with
+                | Ref id, Some f ->
+                    match filters.TryGetValue id with
+                    | true, fs -> fs.Add((f, siteOrUnknown))
+                    | _ -> filters[id] <- ResizeArray [ (f, siteOrUnknown) ]
+                | _ -> ()
+
+                [ builder, state ]
+            | _ ->
+
             match roleArg "handler", roleArg "route-template", roleArg "route-prefix", roleArg "middleware", roleArg "middleware-arguments" with
             | Some handler, Some template, _, _, _ ->
-                registered.Add(Endpoint(rule, template, builderPrefix (), roleArg "http-methods", handler, None, state, siteOrUnknown))
-                one Unknown
+                // The endpoint's builder, for the conventions chained on it (its own filters); it is made on the
+                // receiver, a group or the application.
+                match m.ReturnType with
+                | "System.Void" ->
+                    registered.Add(Endpoint(rule, template, builderPrefix (), roleArg "http-methods", handler, None, state, siteOrUnknown))
+                    one Unknown
+                | returned when returned.StartsWith "!" || returned.Contains "<" ->
+                    registered.Add(Endpoint(rule, template, builderPrefix (), roleArg "http-methods", handler, None, state, siteOrUnknown))
+                    one Unknown
+                | returned ->
+                    let id, s = allocate state { Assembly = rule.Assembly; FullName = returned } None
+                    receiverId |> Option.iter (fun parent -> groupOf[id] <- parent)
+                    registered.Add(Endpoint(rule, template, builderPrefix (), roleArg "http-methods", handler, Some id, state, siteOrUnknown))
+                    [ Ref id, s ]
             | Some handler, None, _, _, _ ->
                 registered.Add(RequestRoot(rule, handler, state, siteOrUnknown))
                 one Unknown
@@ -1259,6 +1323,7 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
                 let id, s = allocate state { Assembly = "Microsoft.AspNetCore.Routing"; FullName = "Microsoft.AspNetCore.Routing.RouteGroupBuilder" } None
                 let s = update s id (fun o -> { o with Fields = o.Fields.Add("<prefix>", defaultArg full Unknown) })
+                receiverId |> Option.iter (fun parent -> groupOf[id] <- parent)
 
                 match roleArg "branch" with
                 | Some b ->
@@ -1312,6 +1377,12 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                     | _ -> one Unknown
                 | None -> one Unknown
             | _ -> one Unknown
+        | _ ->
+
+        // A convention chained on a builder (AddEndpointFilter, WithTags, RequireAuthorization) returns the builder it
+        // is given, by its signature: a route group keeps its prefix through it.
+        match operands with
+        | builder :: _ when PlatformRouting.returnsItsBuilder m && (match builder with Ref _ -> true | _ -> false) -> [ builder, state ]
         | _ ->
 
         // An endpoint builder that is built: its registration sees everything attached to it since.
