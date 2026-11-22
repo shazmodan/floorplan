@@ -61,7 +61,7 @@
   function loc(l) { return l ? fileName(l.file) + ":" + l.startLine : ""; }
   function enc(s) { return encodeURIComponent(s); }
 
-  var KIND_LABEL = { module: ["Module", "Modules"], namespace: ["Namespace", "Namespaces"], type: ["Type", "Types"], project: ["Project", "Projects"] };
+  var KIND_LABEL = { module: ["Module", "Modules"], namespace: ["Namespace", "Namespaces"], type: ["Type", "Types"], folder: ["Folder", "Folders"], project: ["Project", "Projects"] };
   function kindLabel(kind, many) { var k = KIND_LABEL[kind] || ["Unit", "Units"]; return many ? k[1] : k[0]; }
   // The label for "units" across the whole solution: the dominant kind among full-support units.
   var unitWord = (function () {

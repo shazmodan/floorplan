@@ -27,10 +27,12 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
             }
             container_CSharp_Controllers = container "CSharp.Controllers" "A web application" "C# · net8.0" "web application" {
                 component_CSharp_Controllers_CSharp_Controllers_ = component "(global namespace)" "A C# namespace of CSharp.Controllers" "C# namespace"
-                component_CSharp_Controllers_CSharp_Controllers_AspNetCoreGeneratedDocument = component "AspNetCoreGeneratedDocument" "A C# namespace of CSharp.Controllers" "C# namespace" "handles requests"
+                component_CSharp_Controllers_CSharp_Controllers_Areas_Admin_Pages = component "Areas/Admin/Pages" "A C# folder of CSharp.Controllers" "C# folder" "handles requests"
                 component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers = component "CSharp.Controllers" "A C# namespace of CSharp.Controllers" "C# namespace" "handles requests"
                 component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers_Admin = component "CSharp.Controllers.Admin" "A C# namespace of CSharp.Controllers" "C# namespace" "handles requests"
                 component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers_Pages_Shop = component "CSharp.Controllers.Pages.Shop" "A C# namespace of CSharp.Controllers" "C# namespace" "handles requests,reaches out"
+                component_CSharp_Controllers_CSharp_Controllers_Pages_Shop = component "Pages/Shop" "A C# folder of CSharp.Controllers" "C# folder"
+                component_CSharp_Controllers_CSharp_Controllers_Views_Pages = component "Views/Pages" "A C# folder of CSharp.Controllers" "C# folder"
             }
             container_CSharp_Conventional = container "CSharp.Conventional" "A web application" "C# · net8.0" "web application" {
                 component_CSharp_Conventional_CSharp_Conventional_ = component "(global namespace)" "A C# namespace of CSharp.Conventional" "C# namespace"
@@ -177,8 +179,8 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Reports -> external_library_Amazon_S3 "sends HTTP requests"
         component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Search -> component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Catalog "uses"
         component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Search -> external_library_Elastic_Clients_Elasticsearch "reads and writes data"
-        component_CSharp_Controllers_CSharp_Controllers_AspNetCoreGeneratedDocument -> component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers_Pages_Shop "uses"
         component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers_Pages_Shop -> external_filesystem "writes files"
+        component_CSharp_Controllers_CSharp_Controllers_Pages_Shop -> component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers_Pages_Shop "uses"
         component_CSharp_Delegated_CSharp_Delegated_ -> component_CSharp_Delegated_CSharp_Delegated_CSharp_Delegated "uses"
         component_CSharp_Effects_CSharp_Effects_CSharp_Effects -> external_database "reads and writes data" "CSharp.Wrappers, Dapper"
         component_CSharp_Effects_CSharp_Effects_CSharp_Effects -> external_filesystem "reads files"
@@ -280,7 +282,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         external_library_RabbitMQ_Client -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Refunds "delivers messages to"
         external_library_StackExchange_Redis -> component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Caching "delivers messages to"
         person_user -> component_CSharp_Blazor_CSharp_Blazor_CSharp_Blazor_Components_Pages "sends HTTP requests to" "HTTP"
-        person_user -> component_CSharp_Controllers_CSharp_Controllers_AspNetCoreGeneratedDocument "sends HTTP requests to" "HTTP"
+        person_user -> component_CSharp_Controllers_CSharp_Controllers_Areas_Admin_Pages "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers_Admin "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers_Pages_Shop "sends HTTP requests to" "HTTP"
@@ -319,7 +321,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
             include component_CSharp_Cloud_CSharp_Cloud_ component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Catalog component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Orders component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Reports component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Search external_filesystem external_http external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Elastic_Clients_Elasticsearch external_library_Microsoft_Azure_Cosmos external_network external_processes
         }
         component container_CSharp_Controllers "components_CSharp_Controllers" {
-            include component_CSharp_Controllers_CSharp_Controllers_ component_CSharp_Controllers_CSharp_Controllers_AspNetCoreGeneratedDocument component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers_Admin component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers_Pages_Shop external_filesystem person_user
+            include component_CSharp_Controllers_CSharp_Controllers_ component_CSharp_Controllers_CSharp_Controllers_Areas_Admin_Pages component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers_Admin component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers_Pages_Shop component_CSharp_Controllers_CSharp_Controllers_Pages_Shop component_CSharp_Controllers_CSharp_Controllers_Views_Pages external_filesystem person_user
         }
         component container_CSharp_Conventional "components_CSharp_Conventional" {
             include component_CSharp_Conventional_CSharp_Conventional_ component_CSharp_Conventional_CSharp_Conventional_CSharp_Conventional_Controllers person_user

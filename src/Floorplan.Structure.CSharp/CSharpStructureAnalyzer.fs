@@ -323,6 +323,44 @@ module CSharpStructureAnalyzer =
 
         let isMapped (tree: SyntaxTree) = fromOtherFiles |> List.exists (fun (t, _) -> obj.ReferenceEquals(t, tree))
 
+        // Razor pages and views compile to types named after their file's path, in a namespace of the generator's
+        // own; each records its file as its "Identifier" metadata (`/Areas/Admin/Pages/Audit.cshtml`). Such a type
+        // is known by its file, in a unit for its folder: by compiled type name, the folder, the file's name and
+        // path. A page with no code in it maps no line back to its file, so every generated tree is read.
+        let razorFiles =
+            [ for tree in compilation.SyntaxTrees |> Seq.filter (isOwn >> not) do
+                  let model = compilation.GetSemanticModel(tree, false)
+
+                  for t in tree.GetRoot().DescendantNodes() |> Seq.choose (function :? BaseTypeDeclarationSyntax as t -> Some t | _ -> None) do
+                      match model.GetDeclaredSymbol t with
+                      | null -> ()
+                      | symbol when isNull symbol.ContainingType ->
+                          let identifier =
+                              symbol.GetAttributes()
+                              |> Seq.tryPick (fun a ->
+                                  if a.AttributeClass.Name = "RazorCompiledItemMetadataAttribute" && a.ConstructorArguments.Length = 2 then
+                                      match a.ConstructorArguments[0].Value, a.ConstructorArguments[1].Value with
+                                      | :? string as key, (:? string as value) when key = "Identifier" && value.Contains "/" -> Some value
+                                      | _ -> None
+                                  else
+                                      None)
+
+                          match identifier, outermostType symbol with
+                          | Some path, Some typeName ->
+                              let cut = path.LastIndexOf '/'
+                              let folder = path.Substring(0, cut).Trim('/')
+                              let file = Path.GetFullPath(Path.Combine(projectDir, path.TrimStart('/')))
+                              yield typeName, ((if folder = "" then "/" else folder), path.Substring(cut + 1), file)
+                          | _ -> ()
+                      | _ -> () ]
+            |> Map.ofList
+
+        // The unit a type is in: its folder's for a Razor file, else its namespace's.
+        let unitOfType (typeName: string option) (ns: string) =
+            match typeName |> Option.bind razorFiles.TryFind with
+            | Some(folder, _, _) -> folder
+            | None -> ns
+
         // A namespace only generated code declares is located in the first file it is made from, as a whole.
         let generatedNamespaces =
             fromOtherFiles
@@ -330,6 +368,8 @@ module CSharpStructureAnalyzer =
                 let lines = try File.ReadAllLines(file).Length with _ -> 1
 
                 declaredNamespaces [ tree ]
+                |> List.map (fun (name, location, types) ->
+                    name, location, types |> List.filter (fun t -> not (razorFiles.ContainsKey(if name = "" then t else name + "." + t))))
                 |> List.filter (fun (_, _, types) -> not types.IsEmpty)
                 |> List.map (fun (name, _, types) ->
                     name,
@@ -350,17 +390,44 @@ module CSharpStructureAnalyzer =
                 found |> List.collect (fun (_, _, types) -> types) |> List.distinct |> List.sort)
             |> List.sortBy (fun (name, _, _) -> name)
 
-        let units =
-            namespaces
-            |> List.map (fun (name, location, types) ->
-                { Id = unitId name
+        let folders =
+            razorFiles
+            |> Map.toList
+            |> List.groupBy (fun (_, (folder, _, _)) -> folder)
+            |> List.map (fun (folder, files) ->
+                let files = files |> List.sortBy (fun (_, (_, name, _)) -> name)
+                let _, (_, _, first) = files.Head
+                let lines = try File.ReadAllLines(first).Length with _ -> 1
+
+                { Id = unitId folder
                   ProjectId = project.Id
-                  Kind = UnitKind.Namespace
-                  Name = name
-                  DisplayName = if name = "" then globalNamespaceLabel else name.Split('.') |> Array.last
+                  Kind = UnitKind.Folder
+                  Name = folder
+                  DisplayName = folder
                   Parent = None
-                  Location = location
-                  Types = types })
+                  Location =
+                    Some
+                        { File = first
+                          StartLine = 1
+                          StartColumn = 0
+                          EndLine = max 1 lines
+                          EndColumn = Int32.MaxValue }
+                  Types = files |> List.map (fun (_, (_, name, _)) -> name)
+                  Aliases = files |> List.map (fun (typeName, (_, name, _)) -> { Type = typeName; Name = name }) })
+
+        let units =
+            (namespaces
+             |> List.map (fun (name, location, types) ->
+                 { Id = unitId name
+                   ProjectId = project.Id
+                   Kind = UnitKind.Namespace
+                   Name = name
+                   DisplayName = if name = "" then globalNamespaceLabel else name.Split('.') |> Array.last
+                   Parent = None
+                   Location = location
+                   Types = types
+                   Aliases = [] }))
+            @ folders
 
         let errors =
             compilation.GetDiagnostics()
@@ -383,6 +450,8 @@ module CSharpStructureAnalyzer =
                 | None -> None
                 | Some target when SolutionIndex.supportLevel target index = SupportLevel.Limited ->
                     Some(UnitId.forProject target.Id, target.Id)
+                | Some target when target.Id = project.Id && (outermostType symbol |> Option.exists razorFiles.ContainsKey) ->
+                    Some(unitId (unitOfType (outermostType symbol) ""), target.Id)
                 | Some target -> ownerName symbol |> Option.map (fun o -> UnitId.create target.Id o, target.Id)
 
         let edges =
@@ -417,7 +486,8 @@ module CSharpStructureAnalyzer =
                                 | Some a, Some b -> Some(a, b)
                                 | _ -> None
 
-                            unitId (enclosingNamespace model n.SpanStart), t, targetProject, n.GetLocation().GetMappedLineSpan(), types)))
+                            let enclosing = model.GetEnclosingSymbol n.SpanStart
+                            unitId (unitOfType (outermostType enclosing) (enclosingNamespace model n.SpanStart)), t, targetProject, n.GetLocation().GetMappedLineSpan(), types)))
             |> Array.ofSeq
 
         let typeEdges =
@@ -458,7 +528,7 @@ module CSharpStructureAnalyzer =
     /// belong to which project of the solution.
     let private cacheKey (index: SolutionIndex) (project: LoadedProject) =
         Caching.hash
-            [ yield "structure-csharp-v4"
+            [ yield "structure-csharp-v5"
               yield typeof<StructureResult>.Assembly.GetName().Version.ToString()
               yield typeof<CSharpCompilation>.Assembly.GetName().Version.ToString()
               yield project.Id

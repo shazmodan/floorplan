@@ -481,6 +481,7 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
         match units.TryFind unitId with
         | Some u when u.Kind = UnitKind.Module ->
             typeName = u.Name || (typeName.StartsWith(u.Name + "/") && not (typeName.Substring(u.Name.Length + 1).Contains "/"))
+        | Some u when u.Aliases |> List.exists (fun a -> a.Type = typeName) -> true
         | Some u when u.Kind = UnitKind.Namespace ->
             let ns = match typeName.LastIndexOf '.' with -1 -> "" | i -> typeName.Substring(0, i)
             ns = u.Name
@@ -544,6 +545,7 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
                       | UnitKind.Module -> "module"
                       | UnitKind.Namespace -> "namespace"
                       | UnitKind.Type -> "type"
+                      | UnitKind.Folder -> "folder"
                       | UnitKind.ProjectUnit -> "project"
 
                   let language = project |> Option.map (fun p -> languageName p.Language) |> Option.defaultValue ""
@@ -566,6 +568,10 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
                           Sources = [ unitId ] } ]
 
     // Each component's types: those its unit declares, and those of the members that are entry or exit points.
+    // A type with an alias is shown by it (a Razor page by its file).
+    let aliases =
+        model.Units |> List.collect (fun u -> u.Aliases) |> List.map (fun a -> a.Type, a.Name) |> Map.ofList
+
     let code =
         let named =
             [ for c in facts.Containers do
@@ -577,7 +583,7 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
 
                       match u.Kind with
                       | UnitKind.Module -> yield componentKey, u.Name
-                      | _ -> for t in u.Types -> componentKey, (if u.Name = "" then t else $"{u.Name}.{t}") ]
+                      | _ -> for t in u.Types -> componentKey, CodeUnit.typeName u t ]
 
         let fromLinks =
             links
@@ -597,7 +603,9 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
             let unitKind = components |> List.tryFind (fun c -> c.Id = componentKey) |> Option.bind (fun c -> c.Technology)
             let isModule = unitKind |> Option.exists (fun t -> t.EndsWith " module") && not (typeName.Contains "/")
 
-            { element key C4Kind.Code (simpleName typeName) typeName with
+            let name = aliases.TryFind typeName |> Option.defaultValue (simpleName typeName)
+
+            { element key C4Kind.Code name typeName with
                 Technology = (if isModule then unitKind else Some "type")
                 Parent = Some componentKey
                 Tags =

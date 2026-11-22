@@ -70,7 +70,8 @@ module FSharpStructureAnalyzer =
                   DisplayName = u.FullName.Split('.') |> Array.last
                   Parent = u.Parent |> Option.map unitId
                   Location = Some(toLocation u.Range)
-                  Types = [] })
+                  Types = []
+                  Aliases = [] })
 
         let results = checker.ParseAndCheckProject options |> Async.RunSynchronously
 
@@ -164,7 +165,7 @@ module FSharpStructureAnalyzer =
                 if info.Exists then $"{r}|{info.Length}|{info.LastWriteTimeUtc.Ticks}" else r)
 
         Caching.hash
-            [ yield "structure-v3"
+            [ yield "structure-v4"
               yield typeof<StructureResult>.Assembly.GetName().Version.ToString()
               yield project.Id
               yield project.Path

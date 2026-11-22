@@ -6,15 +6,17 @@ Work that is known and not yet done. Remove an item when its branch is merged.
 
 In the order they are worth doing: the first ones change results already shown, the later ones add new inputs.
 
-1. **Cover more kinds of applications**, each found by a probe first: Dapr (pub/sub subscriptions, service
-   invocation, state store), Orleans grains, Minimal API route groups with filters, WCF/CoreWCF services,
-   OpenTelemetry exporters as exit points, and `System.Threading.Channels` readers as internal background inputs.
-2. **Summarize dependencies per project**: each project's view of the call graph keeps its virtual calls to the
+1. **Minimal API route groups with filters** (put first by the owner): `MapGroup` prefixes and endpoint filters
+   (`AddEndpointFilter`, on a group or an endpoint), and what a filter runs before the handler. Next step: a probe.
+2. **Cover more kinds of applications**, each found by a probe first: Dapr (pub/sub subscriptions, service
+   invocation, state store), Orleans grains, WCF/CoreWCF services, OpenTelemetry exporters as exit points, and
+   `System.Threading.Channels` readers as internal background inputs.
+3. **Summarize dependencies per project**: each project's view of the call graph keeps its virtual calls to the
    types its reference closure constructs, but dependency summaries are computed once over the whole solution
    (and cached so), so a virtual call inside a package can still reach an implementation in a package only
    another project references. Log dispatch is already limited to the project's references. Next step: find a
    case outside logging first; then key summaries by catalog and reference closure, and the cache with them.
-3. **Read more of the configuration**: values read from `appsettings.json` by a constant key, sections and options
+4. **Read more of the configuration**: values read from `appsettings.json` by a constant key, sections and options
    bound to a section are read, but not a property of a nested options object (`options.Value.Rabbit.Queue`), an
    options object kept in a field (`_options = options.Value`), named options (`Configure<T>("name", section)`),
    or other configuration sources (environment variables, `AddJsonFile("other.json")`). Next step: a probe on a
@@ -32,6 +34,3 @@ In the order they are worth doing: the first ones change results already shown, 
 
 - Publishing the dotnet tool to NuGet.
 - Choosing a license.
-- Naming the units of Razor pages and views: they are in `AspNetCoreGeneratedDocument`, the namespace the
-  Razor generator gives them. They could instead be named after their folder (`CSharp.Controllers.Areas.Admin.Pages`)
-  as Blazor components are, which imitates Razor's naming rather than reading the generated code.
