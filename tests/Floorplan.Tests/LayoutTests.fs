@@ -73,6 +73,7 @@ let private entry (handler: CodeUnit) (route: string) =
       Route = Some route
       Completeness = Completeness.Complete
       Forms = []
+      Before = []
       Evidence = { Steps = [] } }
 
 let private exit (owner: CodeUnit) (category: EffectCategory) (payload: string) =

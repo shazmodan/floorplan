@@ -181,6 +181,9 @@ type EntryPoint =
       Route: string option
       Completeness: Completeness
       Forms: RouteForm list
+      /// Members the platform runs before the handler for this entry point (its endpoint filters): their effects
+      /// are part of its trace.
+      Before: string list
       Evidence: Evidence }
 
 [<RequireQualifiedAccess>]

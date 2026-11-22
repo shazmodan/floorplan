@@ -157,6 +157,18 @@ let mayBeGroup (parameterType: string) =
     parameterType.StartsWith "Microsoft.AspNetCore.Routing.RouteGroupBuilder"
     || parameterType.StartsWith "Microsoft.AspNetCore.Routing.IEndpointRouteBuilder"
 
+/// Whether a call returns the object it is given, by its signature alone: a generic method whose result is its
+/// first parameter's type argument (`TBuilder AddEndpointFilter<TBuilder>(this TBuilder builder, ...)`, and so
+/// `WithTags`, `RequireAuthorization`) has no other value of that type to return. A convention chained after
+/// MapGroup keeps the group.
+let returnsItsBuilder (m: MethodRef) =
+    not m.HasThis
+    && m.GenericArity > 0
+    && m.ReturnType.StartsWith "!!"
+    && (match m.ParameterTypes with
+        | first :: _ -> first = m.ReturnType
+        | [] -> false)
+
 /// The route prefix contributed by the builder a registration is called on: MapGroup("/api").MapGet(...). A
 /// builder that is a parameter of the registering method and may be a group has a prefix only its callers know.
 let rec prefixOf (matcher: Matcher) (evaluator: Values.Evaluator) (flow: Flow) (caller: MethodRef) (depth: int) (builder: Values) : string list option =
@@ -179,6 +191,10 @@ let rec prefixOf (matcher: Matcher) (evaluator: Values.Evaluator) (flow: Flow) (
                         | inner :: _ -> prefixOf matcher evaluator flow caller (depth + 1) inner |> Option.map (fun p -> p @ [ prefix ])
                         | [] -> Some [ prefix ]
                     | _ -> None
+                | _ when returnsItsBuilder d ->
+                    match flow.OperandsAt o with
+                    | inner :: _ -> prefixOf matcher evaluator flow caller (depth + 1) inner
+                    | [] -> Some []
                 | _ -> Some []
             | _ -> Some []
         | [ Argument i ] ->

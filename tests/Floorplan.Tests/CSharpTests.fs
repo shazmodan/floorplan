@@ -991,6 +991,43 @@ let tests =
               Expect.equal (byRoute "/admin/reports/rebuild").HttpMethod (Some "POST") "nested group behind a convention chain"
           }
 
+          test "route groups with endpoint filters: conventions keep the group's prefix, and what a filter does is traced" {
+              let m = csharpModel.Force()
+
+              let filtered =
+                  entries m "CSharp.Endpoints"
+                  |> List.filter (fun e -> e.HandlerMember.StartsWith "CSharp.Endpoints.Filtered.")
+
+              let traced (e: EntryPoint) =
+                  let t = m.Traces |> List.find (fun t -> t.EntryPointId = e.Id)
+
+                  m.ExitPoints
+                  |> List.filter (fun x -> List.contains x.Id t.ExitPointIds && x.Category = EffectCategory.FilesystemRead || List.contains x.Id t.ExitPointIds && x.Category = EffectCategory.FilesystemWrite)
+                  |> List.choose (fun x -> x.Payload |> Option.bind (fun p -> p.Value))
+                  |> List.distinct
+
+              Expect.equal
+                  (filtered |> List.map (fun e -> e.HttpMethod, e.Route, e.Completeness, traced e) |> List.sort)
+                  [ Some "GET", Some "/v1/items", Completeness.Complete, [ "requests.log" ]
+                    Some "GET", Some "/v1/prices", Completeness.Complete, [ "limits.json" ]
+                    Some "GET", Some "/v1/stock/{sku}", Completeness.Complete, [ "requests.log" ]
+                    Some "GET", Some "/v3/ping", Completeness.Complete, [ "factory.log" ]
+                    Some "POST", Some "/v2/orders", Completeness.Complete, [ "limits.json" ] ]
+                  "a lambda filter on a group (and its nested group), a filter type on an endpoint and on a group behind other conventions, a filter factory"
+
+              let prices = filtered |> List.find (fun e -> e.Route = Some "/v1/prices")
+              Expect.equal prices.Before [ "CSharp.Endpoints.Filtered.Throttle::InvokeAsync" ] "a filter type runs its InvokeAsync"
+
+              Expect.exists
+                  prices.Evidence.Steps
+                  (fun s -> s.Description.StartsWith "CSharp.Endpoints.Filtered.Throttle::InvokeAsync runs before the handler")
+                  "the evidence names the filter"
+
+              Expect.isFalse
+                  (entries m "CSharp.Endpoints" |> List.exists (fun e -> e.Route.IsNone && e.HandlerMember.StartsWith "CSharp.Endpoints.Filtered."))
+                  "a filter is no entry point of its own"
+          }
+
           test "hand-written routing, switch expressions and tables in C# give the F# results" {
               let m = csharpModel.Force()
 

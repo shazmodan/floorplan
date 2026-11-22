@@ -107,6 +107,7 @@ let private entry (ctx: AppContext) (hit: Hit) (forms: RouteForm list) (steps: E
           Route = route
           Completeness = completeness
           Forms = if predicates.IsEmpty then [] else forms
+          Before = []
           Evidence =
             { Steps =
                 steps
@@ -151,6 +152,20 @@ let private registersHandlers (ctx: AppContext) =
                     stack.Push e.Target
 
     found
+
+/// The method an endpoint filter runs: a delegate's (a filter lambda, or a factory, which makes the filter it
+/// returns), or a filter type's InvokeAsync, which the platform calls as it calls a middleware's.
+let private filterMethod (set: AssemblySet) (filter: Filter) : MethodRef option =
+    let invokeOf (t: TypeRef) =
+        set.TryType t
+        |> Option.bind (fun (def, _) ->
+            def.Methods |> List.tryFind (fun x -> x.Ref.Name = "InvokeAsync" && not x.IsStatic && x.Body.Value.IsSome))
+        |> Option.map (fun x -> x.Ref)
+
+    match filter with
+    | FilterValue(Fn(m, _)) -> Some m
+    | FilterType t -> invokeOf t
+    | FilterValue _ -> None
 
 /// Entry points found by running the application symbolically.
 let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list =
@@ -231,6 +246,29 @@ let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list =
 
                 let hits = machine.Explore(handler, state, seed)
 
+                // The endpoint's filters run before its handler: what they do is part of its trace.
+                let filters =
+                    match builder with
+                    | Some b -> machine.FiltersOf b
+                    | None -> []
+                    |> List.choose (fun (f, filterSite) -> filterMethod set f |> Option.map (fun m -> m, filterSite))
+                    |> List.distinctBy (fun (m, _) -> m.Key)
+
+                let withFilters (e: EntryPoint) =
+                    if filters.IsEmpty then
+                        e
+                    else
+                        { e with
+                            Before = filters |> List.map (fun (m, _) -> m.Display)
+                            Evidence =
+                                { e.Evidence with
+                                    Steps =
+                                        e.Evidence.Steps
+                                        @ [ for (m, filterSite) in filters ->
+                                                { step $"{m.Display} runs before the handler: an endpoint filter added in {(fst filterSite).Display}" filterSite with
+                                                    Member = m.Display
+                                                    Assembly = m.Type.Assembly } ] } }
+
                 // A user function found on some path is the handler; library responses on other paths of the same
                 // endpoint (error paths, mostly) add nothing.
                 let hits =
@@ -239,15 +277,16 @@ let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list =
                     else
                         hits
 
-                match hits with
-                | [] when route.IsSome ->
-                    entry ctx { Handler = HandlerSite site; Predicates = seed } [ RouteForm.PlatformRouting ] steps |> Option.toList
-                | [] -> []
-                | hits ->
-                    hits
-                    // A library response with no route says too little to report.
-                    |> List.filter (fun h -> match h.Handler with HandlerSite _ -> route.IsSome | _ -> true)
-                    |> List.choose (fun h -> entry ctx h [ RouteForm.PlatformRouting ] steps)
+                (match hits with
+                 | [] when route.IsSome ->
+                     entry ctx { Handler = HandlerSite site; Predicates = seed } [ RouteForm.PlatformRouting ] steps |> Option.toList
+                 | [] -> []
+                 | hits ->
+                     hits
+                     // A library response with no route says too little to report.
+                     |> List.filter (fun h -> match h.Handler with HandlerSite _ -> route.IsSome | _ -> true)
+                     |> List.choose (fun h -> entry ctx h [ RouteForm.PlatformRouting ] steps))
+                |> List.map withFilters
             | RequestRoot(rule, handler, state, site) ->
                 let steps = [ step $"{(fst site).Display} registers a request handler with the platform (rule {rule.Id})" site ]
 

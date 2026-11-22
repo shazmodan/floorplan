@@ -16,5 +16,6 @@ app.MapHub<CSharp.Endpoints.Chat.ChatHub>("/hubs/chat");
 app.MapGet(Environment.GetEnvironmentVariable("STATUS_PREFIX") + "/status", () => "up");
 
 CSharp.Endpoints.Configured.Routes.Map(app);
+CSharp.Endpoints.Filtered.Routes.Map(app);
 
 app.Run();
