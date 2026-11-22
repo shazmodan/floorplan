@@ -666,6 +666,34 @@ let tests =
                   "a type the analysis cannot read is a warning"
           }
 
+          test "what a configured object does when it is made happens at the call that loads the configuration" {
+              let m = csharpModel.Force()
+
+              let made =
+                  m.ExitPoints
+                  |> List.filter (fun x ->
+                      x.Evidence.Steps |> List.exists (fun s -> s.Description.Contains " loads the configuration: "))
+
+              let sink =
+                  made
+                  |> List.tryFind (fun x ->
+                      x.Member = "CSharp.Effects.Loading.Setup::FromSettings"
+                      && x.ViaAssembly = Some "Serilog.Sinks.File"
+                      && x.Category = EffectCategory.FilesystemWrite)
+
+              Expect.isSome sink "WriteTo.File, named in appsettings.json, makes its file where ReadFrom.Configuration is called"
+
+              Expect.exists
+                  sink.Value.Evidence.Steps
+                  (fun s ->
+                      s.Description.StartsWith "Serilog.ConfigurationLoggerConfigurationExtensions::Configuration loads the configuration: appsettings.json names \"File\", made by Serilog.FileLoggerConfigurationExtensions::File")
+                  "the evidence names the file and what it names"
+
+              Expect.isEmpty
+                  (made |> List.filter (fun x -> not (x.Member.StartsWith "CSharp.Effects.Loading.")))
+                  "only at the calls that load a configuration, not at log calls"
+          }
+
           test "a warm summary cache keeps what configured types reach" {
               let dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "floorplan-cache-" + string (System.Guid.NewGuid()))
               let store = Caching.Store(Some dir)
@@ -673,11 +701,13 @@ let tests =
 
               let logged (m: AnalysisModel) =
                   m.ExitPoints
-                  |> List.filter (fun x -> x.ViaAssembly = Some "NLog" || x.ViaAssembly = Some "log4net")
+                  |> List.filter (fun x ->
+                      x.ViaAssembly = Some "NLog" || x.ViaAssembly = Some "log4net" || x.Member.StartsWith "CSharp.Effects.Loading.")
                   |> List.map (fun x -> x.Category, x.Member, x.Primitive, x.ViaAssembly, x.Location)
 
               let cold = Pipeline.buildModel ignore store [] [] solution
               let warm = Pipeline.buildModel ignore store [] [] solution
+              Expect.exists (logged warm) (fun (_, _, _, via, _) -> via = Some "Serilog.Sinks.File") "what a configured sink does when made"
               Expect.equal (logged warm) (logged cold) "same log effects"
               Expect.equal (logged cold) (logged (csharpModel.Force())) "as without a cache"
               try System.IO.Directory.Delete(dir, true) with _ -> ()

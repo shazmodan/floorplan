@@ -80,6 +80,15 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
             if k <> Configured then
                 fail $"{context}: only configured rules have a configuration."
 
+            let loadedBy (x: JsonElement) =
+                let members = strings x "loadedBy"
+
+                for m in members do
+                    if not (m.Contains "::") then
+                        fail $"{context}: loadedBy names a member as \"Type::Member\"."
+
+                members
+
             let xml =
                 match c.TryGetProperty "xml" with
                 | true, x when x.ValueKind = JsonValueKind.Object ->
@@ -91,7 +100,8 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
                     Some
                         { Root = required x "root" context
                           Elements = elements
-                          TypeAttribute = required x "typeAttribute" context }
+                          TypeAttribute = required x "typeAttribute" context
+                          LoadedBy = loadedBy x }
                 | _ -> None
 
             let json =
@@ -105,7 +115,8 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
                     Some
                         { Section = required j "section" context
                           Properties = properties
-                          TypeProperty = required j "typeProperty" context }
+                          TypeProperty = required j "typeProperty" context
+                          LoadedBy = loadedBy j }
                 | _ -> None
 
             if xml.IsNone && json.IsNone then

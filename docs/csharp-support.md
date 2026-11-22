@@ -126,7 +126,14 @@ Also new, outside the recognizer:
   `appsettings.json` (Serilog.Settings.Configuration) are named by the methods that add them (`"WriteTo": [{
   "Name": "File" }]` calls `WriteTo.File`): the rules `configured.serilog-sink` and `configured.serilog-enricher`
   say `"names": "methods"`, and every public method of that name on `LoggerSinkConfiguration` (or extension
-  method on it) in Serilog or an assembly that references it is analyzed as called. Configuration loaded from
+  method on it) in Serilog or an assembly that references it is analyzed as called. What each object does when
+  it is made (its constructor, or the method called: `WriteTo.File` creates the log's folder) belongs to the call
+  that loads the file, the rule's `loadedBy` members, and is reported there: `ReadFrom.Configuration` for
+  Serilog's section, `LoadConfigurationFromSection`, `LoadConfigurationFromAppSettings`, `AddNLog` or `UseNLog`
+  for NLog's, the first `GetCurrentClassLogger`, `GetLogger` or read of `LogManager.Configuration` for
+  nlog.config, and `XmlConfigurator.Configure` or `ConfigureAndWatch` for log4net's (an
+  `[assembly: XmlConfigurator]` attribute is not read). Its arguments come from the file, so a payload keeps
+  only what the library's code fixes. Fixture: `CSharp.Effects/LoadedLoggers.cs`. Configuration loaded from
   elsewhere at run time is not read. Getting a logger (`LogManager.GetCurrentClassLogger()`,
   `LogManager.GetLogger`) loads the configuration, and stays an exit point of its own. Fixture:
   `CSharp.Effects/OtherLoggers.cs`, with `nlog.config`, `log4net.config` and `appsettings.json`.

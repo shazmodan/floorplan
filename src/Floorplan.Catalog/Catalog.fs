@@ -56,7 +56,10 @@ type LogCall =
 type XmlConfiguration =
     { Root: string
       Elements: string list
-      TypeAttribute: string }
+      TypeAttribute: string
+      /// The members that load such a file ("Type::Member", the member optionally ending in `*`): what the
+      /// objects it names do when they are made is reported at a call to one of them.
+      LoadedBy: string list }
 
 /// Where a JSON configuration file (appsettings.json) names a configured rule's types: under the top-level
 /// property `Section`, in objects that are the value of a property named in `Properties`, or a value of such a
@@ -64,7 +67,9 @@ type XmlConfiguration =
 type JsonConfiguration =
     { Section: string
       Properties: string list
-      TypeProperty: string }
+      TypeProperty: string
+      /// The members that load the section, as for an XML configuration.
+      LoadedBy: string list }
 
 /// What a configured rule's configuration names.
 [<RequireQualifiedAccess>]

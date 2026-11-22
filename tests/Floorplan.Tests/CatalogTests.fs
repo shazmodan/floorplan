@@ -221,6 +221,23 @@ let tests =
               Expect.equal serilog.Names ConfiguredName.Method "Serilog's sinks are the methods that add them"
               Expect.equal (serilog.Json |> Option.map (fun j -> j.TypeProperty)) (Some "Name") "by their Name"
 
+              Expect.contains
+                  (nlog.Xml |> Option.map (fun x -> x.LoadedBy) |> Option.defaultValue [])
+                  "NLog.LogManager::GetCurrentClassLogger"
+                  "nlog.config is loaded when the first logger is made"
+
+              Expect.contains
+                  (serilog.Json |> Option.map (fun j -> j.LoadedBy) |> Option.defaultValue [])
+                  "Serilog.ConfigurationLoggerConfigurationExtensions::Configuration"
+                  "the Serilog section is loaded by ReadFrom.Configuration"
+
+              let badLoader =
+                  """{ "name": "bad", "rules": [ { "id": "x", "type": "T", "kind": "configured", "configuration": { "xml": { "root": "r", "elements": ["e"], "typeAttribute": "type", "loadedBy": ["Load"] } } } ] }"""
+
+              Expect.throwsC
+                  (fun () -> CatalogLoader.parse "bad" badLoader |> ignore)
+                  (fun e -> Expect.stringContains e.Message "loadedBy names a member" "message")
+
               let missing = """{ "name": "bad", "rules": [ { "id": "x", "type": "T", "kind": "configured" } ] }"""
 
               Expect.throwsC

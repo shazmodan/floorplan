@@ -26,7 +26,9 @@ type ConfiguredType =
       Rule: Rule
       /// The configuration file, and the value that named the type.
       File: string
-      Named: string }
+      Named: string
+      /// The members that load the file (the catalog's `loadedBy`): a call to one makes the object.
+      LoadedBy: string list }
 
 /// The XML files in a folder that can hold a library's configuration: `*.config` (nlog.config, app.config as
 /// `App.dll.config`, web.config), and `*.xml` files named after a configuration's root (log4net.xml).
@@ -263,7 +265,7 @@ type Resolver(set: AssemblySet) =
                           match loadXml file with
                           | Some doc ->
                               for (rule, spec) in xmlRules do
-                                  for value in xmlValues doc spec -> file, rule, value
+                                  for value in xmlValues doc spec -> file, rule, value, spec.LoadedBy
                           | None -> () ]
 
         let fromJson =
@@ -277,7 +279,7 @@ type Resolver(set: AssemblySet) =
                               use doc = doc
 
                               for (rule, spec) in jsonRules do
-                                  for value in jsonValues doc spec -> file, rule, value
+                                  for value in jsonValues doc spec -> file, rule, value, spec.LoadedBy
                           | None -> () ]
 
         let made (rule: Rule) (value: string) =
@@ -286,19 +288,21 @@ type Resolver(set: AssemblySet) =
             | ConfiguredName.Method -> this.ResolveMethods(rule, value) |> List.map Called
 
         let found =
-            (fromXml @ fromJson) |> List.map (fun (file, rule, value) -> file, rule, value, made rule value)
+            (fromXml @ fromJson)
+            |> List.map (fun (file, rule, value, loadedBy) -> file, rule, value, loadedBy, made rule value)
 
+        // Once per file: each file is loaded by its own calls, for the project whose output folder holds it.
         let types =
             found
-            |> List.collect (fun (file, rule, value, ms) ->
-                ms |> List.map (fun m -> { Made = m; Rule = rule; File = file; Named = value }))
-            |> List.distinctBy (fun c -> c.Made)
+            |> List.collect (fun (file, rule, value, loadedBy, ms) ->
+                ms |> List.map (fun m -> { Made = m; Rule = rule; File = file; Named = value; LoadedBy = loadedBy }))
+            |> List.distinctBy (fun c -> c.Made, c.File)
 
         let unresolved =
             found
-            |> List.filter (fun (_, _, _, ms) -> ms.IsEmpty)
-            |> List.distinctBy (fun (file, _, value, _) -> file, value)
-            |> List.map (fun (file, rule, value, _) ->
+            |> List.filter (fun (_, _, _, _, ms) -> ms.IsEmpty)
+            |> List.distinctBy (fun (file, _, value, _, _) -> file, value)
+            |> List.map (fun (file, rule, value, _, _) ->
                 { Severity = DiagnosticSeverity.Warning
                   Code = "configured.unresolved"
                   Message =
