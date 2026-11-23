@@ -110,6 +110,7 @@ CSharp.Switch | http-in | GET /api/stock | complete | CSharp.Switch:CSharp.Switc
 CSharp.Switch | http-in | GET /api/suppliers | complete | CSharp.Switch:CSharp.Switch | CSharp.Switch.Orders::Suppliers | forms [control-flow] | [method equals GET; path equals /api/suppliers]
 CSharp.Table | http-in | - /health | partial | CSharp.Table:CSharp.Table | CSharp.Table.Handlers::Health | forms [table-lookup] | [path equals /health]
 CSharp.Table | http-in | - /orders | partial | CSharp.Table:CSharp.Table | CSharp.Table.Handlers::Orders | forms [table-lookup] | [path equals /orders]
+CSharp.Telemetry | http-in | GET /hello | complete | CSharp.Telemetry: | Program/<lambda> | forms [platform-routing] | [method equals GET; path-segment0 equals hello; segment-count equals 1]
 CSharp.Wcf | network | - http://example.org/stock/IStockQuery/Count | complete | CSharp.Wcf:CSharp.Wcf.Stock | CSharp.Wcf.Stock.StockService::Count | forms [platform-routing] | [] | through CoreWCF.ServiceContractAttribute
 CSharp.Wcf | network | - http://tempuri.org/IOrderService/CancelOrder | complete | CSharp.Wcf:CSharp.Wcf.Orders | CSharp.Wcf.Orders.OrderService::CancelAsync | forms [platform-routing] | [] | through CoreWCF.ServiceContractAttribute
 CSharp.Wcf | network | - http://tempuri.org/IOrderService/Place | complete | CSharp.Wcf:CSharp.Wcf.Orders | CSharp.Wcf.Orders.OrderService::Place | forms [platform-routing] | [] | through CoreWCF.ServiceContractAttribute

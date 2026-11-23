@@ -362,6 +362,23 @@ Also new, outside the recognizer:
   the endpoint address beyond the evidence, the non-generic `AddServiceEndpoint` overloads (contract as a `Type`),
   endpoints from configuration files, duplex callbacks and the binding. Fixtures: `CSharp.Wcf` (service) and
   `CSharp.WcfClient`.
+- **OpenTelemetry exporters**: an exporter sends what traces, metrics and logs record from a worker of its own,
+  reached through the processors and metric readers of every provider, which call `BaseExporter<T>.Export` on
+  whatever exporters were constructed: every setup call (`WithTracing`, `AddOpenTelemetry`) showed every
+  exporter's sending, file storage for retries and host name lookup as low- or medium-confidence guesses. Adding
+  an exporter is the exit point now, at the call: `AddOtlpExporter` for traces, metrics and logs, `UseOtlpExporter`,
+  `AddZipkinExporter` and Azure Monitor's `UseAzureMonitor`, `UseAzureMonitorExporter` and
+  `AddAzureMonitor*Exporter` are HTTP calls (`http-out.otlp-*`, `http-out.zipkin-exporter`,
+  `http-out.azure-monitor*`); `AddConsoleExporter` writes to the console (`environment.otel-console-*`). The
+  address is the endpoint the options' configuration delegate sets (`o => o.Endpoint = new Uri(...)`, the payload
+  role `"configured-url"`: the value the delegate among the call's arguments gives the rule's property) or
+  `UseOtlpExporter`'s `Uri` argument. Without one it is `OTEL_EXPORTER_OTLP_ENDPOINT`'s or the default, and is left
+  unknown. `BaseExporter<T>.Export` is not followed in libraries' code (`unfollowed.otel-export`, the rule kind
+  `"unfollowed"`): it is the effect of the call that added the exporter. Prometheus is scraped rather than sending:
+  `AddPrometheusExporter` is no exit point, and the scraping endpoint (`MapPrometheusScrapingEndpoint`) is not
+  read as an entry point. Not read either: an Azure Monitor connection string's ingestion endpoint, exporters
+  added as processors by hand (`AddProcessor(new BatchActivityExportProcessor(new OtlpTraceExporter(...)))`) and
+  options bound from configuration. Fixture: `CSharp.Telemetry`.
 - **AWS and Azure Cosmos DB**: the AWS SDK for .NET and the Cosmos DB client send requests through pipelines of
 
   handlers of their own, past credential providers that read files, start processes and call the platform's

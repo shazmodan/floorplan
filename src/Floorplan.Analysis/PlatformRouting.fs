@@ -54,6 +54,12 @@ let rec handlerOf (set: AssemblySet) (flow: Flow) (values: Values) : MethodRef o
             | [ inner ] -> handlerOf set flow inner
             | _ -> None
         | _ -> None
+    | many when many.Length > 1 ->
+        // A delegate cached in a static field (C#'s `<>9__0_4 ?? (<>9__0_4 = new Func<...>(...))`): the field's
+        // value or the one just made. The values that name a method must agree on it.
+        match many |> List.choose (fun v -> handlerOf set flow (Set.singleton v)) |> List.distinctBy (fun m -> m.Key) with
+        | [ m ] -> Some m
+        | _ -> None
     | _ -> None
 
 let private isGenerated (set: AssemblySet) (m: MethodRef) =

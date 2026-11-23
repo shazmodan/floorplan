@@ -42,6 +42,7 @@ let private kind (text: string) context =
     | "query" -> Query
     | "configured" -> Configured
     | "self-log" -> SelfLog
+    | "unfollowed" -> Unfollowed
     | "setting" -> Setting
     | other -> fail $"{context}: unknown kind \"{other}\"."
 

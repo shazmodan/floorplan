@@ -225,6 +225,8 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
     let initializing = HashSet<string>()
     // Debugging only: the methods being interpreted, innermost last.
     let callStack = Stack<string>()
+    // The arguments of each method being interpreted on the current call chain, innermost first.
+    let active = Dictionary<string, SVal list list>()
     // The innermost call made from user code, for attributing objects that libraries create on its behalf.
     let mutable currentUserSite: (MethodRef * int) option = None
     let hits = ResizeArray<Hit>()
@@ -247,10 +249,14 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
     let traceMethod = match System.Environment.GetEnvironmentVariable "FLOORPLAN_DEBUG_METHOD" with null -> "" | m -> m
     let trace (text: string) = if debug then eprintfn "  [symbolic] %s" text
 
+    // The shared framework is not interpreted, nor are the runtime's extension libraries (dependency injection,
+    // options, configuration, logging, hosting) when a package brings a newer copy of them than the shared
+    // framework's (OpenTelemetry does): they are the framework's code all the same, and register services, not
+    // routes. Interpreted, their loops over the service collection (TryAddSingleton) fork on every descriptor.
     let interpretable (m: MethodRef) =
         match set.Origin m.Type.Assembly with
         | Framework -> false
-        | _ -> true
+        | _ -> not (m.Type.Assembly.StartsWith "Microsoft.Extensions.")
 
     let methodOf (m: MethodRef) = set.TryMethod m
 
@@ -511,7 +517,18 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
     /// Runs a method with arguments; returns the possible results with their states.
     member this.Invoke(phase: Phase, m: MethodRef, args: SVal list, state: PathState, depth: int) : (SVal * PathState) list =
-        if steps >= deadline || totalSteps >= hardCap || depth > limits.Depth then
+        // A library's recursive call while the application registers with the arguments of the call it is in (a
+        // search through nested objects of unknown shape, as OpenTelemetry's for an exporter) learns nothing new and
+        // forks at every level: it yields an unknown value. A recursion over known values (FSharp.Core's over a
+        // list), the application's own, and a router's while it handles a request are followed.
+        let recursing =
+            phase = Registration
+            && set.Origin m.Type.Assembly = Dependency
+            && (match active.TryGetValue m.Key with
+                | true, outer -> outer |> List.contains args
+                | _ -> false)
+
+        if steps >= deadline || totalSteps >= hardCap || depth > limits.Depth || recursing then
             [ Unknown, state ]
         else
             match methodOf m with
@@ -559,8 +576,14 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                     trace (sprintf "%A d%d enter %s (%s)" phase depth m.Display (args |> List.map show |> String.concat ", "))
 
                 if debug then callStack.Push m.Display
+                let outer = match active.TryGetValue m.Key with | true, o -> o | _ -> []
+                active[m.Key] <- args :: outer
 
-                let results = this.Interpret(phase, def, def.Body.Value.Value, args, state, depth)
+                let results =
+                    try
+                        this.Interpret(phase, def, def.Body.Value.Value, args, state, depth)
+                    finally
+                        active[m.Key] <- outer
 
                 if debug then callStack.Pop() |> ignore
 

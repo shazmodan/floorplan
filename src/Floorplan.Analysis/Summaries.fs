@@ -108,11 +108,13 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
     // A log call in a dependency through a library that dispatches to its providers' loggers (Microsoft's): what
     // the sinks do is the logging configuration's, not the dependency's. It is not followed, just as where the
     // library is part of the shared framework; a log call in the application reaches the sinks itself. Nor is a
-    // call to a library's log of its own workings, which writes nothing unless the application turns it on.
+    // call to a library's log of its own workings, which writes nothing unless the application turns it on, nor
+    // one whose effect is reported where the application set it up (an exporter's Export).
     let followed (e: CallEdge) =
         e.Kind <> Initializer
         && not (matcher.Logger e.Declared |> Option.exists (fun r -> r.Dispatch.IsSome))
         && (matcher.SelfLog e.Declared).IsNone
+        && (matcher.Unfollowed e.Declared).IsNone
 
     let witnesses (m: MethodRef) =
         match best.TryGetValue m.Key with

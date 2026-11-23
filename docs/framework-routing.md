@@ -155,6 +155,19 @@ symbolic run takes 2 s. (The static part of its entry point analysis takes over 
   thread with a 512 MB stack so that depth cannot overflow the caller's. A call into a dependency gets at most
   150,000 steps, shared with the calls inside it, so an alternative tried after a large one can still be left
   without budget in a bigger application than the fixtures.
+- Libraries' code that registers services is not run: the shared framework never is, nor are the runtime's
+  extension libraries (`Microsoft.Extensions.*`: dependency injection, options, configuration, logging, hosting)
+  when a package brings a newer copy than the shared framework's, as OpenTelemetry's packages do. Run, their
+  loops over the service collection (`TryAddSingleton`) forked on every descriptor: 80 s for an application that
+  sets up OpenTelemetry. A library's recursive call while the application registers, with the same arguments as
+  the call it is in (OpenTelemetry's search for the Prometheus exporter through nested metric readers of unknown
+  shape), yields an unknown value: it learns nothing new and forked at every level, 43 s more. Recursion over
+  known values (FSharp.Core's over a list, which Saturn's routers are built with), user code's, and a router's
+  while it handles a request are followed as before.
+- An endpoint whose handler is a lambda C# caches in a static field (`<>9__0_4 ?? new Func<...>(...)`) is read
+  from its registration, as one with any other handler: it was left to this run, and lost where the run ran out of
+  budget first. Where the run finds a route for the handler, the run's stands: it follows a group's prefix from a
+  caller and the endpoint filters, which the registration scan does not.
 - `Substring(n, length)` of the path with an unknown length is taken as the rest of the path from `n`; that is
   how slices compile, but a slice of a middle piece would be read the same way.
 - A regex route whose handler takes its values some other way (one tuple, or more parameters than groups) keeps

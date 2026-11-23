@@ -548,6 +548,39 @@ let tests =
                   "other callers of the service reach it through CoreWCF"
           }
 
+          test "OpenTelemetry: adding an exporter is an exit point at the endpoint its options set, not every exporter's export at every setup call" {
+              let m = csharpModel.Force()
+
+              Expect.equal
+                  (m.ExitPoints
+                   |> List.filter (fun x ->
+                       x.Unit.StartsWith "CSharp.Telemetry:"
+                       && x.Confidence = Confidence.High
+                       && x.Category <> EffectCategory.Nondeterminism)
+                   |> List.map (fun x -> x.Category, x.Primitive, x.Payload |> Option.bind (fun p -> p.Value))
+                   |> List.sort)
+                  [ EffectCategory.HttpOut, "Azure.Monitor.OpenTelemetry.AspNetCore.OpenTelemetryBuilderExtensions::UseAzureMonitor", None
+                    EffectCategory.HttpOut, "OpenTelemetry.Logs.OtlpLogExporterHelperExtensions::AddOtlpExporter", None
+                    EffectCategory.HttpOut, "OpenTelemetry.Metrics.OtlpMetricExporterExtensions::AddOtlpExporter", Some "http://collector:4318/v1/metrics"
+                    EffectCategory.HttpOut, "OpenTelemetry.OpenTelemetryBuilderOtlpExporterExtensions::UseOtlpExporter", Some "http://agent:4317"
+                    EffectCategory.HttpOut, "OpenTelemetry.Trace.OtlpTraceExporterHelperExtensions::AddOtlpExporter", Some "http://collector:4317"
+                    EffectCategory.HttpOut, "OpenTelemetry.Trace.ZipkinExporterHelperExtensions::AddZipkinExporter", Some "http://zipkin:9411/api/v2/spans"
+                    EffectCategory.Environment, "OpenTelemetry.Trace.ConsoleExporterHelperExtensions::AddConsoleExporter", None ]
+                  "one exit point per exporter, at its endpoint when the application sets one"
+
+              Expect.isFalse
+                  (m.ExitPoints
+                   |> List.exists (fun x ->
+                       x.Unit.StartsWith "CSharp.Telemetry:"
+                       && (x.Category = EffectCategory.FilesystemWrite || x.Category = EffectCategory.FilesystemRead || x.Primitive = "System.Net.Http.HttpClient::SendAsync")))
+                  "what the exporters do when they export (send, store for retry) is not reached through the providers' processors"
+
+              Expect.equal
+                  (entries m "CSharp.Telemetry" |> List.map (fun e -> e.HttpMethod, e.Route, e.Forms))
+                  [ Some "GET", Some "/hello", [ RouteForm.PlatformRouting ] ]
+                  "an endpoint whose handler is a cached lambda is read from its registration; the scraping endpoint is none"
+          }
+
           test "Dapr: a subscribed topic is a network entry point, and the client's building blocks are named exit points" {
               let m = csharpModel.Force()
 
