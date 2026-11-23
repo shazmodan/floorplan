@@ -187,7 +187,9 @@
     }[r.view] || overview;
     var navId = r.view === "unit" ? "units" : (r.view === "evidence" ? null : r.view);
     renderNav(navId);
+    if (viewLeave) viewLeave();
     viewKeys = null;
+    viewLeave = null;
     main.textContent = "";
     view(r);
     main.focus({ preventScroll: true });
@@ -370,6 +372,10 @@
 
   // Keys of the view on screen; a view sets its handler when drawn and route() clears it.
   var viewKeys = null;
+  // Called when the view on screen is left, before the next one is drawn.
+  var viewLeave = null;
+  // Where each Architecture view was looked at last, so coming back to it (up, back) shows the same place.
+  var c4Viewport = {};
   document.addEventListener("keydown", function (ev) {
     if (!viewKeys || ev.ctrlKey || ev.metaKey || ev.altKey) return;
     var t = ev.target;
@@ -388,7 +394,7 @@
     var g = v.layout;
     var host = el("div", { class: "graph" });
     var canvas = graphCanvas(g.width, g.height);
-    var side = el("div", { class: "side", hidden: true });
+    var side = el("div", { class: "side c4-side", hidden: true });
     var nodes = by(g.nodes, "id");
     var shown = {};
     v.elements.forEach(function (id) { shown[id] = true; });
@@ -548,13 +554,17 @@
       side.hidden = false;
       var below = c4ViewOf[e.id];
       var unitSources = e.sources.filter(function (s) { return units[s]; });
+      var parent = e.parent && c4Elements[e.parent];
+      var parts = below ? below.elements.filter(function (p) { var pe = c4Elements[p]; return pe && pe.parent === e.id; }).length : 0;
       append(side, [
+        el("button", { type: "button", class: "ghost c4-close", "aria-label": "Close details", title: "Close (Esc)", on: { click: function () { select(null); } } }, "×"),
         el("h3", null, e.name),
+        parent ? el("p", { class: "muted c4-in" }, "in ", c4ViewOf[parent.id] ? el("a", { href: c4Link(c4ViewOf[parent.id].id, e.id) }, parent.name) : parent.name) : null,
         el("p", { class: "muted" }, (C4_KIND[e.kind] || e.kind) + (e.technology ? " · " + e.technology : "")),
         e.description ? el("p", null, e.description) : null,
         e.tags.length ? el("p", null, e.tags.map(function (t) { return el("span", { class: "tag" }, t); })) : null,
         el("p", null,
-          below ? el("a", { href: c4Link(below.id) }, "Open its " + C4_LEVEL[below.level].toLowerCase()) : null,
+          below ? el("a", { class: "c4-open-link", href: c4Link(below.id) }, "Open its " + C4_LEVEL[below.level].toLowerCase() + (parts ? " (" + parts + ")" : "") + " ›") : null,
           below && unitSources.length ? " · " : null,
           unitSources.length ? el("a", { href: "#/unit/" + enc(unitSources[0]) }, "Open the " + kindLabel(units[unitSources[0]].kind).toLowerCase()) : null),
         relList("Called by", v.relationships.filter(function (rel) { return rel.to === id; }), function (rel) { return rel.from; }),
@@ -600,9 +610,41 @@
       else if (ev.key === "u" || ev.key === "Backspace") { if (up) { ev.preventDefault(); goUp(); } }
       else if (ev.key === "v") { ev.preventDefault(); toggleNav(); }
       else if (ev.key === "/") { ev.preventDefault(); toggleNav(true); sidebar.filter.focus(); }
+      else if (ev.key === "f") { ev.preventDefault(); find.focus(); }
+      else if (ev.key === "0") { ev.preventDefault(); canvas.fit(); }
       else if (ev.key === "Escape" && selected) { select(null); }
       else if (ev.key === "Enter" && selected && c4ViewOf[selected] && !(ev.target && ev.target.closest && ev.target.closest("a, button, .c4-el"))) { location.hash = c4Link(c4ViewOf[selected].id); }
     };
+
+    // Find in this view: matching elements stay lit while typing, Enter selects and centres the next match.
+    var findAt = -1;
+    var matches = function (q) {
+      return g.nodes.filter(function (n) { var e = c4Elements[n.id]; return e && e.name.toLowerCase().indexOf(q) >= 0; })
+        .sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+    };
+    var find = el("input", { type: "search", class: "c4-find", placeholder: "Find in view…", "aria-label": "Find an element in this view",
+      on: {
+        input: function () {
+          var q = find.value.trim().toLowerCase();
+          findAt = -1;
+          if (selected) select(null);
+          var hits = {};
+          if (q) matches(q).forEach(function (n) { hits[n.id] = true; });
+          Object.keys(nodeEls).forEach(function (k) { nodeEls[k].classList.toggle("dim", !!q && !hits[k]); nodeEls[k].classList.toggle("found", !!q && !!hits[k]); });
+          edgeEls.forEach(function (eEl) { eEl.classList.toggle("dim", !!q); });
+          find.classList.toggle("none", !!q && !Object.keys(hits).length);
+        },
+        keydown: function (ev) {
+          if (ev.key === "Escape") { find.value = ""; find.dispatchEvent(new Event("input")); find.blur(); return; }
+          if (ev.key !== "Enter") return;
+          var q = find.value.trim().toLowerCase(), list = q ? matches(q) : [];
+          if (!list.length) return;
+          findAt = (findAt + (ev.shiftKey ? -1 : 1) + list.length) % list.length;
+          var n = list[findAt];
+          select(n.id);
+          canvas.focus(n.x, n.y, n.width, n.height, 900, 560);
+        }
+      } });
 
     var trail = c4Trail(v);
     append(page, [
@@ -618,19 +660,25 @@
         (window.FLOORPLAN_FILES || []).indexOf("workspace.dsl") >= 0
           ? el("a", { class: "c4-dsl", href: "workspace.dsl", title: "The C4 model as a Structurizr DSL workspace; workspace.json beside it holds this layout" }, "Structurizr DSL")
           : null,
+        find,
         quiet ? el("label", { class: "c4-labels" }, el("input", { type: "checkbox", on: { change: function (ev) { canvas.world.classList.toggle("c4-quiet", !ev.target.checked); } } }), " All labels") : null,
-        zoomButtons(canvas)),
+        zoomButtons(canvas),
+        el("button", { type: "button", title: "Actual size: the diagram's text at its normal size", on: { click: canvas.actualSize } }, "1:1")),
       el("div", { class: "c4-body" }, sidebar, host)
     ]);
     host.appendChild(canvas.svg);
     host.appendChild(side);
     host.appendChild(el("div", { class: "legend c4-legend" },
-      ["person", "software-system", "container", "component", "code", "external-system"].map(function (k) {
+      ["person", "software-system", "container", "component", "code", "external-system"].filter(function (k) {
+        return g.nodes.some(function (n) { var e = c4Elements[n.id]; return e && e.kind === k; });
+      }).map(function (k) {
         return el("span", null, el("i", { class: "c4-swatch c4-" + k }), C4_KIND[k]);
       }),
+      g.nodes.some(function (n) { var e = c4Elements[n.id]; return e && e.parent !== v.scope && n.id !== v.scope && (e.kind === "container" || e.kind === "component"); })
+        ? el("span", null, el("i", { class: "c4-swatch c4-outside-swatch" }), "Outside this view's scope") : null,
       el("div", { class: "c4-hint" },
         "Level " + (C4_LEVELS.indexOf(v.level) + 1) + " of 4 · click an element for details, double-click to open the level below" +
-        (quiet ? " · line labels show for the selected element" : "") + " · keys: 1–4 levels, u up, v views, / filter")));
+        (quiet ? " · line labels show for the selected element" : "") + " · keys: 1–4 levels, u up, f find, v views, / filter views, 0 fit")));
     main.appendChild(page);
     sidebar.reveal();
 
@@ -641,7 +689,11 @@
       var pn = nodes[pick];
       canvas.focus(pn.x, pn.y, pn.width, pn.height, 900, 560);
       if (nodeEls[pick]) nodeEls[pick].focus({ preventScroll: true });
-    } else updateLevels();
+    } else {
+      updateLevels();
+      if (c4Viewport[v.id]) canvas.setView(c4Viewport[v.id]);
+    }
+    viewLeave = function () { c4Viewport[v.id] = canvas.getView(); };
   }
 
   // ---------- Overview ----------
@@ -762,6 +814,15 @@
       zoomIn: function () { zoom(1 / 1.3, view.x + view.w / 2, view.y + view.h / 2); },
       zoomOut: function () { zoom(1.3, view.x + view.w / 2, view.y + view.h / 2); },
       fit: function () { view.x = full.x; view.y = full.y; view.w = full.w; view.h = full.h; apply(); },
+      getView: function () { return { x: view.x, y: view.y, w: view.w, h: view.h }; },
+      setView: function (v) { view.x = v.x; view.y = v.y; view.w = v.w; view.h = v.h; apply(); },
+      // One unit of the diagram to one screen pixel, around the centre of the view.
+      actualSize: function () {
+        var r = root.getBoundingClientRect();
+        if (!r.width) return;
+        var cx = view.x + view.w / 2, cy = view.y + view.h / 2;
+        view.w = r.width; view.h = r.height; view.x = cx - view.w / 2; view.y = cy - view.h / 2; apply();
+      },
       focus: function (x, y, w, h, minW, minH) {
         var m = 60, vw = Math.max(w + 2 * m, minW || 300), vh = Math.max(h + 2 * m, minH || 200);
         view.x = x + w / 2 - vw / 2; view.y = y + h / 2 - vh / 2; view.w = vw; view.h = vh; apply();

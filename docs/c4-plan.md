@@ -386,3 +386,14 @@ The owner found the Architecture page hard to move around in. Beside the breadcr
   choose.
 - **Up** (`u`, Backspace): the view above, with the element left from selected and centred
   (`#/architecture/<view>?select=<element id>`).
+
+### 2026-11-23: the Architecture page's details and finding (TODO Priority 2, `claude/improve-architecture-view-ux`)
+
+- The details of the selected element open on the right, away from the sidebar, with a close button (Esc
+  too), the element it lies in (a link up to it, selected) and how many parts the level below has.
+- **Find in view** (`f`): matching elements stay lit while typing; Enter selects and centres the next match,
+  Shift+Enter the previous one.
+- Each view remembers where it was looked at; going back or up to it shows the same place.
+- **1:1** shows the diagram at its normal size, `0` fits it. The legend lists only the kinds the view has, and
+  explains the dashed elements outside the view's scope.
+
