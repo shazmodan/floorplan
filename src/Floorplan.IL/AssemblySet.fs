@@ -5,6 +5,7 @@ namespace Floorplan.IL
 open System
 open System.Collections.Generic
 open System.IO
+open System.Reflection
 
 module Origin =
     let private frameworkMarkers =
@@ -12,6 +13,28 @@ module Origin =
           "Microsoft.AspNetCore.App"
           "Microsoft.WindowsDesktop.App"
           "NETStandard.Library.Ref" ]
+
+    /// An assembly file's version and then its file version (AWS keeps the assembly version at 3.3.0.0 across
+    /// releases), each 0.0 when it cannot be read.
+    let versionOf (path: string) =
+        let assembly =
+            try
+                AssemblyName.GetAssemblyName(path).Version
+            with _ ->
+                Version(0, 0)
+
+        let file =
+            try
+                match Diagnostics.FileVersionInfo.GetVersionInfo(path).FileVersion with
+                | null -> Version(0, 0)
+                | v ->
+                    match Version.TryParse(v.Split(' ').[0]) with
+                    | true, parsed -> parsed
+                    | _ -> Version(0, 0)
+            with _ ->
+                Version(0, 0)
+
+        assembly, file
 
     /// A shared-framework assembly, judged by where it lives: a reference pack or the shared runtime folder.
     let isFrameworkPath (path: string) =
@@ -21,11 +44,17 @@ module Origin =
         |> List.exists (fun m -> p.Contains("/packs/" + m) || p.Contains("/shared/" + m + "/") || p.Contains("/" + m.ToLowerInvariant() + ".ref/"))
 
 type AssemblySet(reader: IAssemblyReader, userAssemblies: (string * string) list, searchPaths: string list) =
-    // Every candidate file, by simple assembly name. The first path given wins, except that a shared framework's
-    // copy wins over a package's: in a solution that mixes a web application with a console one, an assembly that
-    // is part of ASP.NET Core for one and a package for the other (Microsoft.Extensions.Logging.Abstractions) is
-    // the framework's for both, whatever the order of the projects.
+    // Every candidate file, by simple assembly name. The first path given wins, except that a package's copy wins
+    // over a shared framework's: an assembly that is part of ASP.NET Core and that a project's build resolved to a
+    // newer package (OpenTelemetry brings Microsoft.Extensions.DependencyInjection.Abstractions 9) runs as the
+    // package's, and its code is there to follow for that project. Whether it is followed is the project's: for
+    // a project whose build resolved the framework's copy it is still framework code (`AlsoInFramework`). Of two
+    // packages' copies (projects on different versions of Microsoft.Extensions.Hosting), the higher version wins: it
+    // keeps the members the older one has, so every project's calls resolve, whatever the order of the projects.
     let candidates = Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+
+    // Names a shared framework also has a copy of.
+    let inFramework = HashSet<string>(StringComparer.OrdinalIgnoreCase)
 
     do
         let users = HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -38,12 +67,22 @@ type AssemblySet(reader: IAssemblyReader, userAssemblies: (string * string) list
         for path in searchPaths do
             let name = Path.GetFileNameWithoutExtension path
 
+            if Origin.isFrameworkPath path then
+                inFramework.Add name |> ignore
+
             match candidates.TryGetValue name with
             | false, _ when File.Exists path -> candidates[name] <- path
             | true, existing when not (users.Contains name)
-                                  && not (Origin.isFrameworkPath existing)
-                                  && Origin.isFrameworkPath path
+                                  && Origin.isFrameworkPath existing
+                                  && not (Origin.isFrameworkPath path)
                                   && File.Exists path ->
+                candidates[name] <- path
+            | true, existing when not (users.Contains name)
+                                  && existing <> path
+                                  && not (Origin.isFrameworkPath existing)
+                                  && not (Origin.isFrameworkPath path)
+                                  && File.Exists path
+                                  && Origin.versionOf path > Origin.versionOf existing ->
                 candidates[name] <- path
             | _ -> ()
 
@@ -107,6 +146,9 @@ type AssemblySet(reader: IAssemblyReader, userAssemblies: (string * string) list
             | Some _ -> Dependency
             // Unknown assemblies are treated as framework: never analyzed, never summarized.
             | None -> Framework
+
+    /// Whether a shared framework also has a copy of the assembly, whichever copy was read.
+    member _.AlsoInFramework(assemblyName: string) = inFramework.Contains assemblyName
 
     member this.IsUser(assemblyName: string) =
         match this.Origin assemblyName with

@@ -155,9 +155,9 @@ symbolic run takes 2 s. (The static part of its entry point analysis takes over 
   thread with a 512 MB stack so that depth cannot overflow the caller's. A call into a dependency gets at most
   150,000 steps, shared with the calls inside it, so an alternative tried after a large one can still be left
   without budget in a bigger application than the fixtures.
-- Libraries' code that registers services is not run: the shared framework never is, nor are the runtime's
-  extension libraries (`Microsoft.Extensions.*`: dependency injection, options, configuration, logging, hosting)
-  when a package brings a newer copy than the shared framework's, as OpenTelemetry's packages do. Run, their
+- Libraries' code that registers services is not run: the shared framework never is, nor is a package's copy of
+  an assembly a shared framework also ships (dependency injection, options, configuration, logging, hosting),
+  newer than the framework's, as OpenTelemetry's packages bring. Run, their
   loops over the service collection (`TryAddSingleton`) forked on every descriptor: 80 s for an application that
   sets up OpenTelemetry. A library's recursive call while the application registers, with the same arguments as
   the call it is in (OpenTelemetry's search for the Prometheus exporter through nested metric readers of unknown

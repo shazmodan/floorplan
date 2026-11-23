@@ -178,6 +178,30 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
 
     let summaryKey (project: AnalyzedProject) = (catalogFor project).Catalog.Name + "|" + closureKey project
 
+    // The package copies a project's build resolved, by simple name: in its output folder or referenced from a
+    // package, not from a shared framework's reference pack.
+    let packages = Dictionary<string, HashSet<string>>()
+
+    let packagesOf (project: AnalyzedProject) =
+        match packages.TryGetValue project.ProjectId with
+        | true, ps -> ps
+        | _ ->
+            let ps =
+                HashSet<string>(
+                    project.SearchPaths |> Seq.filter (fun p -> not (Origin.isFrameworkPath p)) |> Seq.map IO.Path.GetFileNameWithoutExtension,
+                    StringComparer.OrdinalIgnoreCase
+                )
+
+            packages[project.ProjectId] <- ps
+            ps
+
+    // Whether a project follows a dependency's code: a package's copy of an assembly a shared framework also has
+    // is the framework's for a project whose build resolved the framework's copy, and its code is not followed
+    // there, as the framework's never is.
+    let follows (project: AnalyzedProject) (assembly: string) =
+        set.Origin assembly = Dependency
+        && (not (set.AlsoInFramework assembly) || (packagesOf project).Contains assembly)
+
     // Cached summaries by (assembly, summary key), for dependencies whose cache is valid for every catalog and
     // closure that includes them.
     let cached = Dictionary<struct (string * string), CachedAssembly>()
@@ -190,7 +214,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                 if set.Origin name = Dependency then
                     let entries =
                         input.Projects
-                        |> List.filter (fun p -> (closureOf p).Contains name)
+                        |> List.filter (fun p -> (closureOf p).Contains name && follows p name)
                         |> List.distinctBy summaryKey
                         |> List.map (fun p ->
                             summaryKey p,
@@ -494,7 +518,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
 
             let s =
                 Summaries.Summaries(this.GraphFor project, matcher, recognizers, producers, fun m ->
-                    set.Origin m.Type.Assembly = Dependency
+                    follows project m.Type.Assembly
                     && closure.Contains m.Type.Assembly
                     && not (cachedAssemblies.Contains m.Type.Assembly))
 
@@ -580,7 +604,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
         fun (callback: string) ->
             let linked =
                 graph.CallbackTargets callback
-                |> List.filter (fun e -> set.Origin e.Target.Type.Assembly = Dependency && referenced.Contains e.Target.Type.Assembly)
+                |> List.filter (fun e -> follows project e.Target.Type.Assembly && referenced.Contains e.Target.Type.Assembly)
                 |> List.collect (fun e ->
                     let step: Summaries.PathStep =
                         { Caller = e.Declared.Display
@@ -594,7 +618,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
             let cachedOnly =
                 cachedAssemblies
                 |> Seq.toList
-                |> List.filter referenced.Contains
+                |> List.filter (fun a -> referenced.Contains a && follows project a)
                 |> List.collect (fun a ->
                     fromCache a (callbackKey a callback) |> Option.defaultValue [] |> List.map (fun d -> a, d))
 
@@ -628,7 +652,9 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                 let view = this.GraphFor project
 
                 let byAssembly =
-                    reachable |> List.filter (fun m -> closure.Contains m.Type.Assembly) |> List.groupBy (fun m -> m.Type.Assembly)
+                    reachable
+                    |> List.filter (fun m -> closure.Contains m.Type.Assembly && follows project m.Type.Assembly)
+                    |> List.groupBy (fun m -> m.Type.Assembly)
 
                 // Calls from anywhere to virtual methods declared in a dependency, resolved to the implementations
                 // the project's closure constructs.
