@@ -372,3 +372,17 @@ Not a C4 iteration, but it changes the C# fixtures' model: Blazor components and
 their own (`docs/csharp-support.md`), so their code elements are in `CSharp.Blazor.Components.Pages`,
 `CSharp.Blazor.Components` and `AspNetCoreGeneratedDocument` rather than the global namespace, and the code level
 shows their uses (`App` uses `Routes`, the `Item` page its `ItemModel`).
+
+### 2026-11-23: moving between levels (TODO Priority 1, `claude/c4-level-navigation-sidebar`)
+
+The owner found the Architecture page hard to move around in. Beside the breadcrumb it now has:
+
+- a **sidebar** (toggled with "Views" or `v`, remembered in local storage, hidden by default on narrow screens)
+  listing the context and containers views and every container, expandable to its components grouped by the
+  project they come from; the current view is marked and kept in sight. A filter (`/`) lists every view whose
+  element's name matches.
+- a **level switcher** (1 to 4, keys too): going up takes the nearest view above; going down takes the selected
+  element's view, or the only container there is; without one the level is disabled and its tooltip says what to
+  choose.
+- **Up** (`u`, Backspace): the view above, with the element left from selected and centred
+  (`#/architecture/<view>?select=<element id>`).
