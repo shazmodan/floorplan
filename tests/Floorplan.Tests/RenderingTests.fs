@@ -147,6 +147,9 @@ let tests =
                   Expect.stringContains context "c4-el c4-software-system" "the system"
                   Expect.stringContains context "c4-el c4-person" "the user"
                   Expect.stringContains context "prices.example.org" "an external system"
+                  Expect.stringContains context "class=\"c4-nav\"" "the sidebar of views"
+                  Expect.stringContains context "data-level=\"containers\"" "the level switcher"
+                  Expect.stringContains context ">Shop.Web</span>" "the sidebar lists the containers"
 
                   let containers = Browser.dumpDom browser index "#/architecture/containers"
                   Expect.stringContains containers "c4-boundary" "the system's boundary"
@@ -160,4 +163,9 @@ let tests =
                   let code = Browser.dumpDom browser index "#/architecture/code%3AShop.Web%7CShop.Web%3AShop.Web.Handlers"
                   Expect.stringContains code "FileNotifier" "a type"
                   Expect.stringContains code ">Shop.Web.Handlers</strong>" "the breadcrumb ends at the component"
+                  Expect.stringContains code "class=\"c4-up\"" "a way up to the components"
+                  Expect.stringContains code "aria-current=\"page\" title=\"Shop.Web.Handlers\"" "the sidebar marks the component's view"
+
+                  let selected = Browser.dumpDom browser index "#/architecture/containers?select=container%3AShop.Web"
+                  Expect.stringContains selected "Open its components" "the element named by the link is selected"
           } ]

@@ -25,7 +25,8 @@ writes a static website to `./floorplan-out` that shows:
    above: the system with its users and the external systems it reaches, its applications (containers), each
    application's components (the modules of its own project and of the libraries it references) and each
    component's code (its types, and which use which). Each element opens the level below, and each relationship lists the entry and
-   exit points behind it. The site's folder also holds the model as a [Structurizr DSL](https://docs.structurizr.com/dsl)
+   exit points behind it. A sidebar lists every view (filtered by name), a switcher moves between the four
+   levels, and keys move too: 1 to 4 for a level, u for up, v for the sidebar, / to filter. The site's folder also holds the model as a [Structurizr DSL](https://docs.structurizr.com/dsl)
    workspace, `workspace.dsl`, to open in Structurizr or export to PlantUML or Mermaid with its tools; `workspace.json`
    beside it holds the website's layout, which Structurizr Lite merges in.
 

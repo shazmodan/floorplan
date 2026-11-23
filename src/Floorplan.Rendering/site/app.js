@@ -187,6 +187,7 @@
     }[r.view] || overview;
     var navId = r.view === "unit" ? "units" : (r.view === "evidence" ? null : r.view);
     renderNav(navId);
+    viewKeys = null;
     main.textContent = "";
     view(r);
     main.focus({ preventScroll: true });
@@ -239,7 +240,142 @@
     return out;
   }
 
-  function c4Link(viewId) { return "#/architecture/" + enc(viewId); }
+  // A view's link; `select` names an element to select and centre when it opens.
+  function c4Link(viewId, select) { return "#/architecture/" + enc(viewId) + (select ? "?select=" + enc(select) : ""); }
+
+  // ---------- Architecture navigation ----------
+  // Moving between levels: the level switcher, "up" and the sidebar's tree of every view.
+  var C4_LEVELS = ["context", "containers", "components", "code"];
+  function c4ByName(a, b) { return a.name.localeCompare(b.name) || (a.id < b.id ? -1 : 1); }
+  // The container a view lies in: a components view's scope, or a code view's component's container.
+  function c4ContainerOf(v) {
+    if (v.level === "components") return v.scope;
+    if (v.level === "code") { var c = c4Elements[v.scope]; return c ? c.parent : null; }
+    return null;
+  }
+  var c4Containers = C4.elements.filter(function (e) { return e.kind === "container" && c4ViewOf[e.id]; }).sort(c4ByName);
+  // The view one level up, and the element of it that this view opened from.
+  function c4Up(v) {
+    if (v.level === "code") { var c = c4Elements[v.scope]; var cv = c && c4ViewOf[c.parent]; return cv ? { view: cv, select: v.scope } : null; }
+    if (v.level === "components") return c4Views.containers ? { view: c4Views.containers, select: v.scope } : null;
+    if (v.level === "containers") return c4Views.context ? { view: c4Views.context, select: "system" } : null;
+    return null;
+  }
+  // The view at `level` nearest to view v. Going down needs a choice of element: the selected one, else the
+  // only one there is; without one, there is no view to go to and the reason says what to choose.
+  function c4ViewAt(level, v, selected) {
+    if (level === v.level) return { view: v };
+    var sel = selected && c4Elements[selected];
+    var down = C4_LEVELS.indexOf(level) > C4_LEVELS.indexOf(v.level);
+    if (!down) {
+      var up = c4Up(v);
+      while (up && up.view.level !== level) up = c4Up(up.view);
+      return up || { reason: "No " + C4_LEVEL[level].toLowerCase() + " view" };
+    }
+    if (level === "containers") return c4Views.containers ? { view: c4Views.containers } : { reason: "No containers view" };
+    if (level === "components") {
+      var container = sel && sel.kind === "container" ? sel.id : (c4Containers.length === 1 ? c4Containers[0].id : null);
+      return container && c4ViewOf[container] ? { view: c4ViewOf[container] }
+        : { reason: "Select a container first, or choose one in the sidebar" };
+    }
+    // Code: the selected component's, or from a container view the only component there is.
+    if (sel && sel.kind === "component" && c4ViewOf[sel.id]) return { view: c4ViewOf[sel.id] };
+    return { reason: v.level === "components" ? "Select a component first, or choose one in the sidebar" : "Choose a component first" };
+  }
+
+  // Sidebar state, kept across views: whether it shows, which containers are expanded, the filter.
+  var c4NavKey = "floorplan-c4-nav";
+  var c4NavShown = (function () { try { var s = localStorage.getItem(c4NavKey); if (s) return s === "shown"; } catch (e) { /* private mode */ } return !window.matchMedia || !matchMedia("(max-width: 900px)").matches; })();
+  var c4Expanded = {};
+  var c4Filter = "";
+  // Components of a container, grouped by the project they come from: the container's own project first.
+  function c4ComponentGroups(containerId) {
+    var comps = C4.elements.filter(function (e) { return e.kind === "component" && e.parent === containerId; });
+    var projectOf = function (e) { var u = e.sources.map(function (s) { return units[s]; }).filter(Boolean)[0]; return u ? u.projectId : ""; };
+    var groups = groupBy(comps, projectOf);
+    var own = (c4Elements[containerId] || {}).name;
+    return Object.keys(groups).sort(function (a, b) {
+      var ao = projectName(a) === own ? 0 : 1, bo = projectName(b) === own ? 0 : 1;
+      return ao - bo || projectName(a).localeCompare(projectName(b));
+    }).map(function (p) { return { project: p, name: p ? projectName(p) : "Other", components: groups[p].sort(c4ByName) }; });
+  }
+
+  function c4Sidebar(v) {
+    var aside = el("aside", { class: "c4-nav", "aria-label": "Architecture views", hidden: !c4NavShown });
+    var tree = el("div", { class: "c4-tree" });
+    var current = c4ContainerOf(v);
+    if (current) c4Expanded[current] = true;
+    var item = function (view, label, extra, cls) {
+      var here = view.id === v.id;
+      return el("a", { class: "c4-item" + (cls ? " " + cls : ""), href: c4Link(view.id), "aria-current": here ? "page" : null, title: label },
+        el("span", { class: "c4-item-name" }, label), extra ? el("span", { class: "count" }, extra) : null);
+    };
+    function draw() {
+      tree.textContent = "";
+      var q = c4Filter.trim().toLowerCase();
+      if (q) {
+        // Every view whose element's name matches, at most a few hundred.
+        var hits = C4.views.filter(function (w) {
+          var e = w.level === "context" ? null : c4Elements[w.scope];
+          return (e ? e.name : C4_LEVEL[w.level]).toLowerCase().indexOf(q) >= 0;
+        });
+        if (!hits.length) { tree.appendChild(el("p", { class: "muted c4-none" }, "No view matches.")); return; }
+        tree.appendChild(el("ul", { class: "plain" }, hits.slice(0, 300).map(function (w) {
+          var e = c4Elements[w.scope];
+          var where = w.level === "code" && e ? (c4Elements[e.parent] || {}).name : null;
+          return el("li", null, item(w, w.level === "context" || w.level === "containers" ? C4_LEVEL[w.level] : e.name,
+            C4_LEVEL[w.level] + (where ? " · " + where : ""), "c4-hit"));
+        }), hits.length > 300 ? el("li", { class: "muted" }, "… and " + (hits.length - 300) + " more; type more to narrow.") : null));
+        return;
+      }
+      var list = el("ul", { class: "plain" });
+      if (c4Views.context) list.appendChild(el("li", null, item(c4Views.context, "1 · " + C4_LEVEL.context)));
+      if (c4Views.containers) list.appendChild(el("li", null, item(c4Views.containers, "2 · " + C4_LEVEL.containers)));
+      c4Containers.forEach(function (c) {
+        var open = !!c4Expanded[c.id];
+        var groups = open ? c4ComponentGroups(c.id) : null;
+        var count = C4.elements.filter(function (e) { return e.kind === "component" && e.parent === c.id; }).length;
+        var toggle = function () { c4Expanded[c.id] = !c4Expanded[c.id]; draw(); };
+        var li = el("li", { class: "c4-branch" },
+          el("div", { class: "c4-row" },
+            el("button", { type: "button", class: "c4-twisty ghost", "aria-expanded": String(open), "aria-label": (open ? "Collapse " : "Expand ") + c.name, on: { click: toggle } }, open ? "▾" : "▸"),
+            item(c4ViewOf[c.id], c.name, String(count), "c4-container-item")));
+        if (open) {
+          li.appendChild(el("ul", { class: "plain c4-children" }, groups.map(function (gr) {
+            return [groups.length > 1 ? el("li", { class: "c4-group", title: "Components from the project " + gr.name }, gr.name) : null,
+              gr.components.map(function (comp) {
+                var cv = c4ViewOf[comp.id];
+                return el("li", null, cv ? item(cv, comp.name) : el("span", { class: "c4-item muted", title: comp.name }, comp.name));
+              })];
+          })));
+        }
+        list.appendChild(li);
+      });
+      tree.appendChild(list);
+    }
+    var filter = el("input", { type: "search", class: "c4-filter", placeholder: "Filter views…", "aria-label": "Filter views", value: c4Filter,
+      on: {
+        input: function (ev) { c4Filter = ev.target.value; draw(); },
+        keydown: function (ev) {
+          if (ev.key === "Enter") { var a = tree.querySelector("a.c4-item"); if (a) location.hash = a.getAttribute("href"); }
+          else if (ev.key === "Escape") { c4Filter = ""; ev.target.value = ""; draw(); }
+        }
+      } });
+    append(aside, [filter, tree]);
+    draw();
+    aside.reveal = function () { var a = tree.querySelector("[aria-current=page]"); if (a && a.scrollIntoView) a.scrollIntoView({ block: "nearest" }); };
+    aside.filter = filter;
+    return aside;
+  }
+
+  // Keys of the view on screen; a view sets its handler when drawn and route() clears it.
+  var viewKeys = null;
+  document.addEventListener("keydown", function (ev) {
+    if (!viewKeys || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    var t = ev.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+    viewKeys(ev);
+  });
 
   function architecture(r) {
     var v = c4Views[r.arg || "context"] || c4Views["context"];
@@ -379,6 +515,7 @@
         eEl.classList.toggle("lit", id !== null && on);
       });
       renderSide(id);
+      updateLevels();
     }
 
     function sourceLink(s) {
@@ -427,30 +564,84 @@
 
     canvas.svg.addEventListener("panend", function (ev) { if (!ev.detail.moved && selected) select(null); });
 
+    // The level switcher: each level's nearest view; a level below that needs a choice says which.
+    var levelButtons = C4_LEVELS.map(function (level, i) {
+      return el("button", { type: "button", class: "c4-level", "data-level": level, "aria-pressed": String(level === v.level),
+        title: "Level " + (i + 1) + ": " + C4_LEVEL[level] + " (key " + (i + 1) + ")",
+        on: { click: function () { goLevel(level); } } },
+        el("span", { class: "c4-level-n" }, String(i + 1)), " ", C4_LEVEL[level]);
+    });
+    function updateLevels() {
+      levelButtons.forEach(function (b) {
+        var level = b.getAttribute("data-level"), at = c4ViewAt(level, v, selected);
+        b.disabled = !at.view;
+        b.title = "Level " + (C4_LEVELS.indexOf(level) + 1) + ": " + C4_LEVEL[level] + (at.view ? (at.view.id === v.id ? " (this view)" : " (key " + (C4_LEVELS.indexOf(level) + 1) + ")") : ". " + at.reason);
+      });
+    }
+    function goLevel(level) {
+      var at = c4ViewAt(level, v, selected);
+      if (at.view && at.view.id !== v.id) location.hash = c4Link(at.view.id, at.select);
+    }
+    var up = c4Up(v);
+    var goUp = function () { if (up) location.hash = c4Link(up.view.id, up.select); };
+    var sidebar = c4Sidebar(v);
+    var navToggle = el("button", { type: "button", class: "c4-nav-toggle", "aria-pressed": String(c4NavShown), title: "Show or hide the list of views (key v)",
+      on: { click: function () { toggleNav(); } } }, "☰ Views");
+    function toggleNav(show) {
+      c4NavShown = show === undefined ? !c4NavShown : show;
+      try { localStorage.setItem(c4NavKey, c4NavShown ? "shown" : "hidden"); } catch (e) { /* private mode */ }
+      sidebar.hidden = !c4NavShown;
+      navToggle.setAttribute("aria-pressed", String(c4NavShown));
+      if (c4NavShown) sidebar.reveal();
+    }
+    viewKeys = function (ev) {
+      var n = "1234".indexOf(ev.key);
+      if (n >= 0) { ev.preventDefault(); goLevel(C4_LEVELS[n]); }
+      else if (ev.key === "u" || ev.key === "Backspace") { if (up) { ev.preventDefault(); goUp(); } }
+      else if (ev.key === "v") { ev.preventDefault(); toggleNav(); }
+      else if (ev.key === "/") { ev.preventDefault(); toggleNav(true); sidebar.filter.focus(); }
+      else if (ev.key === "Escape" && selected) { select(null); }
+      else if (ev.key === "Enter" && selected && c4ViewOf[selected] && !(ev.target && ev.target.closest && ev.target.closest("a, button, .c4-el"))) { location.hash = c4Link(c4ViewOf[selected].id); }
+    };
+
     var trail = c4Trail(v);
-    var levels = ["context", "containers", "components", "code"];
     append(page, [
       el("div", { class: "toolbar" },
+        navToggle,
+        el("div", { class: "c4-levels", role: "group", "aria-label": "C4 level" }, levelButtons),
+        up ? el("button", { type: "button", class: "c4-up", title: "Up to " + C4_LEVEL[up.view.level].toLowerCase() + " (key u)", on: { click: goUp } }, "↑ Up") : null,
         el("nav", { class: "c4-trail", "aria-label": "C4 levels" }, trail.map(function (t, i) {
           return [i ? el("span", { class: "muted" }, " › ") : null,
             t.view.id === v.id ? el("strong", { "aria-current": "page" }, t.label) : el("a", { href: c4Link(t.view.id) }, t.label)];
         })),
-        el("span", { class: "muted" }, "Level " + (levels.indexOf(v.level) + 1) + " of 4: " + C4_LEVEL[v.level] + ". Select an element for details; double-click one to open the level below." + (quiet ? " Labels show for the selected element's lines." : "")),
         el("span", { class: "spacer" }),
         (window.FLOORPLAN_FILES || []).indexOf("workspace.dsl") >= 0
           ? el("a", { class: "c4-dsl", href: "workspace.dsl", title: "The C4 model as a Structurizr DSL workspace; workspace.json beside it holds this layout" }, "Structurizr DSL")
           : null,
         quiet ? el("label", { class: "c4-labels" }, el("input", { type: "checkbox", on: { change: function (ev) { canvas.world.classList.toggle("c4-quiet", !ev.target.checked); } } }), " All labels") : null,
         zoomButtons(canvas)),
-      host
+      el("div", { class: "c4-body" }, sidebar, host)
     ]);
     host.appendChild(canvas.svg);
     host.appendChild(side);
     host.appendChild(el("div", { class: "legend c4-legend" },
       ["person", "software-system", "container", "component", "code", "external-system"].map(function (k) {
         return el("span", null, el("i", { class: "c4-swatch c4-" + k }), C4_KIND[k]);
-      })));
+      }),
+      el("div", { class: "c4-hint" },
+        "Level " + (C4_LEVELS.indexOf(v.level) + 1) + " of 4 · click an element for details, double-click to open the level below" +
+        (quiet ? " · line labels show for the selected element" : "") + " · keys: 1–4 levels, u up, v views, / filter")));
     main.appendChild(page);
+    sidebar.reveal();
+
+    // An element named by the link (the one a view was left from going up) is selected and centred.
+    var pick = r.query.select;
+    if (pick && nodes[pick]) {
+      select(pick);
+      var pn = nodes[pick];
+      canvas.focus(pn.x, pn.y, pn.width, pn.height, 900, 560);
+      if (nodeEls[pick]) nodeEls[pick].focus({ preventScroll: true });
+    } else updateLevels();
   }
 
   // ---------- Overview ----------

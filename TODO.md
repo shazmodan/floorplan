@@ -2,6 +2,12 @@
 
 Work that is known and not yet done. Remove an item when its branch is merged.
 
+## Priority
+
+2. Improve the User Experience on the Architecture view.
+
+3. In the C4 Architecture view, in Level 3 for big projects when panning around or zooming in, the performance of the browser degrades alot. It responds very late and feels very sluggish. It needs performance improvements.
+
 ## Next
 
 In the order they are worth doing: the first ones change results already shown, the later ones add new inputs.
