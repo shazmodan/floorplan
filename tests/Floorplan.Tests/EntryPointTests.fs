@@ -302,6 +302,25 @@ let tests =
                   "routes"
           }
 
+          test "form A through middleware the application wrote, its router a function value, its patterns in a dependency" {
+              let m = routingModel.Force()
+
+              Expect.equal
+                  (routes m "Routing.Wrapped")
+                  [ "GET", "/", "Routing.Wrapped.Api::route", Completeness.Complete
+                    "GET", "/Admin/Groups", "Routing.Wrapped.Api::adminRoute", Completeness.Complete
+                    "GET", "/Admin/Principal", "Routing.Wrapped.Api::adminRoute", Completeness.Complete
+                    "GET", "/Admin/Principal/{param}", "Routing.Wrapped.Api::adminRoute", Completeness.Complete
+                    "GET", "/Admin/Roles/{param}/{param}", "Routing.Wrapped.Api::adminRoute", Completeness.Complete
+                    "GET", "/Api/FindUser/{param}", "Routing.Wrapped.Api::apiRoute", Completeness.Complete
+                    "GET", "/Awesome", "Routing.Wrapped.Api::jsonResponse", Completeness.Complete
+                    "OPTIONS", "-", "Routing.Wrapped.Api::route", Completeness.Partial
+                    "POST", "/Admin/Principal/{param}/Delete", "Routing.Wrapped.Api::adminRoute", Completeness.Complete
+                    "POST", "/Admin/User/New", "Routing.Wrapped.Api::adminRoute", Completeness.Complete
+                    "POST", "/Api/Login", "Routing.Wrapped.Api::apiRoute", Completeness.Complete ]
+                  "app.Use((context, next) => ...) runs the request through the routing function it was handed: or-patterns, prefixes taken off before a nested router, routes that answer with a shared response value (the router is the handler) or call a function (it is), segments matched by a parsing pattern as parameters; the middleware's own plumbing (mapping the request) is no entry point"
+          }
+
           test "form B, table lookup: dictionary and map entries" {
               let m = routingModel.Force()
 

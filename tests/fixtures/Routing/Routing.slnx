@@ -11,4 +11,5 @@
   <Project Path="Routing.Records/Routing.Records.fsproj" />
   <Project Path="Routing.Socket/Routing.Socket.fsproj" />
   <Project Path="Routing.Table/Routing.Table.fsproj" />
+  <Project Path="Routing.Wrapped/Routing.Wrapped.fsproj" />
 </Solution>
