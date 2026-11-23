@@ -72,7 +72,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
                 component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Shipping = component "CSharp.Endpoints.Shipping" "A C# namespace of CSharp.Endpoints" "C# namespace" "reaches out"
             }
             container_CSharp_Functions = container "CSharp.Functions" "A web application, message consumer and background worker" "C# · net8.0" "web application,message consumer,background worker" {
-                component_CSharp_Functions_CSharp_Functions_ = component "(global namespace)" "A C# namespace of CSharp.Functions" "C# namespace"
+                component_CSharp_Functions_CSharp_Functions_ = component "(global namespace)" "A C# namespace of CSharp.Functions" "C# namespace" "reaches out"
                 component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Maintenance = component "CSharp.Functions.Maintenance" "A C# namespace of CSharp.Functions" "C# namespace" "reaches out"
                 component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Orders = component "CSharp.Functions.Orders" "A C# namespace of CSharp.Functions" "C# namespace" "handles requests,reaches out"
             }
@@ -126,7 +126,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
                 component_CSharp_WcfClient_CSharp_WcfClient_CSharp_WcfClient = component "CSharp.WcfClient" "A C# namespace of CSharp.WcfClient" "C# namespace"
             }
             container_CSharp_Worker = container "CSharp.Worker" "A file watcher and background worker" "C# · net8.0" "file watcher,background worker" {
-                component_CSharp_Worker_CSharp_Worker_ = component "(global namespace)" "A C# namespace of CSharp.Worker" "C# namespace"
+                component_CSharp_Worker_CSharp_Worker_ = component "(global namespace)" "A C# namespace of CSharp.Worker" "C# namespace" "reaches out"
                 component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Cleanup = component "CSharp.Worker.Cleanup" "A C# namespace of CSharp.Worker" "C# namespace" "reaches out"
                 component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Imports = component "CSharp.Worker.Imports" "A C# namespace of CSharp.Worker" "C# namespace" "handles requests,reaches out"
                 component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Monitoring = component "CSharp.Worker.Monitoring" "A C# namespace of CSharp.Worker" "C# namespace" "reaches out"
@@ -208,9 +208,9 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         component_CSharp_Cloud_CSharp_Cloud_ -> component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Search "uses"
         component_CSharp_Cloud_CSharp_Cloud_ -> external_filesystem "reads files" "AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS"
         component_CSharp_Cloud_CSharp_Cloud_ -> external_filesystem "writes files" "AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS"
+        component_CSharp_Cloud_CSharp_Cloud_ -> external_native "calls native code" "AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS"
         component_CSharp_Cloud_CSharp_Cloud_ -> external_processes "starts or inspects processes" "Microsoft.Azure.Cosmos.Client"
         component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Catalog -> external_library_Microsoft_Azure_Cosmos "reads and writes data"
-        component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs -> external_filesystem "reads files" "AWSSDK.SQS"
         component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs -> external_filesystem "writes files" "AWSSDK.SQS"
         component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs -> external_http "sends HTTP requests" "AWSSDK.SQS"
         component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs -> external_library_Amazon_SQS "sends and receives over the network"
@@ -281,6 +281,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         component_CSharp_Endpoints_CSharp_Endpoints_CSharp_Endpoints_Shipping -> external_filesystem "writes files" "Serilog.Extensions.Logging, Serilog.Sinks.File"
         component_CSharp_FunctionsInProcess_CSharp_FunctionsInProcess_CSharp_FunctionsInProcess_Maintenance -> external_filesystem "writes files"
         component_CSharp_FunctionsInProcess_CSharp_FunctionsInProcess_CSharp_FunctionsInProcess_Orders -> external_filesystem "writes files"
+        component_CSharp_Functions_CSharp_Functions_ -> external_filesystem "reads files" "Microsoft.Extensions.Hosting"
         component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Maintenance -> external_filesystem "writes files"
         component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Orders -> external_filesystem "writes files"
         component_CSharp_Grpc_CSharp_Grpc_ -> component_CSharp_Grpc_CSharp_Grpc_CSharp_Grpc_Inventory "uses"
@@ -339,6 +340,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         component_CSharp_Worker_CSharp_Worker_ -> component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Monitoring "uses"
         component_CSharp_Worker_CSharp_Worker_ -> component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Queues "uses"
         component_CSharp_Worker_CSharp_Worker_ -> component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Reporting "uses"
+        component_CSharp_Worker_CSharp_Worker_ -> external_filesystem "reads files" "Microsoft.Extensions.Hosting"
         component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Cleanup -> external_filesystem "reads files"
         component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Cleanup -> external_filesystem "writes files"
         component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Imports -> external_filesystem "reads files"
@@ -411,7 +413,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
             include component_CSharp_Clients_CSharp_Clients_ component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Caching component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Catalog component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Chat component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Documents component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Files component_CSharp_Clients_CSharp_Clients_CSharp_Clients_GitHub component_CSharp_Clients_CSharp_Clients_CSharp_Clients_Notifications external_filesystem external_http external_http_api_github_com external_http_status_example_org external_library_Azure_Storage_Blobs external_library_MailKit external_library_Microsoft_AspNetCore_SignalR_Client external_library_MongoDB_Driver external_library_SendGrid external_library_StackExchange_Redis external_network
         }
         component container_CSharp_Cloud "components_CSharp_Cloud" {
-            include component_CSharp_Cloud_CSharp_Cloud_ component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Catalog component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Orders component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Reports component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Search external_filesystem external_http external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Elastic_Clients_Elasticsearch external_library_Microsoft_Azure_Cosmos external_network external_processes
+            include component_CSharp_Cloud_CSharp_Cloud_ component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Catalog component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Orders component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Reports component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Search external_filesystem external_http external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Elastic_Clients_Elasticsearch external_library_Microsoft_Azure_Cosmos external_native external_network external_processes
         }
         component container_CSharp_Controllers "components_CSharp_Controllers" {
             include component_CSharp_Controllers_CSharp_Controllers_ component_CSharp_Controllers_CSharp_Controllers_Areas_Admin_Pages component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers_Admin component_CSharp_Controllers_CSharp_Controllers_CSharp_Controllers_Pages_Shop component_CSharp_Controllers_CSharp_Controllers_Pages_Shop component_CSharp_Controllers_CSharp_Controllers_Views_Pages external_filesystem person_user

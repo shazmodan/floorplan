@@ -249,14 +249,14 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
     let traceMethod = match System.Environment.GetEnvironmentVariable "FLOORPLAN_DEBUG_METHOD" with null -> "" | m -> m
     let trace (text: string) = if debug then eprintfn "  [symbolic] %s" text
 
-    // The shared framework is not interpreted, nor are the runtime's extension libraries (dependency injection,
-    // options, configuration, logging, hosting) when a package brings a newer copy of them than the shared
-    // framework's (OpenTelemetry does): they are the framework's code all the same, and register services, not
-    // routes. Interpreted, their loops over the service collection (TryAddSingleton) fork on every descriptor.
+    // The shared framework is not interpreted, nor is a package's copy of one of its assemblies, newer than the
+    // framework's (OpenTelemetry brings Microsoft.Extensions.DependencyInjection.Abstractions 9): it is the
+    // framework's code all the same, which the models stand for. Interpreted, dependency injection's loops over
+    // the service collection (TryAddSingleton) forked on every descriptor.
     let interpretable (m: MethodRef) =
         match set.Origin m.Type.Assembly with
         | Framework -> false
-        | _ -> not (m.Type.Assembly.StartsWith "Microsoft.Extensions.")
+        | _ -> not (set.AlsoInFramework m.Type.Assembly)
 
     let methodOf (m: MethodRef) = set.TryMethod m
 
