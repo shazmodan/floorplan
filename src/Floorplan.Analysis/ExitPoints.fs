@@ -372,6 +372,49 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
         let evaluator = evaluatorOf f
         Values.Parts [ Values.Text "http://"; evaluator.Operand(offset, index); Values.Text "/"; evaluator.Operand(offset, index + 1) ]
 
+    // The value a configuration delegate among a call's arguments sets a property to (AddOtlpExporter(o =>
+    // o.Endpoint = new Uri("http://collector:4317"))): the delegate's method, from the ldftn it is made with, and in
+    // it a call of the property's setter.
+    let configuredValue (f: DataFlow.Flow) (offset: int) (property: string) =
+        let target (values: DataFlow.Values) =
+            values
+            |> Set.toList
+            |> List.tryPick (function
+                | DataFlow.Pushed o ->
+                    match f.InstructionAt o with
+                    | Some { Op = NewObj _ } ->
+                        f.OperandsAt o
+                        |> List.tryPick (fun vs ->
+                            vs
+                            |> Set.toList
+                            |> List.tryPick (function
+                                | DataFlow.Pushed fo ->
+                                    match f.InstructionAt fo with
+                                    | Some { Op = (LdFtn m | LdVirtFtn m) } -> Some m
+                                    | _ -> None
+                                | _ -> None))
+                    | _ -> None
+                | _ -> None)
+
+        let setIn (configure: MethodRef) =
+            match ctx.Set.TryMethod configure with
+            | Some(def, _) ->
+                match def.Body.Value, DataFlow.ofMethod def with
+                | Some body, Some cf ->
+                    body.Instructions
+                    |> Array.tryPick (fun ins ->
+                        match ins.Op with
+                        | CallVirt setter
+                        | Call setter when setter.Name = "set_" + property && setter.ParameterCount = 1 ->
+                            match (evaluatorOf cf).Operand(ins.Offset, 1) with
+                            | Values.Hole -> None
+                            | v -> Some v
+                        | _ -> None)
+                | _ -> None
+            | None -> None
+
+        f.OperandsAt offset |> List.tryPick (fun v -> target v |> Option.bind setIn) |> Option.defaultValue Values.Hole
+
     // The payload of a direct call to a primitive, worked out in the calling method's data flow.
     let sinkPayload (f: DataFlow.Flow) (offset: int) (declared: MethodRef) (isNewObj: bool) (hit: SinkHit) : Payload option =
         hit.Rule.Payload
@@ -401,6 +444,8 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                     | _ -> Values.Hole
 
                 Values.Evaluator.ToPayload(path, "url")
+            | Some property when spec.Role = "configured-url" ->
+                Values.Evaluator.ToPayload(configuredValue f offset property, "url")
             | _ when spec.Role = "app-method" ->
                 Values.Evaluator.ToPayload(appMethod f offset (Values.operandIndex declared isNewObj spec.Argument), "url")
             | _ when spec.Role = "app-request" ->

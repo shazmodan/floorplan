@@ -1,4 +1,4 @@
-software-system | system | CSharp | - | in - | - | 20 sources
+software-system | system | CSharp | - | in - | - | 21 sources
 container | container:CSharp.Blazor | CSharp.Blazor | C# · net8.0 | in system | web application | 8 sources
 container | container:CSharp.Clients | CSharp.Clients | C# · net8.0 | in system | message consumer | 3 sources
 container | container:CSharp.Cloud | CSharp.Cloud | C# · net8.0 | in system | message consumer | 2 sources
@@ -16,6 +16,7 @@ container | container:CSharp.Middleware | CSharp.Middleware | C# · net8.0 | in 
 container | container:CSharp.Orleans | CSharp.Orleans | C# · net8.0 | in system | web application,message consumer,background worker | 7 sources
 container | container:CSharp.Switch | CSharp.Switch | C# · net8.0 | in system | web application | 10 sources
 container | container:CSharp.Table | CSharp.Table | C# · net8.0 | in system | web application | 3 sources
+container | container:CSharp.Telemetry | CSharp.Telemetry | C# · net8.0 | in system | web application | 2 sources
 container | container:CSharp.Wcf | CSharp.Wcf | C# · net8.0 | in system | message consumer | 5 sources
 container | container:CSharp.WcfClient | CSharp.WcfClient | C# · net8.0 | in system | background worker | 2 sources
 container | container:CSharp.Worker | CSharp.Worker | C# · net8.0 | in system | file watcher,background worker | 16 sources
@@ -95,6 +96,7 @@ component | component:CSharp.Switch|CSharp.Switch: | (global namespace) | C# nam
 component | component:CSharp.Switch|CSharp.Switch:CSharp.Switch | CSharp.Switch | C# namespace | in container:CSharp.Switch | handles requests | 1 sources
 component | component:CSharp.Table|CSharp.Table: | (global namespace) | C# namespace | in container:CSharp.Table | - | 1 sources
 component | component:CSharp.Table|CSharp.Table:CSharp.Table | CSharp.Table | C# namespace | in container:CSharp.Table | handles requests | 1 sources
+component | component:CSharp.Telemetry|CSharp.Telemetry: | (global namespace) | C# namespace | in container:CSharp.Telemetry | handles requests,reaches out | 1 sources
 component | component:CSharp.Wcf|CSharp.Wcf: | (global namespace) | C# namespace | in container:CSharp.Wcf | - | 1 sources
 component | component:CSharp.Wcf|CSharp.Wcf:CSharp.Wcf.Orders | CSharp.Wcf.Orders | C# namespace | in container:CSharp.Wcf | handles requests,reaches out | 1 sources
 component | component:CSharp.Wcf|CSharp.Wcf:CSharp.Wcf.Stock | CSharp.Wcf.Stock | C# namespace | in container:CSharp.Wcf | handles requests,reaches out | 1 sources
@@ -245,6 +247,7 @@ code | code:CSharp.Switch|CSharp.Switch:|Program | Program | type | in component
 code | code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Handlers | Handlers | type | in component:CSharp.Table|CSharp.Table:CSharp.Table | handles requests | 1 sources
 code | code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Router | Router | type | in component:CSharp.Table|CSharp.Table:CSharp.Table | - | 1 sources
 code | code:CSharp.Table|CSharp.Table:|Program | Program | type | in component:CSharp.Table|CSharp.Table: | - | 1 sources
+code | code:CSharp.Telemetry|CSharp.Telemetry:|Program | Program | type | in component:CSharp.Telemetry|CSharp.Telemetry: | handles requests,reaches out | 1 sources
 code | code:CSharp.WcfClient|CSharp.WcfClient:CSharp.WcfClient|CSharp.WcfClient.IOrderService | IOrderService | type | in component:CSharp.WcfClient|CSharp.WcfClient:CSharp.WcfClient | - | 1 sources
 code | code:CSharp.WcfClient|CSharp.WcfClient:CSharp.WcfClient|CSharp.WcfClient.IStockQueryContract | IStockQueryContract | type | in component:CSharp.WcfClient|CSharp.WcfClient:CSharp.WcfClient | - | 1 sources
 code | code:CSharp.WcfClient|CSharp.WcfClient:CSharp.WcfClient|CSharp.WcfClient.IStockService | IStockService | type | in component:CSharp.WcfClient|CSharp.WcfClient:CSharp.WcfClient | - | 1 sources
@@ -275,18 +278,23 @@ code | code:CSharp.Worker|CSharp.Worker:|Program | Program | type | in component
 external-system | external:database | Database | - | in - | - | 47 sources
 external-system | external:filesystem | File system | - | in - | - | 112 sources
 external-system | external:http | HTTP services | - | in - | - | 8 sources
+external-system | external:http:agent:4317 | agent:4317 | - | in - | - | 1 sources
 external-system | external:http:api.example.org | api.example.org | - | in - | - | 7 sources
 external-system | external:http:api.github.com | api.github.com | - | in - | - | 2 sources
 external-system | external:http:billing | billing | - | in - | - | 1 sources
+external-system | external:http:collector:4317 | collector:4317 | - | in - | - | 1 sources
+external-system | external:http:collector:4318 | collector:4318 | - | in - | - | 1 sources
 external-system | external:http:inventory | inventory | - | in - | - | 1 sources
 external-system | external:http:payments.example.org | payments.example.org | - | in - | - | 1 sources
 external-system | external:http:pricing | pricing | - | in - | - | 1 sources
 external-system | external:http:shipping | shipping | - | in - | - | 1 sources
 external-system | external:http:status.example.org | status.example.org | - | in - | - | 1 sources
+external-system | external:http:zipkin:9411 | zipkin:9411 | - | in - | - | 1 sources
 external-system | external:library:Amazon.DynamoDBv2 | Amazon.DynamoDBv2 | - | in - | - | 1 sources
 external-system | external:library:Amazon.S3 | Amazon.S3 | - | in - | - | 2 sources
 external-system | external:library:Amazon.SQS | Amazon.SQS | - | in - | - | 2 sources
 external-system | external:library:Azure.Messaging.ServiceBus | Azure.Messaging.ServiceBus | - | in - | - | 3 sources
+external-system | external:library:Azure.Monitor.OpenTelemetry.AspNetCore | Azure.Monitor.OpenTelemetry.AspNetCore | - | in - | - | 1 sources
 external-system | external:library:Azure.Storage.Blobs | Azure.Storage.Blobs | - | in - | - | 2 sources
 external-system | external:library:Confluent.Kafka | Confluent.Kafka | - | in - | - | 3 sources
 external-system | external:library:CoreWCF | CoreWCF | - | in - | - | 4 sources
@@ -302,6 +310,7 @@ external-system | external:library:Microsoft.Azure.WebJobs | Microsoft.Azure.Web
 external-system | external:library:Microsoft.EntityFrameworkCore | Microsoft.EntityFrameworkCore | - | in - | - | 8 sources
 external-system | external:library:MongoDB.Driver | MongoDB.Driver | - | in - | - | 3 sources
 external-system | external:library:NServiceBus | NServiceBus | - | in - | - | 2 sources
+external-system | external:library:OpenTelemetry | OpenTelemetry | - | in - | - | 1 sources
 external-system | external:library:Orleans | Orleans | - | in - | - | 8 sources
 external-system | external:library:RabbitMQ.Client | RabbitMQ.Client | - | in - | - | 10 sources
 external-system | external:library:SendGrid | SendGrid | - | in - | - | 1 sources
@@ -309,7 +318,7 @@ external-system | external:library:StackExchange.Redis | StackExchange.Redis | -
 external-system | external:native | Native libraries | - | in - | - | 2 sources
 external-system | external:network | Network | - | in - | - | 4 sources
 external-system | external:processes | Operating system | - | in - | - | 5 sources
-person | person:user | User | - | in - | - | 86 sources
+person | person:user | User | - | in - | - | 87 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Counter -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Order -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.App -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.Routes | uses | - | 1 sources
@@ -524,6 +533,12 @@ code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Router -> code:CSha
 code:CSharp.Switch|CSharp.Switch:|Program -> code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Router | uses | - | 1 sources
 code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Router -> code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Handlers | uses | - | 1 sources
 code:CSharp.Table|CSharp.Table:|Program -> code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Router | uses | - | 1 sources
+code:CSharp.Telemetry|CSharp.Telemetry:|Program -> external:http:agent:4317 | sends HTTP requests | OpenTelemetry | 1 sources
+code:CSharp.Telemetry|CSharp.Telemetry:|Program -> external:http:collector:4317 | sends HTTP requests | OpenTelemetry | 1 sources
+code:CSharp.Telemetry|CSharp.Telemetry:|Program -> external:http:collector:4318 | sends HTTP requests | OpenTelemetry | 1 sources
+code:CSharp.Telemetry|CSharp.Telemetry:|Program -> external:http:zipkin:9411 | sends HTTP requests | OpenTelemetry | 1 sources
+code:CSharp.Telemetry|CSharp.Telemetry:|Program -> external:library:Azure.Monitor.OpenTelemetry.AspNetCore | sends HTTP requests | - | 1 sources
+code:CSharp.Telemetry|CSharp.Telemetry:|Program -> external:library:OpenTelemetry | sends HTTP requests | - | 1 sources
 code:CSharp.WcfClient|CSharp.WcfClient:CSharp.WcfClient|CSharp.WcfClient.StockQueryClient -> code:CSharp.WcfClient|CSharp.WcfClient:CSharp.WcfClient|CSharp.WcfClient.IStockQueryContract | uses | - | 1 sources
 code:CSharp.WcfClient|CSharp.WcfClient:CSharp.WcfClient|CSharp.WcfClient.StockServiceClient -> code:CSharp.WcfClient|CSharp.WcfClient:CSharp.WcfClient|CSharp.WcfClient.IStockService | uses | - | 1 sources
 code:CSharp.WcfClient|CSharp.WcfClient:|Program -> code:CSharp.WcfClient|CSharp.WcfClient:CSharp.WcfClient|CSharp.WcfClient.IOrderService | uses | - | 1 sources
@@ -624,7 +639,8 @@ person:user -> code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp
 person:user -> code:CSharp.Orleans|CSharp.Orleans:|Program | sends HTTP requests to | HTTP | 2 sources
 person:user -> code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Orders | sends HTTP requests to | HTTP | 9 sources
 person:user -> code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Handlers | sends HTTP requests to | HTTP | 2 sources
-view context | context of system | 39 elements | 2190 x 2396
+person:user -> code:CSharp.Telemetry|CSharp.Telemetry:|Program | sends HTTP requests to | HTTP | 1 sources
+view context | context of system | 45 elements | 2370 x 2737
   external:filesystem -> system | notifies of changed files | - | 1 sources
   external:library:Amazon.SQS -> system | delivers messages to | - | 1 sources
   external:library:Azure.Messaging.ServiceBus -> system | delivers messages to | - | 2 sources
@@ -639,23 +655,28 @@ view context | context of system | 39 elements | 2190 x 2396
   external:library:Orleans -> system | delivers messages to | - | 3 sources
   external:library:RabbitMQ.Client -> system | delivers messages to | - | 7 sources
   external:library:StackExchange.Redis -> system | delivers messages to | - | 1 sources
-  person:user -> system | sends HTTP requests to | HTTP | 86 sources
+  person:user -> system | sends HTTP requests to | HTTP | 87 sources
   system -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 47 sources
   system -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 9 more | 35 sources
   system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 76 sources
   system -> external:http | sends HTTP requests | AWSSDK.SQS, Flurl.Http, HTTP and 1 more | 8 sources
+  system -> external:http:agent:4317 | sends HTTP requests | OpenTelemetry | 1 sources
   system -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
   system -> external:http:api.github.com | sends HTTP requests | HTTP | 2 sources
   system -> external:http:billing | sends HTTP requests | HTTP | 1 sources
+  system -> external:http:collector:4317 | sends HTTP requests | OpenTelemetry | 1 sources
+  system -> external:http:collector:4318 | sends HTTP requests | OpenTelemetry | 1 sources
   system -> external:http:inventory | sends HTTP requests | Dapr | 1 sources
   system -> external:http:payments.example.org | sends HTTP requests | HTTP | 1 sources
   system -> external:http:pricing | sends HTTP requests | Dapr | 1 sources
   system -> external:http:shipping | sends HTTP requests | Dapr | 1 sources
   system -> external:http:status.example.org | sends HTTP requests | HTTP | 1 sources
+  system -> external:http:zipkin:9411 | sends HTTP requests | OpenTelemetry | 1 sources
   system -> external:library:Amazon.DynamoDBv2 | reads and writes data | - | 1 sources
   system -> external:library:Amazon.S3 | sends HTTP requests | - | 2 sources
   system -> external:library:Amazon.SQS | sends and receives over the network | - | 1 sources
   system -> external:library:Azure.Messaging.ServiceBus | sends and receives over the network | - | 1 sources
+  system -> external:library:Azure.Monitor.OpenTelemetry.AspNetCore | sends HTTP requests | - | 1 sources
   system -> external:library:Azure.Storage.Blobs | sends HTTP requests | - | 2 sources
   system -> external:library:Confluent.Kafka | sends and receives over the network | - | 2 sources
   system -> external:library:Dapr | reads and writes data | - | 3 sources
@@ -669,6 +690,7 @@ view context | context of system | 39 elements | 2190 x 2396
   system -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | - | 8 sources
   system -> external:library:MongoDB.Driver | reads and writes data | - | 3 sources
   system -> external:library:NServiceBus | sends and receives over the network | - | 1 sources
+  system -> external:library:OpenTelemetry | sends HTTP requests | - | 1 sources
   system -> external:library:Orleans | reads and writes data | - | 2 sources
   system -> external:library:Orleans | sends and receives over the network | - | 3 sources
   system -> external:library:RabbitMQ.Client | sends and receives over the network | - | 3 sources
@@ -678,7 +700,7 @@ view context | context of system | 39 elements | 2190 x 2396
   system -> external:native | calls native code | Confluent.Kafka | 2 sources
   system -> external:network | sends and receives over the network | AWSSDK.SQS, RabbitMQ.Client, StackExchange.Redis and 1 more | 4 sources
   system -> external:processes | starts or inspects processes | MassTransit, Microsoft.Azure.Cosmos.Client, NLog and 1 more | 5 sources
-view containers | containers of system | 58 elements | 3162 x 3308
+view containers | containers of system | 65 elements | 3114 x 3990
   container:CSharp.Blazor -> external:filesystem | writes files | - | 2 sources
   container:CSharp.Clients -> external:filesystem | reads files | MongoDB.Driver | 2 sources
   container:CSharp.Clients -> external:filesystem | writes files | - | 2 sources
@@ -740,6 +762,12 @@ view containers | containers of system | 58 elements | 3162 x 3308
   container:CSharp.Orleans -> external:http:payments.example.org | sends HTTP requests | HTTP | 1 sources
   container:CSharp.Orleans -> external:library:Orleans | reads and writes data | - | 2 sources
   container:CSharp.Orleans -> external:library:Orleans | sends and receives over the network | - | 3 sources
+  container:CSharp.Telemetry -> external:http:agent:4317 | sends HTTP requests | OpenTelemetry | 1 sources
+  container:CSharp.Telemetry -> external:http:collector:4317 | sends HTTP requests | OpenTelemetry | 1 sources
+  container:CSharp.Telemetry -> external:http:collector:4318 | sends HTTP requests | OpenTelemetry | 1 sources
+  container:CSharp.Telemetry -> external:http:zipkin:9411 | sends HTTP requests | OpenTelemetry | 1 sources
+  container:CSharp.Telemetry -> external:library:Azure.Monitor.OpenTelemetry.AspNetCore | sends HTTP requests | - | 1 sources
+  container:CSharp.Telemetry -> external:library:OpenTelemetry | sends HTTP requests | - | 1 sources
   container:CSharp.Wcf -> external:filesystem | reads files | - | 1 sources
   container:CSharp.Wcf -> external:filesystem | writes files | - | 2 sources
   container:CSharp.WcfClient -> container:CSharp.Wcf | sends messages to http://example.org/stock/IStockQuery/Count | - | 1 sources
@@ -776,6 +804,7 @@ view containers | containers of system | 58 elements | 3162 x 3308
   person:user -> container:CSharp.Orleans | sends HTTP requests to | HTTP | 2 sources
   person:user -> container:CSharp.Switch | sends HTTP requests to | HTTP | 9 sources
   person:user -> container:CSharp.Table | sends HTTP requests to | HTTP | 2 sources
+  person:user -> container:CSharp.Telemetry | sends HTTP requests to | HTTP | 1 sources
 view components:CSharp.Blazor | components of container:CSharp.Blazor | 5 elements | 528 x 1032
   component:CSharp.Blazor|CSharp.Blazor: -> component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components | uses | - | 1 sources
   component:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components -> component:CSharp.Blazor|CSharp.Blazor: | uses | - | 1 sources
@@ -974,6 +1003,14 @@ view components:CSharp.Switch | components of container:CSharp.Switch | 3 elemen
 view components:CSharp.Table | components of container:CSharp.Table | 3 elements | 314 x 802
   component:CSharp.Table|CSharp.Table: -> component:CSharp.Table|CSharp.Table:CSharp.Table | uses | - | 1 sources
   person:user -> component:CSharp.Table|CSharp.Table:CSharp.Table | sends HTTP requests to | HTTP | 2 sources
+view components:CSharp.Telemetry | components of container:CSharp.Telemetry | 8 elements | 1680 x 691
+  component:CSharp.Telemetry|CSharp.Telemetry: -> external:http:agent:4317 | sends HTTP requests | OpenTelemetry | 1 sources
+  component:CSharp.Telemetry|CSharp.Telemetry: -> external:http:collector:4317 | sends HTTP requests | OpenTelemetry | 1 sources
+  component:CSharp.Telemetry|CSharp.Telemetry: -> external:http:collector:4318 | sends HTTP requests | OpenTelemetry | 1 sources
+  component:CSharp.Telemetry|CSharp.Telemetry: -> external:http:zipkin:9411 | sends HTTP requests | OpenTelemetry | 1 sources
+  component:CSharp.Telemetry|CSharp.Telemetry: -> external:library:Azure.Monitor.OpenTelemetry.AspNetCore | sends HTTP requests | - | 1 sources
+  component:CSharp.Telemetry|CSharp.Telemetry: -> external:library:OpenTelemetry | sends HTTP requests | - | 1 sources
+  person:user -> component:CSharp.Telemetry|CSharp.Telemetry: | sends HTTP requests to | HTTP | 1 sources
 view components:CSharp.Wcf | components of container:CSharp.Wcf | 7 elements | 816 x 1032
   component:CSharp.Wcf|CSharp.Wcf: -> component:CSharp.Wcf|CSharp.Wcf:CSharp.Wcf.Orders | uses | - | 3 sources
   component:CSharp.Wcf|CSharp.Wcf: -> component:CSharp.Wcf|CSharp.Wcf:CSharp.Wcf.Stock | uses | - | 2 sources
@@ -1380,6 +1417,14 @@ view code:CSharp.Table|CSharp.Table:CSharp.Table | code of component:CSharp.Tabl
   code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Router -> code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Handlers | uses | - | 1 sources
   component:CSharp.Table|CSharp.Table: -> code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Router | uses | - | 1 sources
   person:user -> code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Handlers | sends HTTP requests to | HTTP | 2 sources
+view code:CSharp.Telemetry|CSharp.Telemetry: | code of component:CSharp.Telemetry|CSharp.Telemetry: | 8 elements | 1680 x 691
+  code:CSharp.Telemetry|CSharp.Telemetry:|Program -> external:http:agent:4317 | sends HTTP requests | OpenTelemetry | 1 sources
+  code:CSharp.Telemetry|CSharp.Telemetry:|Program -> external:http:collector:4317 | sends HTTP requests | OpenTelemetry | 1 sources
+  code:CSharp.Telemetry|CSharp.Telemetry:|Program -> external:http:collector:4318 | sends HTTP requests | OpenTelemetry | 1 sources
+  code:CSharp.Telemetry|CSharp.Telemetry:|Program -> external:http:zipkin:9411 | sends HTTP requests | OpenTelemetry | 1 sources
+  code:CSharp.Telemetry|CSharp.Telemetry:|Program -> external:library:Azure.Monitor.OpenTelemetry.AspNetCore | sends HTTP requests | - | 1 sources
+  code:CSharp.Telemetry|CSharp.Telemetry:|Program -> external:library:OpenTelemetry | sends HTTP requests | - | 1 sources
+  person:user -> code:CSharp.Telemetry|CSharp.Telemetry:|Program | sends HTTP requests to | HTTP | 1 sources
 view code:CSharp.Wcf|CSharp.Wcf: | code of component:CSharp.Wcf|CSharp.Wcf: | 4 elements | 816 x 572
   code:CSharp.Wcf|CSharp.Wcf:|Program -> component:CSharp.Wcf|CSharp.Wcf:CSharp.Wcf.Orders | uses | - | 3 sources
   code:CSharp.Wcf|CSharp.Wcf:|Program -> component:CSharp.Wcf|CSharp.Wcf:CSharp.Wcf.Stock | uses | - | 2 sources

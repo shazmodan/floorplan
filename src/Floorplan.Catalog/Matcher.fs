@@ -126,6 +126,10 @@ type Matcher(catalog: Catalog, supertypes: TypeRef -> Set<string>) =
     member this.SelfLog(m: MethodRef) =
         this.Match m |> List.tryFind (fun r -> r.Kind = SelfLog)
 
+    /// An unfollowed rule for a call of `m`: what it does is reported where the application set it up.
+    member this.Unfollowed(m: MethodRef) =
+        this.Match m |> List.tryFind (fun r -> r.Kind = Unfollowed)
+
     member this.Comparison(m: MethodRef) =
         this.Match m |> List.tryFind (fun r -> r.Kind = RuleKind.Comparison)
 

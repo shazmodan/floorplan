@@ -772,6 +772,45 @@
     { "id": "database.orleans-grain-state", "assembly": "Orleans.Core.Abstractions", "type": "Orleans.Core.IStorage",
       "members": ["ReadStateAsync", "WriteStateAsync", "ClearStateAsync"], "includeDerivedTypes": true, "kind": "sink", "category": "database" },
 
+    // ---------------- OpenTelemetry ----------------
+    // An exporter sends what the application's traces, metrics and logs record, from a worker of its own: adding
+    // one is the exit point, at the endpoint its options' configuration delegate sets ("configured-url": the value
+    // the delegate among the call's arguments sets the property to) or UseOtlpExporter is given. Without one the
+    // endpoint is OTEL_EXPORTER_OTLP_ENDPOINT's or the exporter's default, unknown here. The exporters' Export, which
+    // every provider's processors reach for every exporter constructed, is not followed: it is the effect of the
+    // call that added that exporter. Prometheus is scraped rather than sending, and is no exit point.
+    { "id": "http-out.otlp-exporter-endpoint", "assembly": "OpenTelemetry.Exporter.OpenTelemetryProtocol", "type": "OpenTelemetry.OpenTelemetryBuilderOtlpExporterExtensions",
+      "members": ["UseOtlpExporter"], "whenParameters": ["OpenTelemetry.IOpenTelemetryBuilder", "OpenTelemetry.Exporter.OtlpExportProtocol", "System.Uri"], "kind": "sink", "category": "http-out",
+      "payload": [{ "argument": 2, "role": "url" }] },
+    { "id": "http-out.otlp-exporter-all", "assembly": "OpenTelemetry.Exporter.OpenTelemetryProtocol", "type": "OpenTelemetry.OpenTelemetryBuilderOtlpExporterExtensions",
+      "members": ["UseOtlpExporter"], "kind": "sink", "category": "http-out" },
+    { "id": "http-out.otlp-trace-exporter", "assembly": "OpenTelemetry.Exporter.OpenTelemetryProtocol", "type": "OpenTelemetry.Trace.OtlpTraceExporterHelperExtensions",
+      "members": ["AddOtlpExporter"], "kind": "sink", "category": "http-out",
+      "payload": [{ "argument": -1, "property": "Endpoint", "role": "configured-url" }] },
+    { "id": "http-out.otlp-metric-exporter", "assembly": "OpenTelemetry.Exporter.OpenTelemetryProtocol", "type": "OpenTelemetry.Metrics.OtlpMetricExporterExtensions",
+      "members": ["AddOtlpExporter"], "kind": "sink", "category": "http-out",
+      "payload": [{ "argument": -1, "property": "Endpoint", "role": "configured-url" }] },
+    { "id": "http-out.otlp-log-exporter", "assembly": "OpenTelemetry.Exporter.OpenTelemetryProtocol", "type": "OpenTelemetry.Logs.OtlpLogExporterHelperExtensions",
+      "members": ["AddOtlpExporter"], "kind": "sink", "category": "http-out",
+      "payload": [{ "argument": -1, "property": "Endpoint", "role": "configured-url" }] },
+    { "id": "http-out.zipkin-exporter", "assembly": "OpenTelemetry.Exporter.Zipkin", "type": "OpenTelemetry.Trace.ZipkinExporterHelperExtensions",
+      "members": ["AddZipkinExporter"], "kind": "sink", "category": "http-out",
+      "payload": [{ "argument": -1, "property": "Endpoint", "role": "configured-url" }] },
+    { "id": "http-out.azure-monitor", "assembly": "Azure.Monitor.OpenTelemetry.AspNetCore", "type": "Azure.Monitor.OpenTelemetry.AspNetCore.OpenTelemetryBuilderExtensions",
+      "members": ["UseAzureMonitor"], "kind": "sink", "category": "http-out" },
+    { "id": "http-out.azure-monitor-exporter", "assembly": "Azure.Monitor.OpenTelemetry.Exporter", "type": "Azure.Monitor.OpenTelemetry.Exporter.OpenTelemetryBuilderExtensions",
+      "members": ["UseAzureMonitorExporter"], "kind": "sink", "category": "http-out" },
+    { "id": "http-out.azure-monitor-signal-exporter", "assembly": "Azure.Monitor.OpenTelemetry.Exporter", "type": "Azure.Monitor.OpenTelemetry.Exporter.AzureMonitorExporterExtensions",
+      "members": ["AddAzureMonitorTraceExporter", "AddAzureMonitorMetricExporter", "AddAzureMonitorLogExporter"], "kind": "sink", "category": "http-out" },
+    { "id": "environment.otel-console-trace-exporter", "assembly": "OpenTelemetry.Exporter.Console", "type": "OpenTelemetry.Trace.ConsoleExporterHelperExtensions",
+      "members": ["AddConsoleExporter"], "kind": "sink", "category": "environment" },
+    { "id": "environment.otel-console-metric-exporter", "assembly": "OpenTelemetry.Exporter.Console", "type": "OpenTelemetry.Metrics.ConsoleExporterMetricsExtensions",
+      "members": ["AddConsoleExporter"], "kind": "sink", "category": "environment" },
+    { "id": "environment.otel-console-log-exporter", "assembly": "OpenTelemetry.Exporter.Console", "type": "OpenTelemetry.Logs.ConsoleExporterLoggingExtensions",
+      "members": ["AddConsoleExporter"], "kind": "sink", "category": "environment" },
+    { "id": "unfollowed.otel-export", "assembly": "OpenTelemetry", "type": "OpenTelemetry.BaseExporter`1",
+      "members": ["Export"], "includeDerivedTypes": true, "kind": "unfollowed" },
+
     // ---------------- WCF ----------------
     // CoreWCF hosts a service: AddServiceEndpoint<TService, TContract>(binding, address) exposes a contract the service
     // implements at an address ("wcf-service-type" and "wcf-contract-type" are type argument indices). Each method of

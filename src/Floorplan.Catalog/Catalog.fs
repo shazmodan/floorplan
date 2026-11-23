@@ -35,6 +35,10 @@ type RuleKind =
     /// NLog's InternalLogger): a call to it in a library's code is not followed. Turning it on is the
     /// application's own call, and an exit point there.
     | SelfLog
+    /// A call in a library's code that is not followed: what it does is reported where the application set it up,
+    /// e.g. an OpenTelemetry exporter's Export, which the processors of every provider reach for every exporter
+    /// constructed, and which is the effect of the call that added that exporter (AddOtlpExporter).
+    | Unfollowed
     /// A call that reads the application's configuration (Microsoft.Extensions.Configuration's indexer): what it
     /// reads is in `Setting`, and its value is the one the configuration files in the output folder give.
     | Setting

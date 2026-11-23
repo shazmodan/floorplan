@@ -1,7 +1,7 @@
 workspace "CSharp" "CSharp, derived by Floorplan from its code" {
     model {
         !impliedRelationships "com.structurizr.model.CreateImpliedRelationshipsUnlessSameRelationshipExistsStrategy"
-        system = softwareSystem "CSharp" "The CSharp solution: 20 applications in 20 projects" {
+        system = softwareSystem "CSharp" "The CSharp solution: 21 applications in 21 projects" {
             container_CSharp_Blazor = container "CSharp.Blazor" "A web application" "C# · net8.0" "web application" {
                 component_CSharp_Blazor_CSharp_Blazor_ = component "(global namespace)" "A C# namespace of CSharp.Blazor" "C# namespace"
                 component_CSharp_Blazor_CSharp_Blazor_CSharp_Blazor_Components = component "CSharp.Blazor.Components" "A C# namespace of CSharp.Blazor" "C# namespace"
@@ -112,6 +112,9 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
                 component_CSharp_Table_CSharp_Table_ = component "(global namespace)" "A C# namespace of CSharp.Table" "C# namespace"
                 component_CSharp_Table_CSharp_Table_CSharp_Table = component "CSharp.Table" "A C# namespace of CSharp.Table" "C# namespace" "handles requests"
             }
+            container_CSharp_Telemetry = container "CSharp.Telemetry" "A web application" "C# · net8.0" "web application" {
+                component_CSharp_Telemetry_CSharp_Telemetry_ = component "(global namespace)" "A C# namespace of CSharp.Telemetry" "C# namespace" "handles requests,reaches out"
+            }
             container_CSharp_Wcf = container "CSharp.Wcf" "A message consumer" "C# · net8.0" "message consumer" {
                 component_CSharp_Wcf_CSharp_Wcf_ = component "(global namespace)" "A C# namespace of CSharp.Wcf" "C# namespace"
                 component_CSharp_Wcf_CSharp_Wcf_CSharp_Wcf_Orders = component "CSharp.Wcf.Orders" "A C# namespace of CSharp.Wcf" "C# namespace" "handles requests,reaches out"
@@ -134,18 +137,23 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         external_database = softwareSystem "Database" "A database reached through the platform's data access" "External"
         external_filesystem = softwareSystem "File system" "Files and directories" "External"
         external_http = softwareSystem "HTTP services" "HTTP services whose address is not known" "External"
+        external_http_agent_4317 = softwareSystem "agent:4317" "An HTTP service" "External"
         external_http_api_example_org = softwareSystem "api.example.org" "An HTTP service" "External"
         external_http_api_github_com = softwareSystem "api.github.com" "An HTTP service" "External"
         external_http_billing = softwareSystem "billing" "An HTTP service" "External"
+        external_http_collector_4317 = softwareSystem "collector:4317" "An HTTP service" "External"
+        external_http_collector_4318 = softwareSystem "collector:4318" "An HTTP service" "External"
         external_http_inventory = softwareSystem "inventory" "An HTTP service" "External"
         external_http_payments_example_org = softwareSystem "payments.example.org" "An HTTP service" "External"
         external_http_pricing = softwareSystem "pricing" "An HTTP service" "External"
         external_http_shipping = softwareSystem "shipping" "An HTTP service" "External"
         external_http_status_example_org = softwareSystem "status.example.org" "An HTTP service" "External"
+        external_http_zipkin_9411 = softwareSystem "zipkin:9411" "An HTTP service" "External"
         external_library_Amazon_DynamoDBv2 = softwareSystem "Amazon.DynamoDBv2" "A database reached through its client library" "External"
         external_library_Amazon_S3 = softwareSystem "Amazon.S3" "A service reached through its client library" "External"
         external_library_Amazon_SQS = softwareSystem "Amazon.SQS" "A service reached through its client library" "External"
         external_library_Azure_Messaging_ServiceBus = softwareSystem "Azure.Messaging.ServiceBus" "A service reached through its client library" "External"
+        external_library_Azure_Monitor_OpenTelemetry_AspNetCore = softwareSystem "Azure.Monitor.OpenTelemetry.AspNetCore" "A service reached through its client library" "External"
         external_library_Azure_Storage_Blobs = softwareSystem "Azure.Storage.Blobs" "A service reached through its client library" "External"
         external_library_Confluent_Kafka = softwareSystem "Confluent.Kafka" "A service reached through its client library" "External"
         external_library_CoreWCF = softwareSystem "CoreWCF" "A service reached through its client library" "External"
@@ -161,6 +169,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         external_library_Microsoft_EntityFrameworkCore = softwareSystem "Microsoft.EntityFrameworkCore" "A database reached through its client library" "External"
         external_library_MongoDB_Driver = softwareSystem "MongoDB.Driver" "A database reached through its client library" "External"
         external_library_NServiceBus = softwareSystem "NServiceBus" "A service reached through its client library" "External"
+        external_library_OpenTelemetry = softwareSystem "OpenTelemetry" "A service reached through its client library" "External"
         external_library_Orleans = softwareSystem "Orleans" "A service reached through its client library" "External"
         external_library_RabbitMQ_Client = softwareSystem "RabbitMQ.Client" "A service reached through its client library" "External"
         external_library_SendGrid = softwareSystem "SendGrid" "A service reached through its client library" "External"
@@ -309,6 +318,12 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         component_CSharp_Orleans_CSharp_Orleans_CSharp_Silo_Stock -> external_filesystem "writes files"
         component_CSharp_Switch_CSharp_Switch_ -> component_CSharp_Switch_CSharp_Switch_CSharp_Switch "uses"
         component_CSharp_Table_CSharp_Table_ -> component_CSharp_Table_CSharp_Table_CSharp_Table "uses"
+        component_CSharp_Telemetry_CSharp_Telemetry_ -> external_http_agent_4317 "sends HTTP requests" "OpenTelemetry"
+        component_CSharp_Telemetry_CSharp_Telemetry_ -> external_http_collector_4317 "sends HTTP requests" "OpenTelemetry"
+        component_CSharp_Telemetry_CSharp_Telemetry_ -> external_http_collector_4318 "sends HTTP requests" "OpenTelemetry"
+        component_CSharp_Telemetry_CSharp_Telemetry_ -> external_http_zipkin_9411 "sends HTTP requests" "OpenTelemetry"
+        component_CSharp_Telemetry_CSharp_Telemetry_ -> external_library_Azure_Monitor_OpenTelemetry_AspNetCore "sends HTTP requests"
+        component_CSharp_Telemetry_CSharp_Telemetry_ -> external_library_OpenTelemetry "sends HTTP requests"
         component_CSharp_WcfClient_CSharp_WcfClient_ -> component_CSharp_WcfClient_CSharp_WcfClient_CSharp_WcfClient "uses"
         component_CSharp_WcfClient_CSharp_WcfClient_ -> component_CSharp_Wcf_CSharp_Wcf_CSharp_Wcf_Orders "sends messages to http://tempuri.org/IOrderService/CancelOrder"
         component_CSharp_WcfClient_CSharp_WcfClient_ -> component_CSharp_Wcf_CSharp_Wcf_CSharp_Wcf_Orders "sends messages to http://tempuri.org/IOrderService/Place"
@@ -377,16 +392,17 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         person_user -> component_CSharp_Orleans_CSharp_Orleans_ "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_Switch_CSharp_Switch_CSharp_Switch "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_Table_CSharp_Table_CSharp_Table "sends HTTP requests to" "HTTP"
+        person_user -> component_CSharp_Telemetry_CSharp_Telemetry_ "sends HTTP requests to" "HTTP"
     }
 
     views {
         // Each view is laid out as on Floorplan's website: the positions are in workspace.json beside this file,
         // which Structurizr Lite merges in. Without it, add `autoLayout` to a view.
         systemContext system "context" {
-            include system external_database external_filesystem external_http external_http_api_example_org external_http_api_github_com external_http_billing external_http_inventory external_http_payments_example_org external_http_pricing external_http_shipping external_http_status_example_org external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Azure_Messaging_ServiceBus external_library_Azure_Storage_Blobs external_library_Confluent_Kafka external_library_CoreWCF external_library_Dapr external_library_Elastic_Clients_Elasticsearch external_library_Grpc_Core external_library_MailKit external_library_MassTransit external_library_Microsoft_AspNetCore_SignalR_Client external_library_Microsoft_Azure_Cosmos external_library_Microsoft_Azure_Functions_Worker external_library_Microsoft_Azure_WebJobs external_library_Microsoft_EntityFrameworkCore external_library_MongoDB_Driver external_library_NServiceBus external_library_Orleans external_library_RabbitMQ_Client external_library_SendGrid external_library_StackExchange_Redis external_native external_network external_processes person_user
+            include system external_database external_filesystem external_http external_http_agent_4317 external_http_api_example_org external_http_api_github_com external_http_billing external_http_collector_4317 external_http_collector_4318 external_http_inventory external_http_payments_example_org external_http_pricing external_http_shipping external_http_status_example_org external_http_zipkin_9411 external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Azure_Messaging_ServiceBus external_library_Azure_Monitor_OpenTelemetry_AspNetCore external_library_Azure_Storage_Blobs external_library_Confluent_Kafka external_library_CoreWCF external_library_Dapr external_library_Elastic_Clients_Elasticsearch external_library_Grpc_Core external_library_MailKit external_library_MassTransit external_library_Microsoft_AspNetCore_SignalR_Client external_library_Microsoft_Azure_Cosmos external_library_Microsoft_Azure_Functions_Worker external_library_Microsoft_Azure_WebJobs external_library_Microsoft_EntityFrameworkCore external_library_MongoDB_Driver external_library_NServiceBus external_library_OpenTelemetry external_library_Orleans external_library_RabbitMQ_Client external_library_SendGrid external_library_StackExchange_Redis external_native external_network external_processes person_user
         }
         container system "containers" {
-            include container_CSharp_Blazor container_CSharp_Clients container_CSharp_Cloud container_CSharp_Controllers container_CSharp_Conventional container_CSharp_Dapr container_CSharp_Delegated container_CSharp_Effects container_CSharp_Endpoints container_CSharp_Functions container_CSharp_FunctionsInProcess container_CSharp_Grpc container_CSharp_Messaging container_CSharp_Middleware container_CSharp_Orleans container_CSharp_Switch container_CSharp_Table container_CSharp_Wcf container_CSharp_WcfClient container_CSharp_Worker external_database external_filesystem external_http external_http_api_example_org external_http_api_github_com external_http_billing external_http_inventory external_http_payments_example_org external_http_pricing external_http_shipping external_http_status_example_org external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Azure_Messaging_ServiceBus external_library_Azure_Storage_Blobs external_library_Confluent_Kafka external_library_CoreWCF external_library_Dapr external_library_Elastic_Clients_Elasticsearch external_library_Grpc_Core external_library_MailKit external_library_MassTransit external_library_Microsoft_AspNetCore_SignalR_Client external_library_Microsoft_Azure_Cosmos external_library_Microsoft_Azure_Functions_Worker external_library_Microsoft_Azure_WebJobs external_library_Microsoft_EntityFrameworkCore external_library_MongoDB_Driver external_library_NServiceBus external_library_Orleans external_library_RabbitMQ_Client external_library_SendGrid external_library_StackExchange_Redis external_native external_network external_processes person_user
+            include container_CSharp_Blazor container_CSharp_Clients container_CSharp_Cloud container_CSharp_Controllers container_CSharp_Conventional container_CSharp_Dapr container_CSharp_Delegated container_CSharp_Effects container_CSharp_Endpoints container_CSharp_Functions container_CSharp_FunctionsInProcess container_CSharp_Grpc container_CSharp_Messaging container_CSharp_Middleware container_CSharp_Orleans container_CSharp_Switch container_CSharp_Table container_CSharp_Telemetry container_CSharp_Wcf container_CSharp_WcfClient container_CSharp_Worker external_database external_filesystem external_http external_http_agent_4317 external_http_api_example_org external_http_api_github_com external_http_billing external_http_collector_4317 external_http_collector_4318 external_http_inventory external_http_payments_example_org external_http_pricing external_http_shipping external_http_status_example_org external_http_zipkin_9411 external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Azure_Messaging_ServiceBus external_library_Azure_Monitor_OpenTelemetry_AspNetCore external_library_Azure_Storage_Blobs external_library_Confluent_Kafka external_library_CoreWCF external_library_Dapr external_library_Elastic_Clients_Elasticsearch external_library_Grpc_Core external_library_MailKit external_library_MassTransit external_library_Microsoft_AspNetCore_SignalR_Client external_library_Microsoft_Azure_Cosmos external_library_Microsoft_Azure_Functions_Worker external_library_Microsoft_Azure_WebJobs external_library_Microsoft_EntityFrameworkCore external_library_MongoDB_Driver external_library_NServiceBus external_library_OpenTelemetry external_library_Orleans external_library_RabbitMQ_Client external_library_SendGrid external_library_StackExchange_Redis external_native external_network external_processes person_user
         }
         component container_CSharp_Blazor "components_CSharp_Blazor" {
             include component_CSharp_Blazor_CSharp_Blazor_ component_CSharp_Blazor_CSharp_Blazor_CSharp_Blazor_Components component_CSharp_Blazor_CSharp_Blazor_CSharp_Blazor_Components_Pages external_filesystem person_user
@@ -438,6 +454,9 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         }
         component container_CSharp_Table "components_CSharp_Table" {
             include component_CSharp_Table_CSharp_Table_ component_CSharp_Table_CSharp_Table_CSharp_Table person_user
+        }
+        component container_CSharp_Telemetry "components_CSharp_Telemetry" {
+            include component_CSharp_Telemetry_CSharp_Telemetry_ external_http_agent_4317 external_http_collector_4317 external_http_collector_4318 external_http_zipkin_9411 external_library_Azure_Monitor_OpenTelemetry_AspNetCore external_library_OpenTelemetry person_user
         }
         component container_CSharp_Wcf "components_CSharp_Wcf" {
             include component_CSharp_Wcf_CSharp_Wcf_ component_CSharp_Wcf_CSharp_Wcf_CSharp_Wcf_Orders component_CSharp_Wcf_CSharp_Wcf_CSharp_Wcf_Stock component_CSharp_Wcf_CSharp_Wcf_CoreWCF_Configuration external_filesystem external_library_CoreWCF container_CSharp_WcfClient

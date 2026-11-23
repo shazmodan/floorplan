@@ -195,6 +195,17 @@ let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoin
             else
                 tracked |> List.filter (fun e -> e.Route.IsSome || not e.Predicates.IsEmpty || not (plumbing.Contains e.HandlerMember)), symbolic
 
+        // An HTTP route the symbolic run found for a handler supersedes the registration scan's: the run follows a
+        // group's prefix from a caller and the endpoint filters, which the scan does not. The scan's stands where the
+        // run found none (it ran out of budget in a library's setup code).
+        let symbolicRouted =
+            symbolic |> List.filter (fun e -> e.Category = EffectCategory.HttpIn && e.Route.IsSome) |> List.map (fun e -> e.HandlerMember) |> Set.ofList
+
+        let platform =
+            platform
+            |> List.filter (fun e ->
+                not (e.Category = EffectCategory.HttpIn && e.Forms = [ RouteForm.PlatformRouting ] && symbolicRouted.Contains e.HandlerMember))
+
         let all = platform @ tables @ tracked @ symbolic
 
         // A registration whose route the static scan could not recover (a group from a caller) adds nothing when
