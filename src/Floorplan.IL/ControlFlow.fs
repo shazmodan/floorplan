@@ -83,3 +83,52 @@ let directionTo (g: Graph) (branch: int) (target: int) =
     match reach |> List.indexed |> List.filter snd with
     | [ (i, _) ] -> Some i
     | _ -> None
+
+/// The locals each instruction may still read before writing them, by instruction index. A local whose address is
+/// taken, or that an exception handler reads, counts as live everywhere: reads through the address and the jump
+/// into a handler are not followed.
+let liveLocals (g: Graph) : Set<int>[] =
+    let instrs = g.Body.Instructions
+    let n = instrs.Length
+
+    let inHandler (offset: int) =
+        g.Body.Handlers
+        |> List.exists (fun h ->
+            (offset >= h.HandlerStart && offset < h.HandlerEnd)
+            || (match h.FilterStart with Some f -> offset >= f && offset < h.HandlerStart | None -> false))
+
+    let always =
+        instrs
+        |> Array.choose (fun ins ->
+            match ins.Op with
+            | LdLocA l -> Some l
+            | LdLoc l when inHandler ins.Offset -> Some l
+            | _ -> None)
+        |> Set.ofArray
+
+    let live = Array.create n Set.empty
+    let predecessors = Array.init n (fun _ -> ResizeArray<int>())
+
+    g.Successors |> Array.iteri (fun i succs -> for s in succs do predecessors[s].Add i)
+
+    let work = Queue<int>(seq { n - 1 .. -1 .. 0 })
+    let queued = HashSet<int>(seq { 0 .. n - 1 })
+
+    while work.Count > 0 do
+        let i = work.Dequeue()
+        queued.Remove i |> ignore
+        let after = g.Successors[i] |> List.fold (fun acc s -> Set.union acc live[s]) always
+
+        let before =
+            match instrs[i].Op with
+            | LdLoc l -> after.Add l
+            | StLoc l when not (always.Contains l) -> after.Remove l
+            | _ -> after
+
+        if before <> live[i] then
+            live[i] <- before
+
+            for p in predecessors[i] do
+                if queued.Add p then work.Enqueue p
+
+    live

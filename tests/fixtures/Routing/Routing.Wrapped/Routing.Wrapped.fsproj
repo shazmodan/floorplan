@@ -5,6 +5,8 @@
     <RoutingLibraryAssembly>$(MSBuildThisFileDirectory)../Dependency/Routing.Library/bin/$(Configuration)/$(TargetFramework)/Routing.Library.dll</RoutingLibraryAssembly>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Handlers.fs" />
+    <Compile Include="Shop.fs" />
     <Compile Include="Api.fs" />
     <Compile Include="Middleware.fs" />
     <Compile Include="Program.fs" />

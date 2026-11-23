@@ -38,4 +38,5 @@ let route (request: HttpRequest) =
         match request.Url.Path with
         | "Admin" :: path -> adminRoute { request with Url = { request.Url with Path = path } }
         | "Api" :: path -> apiRoute { request with Url = { request.Url with Path = path } }
+        | "Shop" :: path -> Shop.route { request with Url = { request.Url with Path = path } }
         | _ -> None
