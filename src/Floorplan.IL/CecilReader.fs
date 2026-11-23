@@ -54,6 +54,11 @@ let methodRef (fallback: string) (m: MethodReference) : MethodRef =
         | :? GenericInstanceMethod as g -> g.GenericArguments |> Seq.map (typeRef fallback) |> Seq.toList
         | _ -> []
 
+    let declaringTypeArguments =
+        match m.DeclaringType with
+        | :? GenericInstanceType as g -> g.GenericArguments |> Seq.map (typeRef fallback) |> Seq.toList
+        | _ -> []
+
     // For a generic method instance, the generic definition; parameters of members of generic types are
     // already in open form in metadata.
     let m = m.GetElementMethod()
@@ -71,7 +76,8 @@ let methodRef (fallback: string) (m: MethodReference) : MethodRef =
       ReturnType = typeKey m.ReturnType
       HasThis = m.HasThis
       GenericArity = arity
-      TypeArguments = typeArguments }
+      TypeArguments = typeArguments
+      DeclaringTypeArguments = declaringTypeArguments }
 
 let fieldRef (fallback: string) (f: FieldReference) : FieldRef =
     { Type = typeRef fallback f.DeclaringType

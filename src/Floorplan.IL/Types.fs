@@ -41,7 +41,10 @@ type MethodRef =
       GenericArity: int
       /// For a call to a generic method instance, its type arguments (e.g. T of UseMiddleware<T>). Not part of
       /// the identity.
-      TypeArguments: TypeRef list }
+      TypeArguments: TypeRef list
+      /// For a member of a generic type instance, the type's arguments (e.g. T of ChannelReader<T>.ReadAsync). Not
+      /// part of the identity.
+      DeclaringTypeArguments: TypeRef list }
 
     override m.Equals other =
         match other with

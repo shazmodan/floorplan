@@ -10,6 +10,11 @@ builder.Services.AddQuartz(q => q.ScheduleJob<CSharp.Worker.Cleanup.PurgeJob>(t 
 builder.Services.AddQuartzHostedService();
 CSharp.Worker.Imports.Inbox.Watch();
 CSharp.Worker.Reporting.Schedule.Jobs();
+builder.Services.AddSingleton(System.Threading.Channels.Channel.CreateUnbounded<CSharp.Worker.Queues.Invoice>());
+builder.Services.AddSingleton<CSharp.Worker.Queues.TaskQueue>();
+builder.Services.AddHostedService<CSharp.Worker.Queues.Invoicing>();
+builder.Services.AddHostedService<CSharp.Worker.Queues.TaskRunner>();
+builder.Services.AddHostedService<CSharp.Worker.Queues.Billing>();
 builder.Build().Run();
 
 namespace CSharp.Worker.Cleanup
@@ -112,6 +117,59 @@ namespace CSharp.Worker.Monitoring
         {
             File.AppendAllText("heartbeat.log", "stopped");
             return Task.CompletedTask;
+        }
+    }
+}
+
+namespace CSharp.Worker.Queues
+{
+    using System.Threading.Channels;
+
+    public record Invoice(int Id);
+
+    // A channel hands items from one part of the application to another: the method that reads them is background
+    // work at the type of the items.
+    public class Invoicing(Channel<Invoice> invoices) : BackgroundService
+    {
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            await foreach (var invoice in invoices.Reader.ReadAllAsync(stoppingToken))
+            {
+                await File.AppendAllTextAsync("invoices.log", invoice.Id.ToString(), stoppingToken);
+            }
+        }
+    }
+
+    // The queue of queued background tasks (ASP.NET Core's docs): its items are delegates, so the reader only fetches
+    // the work, and each delegate written to the channel is background work of its own.
+    public class TaskQueue
+    {
+        private readonly Channel<Func<CancellationToken, ValueTask>> queue = Channel.CreateBounded<Func<CancellationToken, ValueTask>>(100);
+
+        public async ValueTask QueueAsync(Func<CancellationToken, ValueTask> workItem) => await queue.Writer.WriteAsync(workItem);
+
+        public async ValueTask<Func<CancellationToken, ValueTask>> DequeueAsync(CancellationToken ct) => await queue.Reader.ReadAsync(ct);
+    }
+
+    public class TaskRunner(TaskQueue tasks) : BackgroundService
+    {
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                var workItem = await tasks.DequeueAsync(stoppingToken);
+                await workItem(stoppingToken);
+            }
+        }
+    }
+
+    // Writes to both channels.
+    public class Billing(TaskQueue tasks, Channel<Invoice> invoices) : BackgroundService
+    {
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            invoices.Writer.TryWrite(new Invoice(1));
+            await tasks.QueueAsync(async ct => await File.WriteAllTextAsync("summary.txt", "billed", ct));
         }
     }
 }

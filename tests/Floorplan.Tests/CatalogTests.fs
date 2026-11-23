@@ -18,7 +18,8 @@ let private methodRef (typeName: string) (name: string) (parameters: string list
       ReturnType = "System.Void"
       HasThis = true
       GenericArity = 0
-      TypeArguments = [] }
+      TypeArguments = []
+      DeclaringTypeArguments = [] }
 
 /// A hierarchy for tests: a provider command derives from DbCommand.
 let private supertypes (t: TypeRef) =

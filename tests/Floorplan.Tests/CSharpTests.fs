@@ -480,6 +480,7 @@ let tests =
 
               let worker =
                   entries m "CSharp.Worker"
+                  |> List.filter (fun e -> not (e.HandlerUnit.EndsWith ".Queues"))
                   |> List.map (fun e -> e.HandlerMember, e.Category, e.Route, e.Completeness)
                   |> List.sort
 
@@ -508,6 +509,34 @@ let tests =
 
               Expect.contains (traced "CSharp.Worker.Cleanup.Sweeper::ExecuteAsync") EffectCategory.FilesystemWrite "the sweep deletes files"
               Expect.contains (traced "CSharp.Worker.Monitoring.Heartbeat::StartAsync") EffectCategory.HttpOut "the heartbeat calls out"
+          }
+
+          test "channels: a method that reads a channel is background work at the type of its items, and a delegate written to a channel of work is background work of its own" {
+              let m = csharpModel.Force()
+              let queues = entries m "CSharp.Worker" |> List.filter (fun e -> e.HandlerUnit.EndsWith ".Queues")
+
+              Expect.equal
+                  (queues |> List.map (fun e -> e.HandlerMember, e.Category, e.Route, e.RegisteredThrough) |> List.sort)
+                  [ "CSharp.Worker.Queues.Billing/<>c::<ExecuteAsync>b__3_0", EffectCategory.Background, None, Some "System.Threading.Channels.ChannelWriter`1"
+                    "CSharp.Worker.Queues.Billing::ExecuteAsync", EffectCategory.Background, None, Some "Microsoft.Extensions.DependencyInjection.ServiceCollectionHostedServiceExtensions"
+                    "CSharp.Worker.Queues.Invoicing::ExecuteAsync", EffectCategory.Background, Some "CSharp.Worker.Queues.Invoice", Some "System.Threading.Channels.ChannelReader`1"
+                    "CSharp.Worker.Queues.TaskRunner::ExecuteAsync", EffectCategory.Background, None, Some "Microsoft.Extensions.DependencyInjection.ServiceCollectionHostedServiceExtensions" ]
+                  "the reader of invoices at their type, in place of its hosted service; the queued delegate; not the queue's DequeueAsync, which reads delegates"
+
+              let work = queues |> List.find (fun e -> e.RegisteredThrough = Some "System.Threading.Channels.ChannelWriter`1")
+
+              Expect.equal
+                  (work.Evidence.Steps |> List.map (fun s -> s.Description))
+                  [ "CSharp.Worker.Queues.Billing::ExecuteAsync passes CSharp.Worker.Queues.Billing/<>c::<ExecuteAsync>b__3_0 on to CSharp.Worker.Queues.TaskQueue::QueueAsync"
+                    "CSharp.Worker.Queues.TaskQueue::QueueAsync writes CSharp.Worker.Queues.Billing/<>c::<ExecuteAsync>b__3_0 to a channel with System.Threading.Channels.ChannelWriter`1::WriteAsync, run when the channel is read (rule background.channel-write)" ]
+                  "followed from the method that makes it, through the queue's parameter"
+
+              let traced (e: EntryPoint) =
+                  let t = m.Traces |> List.find (fun t -> t.EntryPointId = e.Id)
+                  m.ExitPoints |> List.filter (fun x -> List.contains x.Id t.ExitPointIds) |> List.choose (fun x -> x.Payload |> Option.bind (fun p -> p.Value))
+
+              Expect.contains (traced work) "summary.txt" "the queued work writes the summary"
+              Expect.contains (queues |> List.find (fun e -> e.Route.IsSome) |> traced) "invoices.log" "the reader logs invoices"
           }
 
           test "what a logger's sinks do is one exit point per unit, listing its log calls" {

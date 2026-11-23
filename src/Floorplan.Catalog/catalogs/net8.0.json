@@ -752,6 +752,18 @@
     { "id": "background.timers-timer-elapsed", "assembly": "System.ComponentModel.TypeConverter", "type": "System.Timers.Timer",
       "members": ["add_Elapsed"], "kind": "registration", "category": "background", "payload": [{ "argument": 0, "role": "message-handler" }] },
 
+    // ---------------- channels ----------------
+    // A channel hands items from one part of the application to another. A method that reads from a channel is
+    // background work at the type of the items (the "channel-item" is the index of the reader's type argument),
+    // unless the items are delegates: then each delegate written to the channel is the work ("queued-work", followed
+    // back through the parameters of the methods that pass it on, as the queue of queued background tasks does).
+    { "id": "background.channel-read", "assembly": "System.Threading.Channels", "type": "System.Threading.Channels.ChannelReader`1",
+      "members": ["ReadAsync", "ReadAllAsync", "TryRead", "WaitToReadAsync"], "includeDerivedTypes": true, "kind": "registration", "category": "background",
+      "payload": [{ "argument": -1, "role": "message-receive" }, { "argument": 0, "role": "channel-item" }] },
+    { "id": "background.channel-write", "assembly": "System.Threading.Channels", "type": "System.Threading.Channels.ChannelWriter`1",
+      "members": ["WriteAsync", "TryWrite"], "includeDerivedTypes": true, "kind": "registration", "category": "background",
+      "payload": [{ "argument": 0, "role": "queued-work" }] },
+
     // ---------------- Azure Functions ----------------
     // The host runs a method marked [Function("Name")] ("function-name") when the trigger on one of its parameters
     // fires ("function-trigger", of the trigger's category). An HTTP trigger names its methods (every string among

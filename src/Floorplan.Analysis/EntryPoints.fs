@@ -417,7 +417,8 @@ let private attributeRules (matcher: Matcher) (a: AttributeDef) =
           ReturnType = "System.Void"
           HasThis = true
           GenericArity = 0
-          TypeArguments = [] }
+          TypeArguments = []
+          DeclaringTypeArguments = [] }
 
     matcher.Match ctor |> List.filter (fun r -> r.Kind = RuleKind.Metadata)
 
@@ -1487,26 +1488,125 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                     | _ -> flow.OperandsAt o |> List.tryPick (expressionTarget flow (depth + 1))
                 | _ -> None)
 
-    // The handler: the delegate a registration adds, the method an expression tree it is given calls, or the method
-    // that receives messages itself (a loop that calls Kafka's Consume or Service Bus's ReceiveMessageAsync).
-    let handlerOf (r: PlatformRouting.Registration) =
-        match specOf r.Rule "message-handler", specOf r.Rule "expression-handler", specOf r.Rule "message-receive" with
-        | Some handlerSpec, _, _ ->
+    // The items of the channel a reader reads (the "channel-item" type argument of the reader's type), when the rule
+    // has one: None inside when the type is not known (a type parameter).
+    let channelItem (r: PlatformRouting.Registration) =
+        specOf r.Rule "channel-item"
+        |> Option.map (fun spec ->
+            List.tryItem spec.Argument r.Declared.DeclaringTypeArguments
+            |> Option.filter (fun t -> t.FullName.Contains '.'))
+
+    let isDelegate (t: TypeRef) =
+        t.FullName.StartsWith "System.Func`"
+        || t.FullName.StartsWith "System.Action"
+        || (match set.TryType t with
+            | Some(def, _) -> def.BaseType |> Option.exists (fun b -> b.FullName = "System.MulticastDelegate")
+            | None -> false)
+
+    // The user methods that call a method, by the call graph (a call through an interface reaches its implementation).
+    let callers =
+        lazy
+            (let graph = ctx.Program.GraphFor ctx.Project
+
+             ctx.Methods.Values
+             |> Seq.collect (fun m ->
+                 graph.Callees m.Ref
+                 |> Seq.filter (fun e -> e.Kind = Direct || e.Kind = Virtual)
+                 |> Seq.map (fun e -> e.Target.Key, (m, e)))
+             |> Seq.groupBy fst
+             |> Seq.map (fun (k, es) ->
+                 k, es |> Seq.map snd |> Seq.distinctBy (fun (m, e) -> m.Ref.Key, e.Offset) |> Seq.toList)
+             |> dict)
+
+    // The delegates a value written to a channel can be: one made where it is written, or one a caller passes as the
+    // parameter it is (an async method keeps its parameters in fields of its state machine, which the method that
+    // starts it stores), with a step for each call that passes it on.
+    let rec queuedWork (caller: MethodDef) (flow: Flow) (values: Values) (depth: int) : (MethodRef * EvidenceStep list) list =
+        match handlerIn flow values with
+        | Some target -> [ PlatformRouting.unwrap set isUser 0 target, [] ]
+        | None when depth >= 4 -> []
+        | None ->
+            let hoisted (f: FieldRef) =
+                let start = kickoff caller.Ref
+
+                match ctx.Methods.TryGetValue start.Key with
+                | true, starter when start.Key <> caller.Ref.Key ->
+                    match DataFlow.ofMethod starter, starter.Body.Value with
+                    | Some sf, Some body ->
+                        body.Instructions
+                        |> Array.tryPick (fun ins ->
+                            match ins.Op, sf.OperandsAt ins.Offset with
+                            | StFld g, [ _; stored ] when g.Key = f.Key ->
+                                match Set.toList stored with
+                                | [ Argument k ] -> Some(start, k)
+                                | _ -> None
+                            | _ -> None)
+                    | _ -> None
+                | _ -> None
+
+            let parameter =
+                match Set.toList values with
+                | [ Argument k ] -> Some(caller.Ref, k)
+                | [ Pushed o ] ->
+                    match flow.InstructionAt o, flow.OperandsAt o with
+                    | Some { Op = LdFld f }, [ receiver ] when receiver.Contains(Argument 0) -> hoisted f
+                    | _ -> None
+                | _ -> None
+
+            match parameter with
+            | None -> []
+            | Some(m, k) ->
+                match callers.Value.TryGetValue m.Key with
+                | true, calls ->
+                    calls
+                    |> List.collect (fun (callerDef, edge) ->
+                        match DataFlow.ofMethod callerDef, callerDef.Body.Value with
+                        | Some f, Some body ->
+                            match List.tryItem k (f.OperandsAt edge.Offset) with
+                            | Some passed ->
+                                let index = body.Instructions |> Array.findIndex (fun i -> i.Offset = edge.Offset)
+                                let point = Instruction.pointAt body.Instructions index
+
+                                queuedWork callerDef f passed (depth + 1)
+                                |> List.map (fun (handler, steps) ->
+                                    let by = kickoff callerDef.Ref
+                                    handler, steps @ [ step $"{by.Display} passes {handler.Display} on to {m.Display}" callerDef.Ref point ])
+                            | None -> []
+                        | _ -> [])
+                | _ -> []
+
+    // The handlers: the delegate a registration adds, the method an expression tree it is given calls, the method
+    // that receives messages itself (a loop that calls Kafka's Consume or Service Bus's ReceiveMessageAsync, or reads
+    // a channel of items), or each delegate written to a channel of work, with the steps that pass it on.
+    let handlersOf (r: PlatformRouting.Registration) =
+        match specOf r.Rule "message-handler", specOf r.Rule "expression-handler", specOf r.Rule "message-receive", specOf r.Rule "queued-work" with
+        | Some handlerSpec, _, _, _ ->
             operand r handlerSpec
             |> Option.bind (handlerIn r.Flow)
-            |> Option.map (fun target -> PlatformRouting.unwrap set isUser 0 target, false)
-        | None, Some _, _ ->
+            |> Option.map (fun target -> PlatformRouting.unwrap set isUser 0 target, false, [])
+            |> Option.toList
+        | None, Some _, _, _ ->
             r.Flow.OperandsAt r.Offset
             |> List.tryPick (expressionTarget r.Flow 0)
-            |> Option.map (fun target -> target, false)
-        | None, None, Some _ -> Some(kickoff r.Caller.Ref, true)
-        | None, None, None -> None
+            |> Option.map (fun target -> target, false, [])
+            |> Option.toList
+        | None, None, Some _, _ ->
+            // A channel of delegates: the reader only fetches the work, which is each delegate written to it.
+            match channelItem r with
+            | Some(Some item) when isDelegate item -> []
+            | _ -> [ kickoff r.Caller.Ref, true, [] ]
+        | None, None, None, Some workSpec ->
+            match operand r workSpec with
+            | Some values ->
+                queuedWork r.Caller r.Flow values 0
+                |> List.distinctBy (fun (handler, _) -> handler.Key)
+                |> List.map (fun (handler, steps) -> handler, false, steps)
+            | None -> []
+        | None, None, None, None -> []
 
     registrations
-    |> List.choose (fun r ->
-        match handlerOf r with
-        | None -> None
-        | Some(handler, receives) ->
+    |> List.collect (fun r -> handlersOf r |> List.map (fun h -> r, h))
+    |> List.choose (fun (r, (handler, receives, passed)) ->
             let point = firstPoint set handler
             let registrationPoint = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
 
@@ -1520,8 +1620,9 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
             let tiedTo (o: int) = tied |> List.tryFind (fun (key, _) -> key = (r.Caller.Ref.Key, o)) |> Option.map snd
 
             let own =
-                match addressOf r.Rule, specOf r.Rule "message-consumer" with
-                | Some queue, None -> Some(r, text r queue)
+                match channelItem r, addressOf r.Rule, specOf r.Rule "message-consumer" with
+                | Some item, _, _ -> Some(r, item |> Option.map (fun t -> t.FullName))
+                | None, Some queue, None -> Some(r, text r queue)
                 | _ -> None
 
             let source =
@@ -1583,6 +1684,9 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
 
                 let queueStep =
                     match source with
+                    | Some(q, name) when (specOf q.Rule "channel-item").IsSome ->
+                        let items = match name with Some n -> $"items of type {n}" | None -> "items of a type that is not known"
+                        [ step $"{q.Caller.Ref.Display} reads {items} from a channel with {q.Declared.Display} (rule {q.Rule.Id})" q.Caller.Ref (Instruction.pointAt q.Caller.Body.Value.Value.Instructions q.Index) ]
                     | Some(q, name) ->
                         let noun, verb =
                             match category, nounOf q.Rule with
@@ -1615,11 +1719,19 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                   Before = []
                   Evidence =
                     { Steps =
-                        (if receives then
-                             step $"{r.Caller.Ref.Display} receives messages with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
-                         else
-                             step $"{r.Caller.Ref.Display} registers {handler.Display} with {r.Declared.Display}, called {calledWhen} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint)
-                        :: queueStep } }))
+                        if receives && (channelItem r).IsSome then
+                            queueStep
+                        elif receives then
+                            step $"{r.Caller.Ref.Display} receives messages with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
+                            :: queueStep
+                        elif (specOf r.Rule "queued-work").IsSome then
+                            let writer = kickoff r.Caller.Ref
+
+                            passed
+                            @ [ step $"{writer.Display} writes {handler.Display} to a channel with {r.Declared.Display}, run when the channel is read (rule {r.Rule.Id})" r.Caller.Ref registrationPoint ]
+                        else
+                            step $"{r.Caller.Ref.Display} registers {handler.Display} with {r.Declared.Display}, called {calledWhen} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
+                            :: queueStep } }))
 
 // ---- Azure Functions ----
 
