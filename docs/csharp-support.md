@@ -324,6 +324,23 @@ Also new, outside the recognizer:
   topic (`"message-topic"`), besides their HTTP routes. Both are registered through `Dapr.TopicAttribute`, which
   `WithTopic` adds to the endpoint's metadata, so the architecture names Dapr as what delivers the messages. Not read: bulk subscriptions, actors, workflows, jobs and the
   distributed lock. Fixture: `CSharp.Dapr`.
+- **Orleans grains**: a silo activates grains and runs the calls clients make to them, through proxies and
+  invokers Orleans's source generator writes into the application, so a grain method had no caller and a call
+  to a grain went nowhere. `UseOrleans` (`network.orleans-silo`) is a registration with a `"scanned-grains"`
+  payload: every class of the application and the user assemblies it references that implements an interface
+  derived from `Orleans.IGrain` (the callback rule `network.orleans-grain`) is a grain, and each method of such an
+  interface it implements is a network entry point at `Interface.Method` (`CSharp.Silo.Orders.IOrderGrain.Place`),
+  complete, registered through `Orleans.IGrain`. A call to such a method is a network exit point at the same
+  address (`network.orleans-grain-call`, payload `"grain-method"`), so an application that calls another's grain
+  is linked to it in the architecture. That rule has `"applicationInterfaces": true`: it matches the methods of
+  interfaces declared in the solution only, not Orleans's own system grains. Generated code is told by
+  `[GeneratedCode]` on a method or on its type (Orleans marks the classes): the proxies are no grains, and the
+  invokers' calls to the grain are not reported. `RegisterGrainTimer` and `Grain.RegisterTimer`
+  (`background.orleans-*timer`) make the callback background work; `IStorage`'s `ReadStateAsync`,
+  `WriteStateAsync` and `ClearStateAsync` (`database.orleans-grain-state`) are a grain's persistent state, without
+  a payload: the storage provider is named in a `[PersistentState]` attribute on a constructor parameter, which is
+  not read. Not read either: streams (implicit and explicit subscriptions), reminders, observers, and the
+  storage provider behind the state. Fixture: `CSharp.Orleans` (silo and client in one host).
 - **AWS and Azure Cosmos DB**: the AWS SDK for .NET and the Cosmos DB client send requests through pipelines of
 
   handlers of their own, past credential providers that read files, start processes and call the platform's

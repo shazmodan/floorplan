@@ -34,12 +34,21 @@ let nativeRule =
       LogCall = LogCall.Direct
       Configuration = None
       MarkedCalls = false
+      ApplicationInterfaces = false
       Setting = None
       Source = "built-in" }
 
 /// Whether a call edge is itself an effect.
 let sinkOf (set: AssemblySet) (matcher: Matcher) (edge: CallEdge) : SinkHit option =
-    match matcher.Sink edge.Declared with
+    // A rule for the application's interfaces applies to an interface of a project of the solution only.
+    let applies (rule: Rule) =
+        not rule.ApplicationInterfaces
+        || (set.IsUser edge.Declared.Type.Assembly
+            && (match set.TryType edge.Declared.Type with
+                | Some(t, _) -> t.IsInterface
+                | None -> false))
+
+    match matcher.Sink edge.Declared |> Option.filter applies with
     | Some rule ->
         Some
             { Rule = rule

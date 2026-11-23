@@ -161,6 +161,9 @@ type Rule =
       /// For sinks: the rule's type is an attribute, and a call to a method it marks is the effect (Refit's
       /// [Get("/users/{id}")] on an interface method). Payload arguments are the attribute's.
       MarkedCalls: bool
+      /// For sinks with includeDerivedTypes: only calls to methods of interfaces the solution declares that derive
+      /// from the rule's type (an Orleans grain interface), not the library's own.
+      ApplicationInterfaces: bool
       /// For setting rules: what the call reads.
       Setting: SettingSpec option
       /// The catalog that defined the rule.

@@ -421,3 +421,11 @@ What changed (in `graphCanvas`, so every graph view gets the first three):
   moved in front of one veil that dims the rest (one see-through layer instead of one per faded element), and
   an index of each element's lines replaces a scan of every relationship per element. 140 ms became 45 ms.
 
+### 2026-11-23: calls to an address the solution receives at (TODO 1, `claude/read-orleans-grains`)
+
+Orleans grain methods are network entry points at `Interface.Method`, registered through `Orleans.IGrain`, and a
+call to a grain is a network exit point at the same address, whose primitive is the application's own interface:
+no library of its own, so it went to "Network" while the grains were called by "Orleans". A network exit point
+with no library whose literal address is the route of network entry points delivered by one library now goes to
+that library's system. Calls between applications are still matched first (`between`).
+

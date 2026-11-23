@@ -93,6 +93,12 @@ CSharp.Middleware | http-in | GET /orders/{id} | complete | CSharp.Middleware:CS
 CSharp.Middleware | http-in | PUT /orders/{id} | complete | CSharp.Middleware:CSharp.Middleware | CSharp.Middleware.Handlers::Replace | forms [control-flow] | [path-segment0 equals orders; segment-count equals 2; method equals PUT; path-segment1 parameter {param}]
 CSharp.Middleware | http-in | - - | unresolved | CSharp.Middleware:CSharp.Middleware | CSharp.Middleware.AddressUses::Describe | forms [] | []
 CSharp.Middleware | http-in | - - | unresolved | CSharp.Middleware:CSharp.Middleware | CSharp.Middleware.Handlers::NotFound | forms [] | []
+CSharp.Orleans | http-in | DELETE /orders/{id} | complete | CSharp.Orleans: | Program/<lambda> | forms [platform-routing] | [method equals DELETE; path-segment0 equals orders; path-segment1 parameter {id}; segment-count equals 2]
+CSharp.Orleans | http-in | POST /orders/{id} | complete | CSharp.Orleans: | Program/<lambda> | forms [platform-routing] | [method equals POST; path-segment0 equals orders; path-segment1 parameter {id}; segment-count equals 2]
+CSharp.Orleans | network | - CSharp.Silo.Orders.IOrderGrain.Cancel | complete | CSharp.Orleans:CSharp.Silo.Orders | CSharp.Silo.Orders.OrderGrain::Cancel | forms [platform-routing] | [] | through Orleans.IGrain
+CSharp.Orleans | network | - CSharp.Silo.Orders.IOrderGrain.Place | complete | CSharp.Orleans:CSharp.Silo.Orders | CSharp.Silo.Orders.OrderGrain::Place | forms [platform-routing] | [] | through Orleans.IGrain
+CSharp.Orleans | network | - CSharp.Silo.Stock.IStockGrain.Reserve | complete | CSharp.Orleans:CSharp.Silo.Stock | CSharp.Silo.Stock.StockGrain::Reserve | forms [platform-routing] | [] | through Orleans.IGrain
+CSharp.Orleans | background | - - | complete | CSharp.Orleans:CSharp.Silo.Stock | CSharp.Silo.Stock.StockGrain::Flush | forms [platform-routing] | [] | through Orleans.GrainBaseExtensions
 CSharp.Switch | http-in | GET /api/customers | complete | CSharp.Switch:CSharp.Switch | CSharp.Switch.Orders::Customers | forms [control-flow] | [method equals GET; path equals /api/customers]
 CSharp.Switch | http-in | GET /api/invoices | complete | CSharp.Switch:CSharp.Switch | CSharp.Switch.Orders::Invoices | forms [control-flow] | [method equals GET; path equals /api/invoices]
 CSharp.Switch | http-in | GET /api/orders | complete | CSharp.Switch:CSharp.Switch | CSharp.Switch.Orders::List | forms [control-flow] | [method equals GET; path equals /api/orders]

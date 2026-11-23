@@ -1,4 +1,4 @@
-software-system | system | CSharp | - | in - | - | 17 sources
+software-system | system | CSharp | - | in - | - | 18 sources
 container | container:CSharp.Blazor | CSharp.Blazor | C# · net8.0 | in system | web application | 8 sources
 container | container:CSharp.Clients | CSharp.Clients | C# · net8.0 | in system | message consumer | 3 sources
 container | container:CSharp.Cloud | CSharp.Cloud | C# · net8.0 | in system | message consumer | 2 sources
@@ -13,6 +13,7 @@ container | container:CSharp.FunctionsInProcess | CSharp.FunctionsInProcess | C#
 container | container:CSharp.Grpc | CSharp.Grpc | C# · net8.0 | in system | web application | 3 sources
 container | container:CSharp.Messaging | CSharp.Messaging | C# · net8.0 | in system | message consumer | 13 sources
 container | container:CSharp.Middleware | CSharp.Middleware | C# · net8.0 | in system | web application | 9 sources
+container | container:CSharp.Orleans | CSharp.Orleans | C# · net8.0 | in system | web application,message consumer,background worker | 7 sources
 container | container:CSharp.Switch | CSharp.Switch | C# · net8.0 | in system | web application | 10 sources
 container | container:CSharp.Table | CSharp.Table | C# · net8.0 | in system | web application | 3 sources
 container | container:CSharp.Worker | CSharp.Worker | C# · net8.0 | in system | file watcher,background worker | 16 sources
@@ -85,6 +86,9 @@ component | component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales |
 component | component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping | CSharp.Messaging.Shipping | C# namespace | in container:CSharp.Messaging | handles requests,reaches out | 1 sources
 component | component:CSharp.Middleware|CSharp.Middleware: | (global namespace) | C# namespace | in container:CSharp.Middleware | - | 1 sources
 component | component:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware | CSharp.Middleware | C# namespace | in container:CSharp.Middleware | handles requests | 1 sources
+component | component:CSharp.Orleans|CSharp.Orleans: | (global namespace) | C# namespace | in container:CSharp.Orleans | handles requests,reaches out | 1 sources
+component | component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders | CSharp.Silo.Orders | C# namespace | in container:CSharp.Orleans | handles requests,reaches out | 1 sources
+component | component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock | CSharp.Silo.Stock | C# namespace | in container:CSharp.Orleans | handles requests,reaches out | 1 sources
 component | component:CSharp.Switch|CSharp.Switch: | (global namespace) | C# namespace | in container:CSharp.Switch | - | 1 sources
 component | component:CSharp.Switch|CSharp.Switch:CSharp.Switch | CSharp.Switch | C# namespace | in container:CSharp.Switch | handles requests | 1 sources
 component | component:CSharp.Table|CSharp.Table: | (global namespace) | C# namespace | in container:CSharp.Table | - | 1 sources
@@ -221,6 +225,12 @@ code | code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middlew
 code | code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Handlers | Handlers | type | in component:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware | handles requests | 1 sources
 code | code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Router | Router | type | in component:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware | - | 1 sources
 code | code:CSharp.Middleware|CSharp.Middleware:|Program | Program | type | in component:CSharp.Middleware|CSharp.Middleware: | - | 1 sources
+code | code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.IOrderGrain | IOrderGrain | type | in component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders | - | 1 sources
+code | code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain | OrderGrain | type | in component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders | handles requests,reaches out | 1 sources
+code | code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderState | OrderState | type | in component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders | - | 1 sources
+code | code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock|CSharp.Silo.Stock.IStockGrain | IStockGrain | type | in component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock | - | 1 sources
+code | code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock|CSharp.Silo.Stock.StockGrain | StockGrain | type | in component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock | handles requests,reaches out | 1 sources
+code | code:CSharp.Orleans|CSharp.Orleans:|Program | Program | type | in component:CSharp.Orleans|CSharp.Orleans: | handles requests,reaches out | 1 sources
 code | code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Orders | Orders | type | in component:CSharp.Switch|CSharp.Switch:CSharp.Switch | handles requests | 1 sources
 code | code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Router | Router | type | in component:CSharp.Switch|CSharp.Switch:CSharp.Switch | - | 1 sources
 code | code:CSharp.Switch|CSharp.Switch:|Program | Program | type | in component:CSharp.Switch|CSharp.Switch: | - | 1 sources
@@ -241,12 +251,13 @@ code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Re
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule | Schedule | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | - | 1 sources
 code | code:CSharp.Worker|CSharp.Worker:|Program | Program | type | in component:CSharp.Worker|CSharp.Worker: | - | 1 sources
 external-system | external:database | Database | - | in - | - | 47 sources
-external-system | external:filesystem | File system | - | in - | - | 107 sources
+external-system | external:filesystem | File system | - | in - | - | 109 sources
 external-system | external:http | HTTP services | - | in - | - | 8 sources
 external-system | external:http:api.example.org | api.example.org | - | in - | - | 7 sources
 external-system | external:http:api.github.com | api.github.com | - | in - | - | 2 sources
 external-system | external:http:billing | billing | - | in - | - | 1 sources
 external-system | external:http:inventory | inventory | - | in - | - | 1 sources
+external-system | external:http:payments.example.org | payments.example.org | - | in - | - | 1 sources
 external-system | external:http:pricing | pricing | - | in - | - | 1 sources
 external-system | external:http:shipping | shipping | - | in - | - | 1 sources
 external-system | external:http:status.example.org | status.example.org | - | in - | - | 1 sources
@@ -268,13 +279,14 @@ external-system | external:library:Microsoft.Azure.WebJobs | Microsoft.Azure.Web
 external-system | external:library:Microsoft.EntityFrameworkCore | Microsoft.EntityFrameworkCore | - | in - | - | 8 sources
 external-system | external:library:MongoDB.Driver | MongoDB.Driver | - | in - | - | 3 sources
 external-system | external:library:NServiceBus | NServiceBus | - | in - | - | 2 sources
+external-system | external:library:Orleans | Orleans | - | in - | - | 8 sources
 external-system | external:library:RabbitMQ.Client | RabbitMQ.Client | - | in - | - | 10 sources
 external-system | external:library:SendGrid | SendGrid | - | in - | - | 1 sources
 external-system | external:library:StackExchange.Redis | StackExchange.Redis | - | in - | - | 6 sources
 external-system | external:native | Native libraries | - | in - | - | 2 sources
 external-system | external:network | Network | - | in - | - | 4 sources
 external-system | external:processes | Operating system | - | in - | - | 5 sources
-person | person:user | User | - | in - | - | 84 sources
+person | person:user | User | - | in - | - | 86 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Counter -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components.Pages|CSharp.Blazor.Components.Pages.Order -> external:filesystem | writes files | - | 1 sources
 code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.App -> code:CSharp.Blazor|CSharp.Blazor:CSharp.Blazor.Components|CSharp.Blazor.Components.Routes | uses | - | 1 sources
@@ -476,6 +488,15 @@ code:CSharp.Messaging|CSharp.Messaging:|Program -> code:CSharp.Messaging|CSharp.
 code:CSharp.Messaging|CSharp.Messaging:|Program -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping|CSharp.Messaging.Shipping.Bus | uses | - | 1 sources
 code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Router -> code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Handlers | uses | - | 1 sources
 code:CSharp.Middleware|CSharp.Middleware:|Program -> code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Router | uses | - | 1 sources
+code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain -> code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderState | uses | - | 1 sources
+code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain -> code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock|CSharp.Silo.Stock.IStockGrain | uses | - | 1 sources
+code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain -> external:filesystem | writes files | - | 1 sources
+code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain -> external:http:payments.example.org | sends HTTP requests | HTTP | 1 sources
+code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain -> external:library:Orleans | reads and writes data | - | 2 sources
+code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain -> external:library:Orleans | sends and receives over the network | - | 1 sources
+code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock|CSharp.Silo.Stock.StockGrain -> external:filesystem | writes files | - | 1 sources
+code:CSharp.Orleans|CSharp.Orleans:|Program -> code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.IOrderGrain | uses | - | 1 sources
+code:CSharp.Orleans|CSharp.Orleans:|Program -> external:library:Orleans | sends and receives over the network | - | 2 sources
 code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Router -> code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Orders | uses | - | 1 sources
 code:CSharp.Switch|CSharp.Switch:|Program -> code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Router | uses | - | 1 sources
 code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Router -> code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Handlers | uses | - | 1 sources
@@ -518,6 +539,8 @@ external:library:Microsoft.AspNetCore.SignalR.Client -> code:CSharp.Clients|CSha
 external:library:Microsoft.Azure.Functions.Worker -> code:CSharp.Functions|CSharp.Functions:CSharp.Functions.Orders|CSharp.Functions.Orders.OrderFunctions | delivers messages to | - | 1 sources
 external:library:Microsoft.Azure.WebJobs -> code:CSharp.FunctionsInProcess|CSharp.FunctionsInProcess:CSharp.FunctionsInProcess.Orders|CSharp.FunctionsInProcess.Orders.OrderFunctions | delivers messages to | - | 1 sources
 external:library:NServiceBus -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.PlaceOrderHandler | delivers messages to | - | 1 sources
+external:library:Orleans -> code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain | delivers messages to | - | 2 sources
+external:library:Orleans -> code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock|CSharp.Silo.Stock.StockGrain | delivers messages to | - | 1 sources
 external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices | delivers messages to | - | 4 sources
 external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders|CSharp.Messaging.Orders.Listener | delivers messages to | - | 2 sources
 external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Refunds|CSharp.Messaging.Refunds.Poller | delivers messages to | - | 1 sources
@@ -553,9 +576,10 @@ person:user -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.In
 person:user -> code:CSharp.Grpc|CSharp.Grpc:| (response built by a library function) | sends HTTP requests to | HTTP | 1 sources
 person:user -> code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.AddressUses | sends HTTP requests to | HTTP | 1 sources
 person:user -> code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Handlers | sends HTTP requests to | HTTP | 7 sources
+person:user -> code:CSharp.Orleans|CSharp.Orleans:|Program | sends HTTP requests to | HTTP | 2 sources
 person:user -> code:CSharp.Switch|CSharp.Switch:CSharp.Switch|CSharp.Switch.Orders | sends HTTP requests to | HTTP | 9 sources
 person:user -> code:CSharp.Table|CSharp.Table:CSharp.Table|CSharp.Table.Handlers | sends HTTP requests to | HTTP | 2 sources
-view context | context of system | 36 elements | 2411 x 2396
+view context | context of system | 38 elements | 2190 x 2396
   external:filesystem -> system | notifies of changed files | - | 1 sources
   external:library:Amazon.SQS -> system | delivers messages to | - | 1 sources
   external:library:Azure.Messaging.ServiceBus -> system | delivers messages to | - | 2 sources
@@ -566,17 +590,19 @@ view context | context of system | 36 elements | 2411 x 2396
   external:library:Microsoft.Azure.Functions.Worker -> system | delivers messages to | - | 1 sources
   external:library:Microsoft.Azure.WebJobs -> system | delivers messages to | - | 1 sources
   external:library:NServiceBus -> system | delivers messages to | - | 1 sources
+  external:library:Orleans -> system | delivers messages to | - | 3 sources
   external:library:RabbitMQ.Client -> system | delivers messages to | - | 7 sources
   external:library:StackExchange.Redis -> system | delivers messages to | - | 1 sources
-  person:user -> system | sends HTTP requests to | HTTP | 84 sources
+  person:user -> system | sends HTTP requests to | HTTP | 86 sources
   system -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 47 sources
   system -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 9 more | 34 sources
-  system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 72 sources
+  system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 74 sources
   system -> external:http | sends HTTP requests | AWSSDK.SQS, Flurl.Http, HTTP and 1 more | 8 sources
   system -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
   system -> external:http:api.github.com | sends HTTP requests | HTTP | 2 sources
   system -> external:http:billing | sends HTTP requests | HTTP | 1 sources
   system -> external:http:inventory | sends HTTP requests | Dapr | 1 sources
+  system -> external:http:payments.example.org | sends HTTP requests | HTTP | 1 sources
   system -> external:http:pricing | sends HTTP requests | Dapr | 1 sources
   system -> external:http:shipping | sends HTTP requests | Dapr | 1 sources
   system -> external:http:status.example.org | sends HTTP requests | HTTP | 1 sources
@@ -597,6 +623,8 @@ view context | context of system | 36 elements | 2411 x 2396
   system -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | - | 8 sources
   system -> external:library:MongoDB.Driver | reads and writes data | - | 3 sources
   system -> external:library:NServiceBus | sends and receives over the network | - | 1 sources
+  system -> external:library:Orleans | reads and writes data | - | 2 sources
+  system -> external:library:Orleans | sends and receives over the network | - | 3 sources
   system -> external:library:RabbitMQ.Client | sends and receives over the network | - | 3 sources
   system -> external:library:SendGrid | sends HTTP requests | - | 1 sources
   system -> external:library:StackExchange.Redis | reads and writes data | - | 3 sources
@@ -604,7 +632,7 @@ view context | context of system | 36 elements | 2411 x 2396
   system -> external:native | calls native code | Confluent.Kafka | 2 sources
   system -> external:network | sends and receives over the network | AWSSDK.SQS, RabbitMQ.Client, StackExchange.Redis and 1 more | 4 sources
   system -> external:processes | starts or inspects processes | MassTransit, Microsoft.Azure.Cosmos.Client, NLog and 1 more | 5 sources
-view containers | containers of system | 52 elements | 2790 x 2848
+view containers | containers of system | 55 elements | 3078 x 3189
   container:CSharp.Blazor -> external:filesystem | writes files | - | 2 sources
   container:CSharp.Clients -> external:filesystem | reads files | MongoDB.Driver | 2 sources
   container:CSharp.Clients -> external:filesystem | writes files | - | 2 sources
@@ -662,6 +690,10 @@ view containers | containers of system | 52 elements | 2790 x 2848
   container:CSharp.Messaging -> external:native | calls native code | Confluent.Kafka | 1 sources
   container:CSharp.Messaging -> external:network | sends and receives over the network | RabbitMQ.Client | 1 sources
   container:CSharp.Messaging -> external:processes | starts or inspects processes | MassTransit | 1 sources
+  container:CSharp.Orleans -> external:filesystem | writes files | - | 2 sources
+  container:CSharp.Orleans -> external:http:payments.example.org | sends HTTP requests | HTTP | 1 sources
+  container:CSharp.Orleans -> external:library:Orleans | reads and writes data | - | 2 sources
+  container:CSharp.Orleans -> external:library:Orleans | sends and receives over the network | - | 3 sources
   container:CSharp.Worker -> external:filesystem | reads files | - | 2 sources
   container:CSharp.Worker -> external:filesystem | writes files | - | 13 sources
   container:CSharp.Worker -> external:http | sends HTTP requests | HTTP | 1 sources
@@ -675,6 +707,7 @@ view containers | containers of system | 52 elements | 2790 x 2848
   external:library:Microsoft.Azure.Functions.Worker -> container:CSharp.Functions | delivers messages to | - | 1 sources
   external:library:Microsoft.Azure.WebJobs -> container:CSharp.FunctionsInProcess | delivers messages to | - | 1 sources
   external:library:NServiceBus -> container:CSharp.Messaging | delivers messages to | - | 1 sources
+  external:library:Orleans -> container:CSharp.Orleans | delivers messages to | - | 3 sources
   external:library:RabbitMQ.Client -> container:CSharp.Messaging | delivers messages to | - | 7 sources
   external:library:StackExchange.Redis -> container:CSharp.Clients | delivers messages to | - | 1 sources
   person:user -> container:CSharp.Blazor | sends HTTP requests to | HTTP | 7 sources
@@ -687,6 +720,7 @@ view containers | containers of system | 52 elements | 2790 x 2848
   person:user -> container:CSharp.FunctionsInProcess | sends HTTP requests to | HTTP | 2 sources
   person:user -> container:CSharp.Grpc | sends HTTP requests to | HTTP | 2 sources
   person:user -> container:CSharp.Middleware | sends HTTP requests to | HTTP | 8 sources
+  person:user -> container:CSharp.Orleans | sends HTTP requests to | HTTP | 2 sources
   person:user -> container:CSharp.Switch | sends HTTP requests to | HTTP | 9 sources
   person:user -> container:CSharp.Table | sends HTTP requests to | HTTP | 2 sources
 view components:CSharp.Blazor | components of container:CSharp.Blazor | 5 elements | 528 x 1032
@@ -869,6 +903,18 @@ view components:CSharp.Messaging | components of container:CSharp.Messaging | 17
 view components:CSharp.Middleware | components of container:CSharp.Middleware | 3 elements | 314 x 802
   component:CSharp.Middleware|CSharp.Middleware: -> component:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware | uses | - | 1 sources
   person:user -> component:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware | sends HTTP requests to | HTTP | 8 sources
+view components:CSharp.Orleans | components of container:CSharp.Orleans | 7 elements | 595 x 1262
+  component:CSharp.Orleans|CSharp.Orleans: -> component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders | uses | - | 1 sources
+  component:CSharp.Orleans|CSharp.Orleans: -> external:library:Orleans | sends and receives over the network | - | 2 sources
+  component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders -> component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock | uses | - | 1 sources
+  component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders -> external:filesystem | writes files | - | 1 sources
+  component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders -> external:http:payments.example.org | sends HTTP requests | HTTP | 1 sources
+  component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders -> external:library:Orleans | reads and writes data | - | 2 sources
+  component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders -> external:library:Orleans | sends and receives over the network | - | 1 sources
+  component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock -> external:filesystem | writes files | - | 1 sources
+  external:library:Orleans -> component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders | delivers messages to | - | 2 sources
+  external:library:Orleans -> component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock | delivers messages to | - | 1 sources
+  person:user -> component:CSharp.Orleans|CSharp.Orleans: | sends HTTP requests to | HTTP | 2 sources
 view components:CSharp.Switch | components of container:CSharp.Switch | 3 elements | 314 x 802
   component:CSharp.Switch|CSharp.Switch: -> component:CSharp.Switch|CSharp.Switch:CSharp.Switch | uses | - | 1 sources
   person:user -> component:CSharp.Switch|CSharp.Switch:CSharp.Switch | sends HTTP requests to | HTTP | 9 sources
@@ -1234,6 +1280,23 @@ view code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware | code of compon
   component:CSharp.Middleware|CSharp.Middleware: -> code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Router | uses | - | 1 sources
   person:user -> code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.AddressUses | sends HTTP requests to | HTTP | 1 sources
   person:user -> code:CSharp.Middleware|CSharp.Middleware:CSharp.Middleware|CSharp.Middleware.Handlers | sends HTTP requests to | HTTP | 7 sources
+view code:CSharp.Orleans|CSharp.Orleans: | code of component:CSharp.Orleans|CSharp.Orleans: | 4 elements | 528 x 691
+  code:CSharp.Orleans|CSharp.Orleans:|Program -> component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders | uses | - | 1 sources
+  code:CSharp.Orleans|CSharp.Orleans:|Program -> external:library:Orleans | sends and receives over the network | - | 2 sources
+  person:user -> code:CSharp.Orleans|CSharp.Orleans:|Program | sends HTTP requests to | HTTP | 2 sources
+view code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders | code of component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders | 8 elements | 816 x 1032
+  code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain -> code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderState | uses | - | 1 sources
+  code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain -> component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock | uses | - | 1 sources
+  code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain -> external:filesystem | writes files | - | 1 sources
+  code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain -> external:http:payments.example.org | sends HTTP requests | HTTP | 1 sources
+  code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain -> external:library:Orleans | reads and writes data | - | 2 sources
+  code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain -> external:library:Orleans | sends and receives over the network | - | 1 sources
+  component:CSharp.Orleans|CSharp.Orleans: -> code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.IOrderGrain | uses | - | 1 sources
+  external:library:Orleans -> code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain | delivers messages to | - | 2 sources
+view code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock | code of component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock | 5 elements | 577 x 691
+  code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock|CSharp.Silo.Stock.StockGrain -> external:filesystem | writes files | - | 1 sources
+  component:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders -> code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock|CSharp.Silo.Stock.IStockGrain | uses | - | 1 sources
+  external:library:Orleans -> code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock|CSharp.Silo.Stock.StockGrain | delivers messages to | - | 1 sources
 view code:CSharp.Switch|CSharp.Switch: | code of component:CSharp.Switch|CSharp.Switch: | 2 elements | 245 x 572
   code:CSharp.Switch|CSharp.Switch:|Program -> component:CSharp.Switch|CSharp.Switch:CSharp.Switch | uses | - | 1 sources
 view code:CSharp.Switch|CSharp.Switch:CSharp.Switch | code of component:CSharp.Switch|CSharp.Switch:CSharp.Switch | 4 elements | 528 x 802

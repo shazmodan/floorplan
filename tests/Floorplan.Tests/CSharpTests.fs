@@ -460,6 +460,53 @@ let tests =
                   "a Redis subscription"
           }
 
+          test "Orleans: each grain interface method is a network entry point, and a call to one is a network exit point at the same address" {
+              let m = csharpModel.Force()
+
+              Expect.equal
+                  (entries m "CSharp.Orleans"
+                   |> List.filter (fun e -> e.Category <> EffectCategory.HttpIn)
+                   |> List.map (fun e -> e.Category, e.Route, e.HandlerMember, e.RegisteredThrough)
+                   |> List.sort)
+                  [ EffectCategory.Network, Some "CSharp.Silo.Orders.IOrderGrain.Cancel", "CSharp.Silo.Orders.OrderGrain::Cancel", Some "Orleans.IGrain"
+                    EffectCategory.Network, Some "CSharp.Silo.Orders.IOrderGrain.Place", "CSharp.Silo.Orders.OrderGrain::Place", Some "Orleans.IGrain"
+                    EffectCategory.Network, Some "CSharp.Silo.Stock.IStockGrain.Reserve", "CSharp.Silo.Stock.StockGrain::Reserve", Some "Orleans.IGrain"
+                    EffectCategory.Background, None, "CSharp.Silo.Stock.StockGrain::Flush", Some "Orleans.GrainBaseExtensions" ]
+                  "UseOrleans finds the grains by scanning the application, not the proxies Orleans generates; a grain timer is background work"
+
+              let exits =
+                  m.ExitPoints
+                  |> List.filter (fun x -> x.Unit.StartsWith "CSharp.Orleans:" && x.Category <> EffectCategory.Environment && x.Confidence = Confidence.High)
+                  |> List.map (fun x -> x.Category, x.Member, x.Payload |> Option.bind (fun p -> p.Value))
+                  |> List.sort
+
+              Expect.equal
+                  exits
+                  [ EffectCategory.HttpOut, "CSharp.Silo.Orders.OrderGrain/<Place>d__3::MoveNext", Some "https://payments.example.org/charge"
+                    EffectCategory.Network, "CSharp.Silo.Orders.OrderGrain/<Place>d__3::MoveNext", Some "CSharp.Silo.Stock.IStockGrain.Reserve"
+                    EffectCategory.Network, "Program/<>c/<<<Main>$>b__0_1>d::MoveNext", Some "CSharp.Silo.Orders.IOrderGrain.Place"
+                    EffectCategory.Network, "Program/<>c/<<<Main>$>b__0_2>d::MoveNext", Some "CSharp.Silo.Orders.IOrderGrain.Cancel"
+                    EffectCategory.Database, "CSharp.Silo.Orders.OrderGrain/<Cancel>d__4::MoveNext", None
+                    EffectCategory.Database, "CSharp.Silo.Orders.OrderGrain/<Place>d__3::MoveNext", None
+                    EffectCategory.FilesystemWrite, "CSharp.Silo.Orders.OrderGrain/<Cancel>d__4::MoveNext", Some "cancelled.log"
+                    EffectCategory.FilesystemWrite, "CSharp.Silo.Stock.StockGrain::Flush", Some "stock.log" ]
+                  "calls to grains from endpoints and from another grain, not from the generated invokers; the grain's state; what the grains do"
+
+              let traced (handler: string) =
+                  let e = entries m "CSharp.Orleans" |> List.find (fun e -> e.HandlerMember = handler)
+                  let t = m.Traces |> List.find (fun t -> t.EntryPointId = e.Id)
+
+                  m.ExitPoints
+                  |> List.filter (fun x -> List.contains x.Id t.ExitPointIds)
+                  |> List.map (fun x -> x.Category)
+                  |> List.sort
+
+              Expect.equal
+                  (traced "CSharp.Silo.Orders.OrderGrain::Place")
+                  [ EffectCategory.HttpOut; EffectCategory.Network; EffectCategory.Database ]
+                  "a grain's effects are traced from its entry point"
+          }
+
           test "Dapr: a subscribed topic is a network entry point, and the client's building blocks are named exit points" {
               let m = csharpModel.Force()
 
