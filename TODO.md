@@ -6,8 +6,8 @@ Work that is known and not yet done. Remove an item when its branch is merged.
 
 In the order they are worth doing: the first ones change results already shown, the later ones add new inputs.
 
-1. **Cover more kinds of applications**, each found by a probe first: Dapr (pub/sub subscriptions, service
-   invocation, state store), Orleans grains, WCF/CoreWCF services, and OpenTelemetry exporters as exit points.
+1. **Cover more kinds of applications**, each found by a probe first: Orleans grains, WCF/CoreWCF services, and
+   OpenTelemetry exporters as exit points.
 2. **Summarize dependencies per project**: each project's view of the call graph keeps its virtual calls to the
    types its reference closure constructs, but dependency summaries are computed once over the whole solution
    (and cached so), so a virtual call inside a package can still reach an implementation in a package only

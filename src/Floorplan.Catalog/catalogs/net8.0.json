@@ -752,6 +752,49 @@
     { "id": "background.timers-timer-elapsed", "assembly": "System.ComponentModel.TypeConverter", "type": "System.Timers.Timer",
       "members": ["add_Elapsed"], "kind": "registration", "category": "background", "payload": [{ "argument": 0, "role": "message-handler" }] },
 
+    // ---------------- Dapr ----------------
+    // The Dapr client sends everything to its sidecar over gRPC or HTTP, which showed as dynamic gRPC calls: the
+    // building blocks are named here. A subscription is a topic the sidecar delivers to an endpoint of the
+    // application: `[Topic(pubsub, topic)]` on the method ("topic-subscription"), or `.WithTopic(pubsub, topic)` on
+    // the endpoint a mapping made ("subscribed-endpoint"). Service invocation calls another application by its id
+    // ("app-method": the id, then the method), and so does an HttpClient CreateInvokeHttpClient makes ("invoked-app").
+    { "id": "network.dapr-topic", "assembly": "Dapr.AspNetCore", "type": "Dapr.TopicAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "network",
+      "payload": [{ "argument": -1, "role": "topic-subscription" }, { "argument": 1, "role": "message-topic" }] },
+    { "id": "network.dapr-with-topic", "assembly": "Dapr.AspNetCore", "type": "Microsoft.AspNetCore.Builder.DaprEndpointConventionBuilderExtensions",
+      "members": ["WithTopic"], "whenParameters": ["!!0", "System.String", "System.String"], "kind": "registration", "category": "network",
+      "payload": [{ "argument": 0, "role": "subscribed-endpoint" }, { "argument": 2, "role": "message-topic" }] },
+    { "id": "network.dapr-publish", "assembly": "Dapr.Client", "type": "Dapr.Client.DaprClient",
+      "members": ["PublishEventAsync", "PublishByteEventAsync", "BulkPublishEventAsync"], "includeDerivedTypes": true, "kind": "sink", "category": "network",
+      "payload": [{ "argument": 1, "role": "topic" }] },
+    { "id": "database.dapr-state", "assembly": "Dapr.Client", "type": "Dapr.Client.DaprClient",
+      "members": ["GetStateAsync", "GetStateAndETagAsync", "GetStateEntryAsync", "GetBulkStateAsync", "SaveStateAsync", "TrySaveStateAsync",
+                  "SaveBulkStateAsync", "DeleteStateAsync", "TryDeleteStateAsync", "DeleteBulkStateAsync", "ExecuteStateTransactionAsync", "QueryStateAsync"],
+      "includeDerivedTypes": true, "kind": "sink", "category": "database", "payload": [{ "argument": 0, "role": "store" }] },
+    { "id": "http-out.dapr-invoke", "assembly": "Dapr.Client", "type": "Dapr.Client.DaprClient",
+      "members": ["InvokeMethodAsync", "InvokeMethodGrpcAsync"], "whenFirstParameter": "System.String", "includeDerivedTypes": true, "kind": "sink", "category": "http-out",
+      "payload": [{ "argument": 0, "role": "app-method" }] },
+    { "id": "http-out.dapr-invoke-verb", "assembly": "Dapr.Client", "type": "Dapr.Client.DaprClient",
+      "members": ["InvokeMethodAsync"], "whenFirstParameter": "System.Net.Http.HttpMethod", "includeDerivedTypes": true, "kind": "sink", "category": "http-out",
+      "payload": [{ "argument": 1, "role": "app-method" }] },
+    { "id": "http-out.dapr-invoke-request", "assembly": "Dapr.Client", "type": "Dapr.Client.DaprClient",
+      "members": ["InvokeMethodAsync", "InvokeMethodWithResponseAsync"], "whenFirstParameter": "System.Net.Http.HttpRequestMessage", "includeDerivedTypes": true, "kind": "sink", "category": "http-out",
+      "payload": [{ "argument": 0, "role": "app-request" }] },
+    { "id": "http-out.dapr-invoke-request-made", "assembly": "Dapr.Client", "type": "Dapr.Client.DaprClient",
+      "members": ["CreateInvokeMethodRequest"], "whenFirstParameter": "System.String", "kind": "registration", "category": "http-out",
+      "payload": [{ "argument": 0, "role": "app-method" }] },
+    { "id": "http-out.dapr-invoke-request-made-verb", "assembly": "Dapr.Client", "type": "Dapr.Client.DaprClient",
+      "members": ["CreateInvokeMethodRequest"], "whenFirstParameter": "System.Net.Http.HttpMethod", "kind": "registration", "category": "http-out",
+      "payload": [{ "argument": 1, "role": "app-method" }] },
+    { "id": "http-out.dapr-invoke-client", "assembly": "Dapr.Client", "type": "Dapr.Client.DaprClient",
+      "members": ["CreateInvokeHttpClient"], "kind": "registration", "category": "http-out", "payload": [{ "argument": 0, "role": "invoked-app" }] },
+    { "id": "network.dapr-binding", "assembly": "Dapr.Client", "type": "Dapr.Client.DaprClient",
+      "members": ["InvokeBindingAsync"], "whenFirstParameter": "System.String", "includeDerivedTypes": true, "kind": "sink", "category": "network",
+      "payload": [{ "argument": 0, "role": "binding" }] },
+    { "id": "network.dapr-secrets", "assembly": "Dapr.Client", "type": "Dapr.Client.DaprClient",
+      "members": ["GetSecretAsync", "GetBulkSecretAsync", "GetConfiguration", "SubscribeConfiguration"], "includeDerivedTypes": true, "kind": "sink", "category": "network",
+      "payload": [{ "argument": 0, "role": "store" }] },
+
     // ---------------- channels ----------------
     // A channel hands items from one part of the application to another. A method that reads from a channel is
     // background work at the type of the items (the "channel-item" is the index of the reader's type argument),

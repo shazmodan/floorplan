@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- Dapr: the application talks to its sidecar, which delivers the topics it subscribes to as requests and runs the
+       building blocks (state, pub/sub, service invocation, bindings, secrets) for it. -->
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Dapr.AspNetCore" Version="1.14.0" />
+  </ItemGroup>
+</Project>
