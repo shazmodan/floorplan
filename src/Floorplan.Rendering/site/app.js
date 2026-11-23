@@ -414,6 +414,13 @@
     }
 
     var edgeEls = [], nodeEls = {};
+    // Layers: lines under elements, then a veil and, above it, what a selection or a search brings forward.
+    // Dimming the rest with the veil costs the same at any size, where fading each element costs per element.
+    var edgesLayer = svg("g"), nodesLayer = svg("g");
+    var veil = svg("rect", { class: "c4-veil", x: -1e5, y: -1e5, width: 2e5, height: 2e5, display: "none" });
+    var frontEdges = svg("g"), frontNodes = svg("g");
+    [edgesLayer, nodesLayer, veil, frontEdges, frontNodes].forEach(function (l) { canvas.world.appendChild(l); });
+    var edgesOfNode = {}, relatedOf = {};
     // A view with many labelled lines shows its labels only for the selected element's lines and the line under
     // the pointer, or all of them on request: drawn at once they crowd one another.
     var labelled = groupBy(v.relationships.filter(function (rel) { return rel.description !== "uses"; }), function (rel) { return rel.from + ">" + rel.to; });
@@ -463,13 +470,21 @@
       var lines = label ? wrapText(label, 30, 2) : [];
       if (tech) lines.push("[" + nodeText(tech, 230) + "]");
       var mid = lines.length ? place(p, lines) : p[0];
-      var group = svg("g", { class: "c4-rel", "data-from": rels[0].from, "data-to": rels[0].to },
+      var group = svg("g", { class: "c4-rel" },
         svg("path", { class: "g-edge", d: curve(p) }),
         lines.length ? svg("text", { x: mid.x, y: mid.y - (lines.length - 1) * 7, "text-anchor": "middle" },
           lines.map(function (t, i) { return svg("tspan", { x: mid.x, dy: i === 0 ? 0 : 14, class: i === lines.length - 1 && tech ? "tech" : null, text: t }); })) : null,
         svg("title", { text: rels.map(function (rel) { return rel.description + (rel.technology ? " [" + rel.technology + "]" : "") + " — " + plural(rel.sources.length, "source"); }).join("\n") }));
       edgeEls.push(group);
-      canvas.world.appendChild(group);
+      edgesLayer.appendChild(group);
+      [rels[0].from, rels[0].to].forEach(function (end, i) {
+        (edgesOfNode[end] = edgesOfNode[end] || []).push(group);
+        var other = i ? rels[0].from : rels[0].to;
+        (relatedOf[end] = relatedOf[end] || {})[other] = true;
+      });
+      // A line's box, with room for its label, for drawing only what is near the screen.
+      var xs = p.map(function (q) { return q.x; }), ys = p.map(function (q) { return q.y; });
+      canvas.track(group, Math.min.apply(null, xs) - 120, Math.min.apply(null, ys) - 40, Math.max.apply(null, xs) + 120, Math.max.apply(null, ys) + 40);
     });
 
     g.nodes.forEach(function (n) {
@@ -504,22 +519,29 @@
         }
       }, children);
       nodeEls[n.id] = node;
-      canvas.world.appendChild(node);
+      nodesLayer.appendChild(node);
+      canvas.track(node, n.x, n.y - 20, n.x + n.width, n.y + n.height);
     });
+
+    // Brings these elements and lines in front of the veil, and sends back what was in front before.
+    var inFront = [];
+    function spotlight(ids, lines) {
+      // Moving an element in the document takes its focus away; the element that had it gets it back.
+      var active = document.activeElement;
+      inFront.forEach(function (x) { (x.classList.contains("c4-rel") ? edgesLayer : nodesLayer).appendChild(x); x.classList.remove("lit", "found"); });
+      inFront = [];
+      if (!ids) { veil.setAttribute("display", "none"); ids = []; } else veil.removeAttribute("display");
+      lines.forEach(function (x) { x.classList.add("lit"); frontEdges.appendChild(x); inFront.push(x); });
+      ids.forEach(function (k) { var x = nodeEls[k]; if (x) { frontNodes.appendChild(x); inFront.push(x); } });
+      if (active && active !== document.activeElement && active.isConnected && active.focus) active.focus({ preventScroll: true });
+    }
 
     var selected = null;
     function select(id) {
+      if (selected && nodeEls[selected]) nodeEls[selected].classList.remove("selected");
       selected = id;
-      Object.keys(nodeEls).forEach(function (k) {
-        var related = k === id || v.relationships.some(function (rel) { return (rel.from === id && rel.to === k) || (rel.to === id && rel.from === k); });
-        nodeEls[k].classList.toggle("selected", k === id);
-        nodeEls[k].classList.toggle("dim", id !== null && !related);
-      });
-      edgeEls.forEach(function (eEl) {
-        var on = eEl.getAttribute("data-from") === id || eEl.getAttribute("data-to") === id;
-        eEl.classList.toggle("dim", id !== null && !on);
-        eEl.classList.toggle("lit", id !== null && on);
-      });
+      if (id && nodeEls[id]) nodeEls[id].classList.add("selected");
+      spotlight(id ? [id].concat(Object.keys(relatedOf[id] || {})) : null, id ? edgesOfNode[id] || [] : []);
       renderSide(id);
       updateLevels();
     }
@@ -628,11 +650,10 @@
           var q = find.value.trim().toLowerCase();
           findAt = -1;
           if (selected) select(null);
-          var hits = {};
-          if (q) matches(q).forEach(function (n) { hits[n.id] = true; });
-          Object.keys(nodeEls).forEach(function (k) { nodeEls[k].classList.toggle("dim", !!q && !hits[k]); nodeEls[k].classList.toggle("found", !!q && !!hits[k]); });
-          edgeEls.forEach(function (eEl) { eEl.classList.toggle("dim", !!q); });
-          find.classList.toggle("none", !!q && !Object.keys(hits).length);
+          var hits = q ? matches(q).map(function (n) { return n.id; }) : [];
+          spotlight(q ? hits : null, []);
+          hits.forEach(function (k) { if (nodeEls[k]) nodeEls[k].classList.add("found"); });
+          find.classList.toggle("none", !!q && !hits.length);
         },
         keydown: function (ev) {
           if (ev.key === "Escape") { find.value = ""; find.dispatchEvent(new Event("input")); find.blur(); return; }
@@ -767,32 +788,99 @@
 
     var view = { x: -pad, y: -pad, w: Math.max(width, 200) + 2 * pad, h: Math.max(height, 120) + 2 * pad };
     var full = { x: view.x, y: view.y, w: view.w, h: view.h };
-    function apply() { root.setAttribute("viewBox", view.x + " " + view.y + " " + view.w + " " + view.h); }
-    apply();
+    // Moving the view draws every visible text again, which is what makes a big diagram slow. So while the view
+    // is being dragged or wheeled, the picture already drawn is moved and scaled as a whole (a CSS transform,
+    // which the browser does without drawing), and the view is drawn anew (its viewBox) only when the movement
+    // pauses or ends. Then text too small to read is left out (the svg gets "lod-far" or "lod-tiny"), and so is
+    // what the view tracks (canvas.track) while it is well outside the screen.
+    var rect = null;
+    // The svg's box on the page: its parent's, as the svg itself may be transformed for the moment.
+    function box() { if (!rect || !rect.width) rect = (root.parentNode || root).getBoundingClientRect(); return rect; }
+    if (window.ResizeObserver) new ResizeObserver(function () { rect = null; apply(); }).observe(root);
+    else window.addEventListener("resize", function () { rect = null; apply(); });
+    var drawn = { x: view.x, y: view.y, w: view.w, h: view.h };
+    var moving = false, settle = null, pending = false;
+    // Movement: shown at once by transform, drawn after it rests for a moment.
+    function move() {
+      moving = true;
+      clearTimeout(settle);
+      // A drag that rests is drawn where it is too; moving on transforms that new picture.
+      settle = setTimeout(function () { settle = null; moving = false; apply(); }, 160);
+      apply();
+    }
+    function apply() { if (!pending) { pending = true; requestAnimationFrame(flush); } }
+    function flush() {
+      pending = false;
+      if (moving) { transform(); return; }
+      root.style.transform = "";
+      drawn = { x: view.x, y: view.y, w: view.w, h: view.h };
+      root.setAttribute("viewBox", view.x + " " + view.y + " " + view.w + " " + view.h);
+      detail();
+    }
+    // The transform that turns the picture drawn for `drawn` into the picture for `view`.
+    function transform() {
+      var r = box();
+      if (!r.width || !r.height) return;
+      var place = function (v) { var s = Math.min(r.width / v.w, r.height / v.h); return { s: s, bx: -v.x * s + (r.width - v.w * s) / 2, by: -v.y * s + (r.height - v.h * s) / 2 }; };
+      var a = place(drawn), b = place(view), k = b.s / a.s;
+      root.style.transform = "translate(" + (b.bx - k * a.bx) + "px," + (b.by - k * a.by) + "px) scale(" + k + ")";
+    }
+    // The part of the diagram on screen, and screen pixels per unit of the diagram.
+    function onScreen() {
+      var r = box();
+      if (!r.width || !r.height) return null;
+      var s = Math.max(view.w / r.width, view.h / r.height), vw = r.width * s, vh = r.height * s;
+      return { x: view.x - (vw - view.w) / 2, y: view.y - (vh - view.h) / 2, w: vw, h: vh, scale: 1 / s };
+    }
+    var tracked = [], lod = "", culled = null;
+    function detail() {
+      var on = onScreen();
+      if (!on) return;
+      var next = on.scale < 0.2 ? "lod-tiny" : on.scale < 0.45 ? "lod-far" : "";
+      if (next !== lod) { if (lod) root.classList.remove(lod); if (next) root.classList.add(next); lod = next; }
+      if (!tracked.length) return;
+      // The area drawn reaches half a screen past each edge, so that a drag shows what it brings in; it is
+      // worked out again when the screen leaves it, or after zooming in far enough that most of it is off screen.
+      if (culled && on.x >= culled.x && on.y >= culled.y && on.x + on.w <= culled.x + culled.w && on.y + on.h <= culled.y + culled.h && on.w * 4 > culled.w) return;
+      culled = { x: on.x - on.w / 2, y: on.y - on.h / 2, w: on.w * 2, h: on.h * 2 };
+      var c = culled;
+      for (var i = 0; i < tracked.length; i++) {
+        var t = tracked[i];
+        var out = t.x1 < c.x || t.x0 > c.x + c.w || t.y1 < c.y || t.y0 > c.y + c.h;
+        if (out !== t.out) { t.out = out; t.el.style.display = out ? "none" : ""; }
+      }
+    }
+    root.setAttribute("viewBox", view.x + " " + view.y + " " + view.w + " " + view.h);
 
+    // Zoomed in at most to three screen pixels per unit (beyond that text is drawn slowly and nothing more shows),
+    // and out to eight times the whole diagram.
     function zoom(factor, cx, cy) {
-      var nw = Math.min(Math.max(view.w * factor, 80), full.w * 8);
+      var r = box();
+      var nw = Math.min(Math.max(view.w * factor, 80, r.width ? r.width / 3 : 0), full.w * 8);
       var f = nw / view.w;
       view.x = cx - (cx - view.x) * f;
       view.y = cy - (cy - view.y) * f;
       view.w *= f; view.h *= f;
-      apply();
     }
     function toWorld(evt) {
-      var r = root.getBoundingClientRect();
+      var r = box();
       var scale = Math.max(view.w / r.width, view.h / r.height);
       var ox = (r.width * scale - view.w) / 2, oy = (r.height * scale - view.h) / 2;
       return { x: view.x - ox + (evt.clientX - r.left) * scale, y: view.y - oy + (evt.clientY - r.top) * scale, scale: scale };
     }
     root.addEventListener("wheel", function (e) {
       e.preventDefault();
+      // The svg may have moved on the page (the sidebar shown or hidden).
+      if (!moving) rect = null;
       var p = toWorld(e);
       zoom(e.deltaY > 0 ? 1.15 : 1 / 1.15, p.x, p.y);
+      move();
     }, { passive: false });
 
     var drag = null;
     root.addEventListener("pointerdown", function (e) {
       if (e.target.closest && e.target.closest(".g-node, .toggle, .g-card a")) return;
+      rect = null;
       drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, scale: toWorld(e).scale, moved: false };
       root.setPointerCapture(e.pointerId);
       root.classList.add("panning");
@@ -801,24 +889,34 @@
       if (!drag) return;
       var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+      if (!drag.moved) return;
       view.x = drag.vx - dx * drag.scale;
       view.y = drag.vy - dy * drag.scale;
-      apply();
+      move();
     });
-    function endDrag() { if (drag) { root.classList.remove("panning"); root.dispatchEvent(new CustomEvent("panend", { detail: { moved: drag.moved } })); } drag = null; }
+    function endDrag() {
+      if (!drag) return;
+      var moved = drag.moved;
+      drag = null;
+      root.classList.remove("panning");
+      if (moved) { clearTimeout(settle); settle = null; moving = false; apply(); }
+      root.dispatchEvent(new CustomEvent("panend", { detail: { moved: moved } }));
+    }
     root.addEventListener("pointerup", endDrag);
     root.addEventListener("pointercancel", endDrag);
 
     return {
       svg: root, world: world,
-      zoomIn: function () { zoom(1 / 1.3, view.x + view.w / 2, view.y + view.h / 2); },
-      zoomOut: function () { zoom(1.3, view.x + view.w / 2, view.y + view.h / 2); },
+      // Not drawn while the box from (x0, y0) to (x1, y1) is well outside the screen.
+      track: function (node, x0, y0, x1, y1) { tracked.push({ el: node, x0: x0, y0: y0, x1: x1, y1: y1, out: false }); culled = null; apply(); },
+      zoomIn: function () { zoom(1 / 1.3, view.x + view.w / 2, view.y + view.h / 2); apply(); },
+      zoomOut: function () { zoom(1.3, view.x + view.w / 2, view.y + view.h / 2); apply(); },
       fit: function () { view.x = full.x; view.y = full.y; view.w = full.w; view.h = full.h; apply(); },
       getView: function () { return { x: view.x, y: view.y, w: view.w, h: view.h }; },
       setView: function (v) { view.x = v.x; view.y = v.y; view.w = v.w; view.h = v.h; apply(); },
       // One unit of the diagram to one screen pixel, around the centre of the view.
       actualSize: function () {
-        var r = root.getBoundingClientRect();
+        var r = box();
         if (!r.width) return;
         var cx = view.x + view.w / 2, cy = view.y + view.h / 2;
         view.w = r.width; view.h = r.height; view.x = cx - view.w / 2; view.y = cy - view.h / 2; apply();

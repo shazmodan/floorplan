@@ -209,7 +209,7 @@ ul.plain li { padding: 3px 0; }
 .graph-page { display: flex; flex-direction: column; height: 100%; }
 .graph-page .toolbar { margin: 0; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .graph { flex: 1; min-height: 300px; position: relative; overflow: hidden; background: var(--bg); }
-.graph svg { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; touch-action: none; }
+.graph svg { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; touch-action: none; transform-origin: 0 0; will-change: transform; }
 .graph svg.panning { cursor: grabbing; }
 
 .g-box rect.frame { fill: var(--box); stroke: var(--border); stroke-width: 1; }
@@ -311,7 +311,6 @@ ul.plain li { padding: 3px 0; }
 .c4-outside.c4-container .c4-shape, .c4-outside.c4-component .c4-shape { stroke-dasharray: 5 3; }
 .c4-el:hover .c4-shape, .c4-el:focus .c4-shape { stroke: var(--accent); stroke-width: 2.5; }
 .c4-el.selected .c4-shape { stroke: var(--text); stroke-width: 3; }
-.c4-el.dim, .c4-rel.dim { opacity: 0.18; }
 .c4-boundary rect { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 8 4; }
 .c4-boundary text { fill: var(--muted); font-size: 13px; font-weight: 600; }
 .c4-rel text { fill: var(--text); font-size: 11.5px; paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
@@ -372,6 +371,11 @@ ul.c4-children { margin: 0 0 4px 14px; border-left: 1px solid var(--border); pad
 .c4-find.none { border-color: var(--error); }
 .c4-el.found .c4-shape { stroke: var(--accent); stroke-width: 4; }
 .c4-legend i.c4-outside-swatch { background: transparent; border: 1.5px dashed var(--muted); }
+
+/* Big diagrams: a veil dims what a selection or search leaves behind, and text too small to read is not drawn. */
+.c4-veil { fill: var(--bg); opacity: 0.82; pointer-events: none; }
+.lod-far .c4-desc, .lod-far .c4-kind, .lod-far .c4-open, .lod-far .c4-rel:not(.lit) text { display: none; }
+.lod-tiny .c4-el text, .lod-tiny .c4-rel text { display: none; }
 
 @media (max-width: 1100px) {
   .c4-level { font-size: 0; }

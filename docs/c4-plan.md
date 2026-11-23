@@ -397,3 +397,27 @@ The owner found the Architecture page hard to move around in. Beside the breadcr
 - **1:1** shows the diagram at its normal size, `0` fits it. The legend lists only the kinds the view has, and
   explains the dashed elements outside the view's scope.
 
+### 2026-11-23: big views stay quick to pan and zoom (TODO Priority 3, `claude/fast-architecture-pan-zoom`)
+
+The owner found big level-3 views sluggish to pan and zoom. Measured in headless Edge on a made-up components
+view of 600 components and 1,437 relationships (2,970 text elements): every frame of a pan or zoom took 80 to
+140 ms. Hiding the text brought that to about 20 ms, hiding lines or boxes changed little: each change of the
+viewBox lays out and draws every text again, and at deep zoom the glyphs are big and slow to draw even when few
+are on screen.
+
+What changed (in `graphCanvas`, so every graph view gets the first three):
+
+- **Moving without drawing**: while a drag or wheel goes on, the picture already drawn is moved and scaled with a
+  CSS transform (the svg is its own layer, `will-change: transform`), which the browser does without drawing;
+  the viewBox is set, and the view drawn sharp, when the movement rests for 160 ms or the drag ends. Every frame
+  of a pan or zoom now takes 16.7 ms (the display's rate); the one redraw at the end takes about 100 ms.
+- The viewBox is written at most once a frame, and the svg's box is not read while the drawing is out of date.
+- Zooming in stops at three screen pixels per unit.
+- **Level of detail** (Architecture): below 0.45 screen pixels per unit only names and the selected element's
+  line labels are drawn (`lod-far`), below 0.2 no text at all (`lod-tiny`); such text could not be read anyway.
+- **Culling** (Architecture, `canvas.track`): elements and lines more than half a screen outside it are not
+  drawn.
+- **Selecting** costs the selected element's neighbours, not the whole view: the related elements and lines are
+  moved in front of one veil that dims the rest (one see-through layer instead of one per faded element), and
+  an index of each element's lines replaces a scan of every relationship per element. 140 ms became 45 ms.
+
