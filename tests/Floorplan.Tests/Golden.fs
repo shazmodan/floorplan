@@ -22,6 +22,21 @@ let check (name: string) (actual: string) =
             File.WriteAllText(file + ".actual", actual)
             failtestf "%s differs from the golden file. Compare with %s.actual, or set FLOORPLAN_UPDATE_GOLDEN=1." name file
 
-/// A path relative to the fixtures folder, with forward slashes, for machine-independent output.
+/// A path relative to the fixtures folder, with forward slashes, for machine-independent output. A file in the
+/// NuGet package cache (a package's source, named in its symbols) is given relative to the cache, which is
+/// elsewhere on every machine: `<packages>/corewcf.primitives/...`.
 let relative (path: string) =
-    Path.GetRelativePath(Fixtures.fixturesDir, path).Replace('\\', '/')
+    let normal = path.Replace('\\', '/')
+
+    let cache =
+        match Environment.GetEnvironmentVariable "NUGET_PACKAGES" with
+        | null
+        | "" -> None
+        | root -> Some(root.Replace('\\', '/').TrimEnd('/') + "/")
+
+    match cache with
+    | Some root when normal.StartsWith(root, StringComparison.OrdinalIgnoreCase) -> "<packages>/" + normal.Substring root.Length
+    | _ ->
+        match normal.IndexOf("/.nuget/packages/", StringComparison.OrdinalIgnoreCase) with
+        | i when i >= 0 -> "<packages>/" + normal.Substring(i + "/.nuget/packages/".Length)
+        | _ -> Path.GetRelativePath(Fixtures.fixturesDir, path).Replace('\\', '/')

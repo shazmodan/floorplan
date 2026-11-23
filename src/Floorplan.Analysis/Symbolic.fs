@@ -163,6 +163,17 @@ let private conflicts (a: Predicate) (b: Predicate) =
        | PredicateOperator.StartsWith, PredicateOperator.Equals -> not (startsWith b.Value a.Value)
        | _ -> false
 
+/// Whether `text` parses as the primitive type named (`System.Int32`, `System.Guid`), by its TryParse(string, out);
+/// None for a type without one.
+let private parses (typeName: string) (text: string) : bool option =
+    match Type.GetType typeName with
+    | null -> None
+    | ty when ty.IsPrimitive || ty = typeof<Guid> || ty = typeof<decimal> ->
+        match ty.GetMethod("TryParse", [| typeof<string>; ty.MakeByRefType() |]) with
+        | null -> None
+        | tryParse -> Some(tryParse.Invoke(null, [| box text; null |]) :?> bool)
+    | _ -> None
+
 let private addPredicates (state: PathState) (ps: Predicate list) : PathState option =
     if ps.IsEmpty then
         Some state
@@ -242,6 +253,8 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
     let groupOf = Dictionary<int, int>()
     let forwarders = Dictionary<string, bool>()
     let initializers = Dictionary<string, MethodRef list>()
+    // Live locals by instruction, by method (see Interpret's fork).
+    let liveness = Dictionary<string, Set<int>[]>()
 
     let isUser (m: MethodRef) = set.IsUser m.Type.Assembly
     let debugLevel = match System.Environment.GetEnvironmentVariable "FLOORPLAN_DEBUG" with "1" -> 1 | "2" -> 2 | _ -> 0
@@ -742,13 +755,28 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 let compared =
                     state.Route |> List.choose (fun p -> if p.Part = RequestPart.PathSegment then p.Index else None) |> Set.ofList
 
+                // A segment handed over alone as an argument is named after that parameter of the handler.
+                let names =
+                    match set.TryMethod target with
+                    | Some(def, _) ->
+                        let offset = if target.HasThis then 1 else 0
+                        fun (j: int) -> List.tryItem (j - offset) def.ParameterNames
+                    | None -> fun _ -> None
+
                 let parameters =
                     operands
-                    |> List.collect (function
-                        | Req tags -> tags |> Seq.choose (function Segment i when not (compared.Contains i) -> Some i | _ -> None) |> Seq.toList
+                    |> List.indexed
+                    |> List.collect (fun (j, v) ->
+                        match v with
+                        | Req tags ->
+                            let open' = tags |> Seq.choose (function Segment i when not (compared.Contains i) -> Some i | _ -> None) |> Seq.toList
+
+                            match open', names j with
+                            | [ i ], Some name when name <> "" && Char.IsLetter name[0] && not (name.Contains '@') -> [ i, "{" + name + "}" ]
+                            | _ -> open' |> List.map (fun i -> i, "{param}")
                         | _ -> [])
-                    |> List.distinct
-                    |> List.map (fun i -> predicate (RequestPart.PathSegment, Some i) PredicateOperator.Parameter "{param}")
+                    |> List.distinctBy fst
+                    |> List.map (fun (i, name) -> predicate (RequestPart.PathSegment, Some i) PredicateOperator.Parameter name)
 
                 { state with Entered = Some(target, parameters) }
             | _ -> state
@@ -1555,6 +1583,28 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
         let shortName = m.Name.Substring(m.Name.LastIndexOf '.' + 1)
 
         match receiver, shortName with
+        | None, "TryParse" when (match arg 0 with Req _ -> true | _ -> false) ->
+            // A number parsed from request data (`Int32.TryParse(segment, &id)`, an `Int32Str id` pattern) is that
+            // data: handed to a handler, it is the route parameter it was parsed from. A path segment the path
+            // already compared with a constant parses as that constant does: on the path that matched "New", an
+            // `Int32Str id` case after it fails.
+            let known =
+                match arg 0 with
+                | Req tags ->
+                    tags
+                    |> Seq.tryPick (function
+                        | Segment i ->
+                            state.Predicates
+                            |> List.tryPick (fun p ->
+                                if p.Part = RequestPart.PathSegment && p.Index = Some i && p.Operator = PredicateOperator.Equals then Some p.Value else None)
+                        | _ -> None)
+                | _ -> None
+
+            match known |> Option.bind (fun v -> parses m.Type.FullName v) with
+            | Some false -> one (Const(box 0L))
+            | _ ->
+                outValue <- Some(arg 0)
+                one Unknown
         | Some(Ref id), ("Add" | "Enqueue" | "Push") when m.ParameterCount = 1 ->
             [ Unknown, update state id (fun o -> { o with Elements = o.Elements.Add(o.Elements.Count, arg 0) }) ]
         | Some(Ref id), "AddRange" ->
@@ -1750,8 +1800,65 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
               Constrained = None
               Forked = false }
 
+        // Threads already queued, by everything but their visit counts. A thread that reaches an instruction in
+        // the same state as one queued before (with the same stack, locals and path) would only repeat it. A match
+        // F# compiles to a chain of tests (one per case, each falling through to the next) needs this: a failed
+        // test leaves no predicate, so a path that fails case k one of several ways reaches case k + 1 once per
+        // way, and every copy forks again at every later case, until the thread limit drops the routes after it.
+        // The state compared is what the rest of the method can observe: the locals still read from that
+        // instruction on (F# gives every case its own locals for what its patterns bind), the heap objects the
+        // stack, locals, arguments and statics reach (a failed case leaves the objects it made behind), and the
+        // predicates as a set.
+        let live =
+            match liveness.TryGetValue me.Key with
+            | true, l -> l
+            | _ ->
+                let l = ControlFlow.liveLocals (ControlFlow.build body)
+                liveness[me.Key] <- l
+                l
+
+        let signature (t: Thread) =
+            let locals =
+                if t.Pc < live.Length then t.Locals |> Map.filter (fun k _ -> live[t.Pc].Contains k) else t.Locals
+
+            let reached = HashSet<int>()
+            let objects = ResizeArray<int * HeapObj>()
+
+            let rec visit (v: SVal) =
+                match v with
+                | Ref id
+                | FieldAddress(id, _) ->
+                    if reached.Add id then
+                        match t.State.Heap.TryFind id with
+                        | Some o ->
+                            objects.Add((id, o))
+                            o.Fields |> Map.iter (fun _ f -> visit f)
+                            o.Elements |> Map.iter (fun _ e -> visit e)
+                        | None -> ()
+                | Fn(_, Some target) -> visit target
+                | _ -> ()
+
+            t.Stack |> List.iter visit
+            locals |> Map.iter (fun _ v -> visit v)
+            t.Args |> Map.iter (fun _ v -> visit v)
+            t.State.Statics |> Map.iter (fun _ v -> visit v)
+
+            struct (t.Pc,
+                    t.Stack,
+                    locals,
+                    t.Args,
+                    objects |> Seq.sortBy fst |> Seq.toList,
+                    { t.State with Heap = Map.empty; Predicates = [] },
+                    Set.ofList t.State.Predicates,
+                    t.Constrained,
+                    t.Forked)
+
+        let queued = HashSet<obj>(HashIdentity.Structural)
+
         let fork (t: Thread) =
-            if created < (if phase = RequestPhase then limits.ThreadsPerCall * (if followUser then 32 else 4) else limits.ThreadsPerCall) then
+            if not (queued.Add(box (signature t))) then
+                ()
+            elif created < (if phase = RequestPhase then limits.ThreadsPerCall * (if followUser then 512 else 4) else limits.ThreadsPerCall) then
                 created <- created + 1
                 threads.Push t
             elif debug then
@@ -1987,7 +2094,7 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                                 else
                                     results
 
-                            match results |> List.truncate (if phase = RequestPhase then limits.OutcomesPerCall * (if followUser then 64 else 4) else limits.OutcomesPerCall) with
+                            match results |> List.truncate (if phase = RequestPhase then limits.OutcomesPerCall * (if followUser then 512 else 4) else limits.OutcomesPerCall) with
                             | [] -> running <- false
                             | (v, s) :: others ->
                                 for (v2, s2) in others do
@@ -2557,8 +2664,9 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
             // Segments of a path of known length that nothing compared with a constant take any value: route
             // parameters (an `Int32Str id` pattern, a `_`), for a router that answers itself. A handler it calls gets
-            // the segments it is handed; a segment left open on the way to one (a fall-through to a not-found
-            // handler) is not a parameter.
+            // the segments it is handed, and then the other open ones too (`["roles"; Int32Str id; _] -> show id`);
+            // a segment left open on the way to a handler handed none (a fall-through to a not-found handler) is
+            // not a parameter.
             let open' (route: Predicate list) (given: Predicate list) =
                 let count =
                     route
@@ -2583,7 +2691,7 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 | Some(handler, parameters), _ ->
                     hits.Add
                         { Handler = HandlerMethod handler
-                          Predicates = if s.Uncertain then [] else s.Route @ parameters }
+                          Predicates = if s.Uncertain then [] else s.Route @ parameters @ (if parameters.IsEmpty then [] else open' s.Route parameters) }
                 | None, Some(decider, _) ->
                     hits.Add
                         { Handler = HandlerRouter decider

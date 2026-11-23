@@ -306,7 +306,7 @@ let tests =
               let m = routingModel.Force()
 
               Expect.equal
-                  (routes m "Routing.Wrapped")
+                  (routes m "Routing.Wrapped" |> List.filter (fun (_, route, _, _) -> not (route.StartsWith "/Shop/")))
                   [ "GET", "/", "Routing.Wrapped.Api::route", Completeness.Complete
                     "GET", "/Admin/Groups", "Routing.Wrapped.Api::adminRoute", Completeness.Complete
                     "GET", "/Admin/Principal", "Routing.Wrapped.Api::adminRoute", Completeness.Complete
@@ -319,6 +319,29 @@ let tests =
                     "POST", "/Admin/User/New", "Routing.Wrapped.Api::adminRoute", Completeness.Complete
                     "POST", "/Api/Login", "Routing.Wrapped.Api::apiRoute", Completeness.Complete ]
                   "app.Use((context, next) => ...) runs the request through the routing function it was handed: or-patterns, prefixes taken off before a nested router, routes that answer with a shared response value (the router is the handler) or call a function (it is), segments matched by a parsing pattern as parameters; the middleware's own plumbing (mapping the request) is no entry point"
+          }
+
+          test "form A, a match F# compiles to a chain of cases, each calling a handler with what its patterns bind" {
+              let m = routingModel.Force()
+
+              let shop =
+                  routes m "Routing.Wrapped" |> List.filter (fun (_, route, _, _) -> route.StartsWith "/Shop/")
+
+              let expected =
+                  [ for e in [ "Products"; "Orders"; "Customers"; "Invoices"; "Carts"; "Coupons"; "Reviews"; "Suppliers"; "Shipments"; "Returns" ] do
+                        let handler name = "Routing.Wrapped.Handlers::" + name
+                        "GET", $"/Shop/{e}", handler "list", Completeness.Complete
+                        "GET", $"/Shop/{e}/{{id}}", handler "show", Completeness.Complete
+                        "GET", $"/Shop/{e}/{{id}}/Items/{{itemId}}", handler "item", Completeness.Complete
+                        "POST", $"/Shop/{e}/New", handler "create", Completeness.Complete
+                        "POST", $"/Shop/{e}/{{id}}", handler "update", Completeness.Complete
+                        "POST", $"/Shop/{e}/{{id}}/Delete", handler "remove", Completeness.Complete ]
+                  |> List.sort
+
+              Expect.equal
+                  shop
+                  expected
+                  "every case is found, though each fails one of several ways into the next (the ways the paths double by without merging): a parsing pattern's value handed to the handler is the parameter it names; a segment already matched as \"New\" does not parse as a number, so the next case's Int32Str does not take it"
           }
 
           test "form B, table lookup: dictionary and map entries" {

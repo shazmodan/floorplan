@@ -66,8 +66,11 @@ let tests =
 
           test "golden: CSharp exit points" { Golden.check "csharp.exit-points.txt" (ExitPointTests.render (csharpModel.Force())) }
 
-          test "golden: CSharp exit points on net10.0 give the net8.0 results" {
-              Golden.check "csharp.exit-points.txt" (ExitPointTests.render (csharpModelNet10.Force()))
+          // A golden of its own: on net8.0 a package's newer copy of an assembly ASP.NET Core 8 ships is followed
+          // (CSharp.Telemetry's OpenTelemetry brings Microsoft.Extensions.Configuration 9, whose environment
+          // variables provider it reaches); net10.0's framework copy is not.
+          test "golden: CSharp exit points on net10.0" {
+              Golden.check "csharp.exit-points.net10.txt" (ExitPointTests.render (csharpModelNet10.Force()))
           }
 
           test "Razor Pages: each page model handler is an entry point at the page's route" {

@@ -473,11 +473,15 @@ let templateOfPattern (pattern: string) : string option =
         else Some(text.ToString())
 
 /// Names the parameters of a route made from a pattern ({param}, {param1}, ...) after the handler's own
-/// parameters, in order, when there are exactly as many names as placeholders. Otherwise the route is unchanged.
+/// parameters, in order, when there are exactly as many names as placeholders. Otherwise the route is unchanged,
+/// and so is a route some of whose parameters are already named (after the argument each was handed as): the
+/// rest were not handed over, so the handler's parameters are not theirs.
 let nameParameters (names: string list) (route: string) =
     let placeholders = Text.RegularExpressions.Regex.Matches(route, @"\{param\d*\}")
+    let named = Text.RegularExpressions.Regex.Matches(route, @"\{[^}]*\}").Count > placeholders.Count
 
     if placeholders.Count = 0
+       || named
        || placeholders.Count <> names.Length
        || names |> List.exists (fun n -> String.IsNullOrEmpty n || not (Char.IsLetter n[0]) || n.Contains '@') then
         route

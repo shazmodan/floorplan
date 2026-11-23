@@ -371,6 +371,7 @@ environment | CSharp.Telemetry: | Program::<Main>$ | System.Environment::GetEnvi
 nondeterminism | CSharp.Telemetry: | Program::<Main>$ | System.Diagnostics.Stopwatch::GetTimestamp | via OpenTelemetry.Extensions.Hosting | - | CSharp/CSharp.Telemetry/Program.cs:10
 environment | CSharp.Telemetry: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via OpenTelemetry.Extensions.Hosting | dynamic:- | CSharp/CSharp.Telemetry/Program.cs:10
 nondeterminism | CSharp.Telemetry: | Program::<Main>$ | System.Diagnostics.Stopwatch::GetTimestamp | via OpenTelemetry.Extensions.Hosting | - | CSharp/CSharp.Telemetry/Program.cs:10
+environment | CSharp.Telemetry: | Program/<>c::<<Main>$>b__0_0 | System.Environment::GetEnvironmentVariables | via OpenTelemetry.Instrumentation.AspNetCore | dynamic:- | CSharp/CSharp.Telemetry/Program.cs:11
 http-out | CSharp.Telemetry: | Program/<>c::<<Main>$>b__0_0 | OpenTelemetry.Trace.OtlpTraceExporterHelperExtensions::AddOtlpExporter | via - | literal:http://collector:4317 | CSharp/CSharp.Telemetry/Program.cs:11
 http-out | CSharp.Telemetry: | Program/<>c::<<Main>$>b__0_0 | OpenTelemetry.Trace.ZipkinExporterHelperExtensions::AddZipkinExporter | via - | literal:http://zipkin:9411/api/v2/spans | CSharp/CSharp.Telemetry/Program.cs:11
 environment | CSharp.Telemetry: | Program/<>c::<<Main>$>b__0_0 | OpenTelemetry.Trace.ConsoleExporterHelperExtensions::AddConsoleExporter | via - | - | CSharp/CSharp.Telemetry/Program.cs:11
@@ -386,7 +387,7 @@ http-out | CSharp.Telemetry: | Program::<Main>$ | Azure.Monitor.OpenTelemetry.As
 filesystem-write | CSharp.Wcf:CSharp.Wcf.Orders | CSharp.Wcf.Orders.OrderStore::Save | System.IO.File::WriteAllTextAsync | via - | template:orders/{…}.txt | CSharp/CSharp.Wcf/Program.cs:40
 filesystem-write | CSharp.Wcf:CSharp.Wcf.Orders | CSharp.Wcf.Orders.OrderService::CancelAsync | System.IO.File::WriteAllTextAsync | via - | template:cancelled/{…}.txt | CSharp/CSharp.Wcf/Program.cs:56
 filesystem-read | CSharp.Wcf:CSharp.Wcf.Stock | CSharp.Wcf.Stock.StockService::CSharp.Wcf.Stock.IStockService.ReserveAsync | System.IO.File::ReadAllText | via - | template:stock/{…}.txt | CSharp/CSharp.Wcf/Program.cs:83
-nondeterminism | CSharp.Wcf:CoreWCF.Configuration | CoreWCF.Configuration.WebApplicationExtensions::UseServiceModel | System.DateTime::get_UtcNow | via CoreWCF.Primitives | - | ../../../../../../../../../../.nuget/packages/corewcf.primitives/1.9.2/contentFiles/CoreWCFWebApplicationExtensions.cs:24
+nondeterminism | CSharp.Wcf:CoreWCF.Configuration | CoreWCF.Configuration.WebApplicationExtensions::UseServiceModel | System.DateTime::get_UtcNow | via CoreWCF.Primitives | - | <packages>/corewcf.primitives/1.9.2/contentFiles/CoreWCFWebApplicationExtensions.cs:24
 nondeterminism | CSharp.WcfClient: | Program/<<Main>$>d__0::MoveNext | System.Guid::NewGuid | via System.ServiceModel.Primitives | - | CSharp/CSharp.WcfClient/Program.cs:5
 environment | CSharp.WcfClient: | Program/<<Main>$>d__0::MoveNext | System.Environment::get_CurrentDirectory | via System.ServiceModel.Primitives | dynamic:- | CSharp/CSharp.WcfClient/Program.cs:6
 http-out | CSharp.WcfClient: | Program/<<Main>$>d__0::MoveNext | System.Net.WebSockets.ClientWebSocket::ConnectAsync | via System.ServiceModel.Primitives | dynamic:- | CSharp/CSharp.WcfClient/Program.cs:6

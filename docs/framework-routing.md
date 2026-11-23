@@ -130,7 +130,7 @@ package's shapes in `Dependency/Routing.Library/Web.fs`. What changed:
   handler (`HandlerRouter`), and its open segments are not named after its parameters. A path that calls the
   next part of the pipeline (`next`, a delegate nothing is known about) was not handled there and gives no
   entry. Outcomes that decided different routes stay apart, and the limits on outcomes and threads per call are
-  higher in this mode (64 and 32 times the base), as each route is a path of its own to the end.
+  higher in this mode (512 times the base for both), as each route is a path of its own to the end.
 - **Path segments in F# lists.** The path split and turned into a list (`List.ofArray`, `List.filter`) stays the
   path's segments; head, tail and length of it are answered from the segment tags (the head of the segments from
   n is segment n), as request data tracking does, instead of running FSharp.Core's list code over them.
@@ -146,6 +146,41 @@ package's shapes in `Dependency/Routing.Library/Web.fs`. What changed:
 
 On the application this came from, all 70 routes are recovered, complete, besides `OPTIONS` on any path; the
 symbolic run takes 2 s. (The static part of its entry point analysis takes over two minutes, before and after.)
+
+### A case per route, each calling its handler
+
+The application the fixture was made from still lost nearly all its routes: its stand-in had replaced every
+handler with one shared response. With a handler per case, called with what the case's patterns bind
+(`| GET (["Roles"; Int32Str id], _) -> Some (Roles.show db id)`), F# no longer compiles the match to one
+decision tree but to a chain: each case calls the method pattern again and tests the path, and a failed test
+jumps to the next case. Given a handler per case, the stand-in lost all 68 routes under its two prefixes. Fixture:
+`Routing.Wrapped`'s `Shop.fs`, ten resources with six cases each, none of which was found before. What changed:
+
+- **Paths merge where they meet.** A failed test leaves no predicate, so a path that fails case k one of several
+  ways (another method, too short, another first segment, too long) reaches case k + 1 once per way, and every
+  copy forks again at every later case: the thread limit was reached about ten cases in. A thread is not queued
+  again when one with the same observable state was queued at that instruction before. What is compared is what
+  the rest of the method can see: the locals still read from there on (each case has its own locals for what its
+  patterns bind, which later cases never read; `ControlFlow.liveLocals`), the heap objects the stack, locals,
+  arguments and statics reach (a failed case leaves the option its pattern returned behind), the predicates as a
+  set, and the rest of the path state.
+- **The limits.** Paths that are different still add up: one that matched a case's first segment but not its
+  length goes on through every later case. Their number grows with the square of the cases, so in this mode the
+  limits on threads and outcomes per call are 512 times the base (32,768 threads, 2,048 outcomes). Each such path
+  is rejected by a later case within a few instructions, and the step budget still bounds the run: the fixture's
+  takes 450,000 steps.
+- **Parsed segments.** `TryParse` of request data (`Int32.TryParse(segment, &id)`, what `Int32Str id` compiles
+  to) writes that data to its out argument: the number handed to the handler is the segment it came from, a
+  parameter named after the handler's parameter it is handed as (`{id}`). A segment the path already compared
+  with a constant parses as that constant does, so `POST [x; Int32Str id]` after `POST [x; "New"]` does not
+  take "New" too.
+- **The other open segments.** A handler handed some segments also gets the other open ones of a route of known
+  length as parameters (`{param}`, as a router that answers itself does); a handler handed none, such as a
+  not-found one reached on a fall-through, still gets none. A route some of whose parameters are named after what
+  they were handed as is not renamed after the handler's parameters in order.
+
+A route whose only open segment the handler is not handed (`["RolesByType"; _] -> RolesByType.all db`) is
+reported as partial, `/RolesByType/*`: that is also how a fall-through to a not-found handler looks.
 
 ## Known limits
 
