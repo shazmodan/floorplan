@@ -507,6 +507,47 @@ let tests =
                   "a grain's effects are traced from its entry point"
           }
 
+          test "WCF: each operation a CoreWCF host exposes is a network entry point at its action, and a client's call to one is a network exit point at the same action" {
+              let m = csharpModel.Force()
+
+              Expect.equal
+                  (entries m "CSharp.Wcf"
+                   |> List.filter (fun e -> e.Category <> EffectCategory.HttpIn)
+                   |> List.map (fun e -> e.Route, e.HandlerMember, e.RegisteredThrough, e.Completeness)
+                   |> List.sort)
+                  [ Some "http://example.org/stock/IStockQuery/Count", "CSharp.Wcf.Stock.StockService::Count", Some "CoreWCF.ServiceContractAttribute", Completeness.Complete
+                    Some "http://tempuri.org/IOrderService/CancelOrder", "CSharp.Wcf.Orders.OrderService::CancelAsync", Some "CoreWCF.ServiceContractAttribute", Completeness.Complete
+                    Some "http://tempuri.org/IOrderService/Place", "CSharp.Wcf.Orders.OrderService::Place", Some "CoreWCF.ServiceContractAttribute", Completeness.Complete
+                    Some "urn:stock:reserve", "CSharp.Wcf.Stock.StockService::CSharp.Wcf.Stock.IStockService.ReserveAsync", Some "CoreWCF.ServiceContractAttribute", Completeness.Complete ]
+                  "the contract's operations and those of the contract it derives from, by action (a Name, Namespace or Action replaces a part); a method without [OperationContract] is none"
+
+              Expect.equal
+                  (m.ExitPoints
+                   |> List.filter (fun x -> x.Unit.StartsWith "CSharp.WcfClient:" && x.Category = EffectCategory.Network)
+                   |> List.map (fun x -> x.Member, x.Primitive, x.Payload |> Option.bind (fun p -> p.Value))
+                   |> List.sort)
+                  [ "Program/<<Main>$>d__0::MoveNext", "CSharp.WcfClient.IOrderService::CancelOrderAsync", Some "http://tempuri.org/IOrderService/CancelOrder"
+                    "Program/<<Main>$>d__0::MoveNext", "CSharp.WcfClient.IOrderService::Place", Some "http://tempuri.org/IOrderService/Place"
+                    "Program/<<Main>$>d__0::MoveNext", "CSharp.WcfClient.IStockQueryContract::Count", Some "http://example.org/stock/IStockQuery/Count"
+                    "Program/<<Main>$>d__0::MoveNext", "CSharp.WcfClient.IStockService::ReserveAsync", Some "urn:stock:reserve" ]
+                  "calls through a channel, a proxy written by hand and one svcutil writes, each once where the application makes it, not again in the proxy"
+
+              Expect.equal
+                  (m.Architecture.Relationships
+                   |> List.filter (fun r -> r.From.StartsWith "code:CSharp.WcfClient|" && r.To.StartsWith "code:CSharp.Wcf|")
+                   |> List.map (fun r -> r.Description)
+                   |> List.sort)
+                  [ "sends messages to http://example.org/stock/IStockQuery/Count"
+                    "sends messages to http://tempuri.org/IOrderService/CancelOrder"
+                    "sends messages to http://tempuri.org/IOrderService/Place"
+                    "sends messages to urn:stock:reserve" ]
+                  "the client's calls go to the service's operations"
+
+              Expect.isTrue
+                  (m.Architecture.Elements |> List.exists (fun e -> e.Id = "external:library:CoreWCF"))
+                  "other callers of the service reach it through CoreWCF"
+          }
+
           test "Dapr: a subscribed topic is a network entry point, and the client's building blocks are named exit points" {
               let m = csharpModel.Force()
 

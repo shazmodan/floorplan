@@ -772,6 +772,26 @@
     { "id": "database.orleans-grain-state", "assembly": "Orleans.Core.Abstractions", "type": "Orleans.Core.IStorage",
       "members": ["ReadStateAsync", "WriteStateAsync", "ClearStateAsync"], "includeDerivedTypes": true, "kind": "sink", "category": "database" },
 
+    // ---------------- WCF ----------------
+    // CoreWCF hosts a service: AddServiceEndpoint<TService, TContract>(binding, address) exposes a contract the service
+    // implements at an address ("wcf-service-type" and "wcf-contract-type" are type argument indices). Each method of
+    // the contract marked [OperationContract] is an entry point at its action, {namespace}/{contract}/{operation}
+    // (an explicit Action, Name or Namespace on the attributes replaces a part), the name WCF dispatches a message
+    // on whatever the binding. A client (System.ServiceModel: ChannelFactory<T>.CreateChannel, a ClientBase<T>
+    // proxy) calls a method of its copy of the contract: a network exit point at the same action. A service contract
+    // marked with System.ServiceModel's attributes is read the same way.
+    { "id": "network.corewcf-endpoint", "assembly": "CoreWCF.Primitives", "type": "CoreWCF.Configuration.IServiceBuilder",
+      "members": ["AddServiceEndpoint"], "kind": "registration", "category": "network",
+      "payload": [{ "argument": 0, "role": "wcf-service-type" }, { "argument": 1, "role": "wcf-contract-type" }, { "argument": 1, "role": "wcf-address" }] },
+    { "id": "network.corewcf-service-contract", "assembly": "CoreWCF.Primitives", "type": "CoreWCF.ServiceContractAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "network", "payload": [{ "argument": -1, "role": "wcf-contract" }] },
+    { "id": "network.corewcf-operation-contract", "assembly": "CoreWCF.Primitives", "type": "CoreWCF.OperationContractAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "network", "payload": [{ "argument": -1, "role": "wcf-operation" }] },
+    { "id": "network.wcf-service-contract", "assembly": "System.ServiceModel.Primitives", "type": "System.ServiceModel.ServiceContractAttribute",
+      "members": [".ctor"], "kind": "metadata", "category": "network", "payload": [{ "argument": -1, "role": "wcf-contract" }] },
+    { "id": "network.wcf-operation-call", "assembly": "System.ServiceModel.Primitives", "type": "System.ServiceModel.OperationContractAttribute",
+      "members": [".ctor"], "markedCalls": true, "kind": "sink", "category": "network", "payload": [{ "argument": -1, "role": "wcf-action" }] },
+
     // ---------------- Dapr ----------------
     // The Dapr client sends everything to its sidecar over gRPC or HTTP, which showed as dynamic gRPC calls: the
     // building blocks are named here. A subscription is a topic the sidecar delivers to an endpoint of the
