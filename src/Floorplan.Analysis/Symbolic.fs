@@ -577,7 +577,7 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
         | Fn(m, _) when isUser m -> unwrap m 0
         | Ref id ->
             match state.Heap.TryFind id with
-            | Some o when isUser { Type = o.Type; Name = ""; Key = ""; LocalKey = ""; ParameterTypes = []; ReturnType = ""; HasThis = false; GenericArity = 0; TypeArguments = [] } ->
+            | Some o when isUser { Type = o.Type; Name = ""; Key = ""; LocalKey = ""; ParameterTypes = []; ReturnType = ""; HasThis = false; GenericArity = 0; TypeArguments = []; DeclaringTypeArguments = [] } ->
                 match set.TryType o.Type with
                 | Some(def, _) when set.BaseChain o.Type |> List.exists (fun b -> b.FullName.StartsWith "Microsoft.FSharp.Core.FSharpFunc" || b.FullName.StartsWith "Microsoft.FSharp.Core.OptimizedClosures") ->
                     def.Methods

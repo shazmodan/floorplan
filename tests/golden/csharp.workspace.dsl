@@ -106,6 +106,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
                 component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Cleanup = component "CSharp.Worker.Cleanup" "A C# namespace of CSharp.Worker" "C# namespace" "reaches out"
                 component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Imports = component "CSharp.Worker.Imports" "A C# namespace of CSharp.Worker" "C# namespace" "handles requests,reaches out"
                 component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Monitoring = component "CSharp.Worker.Monitoring" "A C# namespace of CSharp.Worker" "C# namespace" "reaches out"
+                component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Queues = component "CSharp.Worker.Queues" "A C# namespace of CSharp.Worker" "C# namespace" "reaches out"
                 component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Reporting = component "CSharp.Worker.Reporting" "A C# namespace of CSharp.Worker" "C# namespace" "reaches out"
             }
         }
@@ -263,6 +264,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         component_CSharp_Worker_CSharp_Worker_ -> component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Cleanup "uses"
         component_CSharp_Worker_CSharp_Worker_ -> component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Imports "uses"
         component_CSharp_Worker_CSharp_Worker_ -> component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Monitoring "uses"
+        component_CSharp_Worker_CSharp_Worker_ -> component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Queues "uses"
         component_CSharp_Worker_CSharp_Worker_ -> component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Reporting "uses"
         component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Cleanup -> external_filesystem "reads files"
         component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Cleanup -> external_filesystem "writes files"
@@ -270,6 +272,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Imports -> external_filesystem "writes files"
         component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Monitoring -> external_filesystem "writes files"
         component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Monitoring -> external_http "sends HTTP requests" "HTTP"
+        component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Queues -> external_filesystem "writes files"
         component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Reporting -> external_filesystem "writes files"
         external_filesystem -> component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Imports "notifies of changed files"
         external_library_Amazon_SQS -> component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs "delivers messages to"
@@ -362,7 +365,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
             include component_CSharp_Table_CSharp_Table_ component_CSharp_Table_CSharp_Table_CSharp_Table person_user
         }
         component container_CSharp_Worker "components_CSharp_Worker" {
-            include component_CSharp_Worker_CSharp_Worker_ component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Cleanup component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Imports component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Monitoring component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Reporting external_filesystem external_http
+            include component_CSharp_Worker_CSharp_Worker_ component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Cleanup component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Imports component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Monitoring component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Queues component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Reporting external_filesystem external_http
         }
 
         styles {

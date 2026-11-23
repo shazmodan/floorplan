@@ -351,8 +351,19 @@ Also new, outside the recognizer:
   rules are split by the parameters before the job (`whenParameters`), the longer prefixes first. The expression
   is read through Hangfire's own `Cron` helpers (`Cron.Daily()` calls `Daily(0)`, which calls `Daily(0, 0)`, which
   formats its arguments: `0 0 * * *`); a helper handed over as a method group (`Cron.Hourly`, a `Func<string>`) is
-  what the method returns. A schedule that is not constant leaves the entry unresolved. Fixture:
-  `CSharp.Worker` (Microsoft.Extensions.Hosting as a package, on the Worker SDK).
+  what the method returns. A schedule that is not constant leaves the entry unresolved. A channel
+  (`System.Threading.Channels`) hands items from one part of the application to another: a method that reads one
+  (`ChannelReader<T>`'s `ReadAsync`, `ReadAllAsync`, `TryRead`, `WaitToReadAsync`; `background.channel-read`, a
+  `"message-receive"`) is background work at the type of the items, its `"channel-item"`: the index of the reader's
+  type argument, which the IL reader now keeps for a member of a generic type instance
+  (`MethodRef.DeclaringTypeArguments`; summaries cache key v20). A hosted service that reads a channel is that
+  entry, at the items' type, in place of its own. When the items are delegates (the queue of queued background
+  tasks in ASP.NET Core's docs) the reader only fetches the work: each delegate written to the channel
+  (`ChannelWriter<T>`'s `WriteAsync` and `TryWrite`, `background.channel-write`, `"queued-work"`) is background
+  work of its own, followed back through the parameters of the methods that pass it on (an async method's through
+  the field of its state machine that holds the parameter), with a step for each. Writing to a channel is no exit
+  point, and the delegate's effects stay in the trace of the method that makes it, as a timer's callback's do.
+  Fixture: `CSharp.Worker` (Microsoft.Extensions.Hosting as a package, on the Worker SDK).
 - **`CSharp.Delegated`** with `Dependency/CSharp.Library`: the middleware router in a library referenced as a
   built assembly (a dependency, like a package), with the application's handlers passed as method groups in a
   record. Same routes as the F# `Routing.Delegated`.
