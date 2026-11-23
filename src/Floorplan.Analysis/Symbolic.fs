@@ -64,7 +64,16 @@ type PathState =
       /// The most recent function object created in user code that this path invoked.
       LastUserObject: (MethodRef * int) option
       /// The path passed a condition on the request that could not be read (see Condition.Uncertain).
-      Uncertain: bool }
+      Uncertain: bool
+      /// Routing in user code (see Machine.Explore): the user function that made the path's last routing
+      /// decision, with the depth it runs at; whether it is still running; the conditions in force at that
+      /// decision; and the first user function it called after it, with the route parameters handed to it.
+      Decider: (MethodRef * int) option
+      DeciderOpen: bool
+      Route: Predicate list
+      Entered: (MethodRef * Predicate list) option
+      /// The request was passed on to the next part of the pipeline: this one did not handle it.
+      PassedOn: bool }
 
 type Phase =
     | Registration
@@ -75,6 +84,9 @@ type HandlerRef =
     | HandlerMethod of MethodRef
     /// No user function was reached; the user code that created the last function object invoked.
     | HandlerSite of MethodRef * int
+    /// A user function that routes and answers with a value itself (`| GET ["users"] -> Some response`): the route's
+    /// open segments are no parameters of its own.
+    | HandlerRouter of MethodRef
 
 type Hit =
     { Handler: HandlerRef
@@ -128,7 +140,19 @@ let private elementTypeName (fieldType: string) =
 let private conflicts (a: Predicate) (b: Predicate) =
     let startsWith (x: string) (prefix: string) = x.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
 
-    a.Part = b.Part
+    // A path of n segments has no segment n or later to compare.
+    let beyond (count: Predicate) (segment: Predicate) =
+        count.Part = RequestPart.SegmentCount
+        && count.Operator = PredicateOperator.Equals
+        && segment.Part = RequestPart.PathSegment
+        && segment.Operator = PredicateOperator.Equals
+        && (match Int32.TryParse count.Value, segment.Index with
+            | (true, n), Some i -> i >= n
+            | _ -> false)
+
+    beyond a b
+    || beyond b a
+    || a.Part = b.Part
     && a.Index = b.Index
     && match a.Operator, b.Operator with
        | PredicateOperator.Equals, PredicateOperator.Equals -> not (String.Equals(a.Value, b.Value, StringComparison.OrdinalIgnoreCase))
@@ -204,6 +228,9 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
     // The innermost call made from user code, for attributing objects that libraries create on its behalf.
     let mutable currentUserSite: (MethodRef * int) option = None
     let hits = ResizeArray<Hit>()
+    // The request root being explored is a user function (see Explore): user code is run, not taken as the handler.
+    let mutable followUser = false
+    let mutable pipeline: MethodRef option = None
     let registered = ResizeArray<Registered>()
     // User function objects handed to library code while the application registers its routes.
     let handedOver = Dictionary<string, MethodRef * (MethodRef * int)>()
@@ -372,6 +399,40 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
     /// Whether a user method only passes its arguments on to a library function (a partial application),
     /// in which case it is not the handler.
+    // The request path's segments are a request value, not a list on the heap, so list code run over them would
+    // lose which segment is which. A list function given them is answered from the segment tags instead: the head
+    // is a segment, the tail the segments after it, the length their count. A conversion keeps them, and so does a
+    // filter: the one routing code puts there drops the empty segments a split leaves.
+    let segmentCall (m: MethodRef) (operands: SVal list) : SVal option =
+        let hasSegments (tags: Tags) = tags |> Set.exists (function Segments | SegmentsFrom _ -> true | _ -> false)
+
+        match operands |> List.tryPick (function Req t when hasSegments t -> Some t | _ -> None) with
+        | None ->
+            // Routing in user code: an F# collection function given another request collection (folding the headers
+            // or the query string into a map, looking a key up in it) gives request data. Its elements are not known,
+            // so running the function would only branch on unknowns until the budget is spent.
+            let fsharpCollection =
+                m.Type.FullName.StartsWith "Microsoft.FSharp.Collections."
+                && (m.Type.FullName.EndsWith "Module" || m.Type.FullName.StartsWith "Microsoft.FSharp.Collections.FSharpMap`")
+
+            match operands |> List.tryPick (function Req t when not t.IsEmpty -> Some t | _ -> None) with
+            | Some tags when followUser && fsharpCollection -> Some(Req tags)
+            | _ -> None
+        | Some tags ->
+            match m.Type.FullName, m.Name with
+            | ("Microsoft.FSharp.Collections.ListModule" | "Microsoft.FSharp.Collections.ArrayModule" | "Microsoft.FSharp.Collections.SeqModule"), "Filter"
+            | "System.Linq.Enumerable", "Where" -> Some(Req tags)
+            | _ when recognizers |> List.exists (fun r -> (r.CollectionAccess m).IsSome) ->
+                let t =
+                    Taint.transferValues
+                        recognizers
+                        m
+                        (operands |> List.map (function Req t -> t | _ -> Set.empty))
+                        (operands |> List.map (function Const(:? int64 as n) -> Some(int n) | _ -> None))
+
+                Some(if t.IsEmpty then Unknown else Req t)
+            | _ -> None
+
     let isForwarder (m: MethodRef) =
         match forwarders.TryGetValue m.Key with
         | true, f -> f
@@ -441,6 +502,10 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
         up builder 0
     member _.Exhausted = steps >= limits.Steps || totalSteps >= hardCap
+
+    /// The request pipeline the application wrote that the last exploration ran through user code, if it was one.
+    member _.UserPipeline = pipeline
+    member private _.SetPipeline(p: MethodRef option) = pipeline <- p
     member _.Steps = steps
     member _.TotalSteps = totalSteps
 
@@ -498,6 +563,14 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 let results = this.Interpret(phase, def, def.Body.Value.Value, args, state, depth)
 
                 if debug then callStack.Pop() |> ignore
+
+                // The function that made the last routing decision has returned: what runs after it is not its handler.
+                let results =
+                    results
+                    |> List.map (fun (v, s) ->
+                        match s.Decider with
+                        | Some(d, at) when s.DeciderOpen && at = depth && d.Key = m.Key -> v, { s with DeciderOpen = false }
+                        | _ -> v, s)
 
                 // Conditions checked inside the call are scoped to it: on return they travel with the result
                 // (a boolean's true side, or a guard on a returned object), not with the path.
@@ -628,7 +701,36 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
         let accessor = target.Name.StartsWith "get_" || target.Name.StartsWith "set_"
 
-        if phase = RequestPhase && isUser target && not (MethodRef.isConstructor target) && not accessor && not (isForwarder target) then
+        // Routing in user code: the first user function called from the function that made the last routing
+        // decision, while that function runs, is the handler; it is still run, as more routing may follow.
+        let state =
+            match state.Decider with
+            | Some(_, deciderDepth) when
+                followUser
+                && phase = RequestPhase
+                && state.DeciderOpen
+                && state.Entered.IsNone
+                && depth >= deciderDepth
+                && isUser target
+                && not (MethodRef.isConstructor target)
+                && not accessor
+                && not (isForwarder target)
+                ->
+                let compared =
+                    state.Route |> List.choose (fun p -> if p.Part = RequestPart.PathSegment then p.Index else None) |> Set.ofList
+
+                let parameters =
+                    operands
+                    |> List.collect (function
+                        | Req tags -> tags |> Seq.choose (function Segment i when not (compared.Contains i) -> Some i | _ -> None) |> Seq.toList
+                        | _ -> [])
+                    |> List.distinct
+                    |> List.map (fun i -> predicate (RequestPart.PathSegment, Some i) PredicateOperator.Parameter "{param}")
+
+                { state with Entered = Some(target, parameters) }
+            | _ -> state
+
+        if phase = RequestPhase && not followUser && isUser target && not (MethodRef.isConstructor target) && not accessor && not (isForwarder target) then
             // The first user function reached on this path handles the request; the path ends here.
             if debug then
                 let nl = System.Environment.NewLine
@@ -651,6 +753,8 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                   Predicates = if state.Uncertain then [] else state.Predicates @ parameters }
 
             []
+        elif (segmentCall target operands).IsSome then
+            [ (segmentCall target operands).Value, state ]
         elif interpretable target && not (recognizers |> List.exists (fun r -> r.IsOpaque target)) then
             if phase = Registration && not (isUser target) then
                 for v in operands do
@@ -678,6 +782,18 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
             trace (sprintf "%A d%d framework %s (%s)" phase depth m.Display (operands |> List.map show |> String.concat ", "))
 
+        // A pipeline the application wrote that calls the next part of the pipeline (the delegate it was given, which
+        // the analysis does not know) did not handle the request.
+        let state =
+            if followUser
+               && phase = RequestPhase
+               && m.Name = "Invoke"
+               && (m.Type.FullName = "Microsoft.AspNetCore.Http.RequestDelegate" || m.Type.FullName = "System.Func`1")
+               && (match operands with Unknown :: _ -> true | _ -> false) then
+                { state with PassedOn = true }
+            else
+                state
+
         let receiver = match operands with first :: _ when m.HasThis -> Some first | _ -> None
         let arg (i: int) = List.tryItem (if m.HasThis then i + 1 else i) operands |> Option.defaultValue Unknown
         let tags = operands |> List.fold (fun acc v -> match v with Req t -> Set.union acc t | _ -> acc) Set.empty
@@ -688,6 +804,7 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
         // A response written by library code on a path that reached no user function: the library builds the
         // response, and the user code that set it up stands in as the handler.
         if phase = RequestPhase
+           && not followUser
            && m.Name.StartsWith "Write"
            && (m.Type.FullName = "System.IO.Stream" || m.Type.FullName = "System.IO.Pipelines.PipeWriter" || m.Type.FullName.StartsWith "Microsoft.AspNetCore.Http.HttpResponse")
            && not state.Uncertain
@@ -1329,6 +1446,15 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 | Some b ->
                     this.CallValue(phase, b, [ Ref id ], s, depth + 1) |> List.map (fun (_, s2) -> Unknown, s2)
                 | None -> [ Ref id, s ]
+            | None, None, None, Some middleware, _ when
+                (rule.Payload
+                 |> List.tryFind (fun p -> p.Role = "middleware")
+                 |> Option.bind (fun p -> List.tryItem p.Argument m.ParameterTypes)
+                 |> Option.exists (fun t -> t.StartsWith "System.Func`3"))
+                ->
+                // Use((context, next) => ...): the delegate is itself what runs for each request.
+                registered.Add(RequestRoot(rule, middleware, state, siteOrUnknown))
+                one Unknown
             | None, None, None, Some middleware, _ ->
                 // Use(next => context => ...): calling it with the next delegate gives the request handler.
                 let produced = this.CallValue(phase, middleware, [ Unknown ], state, depth + 1)
@@ -1602,7 +1728,7 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
               Forked = false }
 
         let fork (t: Thread) =
-            if created < (if phase = RequestPhase then limits.ThreadsPerCall * 4 else limits.ThreadsPerCall) then
+            if created < (if phase = RequestPhase then limits.ThreadsPerCall * (if followUser then 32 else 4) else limits.ThreadsPerCall) then
                 created <- created + 1
                 threads.Push t
             elif debug then
@@ -1634,6 +1760,16 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 | None -> { WhenTrue = []; WhenFalse = []; Uncertain = false }
             | _ -> { WhenTrue = []; WhenFalse = []; Uncertain = false }
 
+        // Routing in user code: a branch here that adds conditions the path's route does not have yet is a routing
+        // decision made by this function.
+        let userFrame = followUser && phase = RequestPhase && isUser me
+
+        let decide (before: PathState) (after: PathState) =
+            if userFrame && after.Predicates |> List.exists (fun p -> not (List.contains p before.Route)) then
+                { after with Decider = Some(me, depth); DeciderOpen = true; Route = after.Predicates; Entered = None }
+            else
+                after
+
         let branch (t: Thread) (v: SVal) (takenWhenTrue: bool) (target: int) =
             let next = { t with Pc = t.Pc + 1 }
 
@@ -1643,7 +1779,7 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 | Ref id ->
                     match t.State.Heap.TryFind id with
                     | Some o when not o.Guard.IsEmpty ->
-                        match addPredicates t.State o.Guard with
+                        match addPredicates t.State o.Guard |> Option.map (decide t.State) with
                         | Some s -> { t with State = s }, { next with State = s }
                         | None -> { t with Pc = Int32.MaxValue }, { next with Pc = Int32.MaxValue }
                     | _ -> t, next
@@ -1664,12 +1800,12 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 let mark (s: PathState) (isTrueSide: bool) = if c.Uncertain && isTrueSide then { s with Uncertain = true } else s
 
                 let taken () =
-                    match addPredicates (mark t.State takenWhenTrue) whenTaken with
+                    match addPredicates (mark t.State takenWhenTrue) whenTaken |> Option.map (decide t.State) with
                     | Some s -> jump { t with State = s } target |> Option.iter fork
                     | None -> ()
 
                 let notTaken () =
-                    match addPredicates (mark t.State (not takenWhenTrue)) whenNot with
+                    match addPredicates (mark t.State (not takenWhenTrue)) whenNot |> Option.map (decide t.State) with
                     | Some s -> fork { next with State = s }
                     | None -> ()
 
@@ -1766,6 +1902,13 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                                 | None -> [], []
                             | _ -> [], []
 
+                        // Routing in user code: outcomes that decided different routes are different outcomes.
+                        let decision (s: PathState) =
+                            if followUser then
+                                box (Set.ofList s.Route, s.Decider |> Option.map (fun (m, d) -> m.Key, d), s.DeciderOpen, s.Entered |> Option.map (fun (m, _) -> m.Key), s.PassedOn)
+                            else
+                                null
+
                         let subsumed (results: (SVal * PathState) list) =
                             let guardOf (v: SVal, s: PathState) =
                                 match v with
@@ -1784,7 +1927,7 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                                         | None -> box id
                                     | other -> box other
 
-                                value, Set.ofList s.Predicates, s.Uncertain, s.LastUserObject, requestStorage s
+                                value, Set.ofList s.Predicates, s.Uncertain, s.LastUserObject, requestStorage s, decision s
 
                             let conditions (outcome: SVal * PathState) = Set.ofList (guardOf outcome)
 
@@ -1816,12 +1959,12 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
                                         // Predicates as a set: the same conditions, met in another order or twice, are
                                         // the same outcome.
-                                        value, Set.ofList s.Predicates, s.Uncertain, s.LastUserObject, requestStorage s)
+                                        value, Set.ofList s.Predicates, s.Uncertain, s.LastUserObject, requestStorage s, decision s)
                                     |> subsumed
                                 else
                                     results
 
-                            match results |> List.truncate (if phase = RequestPhase then limits.OutcomesPerCall * 4 else limits.OutcomesPerCall) with
+                            match results |> List.truncate (if phase = RequestPhase then limits.OutcomesPerCall * (if followUser then 64 else 4) else limits.OutcomesPerCall) with
                             | [] -> running <- false
                             | (v, s) :: others ->
                                 for (v2, s2) in others do
@@ -2342,14 +2485,35 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
             | _ -> None
 
     /// Runs a request root with request data as its input, collecting the handlers reached.
-    member this.Explore(root: SVal, state: PathState, seed: Predicate list) =
+    /// Runs a request through a registered root. `pipeline` is true for a request pipeline (middleware), false for an
+    /// endpoint's handler, which is the handler whatever it does.
+    member this.Explore(root: SVal, state: PathState, seed: Predicate list, ?pipeline: bool) =
         // Every request root gets its own budget.
         steps <- 0
         totalSteps <- 0
         deadline <- limits.Steps
         let before = hits.Count
-        let state = { state with Predicates = seed; LastUserObject = None; Uncertain = false }
+        let state = { state with Predicates = seed; LastUserObject = None; Uncertain = false; Decider = None; DeciderOpen = false; Route = []; Entered = None; PassedOn = false }
         let context = Req(Set.singleton HttpContext)
+
+        // A request pipeline the application wrote itself (middleware that is not just a call into a library): the
+        // first user function reached would be the pipeline itself, so user code is run like library code, and
+        // the handler is chosen where the routing decisions are made (see Dispatch and Interpret).
+        let rootFunction =
+            match root with
+            | Fn(m, _) when isUser m -> Some m
+            | Ref id ->
+                match state.Heap.TryFind id with
+                | Some o ->
+                    match set.TryType o.Type with
+                    | Some(def, _) when isUser { Type = o.Type; Name = "Invoke"; Key = ""; LocalKey = ""; ParameterTypes = []; ReturnType = ""; HasThis = true; GenericArity = 0; TypeArguments = []; DeclaringTypeArguments = [] } ->
+                        def.Methods |> List.tryFind (fun m -> m.Ref.Name = "Invoke" && m.Body.Value.IsSome) |> Option.map (fun m -> m.Ref)
+                    | _ -> None
+                | None -> None
+            | _ -> None
+
+        followUser <- defaultArg pipeline false && rootFunction |> Option.exists (fun m -> not (isForwarder m))
+        this.SetPipeline(if followUser then rootFunction else None)
 
         let argsFor (m: MethodRef) =
             List.replicate m.ParameterCount Unknown
@@ -2361,12 +2525,47 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
             | Ref _ -> this.CallValue(RequestPhase, root, [ context ], state, 0)
             | _ -> []
 
-        // Paths that finished without reaching user code: the user code that built the last function object.
+        // Paths that finished without reaching user code: the user code that built the last function object. In a
+        // pipeline the application wrote, the function that made the last routing decision, or the first user
+        // function it called after it.
         for (_, s) in results do
             if debug then
-                trace (sprintf "result: last user object %A, predicates %A, uncertain %b" (s.LastUserObject |> Option.map (fun (m, o) -> m.Display, o)) (s.Predicates |> List.map (fun p -> p.Part, p.Value)) s.Uncertain)
+                trace (sprintf "result: last user object %A, predicates %A, uncertain %b, decider %A, entered %A" (s.LastUserObject |> Option.map (fun (m, o) -> m.Display, o)) (s.Predicates |> List.map (fun p -> p.Part, p.Value)) s.Uncertain (s.Decider |> Option.map (fun (m, _) -> m.Display)) (s.Entered |> Option.map (fun (m, _) -> m.Display)))
+
+            // Segments of a path of known length that nothing compared with a constant take any value: route
+            // parameters (an `Int32Str id` pattern, a `_`), for a router that answers itself. A handler it calls gets
+            // the segments it is handed; a segment left open on the way to one (a fall-through to a not-found
+            // handler) is not a parameter.
+            let open' (route: Predicate list) (given: Predicate list) =
+                let count =
+                    route
+                    |> List.tryPick (fun p ->
+                        match p.Part, p.Operator, Int32.TryParse p.Value with
+                        | RequestPart.SegmentCount, PredicateOperator.Equals, (true, n) -> Some n
+                        | _ -> None)
+
+                let named = route @ given |> List.choose (fun p -> if p.Part = RequestPart.PathSegment then p.Index else None) |> Set.ofList
+
+                match count with
+                | Some n ->
+                    [ for i in 0 .. n - 1 do
+                          if not (named.Contains i) then
+                              yield predicate (RequestPart.PathSegment, Some i) PredicateOperator.Parameter "{param}" ]
+                | None -> []
 
             match s.LastUserObject with
+            | _ when followUser && s.PassedOn -> ()
+            | _ when followUser ->
+                match s.Entered, s.Decider with
+                | Some(handler, parameters), _ ->
+                    hits.Add
+                        { Handler = HandlerMethod handler
+                          Predicates = if s.Uncertain then [] else s.Route @ parameters }
+                | None, Some(decider, _) ->
+                    hits.Add
+                        { Handler = HandlerRouter decider
+                          Predicates = if s.Uncertain then [] else s.Route @ open' s.Route [] }
+                | None, None -> ()
             | Some(siteMethod, offset) when not s.Predicates.IsEmpty || not seed.IsEmpty ->
                 hits.Add
                     { Handler = HandlerSite(siteMethod, offset)
@@ -2380,4 +2579,9 @@ let emptyState =
       Statics = Map.empty
       Predicates = []
       LastUserObject = None
-      Uncertain = false }
+      Uncertain = false
+      Decider = None
+      DeciderOpen = false
+      Route = []
+      Entered = None
+      PassedOn = false }

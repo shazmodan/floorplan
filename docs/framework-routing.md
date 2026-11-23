@@ -110,6 +110,43 @@ What Saturn added:
   of `Seq.append` and similar) are interpreted; only FSharp.Core's static initialization is skipped. Before,
   every such sequence enumerated as unknown and forked at each step.
 
+## Routing in a pipeline the application wrote
+
+Found on an application (2026-11-23) whose every route was unresolved: ASP.NET Core middleware of its own,
+`app.Use((context, next) => ...)`, maps the request to a package's request record, calls the routing function
+it was handed (`routing (mapRequest context)`) and writes the response. The router matches the package's active
+patterns (`GET (["Roles"; Int32Str _; _], _)`), with or-patterns sharing one response and the path's prefix
+taken off before a nested router. Request data tracking cannot follow a function value, and the interpreter took
+the middleware, the first user function it reached, as the handler. Fixture: `Routing.Wrapped`, with the
+package's shapes in `Dependency/Routing.Library/Web.fs`. What changed:
+
+- **`Use` with the context.** `Use(Func<HttpContext, RequestDelegate, Task>)` is the request handler itself;
+  before, every `Use` was called with a next delegate to get the handler, which ran the middleware at startup.
+- **User code is run when the pipeline is the application's own.** A request root that is a user function and
+  not just a call into a library (`isForwarder`) is run like library code. The handler is chosen where the
+  routing is decided: the user function whose branch last added conditions the route did not have yet (an
+  active pattern's result counts when the user code tests it), or the first user function it calls after that,
+  while it runs. A router that answers with a value itself (`| GET ["users"] -> Some response`) is its own
+  handler (`HandlerRouter`), and its open segments are not named after its parameters. A path that calls the
+  next part of the pipeline (`next`, a delegate nothing is known about) was not handled there and gives no
+  entry. Outcomes that decided different routes stay apart, and the limits on outcomes and threads per call are
+  higher in this mode (64 and 32 times the base), as each route is a path of its own to the end.
+- **Path segments in F# lists.** The path split and turned into a list (`List.ofArray`, `List.filter`) stays the
+  path's segments; head, tail and length of it are answered from the segment tags (the head of the segments from
+  n is segment n), as request data tracking does, instead of running FSharp.Core's list code over them.
+- **Other request collections.** In this mode an F# collection function given request data that is not the
+  path (the headers or the query string folded into a map, a key looked up in it) gives request data without
+  being run: its elements are unknown, and running it only forked until the budget was spent. A route that also
+  needs a query key is reported without that condition.
+- **Contradictions.** A path of n segments has no segment n or later: such a pair of conditions ends the path.
+- **Open segments.** In a route of known length, a segment no constant was compared with (`Int32Str id`, `_`)
+  is a parameter, `{param}`.
+- Request data tracking finds the middleware's plumbing (the function that maps the request, the response
+  writer) as handlers with no route; inside a pipeline whose routing was followed this way they are dropped.
+
+On the application this came from, all 70 routes are recovered, complete, besides `OPTIONS` on any path; the
+symbolic run takes 2 s. (The static part of its entry point analysis takes over two minutes, before and after.)
+
 ## Known limits
 
 - Path explosion is bounded, not solved: frameworks that try alternatives one after another fork at every

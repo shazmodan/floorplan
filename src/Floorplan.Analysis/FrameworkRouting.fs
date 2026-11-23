@@ -71,7 +71,8 @@ let private entry (ctx: AppContext) (hit: Hit) (forms: RouteForm list) (steps: E
 
     let handler, point =
         match hit.Handler with
-        | HandlerMethod m -> m, firstPoint set m
+        | HandlerMethod m
+        | HandlerRouter m -> m, firstPoint set m
         | HandlerSite(m, offset) -> m, pointIn set m offset
 
     let projectId =
@@ -92,7 +93,8 @@ let private entry (ctx: AppContext) (hit: Hit) (forms: RouteForm list) (steps: E
         // No user function handles the request: name the unit whose code built the library handler.
         let handlerName =
             match hit.Handler with
-            | HandlerMethod m -> m.Display
+            | HandlerMethod m
+            | HandlerRouter m -> m.Display
             | HandlerSite _ -> $"{unit.Name} (response built by a library function)"
 
         { Id = ""
@@ -117,7 +119,8 @@ let private entry (ctx: AppContext) (hit: Hit) (forms: RouteForm list) (steps: E
                            Member = m.Display
                            Assembly = m.Type.Assembly
                            Location = point |> Option.map Attribution.toLocation } ]
-                   | HandlerMethod _ -> []) } })
+                   | HandlerMethod _
+                   | HandlerRouter _ -> []) } })
 
 /// Whether anything reachable from the application, in its own code or in a dependency, registers a request
 /// handler with the platform. Only such a registration gives the symbolic run something to explore: an application
@@ -168,7 +171,7 @@ let private filterMethod (set: AssemblySet) (filter: Filter) : MethodRef option 
     | FilterValue _ -> None
 
 /// Entry points found by running the application symbolically.
-let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list =
+let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list * MethodRef list =
     let set = ctx.Program.Set
 
     let entryPoint =
@@ -177,9 +180,10 @@ let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list =
         |> Option.bind (fun (_, a) -> a.EntryPoint)
 
     match entryPoint with
-    | None -> []
-    | Some _ when not (registersHandlers ctx) -> []
+    | None -> [], []
+    | Some _ when not (registersHandlers ctx) -> [], []
     | Some main ->
+        let pipelines = ResizeArray<MethodRef>()
         let machine = Machine(set, ctx.Matcher, ctx.Program.Recognizers, defaultLimits, ctx.Program.SettingsFor ctx.Project)
         let args = List.replicate main.ParameterCount Unknown
         Progress.report $"Entry points of {ctx.Project.ProjectId}: running its startup code symbolically to find what it registers"
@@ -290,13 +294,17 @@ let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list =
             | RequestRoot(rule, handler, state, site) ->
                 let steps = [ step $"{(fst site).Display} registers a request handler with the platform (rule {rule.Id})" site ]
 
-                let hits = machine.Explore(handler, state, [])
+                let hits = machine.Explore(handler, state, [], pipeline = true)
+
+                match machine.UserPipeline with
+                | Some p when not hits.IsEmpty -> pipelines.Add p
+                | _ -> ()
 
                 if System.Environment.GetEnvironmentVariable "FLOORPLAN_DEBUG" = "1" then
                     eprintfn "  explored root %s: %d hits, %d steps (%d in all), exhausted %b" rule.Id hits.Length machine.Steps machine.TotalSteps machine.Exhausted
 
                     for h in hits do
-                        eprintfn "  hit %A with %A" h.Handler (h.Predicates |> List.map (fun p -> p.Part, p.Value))
+                        eprintfn "  hit %s with %s" (match h.Handler with Symbolic.HandlerMethod m | Symbolic.HandlerRouter m -> m.Display | Symbolic.HandlerSite(m, o) -> sprintf "%s@%d" m.Display o) (h.Predicates |> List.map (fun p -> sprintf "%A%s %A %s" p.Part (match p.Index with Some i -> string i | None -> "") p.Operator p.Value) |> String.concat "; ")
 
                 hits |> List.choose (fun h -> entry ctx h [ RouteForm.ControlFlow ] steps))
 
@@ -330,12 +338,13 @@ let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list =
                         []
                         [ step $"{f.Display} is handed to {(fst site).Display}; no request path to it was recovered" site ])
 
-        found @ unreached
+        found @ unreached, List.ofSeq pipelines
 
 /// The interpreter recurses once per interpreted call, through several .NET frames each, so it runs on a thread
 /// with a stack sized for its depth limit rather than on the caller's.
-let analyze (ctx: AppContext) : EntryPoint list =
-    let mutable result = Ok []
+/// The entry points, and the request pipelines the application wrote whose routing was followed through its own code.
+let analyze (ctx: AppContext) : EntryPoint list * MethodRef list =
+    let mutable result = Ok([], [])
 
     let worker =
         System.Threading.Thread(
@@ -352,6 +361,6 @@ let analyze (ctx: AppContext) : EntryPoint list =
     worker.Join()
 
     match result with
-    | Ok entries -> entries
+    | Ok found -> found
     | Error e -> raise (System.AggregateException("Symbolic routing analysis failed", e))
 

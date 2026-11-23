@@ -153,8 +153,10 @@ let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoin
         let routers =
             foundHandlers |> List.filter (fun h -> not h.Guards.IsEmpty) |> List.map (fun h -> h.Caller.Ref.Display) |> Set.ofList
 
+        let symbolic, pipelines = FrameworkRouting.analyze ctx
+
         let symbolic =
-            FrameworkRouting.analyze ctx
+            symbolic
             |> List.filter (fun e -> not (e.Predicates.IsEmpty && routers.Contains e.HandlerMember))
             // Several symbolic paths to one handler: keep the most specific ones.
             |> List.groupBy (fun e -> e.HandlerMember)
@@ -165,6 +167,33 @@ let analyze (program: EffectAnalysis.Program) (input: AnalysisInput) : EntryPoin
 
         let symbolic =
             symbolic |> List.filter (fun e -> not (e.Predicates.IsEmpty && reported.Contains e.HandlerMember))
+
+        // A request pipeline the application wrote, whose routing was followed through its code: request data
+        // tracking cannot follow it (the router is a function value), and the handlers it found without a route
+        // in the pipeline's own code (mapping the request, writing the response) are its plumbing.
+        let plumbing =
+            let seen = System.Collections.Generic.HashSet<string>()
+            let stack = System.Collections.Generic.Stack<MethodRef>(pipelines)
+
+            while stack.Count > 0 do
+                let m = stack.Pop()
+
+                if seen.Add m.Display then
+                    for e in (program.GraphFor project).Callees m do
+                        if methods.ContainsKey e.Target.Key && not (seen.Contains e.Target.Display) then
+                            stack.Push e.Target
+
+            seen
+
+        // Where request data tracking found routes in such a pipeline's code (the router is called directly, not as
+        // a function value), they stand, and the pipeline's symbolic routes add nothing.
+        let trackedRoutes = tracked |> List.exists (fun e -> e.Route.IsSome && plumbing.Contains e.HandlerMember)
+
+        let tracked, symbolic =
+            if trackedRoutes then
+                tracked, symbolic |> List.filter (fun e -> not (plumbing.Contains e.HandlerMember))
+            else
+                tracked |> List.filter (fun e -> e.Route.IsSome || not e.Predicates.IsEmpty || not (plumbing.Contains e.HandlerMember)), symbolic
 
         let all = platform @ tables @ tracked @ symbolic
 

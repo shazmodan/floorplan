@@ -10,6 +10,7 @@ Date: 2026-11-15. Results: `tests/golden/routing.entry-points.txt`.
 | Routing.Records (active patterns made by partially applying an inline matcher, path in a nested record, path and query as a tuple) | A | `GET /Session`, `POST /Session`, `DELETE /Session/{id}` complete (GitHub issue 17) |
 | Routing.Table (Dictionary and Map of handlers) | B | Paths recovered; partial, because nothing constrains the method |
 | Routing.Delegated (the Middleware router in a library outside the solution, handlers passed in a record) | A, in a dependency | Same routes as Routing.Middleware, by the symbolic interpreter |
+| Routing.Wrapped (its own `app.Use((context, next) => ...)` middleware calling the routing function it is handed; a package's active patterns, or-patterns, prefixes taken off, routes answering with a shared value) | A, through a function value | All 11 routes, by the symbolic interpreter (`docs/framework-routing.md`, 2026-11-23) |
 | Routing.Dynamic (route from configuration, regex built at run time) | negative | Handlers found, no route: never a wrong one |
 | Routing.Socket (raw TCP) | none | Network entry point, unresolved |
 

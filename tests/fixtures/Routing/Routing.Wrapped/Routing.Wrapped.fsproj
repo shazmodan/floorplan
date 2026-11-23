@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <RoutingLibrary>$(MSBuildThisFileDirectory)../Dependency/Routing.Library/Routing.Library.fsproj</RoutingLibrary>
+    <RoutingLibraryAssembly>$(MSBuildThisFileDirectory)../Dependency/Routing.Library/bin/$(Configuration)/$(TargetFramework)/Routing.Library.dll</RoutingLibraryAssembly>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Api.fs" />
+    <Compile Include="Middleware.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+  <!-- The router is referenced as a built assembly, not as a project: it is a dependency, like a package, and not
+       part of the solution under analysis. -->
+  <ItemGroup Condition="'$(TargetFramework)' != ''">
+    <Reference Include="Routing.Library">
+      <HintPath>$(RoutingLibraryAssembly)</HintPath>
+    </Reference>
+  </ItemGroup>
+  <!-- Built once, for every framework, before the per-framework builds run in parallel: two of them restoring
+       and building the library at the same time race on its obj folder. -->
+  <Target Name="BuildRoutingLibrary" BeforeTargets="DispatchToInnerBuilds">
+    <MSBuild Projects="$(RoutingLibrary)" Targets="Restore" Properties="Configuration=$(Configuration);RestoreSeparately=true" />
+    <MSBuild Projects="$(RoutingLibrary)" Targets="Build" Properties="Configuration=$(Configuration)" />
+  </Target>
+  <!-- A build of one framework only (-f) has no outer build. -->
+  <Target Name="BuildRoutingLibraryFor" BeforeTargets="ResolveAssemblyReferences" Condition="'$(TargetFramework)' != '' And !Exists('$(RoutingLibraryAssembly)')">
+    <MSBuild Projects="$(RoutingLibrary)" Targets="Restore" Properties="Configuration=$(Configuration);RestoreSeparately=true" />
+    <MSBuild Projects="$(RoutingLibrary)" Targets="Build" Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)" />
+  </Target>
+</Project>
