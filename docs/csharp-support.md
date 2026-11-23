@@ -341,6 +341,27 @@ Also new, outside the recognizer:
   a payload: the storage provider is named in a `[PersistentState]` attribute on a constructor parameter, which is
   not read. Not read either: streams (implicit and explicit subscriptions), reminders, observers, and the
   storage provider behind the state. Fixture: `CSharp.Orleans` (silo and client in one host).
+- **WCF services and clients**: CoreWCF dispatches a message to a service by its action, through code of its own
+  (and invokers its source generator writes), so a service's methods had no caller; a System.ServiceModel client
+  sends through its channel stack, which only reached low-confidence guesses deep inside the library.
+  `AddServiceEndpoint<TService, TContract>(binding, address)` (`network.corewcf-endpoint`, payloads
+  `"wcf-service-type"` and `"wcf-contract-type"`: type argument indices) exposes a contract: each method marked
+  `[OperationContract]` of the contract and of the contracts it derives from is a network entry point at its
+  action, handled by the service's implementation (explicit or by name), complete, registered through the
+  contract's `[ServiceContract]` attribute (CoreWCF's or System.ServiceModel's, the `"wcf-contract"` role). The
+  action is the operation's `Action`, else `{Namespace}/{Name}/{operation}`: the contract's namespace
+  (`http://tempuri.org/` by default), its name (the interface's by default) and the operation's (the method's,
+  without the `Async` of a method returning a task), as WCF names it. A client calls a method of its own copy of
+  the contract, marked with System.ServiceModel's `[OperationContract]` (`network.wcf-operation-call`, a marked
+  call, payload `"wcf-action"`): a network exit point at the same action, so the client is linked to the service
+  in the architecture whatever the binding. The call is reported where the application makes it, through a channel
+  (`ChannelFactory<T>.CreateChannel`) or a proxy: a class's method that implements a marked interface method is a
+  proxy's when it passes the call on to a marked method (a `ClientBase<T>` proxy calls its `Channel`'s) or its
+  class is not the user's (`[GeneratedCode]`, as dotnet-svcutil writes, or `[DebuggerNonUserCode]`, as Refit's
+  generator does). A call to it is the call to the interface method, and nothing is reported inside. Not read:
+  the endpoint address beyond the evidence, the non-generic `AddServiceEndpoint` overloads (contract as a `Type`),
+  endpoints from configuration files, duplex callbacks and the binding. Fixtures: `CSharp.Wcf` (service) and
+  `CSharp.WcfClient`.
 - **AWS and Azure Cosmos DB**: the AWS SDK for .NET and the Cosmos DB client send requests through pipelines of
 
   handlers of their own, past credential providers that read files, start processes and call the platform's

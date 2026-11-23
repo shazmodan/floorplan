@@ -1093,6 +1093,101 @@ let hubEntries (ctx: AppContext) : EntryPoint list =
                             [ step $"{r.Caller.Ref.Display} maps hub {hub.FullName} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
                               step $"{handler.Display} is a method of the hub, which clients invoke as \"{name}\" over its connection" handler point ] } })))
 
+// ---- WCF services ----
+
+/// Services a WCF host exposes: a registration with "wcf-service-type" and "wcf-contract-type" payloads
+/// (CoreWCF's AddServiceEndpoint<TService, TContract>(binding, address)) names the service and the contract by
+/// type argument. Each [OperationContract] method of the contract, or of a contract it derives from, is an entry
+/// point at its action (Wcf.action), handled by the service's implementation of it.
+let wcfEntries (ctx: AppContext) : EntryPoint list =
+    let set = ctx.Program.Set
+
+    // The contract and the interfaces it derives from, each with its methods.
+    let contracts (contract: TypeRef) =
+        contract :: (set.TryType contract |> Option.map (fun (t, _) -> t.Interfaces) |> Option.defaultValue [])
+        |> List.choose set.TryType
+        |> List.map fst
+        |> List.distinctBy (fun t -> t.Ref.FullName)
+
+    // The service's method for a contract method: an explicit implementation, else a public one by name and
+    // parameters, in the service or a base class of the application.
+    let implementation (service: TypeRef) (operation: MethodDef) =
+        (service :: set.BaseChain service)
+        |> List.filter (fun t -> set.Origin t.Assembly <> Framework)
+        |> List.choose set.TryType
+        |> List.tryPick (fun (t, _) ->
+            t.Methods
+            |> List.tryFind (fun m -> m.Overrides |> List.exists (fun o -> o.Key = operation.Ref.Key))
+            |> Option.orElse (
+                t.Methods
+                |> List.tryFind (fun m ->
+                    m.IsPublic && not m.IsStatic && m.Ref.Name = operation.Ref.Name && m.Ref.ParameterTypes = operation.Ref.ParameterTypes)
+            ))
+
+    PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
+    |> List.filter (fun r -> hasRole "wcf-service-type" r.Rule && hasRole "wcf-contract-type" r.Rule)
+    |> List.collect (fun r ->
+        let argument (role: string) =
+            List.tryItem (r.Rule.Payload |> List.find (fun p -> p.Role = role)).Argument r.Declared.TypeArguments
+
+        match argument "wcf-service-type", argument "wcf-contract-type" with
+        | Some service, Some contract ->
+            let registrationPoint = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
+
+            let address =
+                r.Rule.Payload
+                |> List.tryFind (fun p -> p.Role = "wcf-address")
+                |> Option.bind (fun p ->
+                    let evaluator = Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set, (fun _ _ -> Values.Origin.unknown), ctx.Program.SettingsFor ctx.Project)
+
+                    match evaluator.Operand(r.Offset, Values.operandIndex r.Declared false p.Argument) with
+                    | Values.Text a -> Some a
+                    | _ -> None)
+
+            let at = match address with Some a -> $" at \"{a}\"" | None -> ""
+
+            contracts contract
+            |> List.collect (fun c ->
+                match Wcf.contractAttribute ctx.Matcher c.Attributes with
+                | None -> []
+                | Some contractAttribute ->
+                    c.Methods
+                    |> List.choose (fun m ->
+                        Wcf.operationAttribute ctx.Matcher m.Attributes
+                        |> Option.bind (fun op -> Wcf.action c contractAttribute m op)
+                        |> Option.bind (fun action -> implementation service m |> Option.map (fun impl -> c, contractAttribute, m, action, impl))))
+            |> List.choose (fun (c, contractAttribute, operation, action, impl) ->
+                let handler = impl.Ref
+                let point = firstPoint set handler
+
+                let projectId =
+                    match set.Origin handler.Type.Assembly with
+                    | User pid -> pid
+                    | _ -> ctx.Project.ProjectId
+
+                ctx.Program.Attributor.Attribute(projectId, handler, point)
+                |> Option.map (fun unit ->
+                    { Id = ""
+                      ApplicationId = ctx.Project.ProjectId
+                      HandlerUnit = unit.Id
+                      HandlerMember = handler.Display
+                      Location = point |> Option.map Attribution.toLocation
+                      Category = defaultArg r.Rule.Category EffectCategory.Network
+                      // The library is the contract's: CoreWCF's generator writes types of its configuration
+                      // namespace into the application.
+                      RegisteredThrough = Some contractAttribute.Type.FullName
+                      Predicates = []
+                      HttpMethod = None
+                      Route = Some action
+                      Completeness = Completeness.Complete
+                      Forms = [ RouteForm.PlatformRouting ]
+                      Before = []
+                      Evidence =
+                        { Steps =
+                            [ step $"{r.Caller.Ref.Display} exposes contract {contract.FullName} of service {service.FullName}{at} with {r.Declared.Display} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
+                              step $"{handler.Display} implements operation {c.Ref.FullName}::{operation.Ref.Name}, which clients call by its action \"{action}\"" handler point ] } }))
+        | _ -> [])
+
 // ---- Hosted services ----
 
 /// Types a host or library calls: a registration whose rule has a "hosted-service-type" payload (AddHostedService<T>())

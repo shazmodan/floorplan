@@ -272,21 +272,69 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
             Assembly = d.PrimitiveAssembly
             Location = None } ]
 
-    // Methods that implement an interface method an attribute marks as the effect (the implementation Refit's
-    // source generator writes): the effect is reported at the calls to the interface method, not again inside.
-    let markedImplementations (t: TypeDef) =
+    let marked (d: MethodDef) =
+        d.Attributes |> List.exists (fun a -> (ctx.Matcher.MarkingSink a.Type).IsSome)
+
+    // Methods of a proxy that implement an interface method an attribute marks as the effect, each with that method:
+    // the implementation Refit's source generator writes (code not the user's), or one that forwards the call to
+    // the marked method of another object (a WCF ClientBase<T> proxy calls its Channel's). The effect is reported
+    // at the calls to either, not again inside. Another implementation (a WCF service's) is code of its own.
+    let proxyMethodsOf (t: TypeDef) : Map<string, MethodDef> =
+        let notUsers =
+            t.IsCompilerGenerated
+            || t.Attributes
+               |> List.exists (fun a ->
+                   a.Type.FullName = "System.Diagnostics.DebuggerNonUserCodeAttribute"
+                   || a.Type.FullName = "System.CodeDom.Compiler.GeneratedCodeAttribute")
+
+        let forwards (m: MethodDef) =
+            match m.Body.Value with
+            | Some body ->
+                body.Instructions
+                |> Array.exists (fun ins ->
+                    match ins.Op with
+                    | Call c
+                    | CallVirt c ->
+                        match ctx.Set.TryMethod c with
+                        | Some(d, _) -> marked d
+                        | None -> false
+                    | _ -> false)
+            | None -> false
+
         t.Interfaces
         |> List.choose ctx.Set.TryType
         |> List.collect (fun (i, _) ->
             i.Methods
-            |> List.filter (fun im -> im.Attributes |> List.exists (fun a -> (ctx.Matcher.MarkingSink a.Type).IsSome))
+            |> List.filter marked
             |> List.collect (fun im ->
                 t.Methods
                 |> List.filter (fun m ->
                     m.Overrides |> List.exists (fun o -> o.Key = im.Ref.Key)
                     || (m.Ref.Name = im.Ref.Name && m.Ref.ParameterTypes = im.Ref.ParameterTypes))
-                |> List.map (fun m -> m.Ref.Key)))
-        |> Set.ofList
+                |> List.filter (fun m -> notUsers || forwards m)
+                |> List.map (fun m -> m.Ref.Key, im)))
+        |> Map.ofList
+
+    let proxyMethods = Dictionary<string, Map<string, MethodDef>>()
+
+    // The marked interface method a call of `declared` is: the method itself, or the one a proxy's method implements.
+    let markedTarget (declared: MethodRef) : MethodDef option =
+        match ctx.Set.TryMethod declared with
+        | Some(def, _) when marked def -> Some def
+        | Some _ ->
+            match ctx.Set.TryType declared.Type with
+            | Some(t, _) when not t.IsInterface ->
+                let methods =
+                    match proxyMethods.TryGetValue t.Ref.FullName with
+                    | true, ms -> ms
+                    | _ ->
+                        let ms = proxyMethodsOf t
+                        proxyMethods[t.Ref.FullName] <- ms
+                        ms
+
+                methods.TryFind declared.Key
+            | _ -> None
+        | None -> None
 
     // The values, with a field of `this` the method itself stores read as the value stored: an async method keeps its
     // locals in fields of its state machine.
@@ -573,12 +621,12 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
         | _ -> payload
 
     for t in assembly.Types do
-        let implementsMarked = markedImplementations t
+        let implementsMarked = proxyMethodsOf t
 
         for m in t.Methods do
             match m.Body.Value with
             | None -> ()
-            | Some _ when implementsMarked.Contains m.Ref.Key -> ()
+            | Some _ when implementsMarked.ContainsKey m.Ref.Key -> ()
             | Some body ->
                 let flow = lazy (DataFlow.ofMethod m)
                 let generated = isGenerated m
@@ -779,11 +827,12 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                   step $"{p.Enumerator.Display} enumerates {held last} of {enumerating.Display}, which runs the query on the database (rule {q.Rule.Id})" p.Enumerator None ]
                         | None -> ()
 
-                    // A call to a method an attribute marks as the effect (Refit's [Get("/users/{id}")]): the attribute's
-                    // argument is the payload.
+                    // A call to a method an attribute marks as the effect (Refit's [Get("/users/{id}")]), or to a
+                    // proxy's implementation of one: the attribute's argument is the payload, or for a WCF operation
+                    // its action.
                     if not isLogCall && ctx.Set.Origin declared.Type.Assembly <> Framework then
-                        match ctx.Set.TryMethod declared with
-                        | Some(def, _) ->
+                        match markedTarget declared with
+                        | Some def ->
                             def.Attributes
                             |> List.tryPick (fun a -> ctx.Matcher.MarkingSink a.Type |> Option.map (fun r -> a, r))
                             |> Option.iter (fun (a, rule) ->
@@ -791,19 +840,30 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                     rule.Payload
                                     |> List.tryHead
                                     |> Option.map (fun spec ->
-                                        match List.tryItem spec.Argument a.Arguments with
-                                        | Some(AttributeValue.Text t) -> Values.Evaluator.ToPayload(Values.Text t, spec.Role)
-                                        | _ -> Values.Evaluator.ToPayload(Values.Hole, spec.Role))
+                                        match spec.Role with
+                                        | "wcf-action" ->
+                                            match Wcf.actionOf ctx.Set ctx.Matcher def with
+                                            | Some action -> Values.Evaluator.ToPayload(Values.Text action, spec.Role)
+                                            | None -> Values.Evaluator.ToPayload(Values.Hole, spec.Role)
+                                        | _ ->
+                                            match List.tryItem spec.Argument a.Arguments with
+                                            | Some(AttributeValue.Text t) -> Values.Evaluator.ToPayload(Values.Text t, spec.Role)
+                                            | _ -> Values.Evaluator.ToPayload(Values.Hole, spec.Role))
+
+                                let through =
+                                    if def.Ref.Key = declared.Key then []
+                                    else [ step $"{declared.Display} implements {def.Ref.Display} and passes the call on to it" declared None ]
 
                                 add
                                     rule.Category.Value
                                     rule.Id
-                                    declared.Display
+                                    def.Ref.Display
                                     None
                                     payload
                                     Confidence.High
                                     [ step $"{m.Ref.Display} calls {declared.Display}" m.Ref point
-                                      step $"{declared.Display} is marked {a.Type.FullName}, which makes a call to it a {categoryName rule.Category.Value} call (rule {rule.Id})" declared None ])
+                                      yield! through
+                                      step $"{def.Ref.Display} is marked {a.Type.FullName}, which makes a call to it a {categoryName rule.Category.Value} call (rule {rule.Id})" def.Ref None ])
                         | None -> ()
 
                     for edge in edges |> List.filter (fun _ -> not dispatched) do
