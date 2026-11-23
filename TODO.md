@@ -6,11 +6,14 @@ Work that is known and not yet done. Remove an item when its branch is merged.
 
 In the order they are worth doing: the first ones change results already shown, the later ones add new inputs.
 
-1. **Summarize dependencies per project**: each project's view of the call graph keeps its virtual calls to the
-   types its reference closure constructs, but dependency summaries are computed once over the whole solution
-   (and cached so), so a virtual call inside a package can still reach an implementation in a package only
-   another project references. Log dispatch is already limited to the project's references. Next step: find a
-   case outside logging first; then key summaries by catalog and reference closure, and the cache with them.
+1. **Resolve assemblies per project**: one assembly set serves the solution, and a shared framework's copy of an
+   assembly wins over a package's, so which copy a project reads depends on the other projects. A package copy of
+   `Microsoft.Extensions.Hosting` (or Configuration, FileProviders, Caching.Memory), which the project's build
+   resolved because it is newer, is read as the framework's and not followed when another project's search paths
+   hold the framework: analyzed alone, `CSharp.Worker`, `CSharp.Functions`, `CSharp.Telemetry`, `CSharp.WcfClient`
+   and `CSharp.Effects` show environment and file effects through it that the solution run does not. Next step:
+   decide which copy is right for a project (the one its build resolved, most likely) and whether one call graph
+   can still serve the solution.
 2. **Read more of the configuration**: values read from `appsettings.json` by a constant key, sections and options
    bound to a section are read, but not a property of a nested options object (`options.Value.Rabbit.Queue`), an
    options object kept in a field (`_options = options.Value`), named options (`Configure<T>("name", section)`),

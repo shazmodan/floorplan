@@ -581,6 +581,22 @@ let tests =
                   "an endpoint whose handler is a cached lambda is read from its registration; the scraping endpoint is none"
           }
 
+          test "a virtual call inside a dependency reaches only implementations the project's own references construct" {
+              let m = csharpModel.Force()
+
+              // CSharp.Endpoints logs through Serilog to its File sink; CSharp.Effects, in the same solution, also
+              // writes to Serilog's Console sink and to a sink of CSharp.Wrappers, which Endpoints does not reference.
+              let through =
+                  m.ExitPoints
+                  |> List.filter (fun x -> x.Unit.StartsWith "CSharp.Endpoints:")
+                  |> List.collect (fun x -> x.Evidence.Steps |> List.map (fun s -> s.Assembly))
+                  |> Set.ofList
+
+              Expect.isFalse (through.Contains "Serilog.Sinks.Console") "no path through another project's Console sink"
+              Expect.isFalse (through.Contains "CSharp.Wrappers") "no path through a library only another project references"
+              Expect.isTrue (through.Contains "Serilog.Sinks.File") "the project's own File sink is reached"
+          }
+
           test "Dapr: a subscribed topic is a network entry point, and the client's building blocks are named exit points" {
               let m = csharpModel.Force()
 
