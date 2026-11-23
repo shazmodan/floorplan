@@ -309,7 +309,23 @@ Also new, outside the recognizer:
   `https://api.github.com/repos/{…}`). A named client is joined by its name: `AddHttpClient("status", ...)`
   (`http-out.named-client`, the name a constant) and the client `IHttpClientFactory.CreateClient("status")` makes
   (`http-out.client-factory`). Fixture: `CSharp.Clients`.
+- **Dapr**: the client sends every call to its sidecar, over gRPC or HTTP, which showed as dynamic gRPC calls
+  (`CallInvoker.AsyncUnaryCall`) of medium confidence. Sink rules name the building blocks: the state store
+  (`database.dapr-state`, the store's name), publishing (`network.dapr-publish`, the topic), output bindings
+  (`network.dapr-binding`) and secret and configuration stores (`network.dapr-secrets`), by their names, and service
+  invocation (`http-out.dapr-invoke*`), whose payload (`"app-method"`) is `http://{app id}/{method}`: from the two
+  arguments, or, for `InvokeMethodAsync(request)`, from the `CreateInvokeMethodRequest` call that made the request
+  (`"app-request"`). An `HttpClient` made by `DaprClient.CreateInvokeHttpClient("billing")` (`"invoked-app"`) has
+  `http://billing` before its relative URLs. A local an async method keeps in its state machine is read as the value
+  stored in the field (not the `null` it is cleared with). A subscription is a topic the sidecar posts to an endpoint
+  of the application: a method with `[Topic(pubsub, topic)]` (`network.dapr-topic`, `"topic-subscription"`) and the
+  handler of an endpoint `.WithTopic(pubsub, topic)` is added to (`network.dapr-with-topic`, `"subscribed-endpoint"`:
+  the handler of the registration that made the builder, through other conventions) are network entry points at the
+  topic (`"message-topic"`), besides their HTTP routes. Both are registered through `Dapr.TopicAttribute`, which
+  `WithTopic` adds to the endpoint's metadata, so the architecture names Dapr as what delivers the messages. Not read: bulk subscriptions, actors, workflows, jobs and the
+  distributed lock. Fixture: `CSharp.Dapr`.
 - **AWS and Azure Cosmos DB**: the AWS SDK for .NET and the Cosmos DB client send requests through pipelines of
+
   handlers of their own, past credential providers that read files, start processes and call the platform's
   crypto API, so a call showed as low- or medium-confidence HTTP among that noise. Sink rules name the operations:
   S3's object and bucket operations (`http-out.aws-s3`, the request's `BucketName`), DynamoDB's item, query and

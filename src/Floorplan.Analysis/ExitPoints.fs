@@ -288,6 +288,42 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                 |> List.map (fun m -> m.Ref.Key)))
         |> Set.ofList
 
+    // The values, with a field of `this` the method itself stores read as the value stored: an async method keeps its
+    // locals in fields of its state machine.
+    let stored (f: DataFlow.Flow) (values: DataFlow.Values) =
+        values
+        |> Set.toList
+        |> List.collect (fun v ->
+            match v with
+            | DataFlow.Pushed o ->
+                match f.InstructionAt o, f.OperandsAt o with
+                | Some { Op = LdFld fld }, [ owner ] when owner.Contains(DataFlow.Argument 0) ->
+                    let stores =
+                        f.Body.Instructions
+                        |> Array.toList
+                        |> List.choose (fun ins ->
+                            match ins.Op, f.OperandsAt ins.Offset with
+                            | StFld g, [ target; value ] when g.Key = fld.Key && target.Contains(DataFlow.Argument 0) -> Some value
+                            | _ -> None)
+
+                    // The state machine clears a field it is done with: a null stored is no value of it.
+                    let isNull (s: DataFlow.Value) =
+                        match s with
+                        | DataFlow.Pushed so -> (match f.InstructionAt so with Some { Op = LdNull } -> true | _ -> false)
+                        | _ -> false
+
+                    match stores |> List.collect Set.toList |> List.filter (isNull >> not) with
+                    | [] -> [ v ]
+                    | values -> values
+                | _ -> [ v ]
+            | _ -> [ v ])
+
+    // A call another application answers through a sidecar (Dapr's service invocation): the application's id as the
+    // host, then the method, the argument after it.
+    let appMethod (f: DataFlow.Flow) (offset: int) (index: int) =
+        let evaluator = evaluatorOf f
+        Values.Parts [ Values.Text "http://"; evaluator.Operand(offset, index); Values.Text "/"; evaluator.Operand(offset, index + 1) ]
+
     // The payload of a direct call to a primitive, worked out in the calling method's data flow.
     let sinkPayload (f: DataFlow.Flow) (offset: int) (declared: MethodRef) (isNewObj: bool) (hit: SinkHit) : Payload option =
         hit.Rule.Payload
@@ -314,6 +350,24 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                     | _ -> Values.Hole
 
                 Values.Evaluator.ToPayload(path, "url")
+            | _ when spec.Role = "app-method" ->
+                Values.Evaluator.ToPayload(appMethod f offset (Values.operandIndex declared isNewObj spec.Argument), "url")
+            | _ when spec.Role = "app-request" ->
+                // A request made for such a call (Dapr's CreateInvokeMethodRequest), read where it is made.
+                let made =
+                    List.tryItem (Values.operandIndex declared isNewObj spec.Argument) (f.OperandsAt offset)
+                    |> Option.map (stored f)
+                    |> Option.bind (function
+                        | [ DataFlow.Pushed o ] ->
+                            match f.InstructionAt o with
+                            | Some { Op = (Call c | CallVirt c) } ->
+                                ctx.Matcher.Match c
+                                |> List.tryPick (fun r -> r.Payload |> List.tryFind (fun p -> p.Role = "app-method"))
+                                |> Option.map (fun p -> appMethod f o (Values.operandIndex c false p.Argument))
+                            | _ -> None
+                        | _ -> None)
+
+                Values.Evaluator.ToPayload(defaultArg made Values.Hole, "url")
             | Some property when spec.Argument >= 0 ->
                 let index = Values.operandIndex declared isNewObj spec.Argument
                 Values.Evaluator.ToPayload(evaluator.OperandMember(offset, index, property, spec.ConstructorArgument), spec.Role)
@@ -440,13 +494,13 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                          | _ -> None))
              |> dict)
 
-    // The client a call is made through: a typed client's HttpClient field ("type:"), or one a factory makes by a
-    // constant name ("name:", IHttpClientFactory.CreateClient("github")).
+    // The client a call is made through: a typed client's HttpClient field ("type:"), one a factory makes by a
+    // constant name ("name:", IHttpClientFactory.CreateClient("github")), or one that invokes another application
+    // through a sidecar ("app:", Dapr's DaprClient.CreateInvokeHttpClient("billing")).
     let clientOf (m: MethodDef) (f: DataFlow.Flow) (offset: int) =
         match f.OperandsAt offset with
         | receiver :: _ ->
-            receiver
-            |> Set.toList
+            stored f receiver
             |> List.tryPick (function
                 | DataFlow.Pushed o ->
                     match f.InstructionAt o, f.OperandsAt o with
@@ -462,14 +516,32 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                         match (evaluatorOf f).Operand(o, Values.operandIndex c false spec.Argument) with
                         | Values.Text name -> Some("name:" + name)
                         | _ -> None
+                    | Some { Op = (Call c | CallVirt c) }, _ when
+                        ctx.Matcher.Match c |> List.exists (fun r -> r.Payload |> List.exists (fun p -> p.Role = "invoked-app"))
+                        ->
+                        let spec =
+                            ctx.Matcher.Match c
+                            |> List.pick (fun r -> r.Payload |> List.tryFind (fun p -> p.Role = "invoked-app"))
+
+                        match (evaluatorOf f).Operand(o, Values.operandIndex c false spec.Argument) with
+                        | Values.Text app -> Some("app:" + app)
+                        | _ -> None
                     | _ -> None
                 | _ -> None)
         | [] -> None
 
     // A relative URL sent through a typed or named client, with the client's base address before it.
     let withBaseAddress (m: MethodDef) (f: DataFlow.Flow) (offset: int) (payload: Payload option) =
-        match payload, clientOf m f offset with
-        | Some p, Some client when p.Role = "url" && baseAddresses.Value.ContainsKey client ->
+        let baseOf (client: string) =
+            if client.StartsWith "app:" then
+                Some("http://" + client.Substring 4)
+            else
+                match baseAddresses.Value.TryGetValue client with
+                | true, b -> Some b
+                | _ -> None
+
+        match payload, clientOf m f offset |> Option.bind (fun c -> baseOf c |> Option.map (fun b -> c, b)) with
+        | Some p, Some(_, baseAddress) when p.Role = "url" ->
             let relative =
                 match p.Value with
                 | Some v when v.StartsWith "http://" || v.StartsWith "https://" -> None
@@ -478,7 +550,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
 
             match relative with
             | Some r ->
-                let joined = baseAddresses.Value[client].TrimEnd('/') + "/" + r.TrimStart('/')
+                let joined = baseAddress.TrimEnd('/') + "/" + r.TrimStart('/')
 
                 Some
                     { p with

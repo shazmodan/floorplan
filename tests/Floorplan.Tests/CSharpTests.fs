@@ -460,7 +460,47 @@ let tests =
                   "a Redis subscription"
           }
 
+          test "Dapr: a subscribed topic is a network entry point, and the client's building blocks are named exit points" {
+              let m = csharpModel.Force()
+
+              Expect.equal
+                  (entries m "CSharp.Dapr"
+                   |> List.filter (fun e -> e.Category = EffectCategory.Network)
+                   |> List.map (fun e -> e.Route, e.HandlerMember, e.RegisteredThrough, e.Completeness)
+                   |> List.sort)
+                  [ Some "payouts", "CSharp.Dapr.Payouts.Ledger::Record", Some "Dapr.TopicAttribute", Completeness.Complete
+                    Some "receipts", "CSharp.Dapr.Receipts.ReceiptsController::OnReceipt", Some "Dapr.TopicAttribute", Completeness.Complete ]
+                  "WithTopic on the endpoint MapPost made (past WithName), which adds a TopicAttribute to its metadata, and [Topic] on a controller action"
+
+              Expect.exists
+                  (entries m "CSharp.Dapr")
+                  (fun e -> e.Category = EffectCategory.HttpIn && e.Route = Some "/payouts")
+                  "the route the sidecar posts to stays an entry point"
+
+              let exits =
+                  m.ExitPoints
+                  |> List.filter (fun x -> x.Unit.StartsWith "CSharp.Dapr:" && x.Category <> EffectCategory.Environment)
+                  |> List.map (fun x -> x.Category, x.Primitive.Substring(x.Primitive.LastIndexOf ':' + 1), x.Payload |> Option.bind (fun p -> p.Value))
+                  |> List.sort
+
+              Expect.equal
+                  exits
+                  [ EffectCategory.HttpOut, "InvokeMethodAsync", Some "http://inventory/reserve"
+                    EffectCategory.HttpOut, "InvokeMethodAsync", Some "http://pricing/quote"
+                    EffectCategory.HttpOut, "InvokeMethodAsync", Some "http://shipping/ship"
+                    EffectCategory.HttpOut, "PostAsJsonAsync", Some "http://billing/invoices"
+                    EffectCategory.Network, "GetSecretAsync", Some "vault"
+                    EffectCategory.Network, "InvokeBindingAsync", Some "email"
+                    EffectCategory.Network, "PublishEventAsync", Some "receipts"
+                    EffectCategory.Database, "DeleteStateAsync", Some "ledger"
+                    EffectCategory.Database, "GetStateAsync", Some "ledger"
+                    EffectCategory.Database, "SaveStateAsync", Some "ledger"
+                    EffectCategory.FilesystemWrite, "AppendAllTextAsync", Some "receipts.log" ]
+                  "service invocation by app id and method (and a request made for one, and an HttpClient that invokes an app), a binding, a secret, publishing and the state store; no dynamic gRPC calls to the sidecar"
+          }
+
           test "sending a message is a network exit point, with the routing key where the call has one" {
+
               let m = csharpModel.Force()
 
               let sent (memberName: string) =

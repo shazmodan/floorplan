@@ -1440,6 +1440,7 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
     let addressRoles =
         [ "message-queue", "queue"
           "message-channel", "channel"
+          "message-topic", "topic"
           "message-method", "hub method"
           "job-schedule", "schedule" ]
     let addressOf (rule: Rule) = addressRoles |> List.tryPick (fun (role, _) -> specOf rule role)
@@ -1578,7 +1579,27 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
     // The handlers: the delegate a registration adds, the method an expression tree it is given calls, the method
     // that receives messages itself (a loop that calls Kafka's Consume or Service Bus's ReceiveMessageAsync, or reads
     // a channel of items), or each delegate written to a channel of work, with the steps that pass it on.
+    // The handler of the endpoint a convention is added to (Dapr's `app.MapPost("/orders", handler).WithTopic(...)`):
+    // the one the registration that made the builder maps, through other conventions in between.
+    let rec endpointHandler (flow: Flow) (depth: int) (values: Values) =
+        match madeIn flow 0 values with
+        | Some o when depth < 8 ->
+            match flow.InstructionAt o with
+            | Some { Op = (Call c | CallVirt c) } ->
+                match ctx.Matcher.Match c |> List.tryPick (fun rule -> specOf rule "handler") with
+                | Some hs ->
+                    List.tryItem (Values.operandIndex c false hs.Argument) (flow.OperandsAt o)
+                    |> Option.bind (handlerIn flow)
+                    |> Option.map (PlatformRouting.unwrap set isUser 0)
+                | None -> flow.OperandsAt o |> List.tryHead |> Option.bind (endpointHandler flow (depth + 1))
+            | _ -> None
+        | _ -> None
+
     let handlersOf (r: PlatformRouting.Registration) =
+        match specOf r.Rule "subscribed-endpoint" with
+        | Some spec -> operand r spec |> Option.bind (endpointHandler r.Flow 0) |> Option.map (fun h -> h, false, []) |> Option.toList
+        | None ->
+
         match specOf r.Rule "message-handler", specOf r.Rule "expression-handler", specOf r.Rule "message-receive", specOf r.Rule "queued-work" with
         | Some handlerSpec, _, _, _ ->
             operand r handlerSpec
@@ -1704,7 +1725,18 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                   HandlerMember = handler.Display
                   Location = point |> Option.map Attribution.toLocation
                   Category = category
-                  RegisteredThrough = Some(match source with Some(q, _) -> q.Rule.Type | None -> r.Rule.Type)
+                  RegisteredThrough =
+                      match specOf r.Rule "subscribed-endpoint", source with
+                      | Some _, _ ->
+                          // A convention that subscribes an endpoint adds its library's subscription attribute to the
+                          // endpoint's metadata (Dapr's WithTopic adds a TopicAttribute): the same subscription.
+                          ctx.Matcher.Catalog.Rules
+                          |> List.tryFind (fun t -> t.Assembly = r.Rule.Assembly && t.Payload |> List.exists (fun p -> p.Role = "topic-subscription"))
+                          |> Option.map (fun t -> t.Type)
+                          |> Option.orElse (Some r.Rule.Type)
+                      | None, Some(q, _) -> Some q.Rule.Type
+                      | None, None -> Some r.Rule.Type
+
                   Predicates = []
                   HttpMethod = None
                   Route = queue
@@ -1732,6 +1764,57 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
                         else
                             step $"{r.Caller.Ref.Display} registers {handler.Display} with {r.Declared.Display}, called {calledWhen} (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
                             :: queueStep } }))
+
+// ---- Subscriptions declared by attribute ----
+
+/// Methods a messaging runtime delivers a topic's messages to, declared by an attribute whose metadata rule has a
+/// "topic-subscription" payload (Dapr's `[Topic("pubsub", "orders")]` on a controller action or a method an endpoint
+/// maps): an entry point of the rule's category at its "message-topic" argument. The route the runtime posts to is
+/// the method's own HTTP entry point.
+let subscriptionEntries (ctx: AppContext) : EntryPoint list =
+    let set = ctx.Program.Set
+
+    ctx.Methods.Values
+    |> Seq.toList
+    |> List.collect (fun m ->
+        m.Attributes
+        |> List.collect (fun a ->
+            attributeRules ctx.Matcher a
+            |> List.filter (hasRole "topic-subscription")
+            |> List.map (fun rule -> a, rule))
+        |> List.choose (fun (a, rule) ->
+            let handler = m.Ref
+            let point = firstPoint set handler
+            let topic = textArgument rule "message-topic" a
+
+            let projectId =
+                match set.Origin handler.Type.Assembly with
+                | User pid -> pid
+                | _ -> ctx.Project.ProjectId
+
+            ctx.Program.Attributor.Attribute(projectId, handler, point)
+            |> Option.map (fun unit ->
+                let named =
+                    match topic with
+                    | Some t -> $"topic \"{t}\""
+                    | None -> "a topic that is not a constant"
+
+                { Id = ""
+                  ApplicationId = ctx.Project.ProjectId
+                  HandlerUnit = unit.Id
+                  HandlerMember = handler.Display
+                  Location = point |> Option.map Attribution.toLocation
+                  Category = defaultArg rule.Category EffectCategory.Network
+                  RegisteredThrough = Some rule.Type
+                  Predicates = []
+                  HttpMethod = None
+                  Route = topic
+                  Completeness = if topic.IsSome then Completeness.Complete else Completeness.Unresolved
+                  Forms = [ RouteForm.PlatformRouting ]
+                  Before = []
+                  Evidence =
+                    { Steps =
+                        [ step $"{handler.Display} subscribes to {named} with {a.Type.FullName}, called for each message received (rule {rule.Id})" handler point ] } })))
 
 // ---- Azure Functions ----
 
