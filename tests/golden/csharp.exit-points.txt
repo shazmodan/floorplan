@@ -277,9 +277,8 @@ nondeterminism | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::Creat
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints | CSharp.Endpoints.Api::CreateOrder | System.IO.File::WriteAllText | via - | template:orders/{…}.json | CSharp/CSharp.Endpoints/Api.cs:12
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::.cctor | System.IO.Directory::Exists | via Serilog.Sinks.File | dynamic:- | CSharp/CSharp.Endpoints/Audit.cs:9
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::.cctor | System.IO.File::Open | via Serilog.Sinks.File | literal:logs/audit.log | CSharp/CSharp.Endpoints/Audit.cs:9
-environment | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.Console::get_Out | via Serilog | - | CSharp/CSharp.Endpoints/Audit.cs:11
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.IO.Directory::Exists | via Serilog | dynamic:- | CSharp/CSharp.Endpoints/Audit.cs:11
-filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.IO.File::AppendAllText | via Serilog | dynamic:- | CSharp/CSharp.Endpoints/Audit.cs:11
+filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.IO.File::Delete | via Serilog | template:{…}/{…} | CSharp/CSharp.Endpoints/Audit.cs:11
 nondeterminism | CSharp.Endpoints:CSharp.Endpoints.Auditing | CSharp.Endpoints.Auditing.Audit::Started | System.DateTimeOffset::get_Now | via Serilog | - | CSharp/CSharp.Endpoints/Audit.cs:11
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Chat | CSharp.Endpoints.Chat.ChatHub/<Send>d__0::MoveNext | System.IO.File::AppendAllTextAsync | via - | literal:chat.log | CSharp/CSharp.Endpoints/Chat.cs:16
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Filtered | CSharp.Endpoints.Filtered.Routes/<>c/<<Map>b__0_0>d::MoveNext | System.IO.File::AppendAllText | via - | literal:requests.log | CSharp/CSharp.Endpoints/Filtered.cs:12
@@ -287,9 +286,8 @@ filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Filtered | CSharp.Endpoints
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Filtered | CSharp.Endpoints.Filtered.Throttle/<InvokeAsync>d__0::MoveNext | System.IO.File::ReadAllText | via - | literal:limits.json | CSharp/CSharp.Endpoints/Filtered.cs:41
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Setup::Configure | System.IO.Directory::Exists | via Serilog.Sinks.File | dynamic:- | CSharp/CSharp.Endpoints/Shipping.cs:11
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Setup::Configure | System.IO.File::Open | via Serilog.Sinks.File | literal:logs/shipping.log | CSharp/CSharp.Endpoints/Shipping.cs:11
-environment | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.Console::get_Out | via Serilog.Extensions.Logging | - | CSharp/CSharp.Endpoints/Shipping.cs:18
 filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.IO.Directory::Exists | via Serilog.Extensions.Logging | dynamic:- | CSharp/CSharp.Endpoints/Shipping.cs:18
-filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.IO.File::AppendAllText | via Serilog.Extensions.Logging | dynamic:- | CSharp/CSharp.Endpoints/Shipping.cs:18
+filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.IO.File::Delete | via Serilog.Extensions.Logging | template:{…}/{…} | CSharp/CSharp.Endpoints/Shipping.cs:18
 nondeterminism | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.DateTimeOffset::get_Now | via Serilog.Extensions.Logging | - | CSharp/CSharp.Endpoints/Shipping.cs:18
 environment | CSharp.Functions: | Program::<Main>$ | System.Environment::GetCommandLineArgs | via Microsoft.Azure.Functions.Worker | dynamic:- | CSharp/CSharp.Functions/Functions.cs:8
 filesystem-write | CSharp.Functions:CSharp.Functions.Maintenance | CSharp.Functions.Maintenance.Cleanup::Run | System.IO.File::Delete | via - | literal:tmp.txt | CSharp/CSharp.Functions/Functions.cs:39

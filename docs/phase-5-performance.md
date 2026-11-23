@@ -26,13 +26,20 @@ turns them off.
 | Cache | Key | Effect on the four-project solution |
 |---|---|---|
 | Structure, per project (plan risk 9) | Sources and their contents, compiler options, referenced assemblies (size and time), and the assembly-to-project map | Structure analysis 14 s → 0.2 s |
-| Dependency summaries, per assembly and catalog (plan section 5) | Assembly MVID; valid while every assembly its paths pass through keeps its MVID | Effect analysis 20 s → 11 s |
+| Dependency summaries, per assembly, catalog and reference closure (plan section 5) | Assembly MVID and the names of the assemblies in the project's reference closure; valid while every assembly its paths pass through keeps its MVID | Effect analysis 20 s → 11 s |
 
 Whole run: 40 s cold, 18 s warm, of which about 6 s is the build check and MSBuild evaluation.
 
 The summary cache stores one next hop per method and rule, and evidence paths are rebuilt by following the
 hops. A warm run does not explore cached dependencies; if user code calls a dependency method the cache does
 not cover, the run falls back to a full analysis.
+
+Summaries are made per catalog and reference closure (2026-11-23): a virtual call inside a dependency reaches
+only implementations in types that code in the project's closure constructs, as the project's view of the call
+graph already did for its own calls. Made once for the whole solution, they let a project's Serilog log calls
+reach the Console sink and a sink library that only another project of the fixture solution referenced. Each
+summary covers the dependencies in its closure only, so the 21 projects of `CSharp.slnx` take 8 s together where
+the one solution-wide summary took 7.4 s. An assembly is cached when every closure that includes it has an entry.
 
 Known difference: when several shortest paths exist, a warm run may rebuild a different one than the cold run
 found, which can change an exit point's confidence by one level. The exit points themselves are the same.

@@ -88,8 +88,8 @@ let private mvidOf (path: string) =
     with _ ->
         ""
 
-let private cacheKey (assembly: string) (mvid: string) (catalog: string) =
-    Caching.hash [ "summaries-v20"; assembly; mvid; catalog ]
+let private cacheKey (assembly: string) (mvid: string) (catalog: string) (closure: string) =
+    Caching.hash [ "summaries-v21"; assembly; mvid; catalog; closure ]
 
 /// The cache key under which an assembly keeps what a callback member reaches through its implementations there.
 let private callbackKey (assembly: string) (callback: string) = $"[{assembly}]callback:{callback}"
@@ -137,7 +137,49 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
             mvids[assembly] <- m
             m
 
-    // Cached summaries by (assembly, catalog), for dependencies whose cache is valid for every catalog in use.
+    // Each project's reference closure: its own assembly and every assembly it references, directly or not.
+    let closures = Dictionary<string, HashSet<string>>()
+
+    let closureOf (project: AnalyzedProject) =
+        match closures.TryGetValue project.ProjectId with
+        | true, c -> c
+        | _ ->
+            let seen = HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            let pending = Stack<string>()
+            pending.Push(IO.Path.GetFileNameWithoutExtension project.AssemblyPath)
+
+            while pending.Count > 0 do
+                let name = pending.Pop()
+
+                if seen.Add name then
+                    match set.TryLoad name with
+                    | Some a ->
+                        for r in a.ReferencedAssemblies do
+                            if not (seen.Contains r) then
+                                pending.Push r
+                    | None -> ()
+
+            closures[project.ProjectId] <- seen
+            seen
+
+    // Summaries are made for a catalog and a reference closure: a virtual call inside a dependency reaches only
+    // implementations in types that code in the project's closure constructs. One per distinct pair, named by the
+    // catalog and the closure's assembly names (not their versions: a dependency's version is checked by the
+    // cache entries that depend on it, and the solution's own assemblies change with every build).
+    let closureKeys = Dictionary<string, string>()
+
+    let closureKey (project: AnalyzedProject) =
+        match closureKeys.TryGetValue project.ProjectId with
+        | true, k -> k
+        | _ ->
+            let k = Caching.hash (closureOf project |> Seq.map (fun a -> a.ToLowerInvariant()) |> Seq.sort |> List.ofSeq)
+            closureKeys[project.ProjectId] <- k
+            k
+
+    let summaryKey (project: AnalyzedProject) = (catalogFor project).Catalog.Name + "|" + closureKey project
+
+    // Cached summaries by (assembly, summary key), for dependencies whose cache is valid for every catalog and
+    // closure that includes them.
     let cached = Dictionary<struct (string * string), CachedAssembly>()
 
     do
@@ -147,11 +189,16 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
             for name in set.KnownAssemblies do
                 if set.Origin name = Dependency then
                     let entries =
-                        catalogNames
-                        |> List.map (fun c -> c, store.TryRead<CachedAssembly>("summaries", cacheKey name (mvid name) c))
+                        input.Projects
+                        |> List.filter (fun p -> (closureOf p).Contains name)
+                        |> List.distinctBy summaryKey
+                        |> List.map (fun p ->
+                            summaryKey p,
+                            store.TryRead<CachedAssembly>("summaries", cacheKey name (mvid name) (catalogFor p).Catalog.Name (closureKey p)))
 
                     let valid =
-                        entries
+                        not entries.IsEmpty
+                        && entries
                         |> List.forall (fun (_, e) ->
                             match e with
                             | Some e -> e.Mvid <> "" && e.Depends |> List.forall (fun d -> mvid d.Name = d.Mvid)
@@ -262,31 +309,6 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
     let producers = Values.Producers(set, recognizers)
     let matchers = Dictionary<string, Matcher>()
     let summaries = Dictionary<string, Summaries.Summaries>()
-
-    // Each project's reference closure: its own assembly and every assembly it references, directly or not.
-    let closures = Dictionary<string, HashSet<string>>()
-
-    let closureOf (project: AnalyzedProject) =
-        match closures.TryGetValue project.ProjectId with
-        | true, c -> c
-        | _ ->
-            let seen = HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            let pending = Stack<string>()
-            pending.Push(IO.Path.GetFileNameWithoutExtension project.AssemblyPath)
-
-            while pending.Count > 0 do
-                let name = pending.Pop()
-
-                if seen.Add name then
-                    match set.TryLoad name with
-                    | Some a ->
-                        for r in a.ReferencedAssemblies do
-                            if not (seen.Contains r) then
-                                pending.Push r
-                    | None -> ()
-
-            closures[project.ProjectId] <- seen
-            seen
 
     let graphs = Dictionary<string, CallGraph>()
     let settings = Dictionary<string, Values.Settings>()
@@ -458,30 +480,36 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
             matchers[catalog.Name] <- m
             m
 
+    /// What dependency methods reach as a project sees them: over its view of the call graph, the methods of the
+    /// dependencies in its reference closure. Projects with the same catalog and closure share them.
     member this.SummariesFor(project: AnalyzedProject) =
         let matcher = this.MatcherFor project
+        let key = summaryKey project
 
-        match summaries.TryGetValue matcher.Catalog.Name with
+        match summaries.TryGetValue key with
         | true, s -> s
         | _ ->
-            Progress.report $"Summarizing what dependency methods reach (catalog {matcher.Catalog.Name})"
+            Progress.report $"Summarizing what dependency methods reach for {project.ProjectId} (catalog {matcher.Catalog.Name})"
+            let closure = closureOf project
 
             let s =
-                Summaries.Summaries(graph, matcher, recognizers, producers, fun m ->
-                    set.Origin m.Type.Assembly = Dependency && not (cachedAssemblies.Contains m.Type.Assembly))
+                Summaries.Summaries(this.GraphFor project, matcher, recognizers, producers, fun m ->
+                    set.Origin m.Type.Assembly = Dependency
+                    && closure.Contains m.Type.Assembly
+                    && not (cachedAssemblies.Contains m.Type.Assembly))
 
-            summaries[matcher.Catalog.Name] <- s
+            summaries[key] <- s
             s
 
     /// Rules a cached method reaches under a catalog, by assembly and key: None when the assembly is not cached.
-    member private this.CachedEffects(catalog: string) : string -> string -> Summaries.DependencyEffect list option =
+    member private this.CachedEffects(key: string) : string -> string -> Summaries.DependencyEffect list option =
         let tables = Dictionary<string, Dictionary<string, CachedWitness list>>(StringComparer.OrdinalIgnoreCase)
 
         let table (assembly: string) =
             match tables.TryGetValue assembly with
             | true, t -> Some t
             | _ ->
-                match cached.TryGetValue(struct (assembly, catalog)) with
+                match cached.TryGetValue(struct (assembly, key)) with
                 | true, entry ->
                     let t = Dictionary<string, CachedWitness list>()
 
@@ -530,7 +558,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
     /// Rules a dependency method reaches under a project's catalog: from the cache or from the call graph.
     member this.EffectsFor(project: AnalyzedProject) : MethodRef -> Summaries.DependencyEffect list =
         let computed = this.SummariesFor project
-        let fromCache = this.CachedEffects (this.CatalogFor project).Catalog.Name
+        let fromCache = this.CachedEffects(summaryKey project)
 
         fun (m: MethodRef) ->
             match fromCache m.Type.Assembly m.Key with
@@ -542,7 +570,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
     /// assemblies come from the cache, which also keeps those the cached code constructs.
     member this.DispatchFor(project: AnalyzedProject) : string -> (string * Summaries.DependencyEffect) list =
         let effects = this.EffectsFor project
-        let fromCache = this.CachedEffects (this.CatalogFor project).Catalog.Name
+        let fromCache = this.CachedEffects(summaryKey project)
 
         // Summaries serve every project of the solution, so cached implementations are constructed by any of them:
         // a project's log calls reach only those in assemblies it references, directly or not.
@@ -581,14 +609,6 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
             Progress.report "Saving dependency summaries to the cache"
             let all = graph.ReachableMethods
             let reachable = all |> List.filter (fun m -> set.Origin m.Type.Assembly = Dependency)
-            let byAssembly = reachable |> List.groupBy (fun m -> m.Type.Assembly)
-
-            // Calls from anywhere to virtual methods declared in a dependency, resolved to implementations.
-            let virtualTargets =
-                all
-                |> List.collect graph.Callees
-                |> List.filter (fun e -> e.Kind = Virtual && set.Origin e.Declared.Type.Assembly = Dependency)
-                |> List.groupBy (fun e -> e.Declared)
 
             let toCached (summaries: Summaries.Summaries) (m: MethodRef) (w: Summaries.Witness) : CachedWitness =
                 { RuleId = w.Hit.Rule.Id
@@ -600,9 +620,23 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                   Next = if w.Distance = 1 then None else Some w.Edge.Target.Key
                   Payload = summaries.PayloadOf(m, w.Hit.Rule.Id) |> Option.map CachedPayload.ofPayload }
 
-            for project in input.Projects |> List.distinctBy (fun p -> (catalogFor p).Catalog.Name) do
+            // One set of entries for each catalog and reference closure, as the summaries are made.
+            for project in input.Projects |> List.distinctBy summaryKey do
                 let catalog = (catalogFor project).Catalog.Name
                 let summaries = this.SummariesFor project
+                let closure = closureOf project
+                let view = this.GraphFor project
+
+                let byAssembly =
+                    reachable |> List.filter (fun m -> closure.Contains m.Type.Assembly) |> List.groupBy (fun m -> m.Type.Assembly)
+
+                // Calls from anywhere to virtual methods declared in a dependency, resolved to the implementations
+                // the project's closure constructs.
+                let virtualTargets =
+                    all
+                    |> List.collect view.Callees
+                    |> List.filter (fun e -> e.Kind = Virtual && set.Origin e.Declared.Type.Assembly = Dependency)
+                    |> List.groupBy (fun e -> e.Declared)
 
                 for (assembly, methods) in byAssembly do
                     if not (cachedAssemblies.Contains assembly) then
@@ -634,7 +668,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                         // Callback members linked to implementations here, which a later run may not see
                         // constructed: the cached code that constructs them is not explored again.
                         let callbacksHere =
-                            graph.CallbackEdges
+                            view.CallbackEdges
                             |> List.filter (fun e -> e.Target.Type.Assembly = assembly)
                             |> List.groupBy (fun e -> e.Declared)
                             |> List.map (fun (d, edges) ->
@@ -671,7 +705,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
 
                         store.Write(
                             "summaries",
-                            cacheKey assembly (mvid assembly) catalog,
+                            cacheKey assembly (mvid assembly) catalog (closureKey project),
                             { Assembly = assembly
                               Mvid = mvid assembly
                               Catalog = catalog
