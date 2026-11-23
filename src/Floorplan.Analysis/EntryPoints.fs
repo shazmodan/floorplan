@@ -2388,22 +2388,56 @@ let componentEventEntries (ctx: AppContext) : EntryPoint list =
 /// Handlers a library finds by scanning the application's assembly, with no registration of their own: a
 /// registration whose rule has a "scanned-handlers" payload (NServiceBus's Endpoint.Start) makes every type of the
 /// application that implements a member of the callback rule for the type the payload's property names a handler
-/// (IHandleMessages<T>.Handle). Each is an entry point at the message type its first parameter is.
+/// (IHandleMessages<T>.Handle). Each is an entry point at the message type its first parameter is. A
+/// "scanned-grains" payload (Orleans's UseOrleans) does the same for the methods of the application's interfaces
+/// that derive from the type (a grain interface, of Orleans.IGrain), each an entry point at
+/// "Interface.Method", as a call to it is addressed.
 let scannedEntries (ctx: AppContext) : EntryPoint list =
     let set = ctx.Program.Set
+    let scanning (r: PlatformRouting.Registration) = hasRole "scanned-handlers" r.Rule || hasRole "scanned-grains" r.Rule
 
     PlatformRouting.registrations ctx.Matcher (List.ofSeq ctx.Methods.Values)
-    |> List.filter (fun r -> hasRole "scanned-handlers" r.Rule)
-    |> List.tryHead
-    |> Option.map (fun r ->
+    |> List.filter scanning
+    |> List.groupBy (fun r -> r.Rule.Id)
+    |> List.map (fun (_, rs) -> rs.Head)
+    |> List.collect (fun r ->
         let category = defaultArg r.Rule.Category EffectCategory.Network
         let registrationPoint = Instruction.pointAt r.Caller.Body.Value.Value.Instructions r.Index
-        let scanned = (r.Rule.Payload |> List.find (fun p -> p.Role = "scanned-handlers")).Property
+        let grains = hasRole "scanned-grains" r.Rule
+        let scanned = (r.Rule.Payload |> List.find (fun p -> p.Role = "scanned-handlers" || p.Role = "scanned-grains")).Property
 
-        ctx.Program.Users
-        |> List.filter (fun (p, _) -> p.ProjectId = ctx.Project.ProjectId)
-        |> List.collect (fun (_, a) -> a.Types)
+        // The interface methods a type implements of the callback's type: its own members, or for grains the
+        // members of every interface the type implements that derives from it.
+        let implemented (t: TypeDef) (declaring: TypeDef) =
+            if grains then
+                t.Interfaces
+                |> List.choose set.TryType
+                |> List.map fst
+                |> List.filter (fun i -> i.IsInterface && set.IsUser i.Ref.Assembly && set.IsSubtypeOf(i.Ref, declaring.Ref.FullName))
+                |> List.collect (fun i -> i.Methods |> List.map (fun m -> i, m))
+            else
+                declaring.Methods |> List.map (fun m -> declaring, m)
+
+        // The application's own assembly; for grains also the user assemblies it references, as Orleans takes
+        // the grains of every assembly its generated code lists as an application part.
+        let byName = ctx.Program.Users |> List.map (fun (_, a) -> a.Name, a) |> Map.ofList
+
+        let rec closure (seen: Set<string>) (pending: string list) =
+            match pending with
+            | [] -> seen
+            | n :: rest when seen.Contains n -> closure seen rest
+            | n :: rest ->
+                match byName.TryFind n with
+                | Some a -> closure (seen.Add n) (rest @ a.ReferencedAssemblies)
+                | None -> closure seen rest
+
+        let own = ctx.Program.Users |> List.filter (fun (p, _) -> p.ProjectId = ctx.Project.ProjectId) |> List.map snd
+
+        (if grains then closure Set.empty (own |> List.map (fun a -> a.Name)) |> Set.toList |> List.choose byName.TryFind else own)
+        |> List.collect (fun a -> a.Types)
         |> List.filter (fun t -> not t.IsAbstract && not t.IsInterface && not t.IsCompilerGenerated)
+        // A generator's code is no handler: Orleans's proxies implement the grain interfaces to send calls.
+        |> List.filter (fun t -> not (t.Attributes |> List.exists (fun a -> a.Type.FullName = "System.CodeDom.Compiler.GeneratedCodeAttribute")))
         |> List.collect (fun t ->
             ctx.Matcher.Callbacks t.Ref
             |> List.filter (fun rule -> rule.Category = Some category && Some rule.Type = scanned)
@@ -2412,15 +2446,21 @@ let scannedEntries (ctx: AppContext) : EntryPoint list =
                 | None -> []
                 | Some(declaring, _) ->
                     // A generic interface implemented for several message types gives one method per type.
+                    let interfaceMethods = implemented t declaring
+
                     t.Methods
                     |> List.filter (fun m ->
-                        m.IsPublic
-                        && not m.IsStatic
-                        && rule.Members |> List.exists (fun p -> Matcher.MemberMatches p m.Ref.Name)
-                        && declaring.Methods |> List.exists (fun d -> d.Ref.Name = m.Ref.Name && d.Ref.ParameterCount = m.Ref.ParameterCount))
-                    |> List.map (fun m -> t, rule, m)))
-        |> List.distinctBy (fun (_, _, m) -> m.Ref.Key)
-        |> List.choose (fun (t, rule, m) ->
+                        not m.IsStatic
+                        && m.Ref.Name <> ".ctor"
+                        && rule.Members |> List.exists (fun p -> Matcher.MemberMatches p m.Ref.Name))
+                    |> List.choose (fun m ->
+                        interfaceMethods
+                        |> List.tryFind (fun (_, d) ->
+                            m.Overrides |> List.exists (fun o -> o.Key = d.Ref.Key)
+                            || (m.IsPublic && d.Ref.Name = m.Ref.Name && d.Ref.ParameterCount = m.Ref.ParameterCount))
+                        |> Option.map (fun (i, d) -> t, rule, m, i, d))))
+        |> List.distinctBy (fun (_, _, m, _, _) -> m.Ref.Key)
+        |> List.choose (fun (t, rule, m, i, d) ->
             let handler = m.Ref
             let point = firstPoint set handler
 
@@ -2431,7 +2471,9 @@ let scannedEntries (ctx: AppContext) : EntryPoint list =
 
             ctx.Program.Attributor.Attribute(projectId, handler, point)
             |> Option.map (fun unit ->
-                let message = handler.ParameterTypes |> List.tryHead
+                let message =
+                    if grains then Some $"{i.Ref.FullName}.{d.Ref.Name}" else handler.ParameterTypes |> List.tryHead
+
                 let messageName = defaultArg message "message"
 
                 { Id = ""
@@ -2450,5 +2492,7 @@ let scannedEntries (ctx: AppContext) : EntryPoint list =
                   Evidence =
                     { Steps =
                         [ step $"{r.Caller.Ref.Display} starts {r.Declared.Display}, which finds the handlers of the application by scanning it (rule {r.Rule.Id})" r.Caller.Ref registrationPoint
-                          step $"{t.Ref.FullName} implements {rule.Type}: {handler.Display} handles each {messageName} (rule {rule.Id})" handler point ] } })))
-    |> Option.defaultValue []
+                          (if grains then
+                               step $"{t.Ref.FullName} implements {i.Ref.FullName}, a {rule.Type}: {handler.Display} runs each call of {messageName} (rule {rule.Id})" handler point
+                           else
+                               step $"{t.Ref.FullName} implements {rule.Type}: {handler.Display} handles each {messageName} (rule {rule.Id})" handler point) ] } })))

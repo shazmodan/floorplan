@@ -752,6 +752,26 @@
     { "id": "background.timers-timer-elapsed", "assembly": "System.ComponentModel.TypeConverter", "type": "System.Timers.Timer",
       "members": ["add_Elapsed"], "kind": "registration", "category": "background", "payload": [{ "argument": 0, "role": "message-handler" }] },
 
+    // ---------------- Orleans ----------------
+    // A silo runs the grains of the application: UseOrleans scans it ("scanned-grains") for every class that implements
+    // an interface derived from IGrain, and each method of such an interface is an entry point at "Interface.Method".
+    // A call to such a method (the application's own interfaces only, not Orleans's system grains) goes to the grain
+    // wherever it is activated: a network exit point at the same address. A grain timer calls its callback; a
+    // grain's persistent state is read and written through its storage provider.
+    { "id": "network.orleans-silo", "assembly": "Orleans.Runtime", "type": "Microsoft.Extensions.Hosting.OrleansSiloGenericHostExtensions",
+      "members": ["UseOrleans"], "kind": "registration", "category": "network", "payload": [{ "argument": -1, "property": "Orleans.IGrain", "role": "scanned-grains" }] },
+    { "id": "network.orleans-grain", "assembly": "Orleans.Core.Abstractions", "type": "Orleans.IGrain",
+      "members": ["*"], "includeDerivedTypes": true, "kind": "callback", "category": "network" },
+    { "id": "network.orleans-grain-call", "assembly": "Orleans.Core.Abstractions", "type": "Orleans.IGrain",
+      "members": ["*"], "includeDerivedTypes": true, "applicationInterfaces": true, "kind": "sink", "category": "network",
+      "payload": [{ "argument": -1, "role": "grain-method" }] },
+    { "id": "background.orleans-grain-timer", "assembly": "Orleans.Core", "type": "Orleans.GrainBaseExtensions",
+      "members": ["RegisterGrainTimer"], "kind": "registration", "category": "background", "payload": [{ "argument": 1, "role": "message-handler" }] },
+    { "id": "background.orleans-timer", "assembly": "Orleans.Core", "type": "Orleans.Grain",
+      "members": ["RegisterTimer", "RegisterGrainTimer"], "kind": "registration", "category": "background", "payload": [{ "argument": 0, "role": "message-handler" }] },
+    { "id": "database.orleans-grain-state", "assembly": "Orleans.Core.Abstractions", "type": "Orleans.Core.IStorage",
+      "members": ["ReadStateAsync", "WriteStateAsync", "ClearStateAsync"], "includeDerivedTypes": true, "kind": "sink", "category": "database" },
+
     // ---------------- Dapr ----------------
     // The Dapr client sends everything to its sidecar over gRPC or HTTP, which showed as dynamic gRPC calls: the
     // building blocks are named here. A subscription is a topic the sidecar delivers to an endpoint of the

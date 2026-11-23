@@ -1,7 +1,7 @@
 workspace "CSharp" "CSharp, derived by Floorplan from its code" {
     model {
         !impliedRelationships "com.structurizr.model.CreateImpliedRelationshipsUnlessSameRelationshipExistsStrategy"
-        system = softwareSystem "CSharp" "The CSharp solution: 17 applications in 17 projects" {
+        system = softwareSystem "CSharp" "The CSharp solution: 18 applications in 18 projects" {
             container_CSharp_Blazor = container "CSharp.Blazor" "A web application" "C# · net8.0" "web application" {
                 component_CSharp_Blazor_CSharp_Blazor_ = component "(global namespace)" "A C# namespace of CSharp.Blazor" "C# namespace"
                 component_CSharp_Blazor_CSharp_Blazor_CSharp_Blazor_Components = component "CSharp.Blazor.Components" "A C# namespace of CSharp.Blazor" "C# namespace"
@@ -99,6 +99,11 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
                 component_CSharp_Middleware_CSharp_Middleware_ = component "(global namespace)" "A C# namespace of CSharp.Middleware" "C# namespace"
                 component_CSharp_Middleware_CSharp_Middleware_CSharp_Middleware = component "CSharp.Middleware" "A C# namespace of CSharp.Middleware" "C# namespace" "handles requests"
             }
+            container_CSharp_Orleans = container "CSharp.Orleans" "A web application, message consumer and background worker" "C# · net8.0" "web application,message consumer,background worker" {
+                component_CSharp_Orleans_CSharp_Orleans_ = component "(global namespace)" "A C# namespace of CSharp.Orleans" "C# namespace" "handles requests,reaches out"
+                component_CSharp_Orleans_CSharp_Orleans_CSharp_Silo_Orders = component "CSharp.Silo.Orders" "A C# namespace of CSharp.Orleans" "C# namespace" "handles requests,reaches out"
+                component_CSharp_Orleans_CSharp_Orleans_CSharp_Silo_Stock = component "CSharp.Silo.Stock" "A C# namespace of CSharp.Orleans" "C# namespace" "handles requests,reaches out"
+            }
             container_CSharp_Switch = container "CSharp.Switch" "A web application" "C# · net8.0" "web application" {
                 component_CSharp_Switch_CSharp_Switch_ = component "(global namespace)" "A C# namespace of CSharp.Switch" "C# namespace"
                 component_CSharp_Switch_CSharp_Switch_CSharp_Switch = component "CSharp.Switch" "A C# namespace of CSharp.Switch" "C# namespace" "handles requests"
@@ -123,6 +128,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         external_http_api_github_com = softwareSystem "api.github.com" "An HTTP service" "External"
         external_http_billing = softwareSystem "billing" "An HTTP service" "External"
         external_http_inventory = softwareSystem "inventory" "An HTTP service" "External"
+        external_http_payments_example_org = softwareSystem "payments.example.org" "An HTTP service" "External"
         external_http_pricing = softwareSystem "pricing" "An HTTP service" "External"
         external_http_shipping = softwareSystem "shipping" "An HTTP service" "External"
         external_http_status_example_org = softwareSystem "status.example.org" "An HTTP service" "External"
@@ -144,6 +150,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         external_library_Microsoft_EntityFrameworkCore = softwareSystem "Microsoft.EntityFrameworkCore" "A database reached through its client library" "External"
         external_library_MongoDB_Driver = softwareSystem "MongoDB.Driver" "A database reached through its client library" "External"
         external_library_NServiceBus = softwareSystem "NServiceBus" "A service reached through its client library" "External"
+        external_library_Orleans = softwareSystem "Orleans" "A service reached through its client library" "External"
         external_library_RabbitMQ_Client = softwareSystem "RabbitMQ.Client" "A service reached through its client library" "External"
         external_library_SendGrid = softwareSystem "SendGrid" "A service reached through its client library" "External"
         external_library_StackExchange_Redis = softwareSystem "StackExchange.Redis" "A service reached through its client library" "External"
@@ -281,6 +288,14 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Shipping -> external_filesystem "writes files"
         component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Shipping -> external_processes "starts or inspects processes" "MassTransit"
         component_CSharp_Middleware_CSharp_Middleware_ -> component_CSharp_Middleware_CSharp_Middleware_CSharp_Middleware "uses"
+        component_CSharp_Orleans_CSharp_Orleans_ -> component_CSharp_Orleans_CSharp_Orleans_CSharp_Silo_Orders "uses"
+        component_CSharp_Orleans_CSharp_Orleans_ -> external_library_Orleans "sends and receives over the network"
+        component_CSharp_Orleans_CSharp_Orleans_CSharp_Silo_Orders -> component_CSharp_Orleans_CSharp_Orleans_CSharp_Silo_Stock "uses"
+        component_CSharp_Orleans_CSharp_Orleans_CSharp_Silo_Orders -> external_filesystem "writes files"
+        component_CSharp_Orleans_CSharp_Orleans_CSharp_Silo_Orders -> external_http_payments_example_org "sends HTTP requests" "HTTP"
+        component_CSharp_Orleans_CSharp_Orleans_CSharp_Silo_Orders -> external_library_Orleans "reads and writes data"
+        component_CSharp_Orleans_CSharp_Orleans_CSharp_Silo_Orders -> external_library_Orleans "sends and receives over the network"
+        component_CSharp_Orleans_CSharp_Orleans_CSharp_Silo_Stock -> external_filesystem "writes files"
         component_CSharp_Switch_CSharp_Switch_ -> component_CSharp_Switch_CSharp_Switch_CSharp_Switch "uses"
         component_CSharp_Table_CSharp_Table_ -> component_CSharp_Table_CSharp_Table_CSharp_Table "uses"
         component_CSharp_Worker_CSharp_Worker_ -> component_CSharp_Worker_CSharp_Worker_CSharp_Worker_Cleanup "uses"
@@ -308,6 +323,8 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         external_library_Microsoft_Azure_Functions_Worker -> component_CSharp_Functions_CSharp_Functions_CSharp_Functions_Orders "delivers messages to"
         external_library_Microsoft_Azure_WebJobs -> component_CSharp_FunctionsInProcess_CSharp_FunctionsInProcess_CSharp_FunctionsInProcess_Orders "delivers messages to"
         external_library_NServiceBus -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Sales "delivers messages to"
+        external_library_Orleans -> component_CSharp_Orleans_CSharp_Orleans_CSharp_Silo_Orders "delivers messages to"
+        external_library_Orleans -> component_CSharp_Orleans_CSharp_Orleans_CSharp_Silo_Stock "delivers messages to"
         external_library_RabbitMQ_Client -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Configured "delivers messages to"
         external_library_RabbitMQ_Client -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Orders "delivers messages to"
         external_library_RabbitMQ_Client -> component_CSharp_Messaging_CSharp_Messaging_CSharp_Messaging_Refunds "delivers messages to"
@@ -334,6 +351,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         person_user -> component_CSharp_Grpc_CSharp_Grpc_ "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_Grpc_CSharp_Grpc_CSharp_Grpc_Inventory "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_Middleware_CSharp_Middleware_CSharp_Middleware "sends HTTP requests to" "HTTP"
+        person_user -> component_CSharp_Orleans_CSharp_Orleans_ "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_Switch_CSharp_Switch_CSharp_Switch "sends HTTP requests to" "HTTP"
         person_user -> component_CSharp_Table_CSharp_Table_CSharp_Table "sends HTTP requests to" "HTTP"
     }
@@ -342,10 +360,10 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         // Each view is laid out as on Floorplan's website: the positions are in workspace.json beside this file,
         // which Structurizr Lite merges in. Without it, add `autoLayout` to a view.
         systemContext system "context" {
-            include system external_database external_filesystem external_http external_http_api_example_org external_http_api_github_com external_http_billing external_http_inventory external_http_pricing external_http_shipping external_http_status_example_org external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Azure_Messaging_ServiceBus external_library_Azure_Storage_Blobs external_library_Confluent_Kafka external_library_Dapr external_library_Elastic_Clients_Elasticsearch external_library_Grpc_Core external_library_MailKit external_library_MassTransit external_library_Microsoft_AspNetCore_SignalR_Client external_library_Microsoft_Azure_Cosmos external_library_Microsoft_Azure_Functions_Worker external_library_Microsoft_Azure_WebJobs external_library_Microsoft_EntityFrameworkCore external_library_MongoDB_Driver external_library_NServiceBus external_library_RabbitMQ_Client external_library_SendGrid external_library_StackExchange_Redis external_native external_network external_processes person_user
+            include system external_database external_filesystem external_http external_http_api_example_org external_http_api_github_com external_http_billing external_http_inventory external_http_payments_example_org external_http_pricing external_http_shipping external_http_status_example_org external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Azure_Messaging_ServiceBus external_library_Azure_Storage_Blobs external_library_Confluent_Kafka external_library_Dapr external_library_Elastic_Clients_Elasticsearch external_library_Grpc_Core external_library_MailKit external_library_MassTransit external_library_Microsoft_AspNetCore_SignalR_Client external_library_Microsoft_Azure_Cosmos external_library_Microsoft_Azure_Functions_Worker external_library_Microsoft_Azure_WebJobs external_library_Microsoft_EntityFrameworkCore external_library_MongoDB_Driver external_library_NServiceBus external_library_Orleans external_library_RabbitMQ_Client external_library_SendGrid external_library_StackExchange_Redis external_native external_network external_processes person_user
         }
         container system "containers" {
-            include container_CSharp_Blazor container_CSharp_Clients container_CSharp_Cloud container_CSharp_Controllers container_CSharp_Conventional container_CSharp_Dapr container_CSharp_Delegated container_CSharp_Effects container_CSharp_Endpoints container_CSharp_Functions container_CSharp_FunctionsInProcess container_CSharp_Grpc container_CSharp_Messaging container_CSharp_Middleware container_CSharp_Switch container_CSharp_Table container_CSharp_Worker external_database external_filesystem external_http external_http_api_example_org external_http_api_github_com external_http_billing external_http_inventory external_http_pricing external_http_shipping external_http_status_example_org external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Azure_Messaging_ServiceBus external_library_Azure_Storage_Blobs external_library_Confluent_Kafka external_library_Dapr external_library_Elastic_Clients_Elasticsearch external_library_Grpc_Core external_library_MailKit external_library_MassTransit external_library_Microsoft_AspNetCore_SignalR_Client external_library_Microsoft_Azure_Cosmos external_library_Microsoft_Azure_Functions_Worker external_library_Microsoft_Azure_WebJobs external_library_Microsoft_EntityFrameworkCore external_library_MongoDB_Driver external_library_NServiceBus external_library_RabbitMQ_Client external_library_SendGrid external_library_StackExchange_Redis external_native external_network external_processes person_user
+            include container_CSharp_Blazor container_CSharp_Clients container_CSharp_Cloud container_CSharp_Controllers container_CSharp_Conventional container_CSharp_Dapr container_CSharp_Delegated container_CSharp_Effects container_CSharp_Endpoints container_CSharp_Functions container_CSharp_FunctionsInProcess container_CSharp_Grpc container_CSharp_Messaging container_CSharp_Middleware container_CSharp_Orleans container_CSharp_Switch container_CSharp_Table container_CSharp_Worker external_database external_filesystem external_http external_http_api_example_org external_http_api_github_com external_http_billing external_http_inventory external_http_payments_example_org external_http_pricing external_http_shipping external_http_status_example_org external_library_Amazon_DynamoDBv2 external_library_Amazon_S3 external_library_Amazon_SQS external_library_Azure_Messaging_ServiceBus external_library_Azure_Storage_Blobs external_library_Confluent_Kafka external_library_Dapr external_library_Elastic_Clients_Elasticsearch external_library_Grpc_Core external_library_MailKit external_library_MassTransit external_library_Microsoft_AspNetCore_SignalR_Client external_library_Microsoft_Azure_Cosmos external_library_Microsoft_Azure_Functions_Worker external_library_Microsoft_Azure_WebJobs external_library_Microsoft_EntityFrameworkCore external_library_MongoDB_Driver external_library_NServiceBus external_library_Orleans external_library_RabbitMQ_Client external_library_SendGrid external_library_StackExchange_Redis external_native external_network external_processes person_user
         }
         component container_CSharp_Blazor "components_CSharp_Blazor" {
             include component_CSharp_Blazor_CSharp_Blazor_ component_CSharp_Blazor_CSharp_Blazor_CSharp_Blazor_Components component_CSharp_Blazor_CSharp_Blazor_CSharp_Blazor_Components_Pages external_filesystem person_user
@@ -388,6 +406,9 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         }
         component container_CSharp_Middleware "components_CSharp_Middleware" {
             include component_CSharp_Middleware_CSharp_Middleware_ component_CSharp_Middleware_CSharp_Middleware_CSharp_Middleware person_user
+        }
+        component container_CSharp_Orleans "components_CSharp_Orleans" {
+            include component_CSharp_Orleans_CSharp_Orleans_ component_CSharp_Orleans_CSharp_Orleans_CSharp_Silo_Orders component_CSharp_Orleans_CSharp_Orleans_CSharp_Silo_Stock external_filesystem external_http_payments_example_org external_library_Orleans person_user
         }
         component container_CSharp_Switch "components_CSharp_Switch" {
             include component_CSharp_Switch_CSharp_Switch_ component_CSharp_Switch_CSharp_Switch_CSharp_Switch person_user

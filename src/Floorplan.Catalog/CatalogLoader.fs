@@ -229,6 +229,14 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
 
             true
         | _ -> false
+      ApplicationInterfaces =
+        match e.TryGetProperty "applicationInterfaces" with
+        | true, v when v.ValueKind = JsonValueKind.True ->
+            if k <> Sink || not (match e.TryGetProperty "includeDerivedTypes" with | true, d -> d.ValueKind = JsonValueKind.True | _ -> false) then
+                fail $"{context}: only sinks with includeDerivedTypes match the application's interfaces."
+
+            true
+        | _ -> false
       Setting = setting
       Source = source }
 

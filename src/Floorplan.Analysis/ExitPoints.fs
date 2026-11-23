@@ -332,6 +332,9 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
             let evaluator = evaluatorOf f
 
             match spec.Property with
+            | _ when spec.Role = "grain-method" ->
+                // A call to a grain (Orleans): addressed by its interface and method, as the grain's entry point is.
+                Values.Evaluator.ToPayload(Values.Text $"{declared.Type.FullName}.{declared.Name}", spec.Role)
             | _ when spec.Role = "grpc-method" ->
                 // A gRPC call's method descriptor: /{service}/{method}, from the constructor arguments the catalog's
                 // descriptor rule names.
@@ -376,10 +379,20 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
             | Some _ -> Values.Evaluator.ToPayload(Values.Hole, spec.Role)
             | None -> evaluator.Payload(offset, Values.operandIndex declared isNewObj spec.Argument, spec.Role))
 
-    // Code a generator wrote into the application ([GeneratedCode], as Grpc.Tools' clients): a call to a primitive in
-    // it is reported at the application's call into it, which is where the effect is decided.
+    // Code a generator wrote into the application ([GeneratedCode] on the method, as Grpc.Tools' clients, or on its
+    // type or an enclosing one, as Orleans's proxies and invokers): a call to a primitive in it is reported at the
+    // application's call into it, which is where the effect is decided.
+    let generatedAttribute (attributes: AttributeDef list) =
+        attributes |> List.exists (fun a -> a.Type.FullName = "System.CodeDom.Compiler.GeneratedCodeAttribute")
+
+    let rec generatedType (depth: int) (t: TypeRef) =
+        depth < 8
+        && (match ctx.Set.TryType t with
+            | Some(def, _) -> generatedAttribute def.Attributes || (def.DeclaringType |> Option.exists (generatedType (depth + 1)))
+            | None -> false)
+
     let isGenerated (d: MethodDef) =
-        d.Attributes |> List.exists (fun a -> a.Type.FullName = "System.CodeDom.Compiler.GeneratedCodeAttribute")
+        generatedAttribute d.Attributes || generatedType 0 d.Ref.Type
 
     let generatedReach = Dictionary<string, (SinkHit * Payload option * MethodRef list) list>()
 

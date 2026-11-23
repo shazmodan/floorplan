@@ -440,8 +440,24 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
     // A call matched to another application goes there, not to an external system.
     let matched = between |> List.map (fun l -> l.Source) |> Set.ofList
 
+    // A message sent through no library of its own (a call to an Orleans grain's interface) to an address the
+    // solution receives at goes to the system that delivers it there.
+    let deliveredBy (x: ExitPoint) =
+        match x.Category, x.Payload, facts.Library x with
+        | EffectCategory.Network, Some { Kind = PayloadKind.Literal; Value = Some address }, None ->
+            model.EntryPoints
+            |> List.filter (fun e -> e.Category = EffectCategory.Network && e.Route = Some address)
+            |> List.choose facts.EntryLibrary
+            |> List.distinct
+            |> function
+                | [ lib ] -> Some(generic $"library:{lib}" lib "A service reached through its client library")
+                | _ -> None
+        | _ -> None
+
     let outbound =
-        facts.Exits |> List.filter (fun x -> not (matched.Contains x.Id)) |> List.map (fun x -> externalOf facts.Library x, x)
+        facts.Exits
+        |> List.filter (fun x -> not (matched.Contains x.Id))
+        |> List.map (fun x -> defaultArg (deliveredBy x) (externalOf facts.Library x), x)
 
     let inbound =
         model.EntryPoints
