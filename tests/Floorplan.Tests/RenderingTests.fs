@@ -168,4 +168,6 @@ let tests =
 
                   let selected = Browser.dumpDom browser index "#/architecture/containers?select=container%3AShop.Web"
                   Expect.stringContains selected "Open its components" "the element named by the link is selected"
+                  Expect.stringContains selected "class=\"ghost c4-close\"" "its details can be closed"
+                  Expect.stringContains selected "class=\"c4-find\"" "elements can be found in the view"
           } ]
