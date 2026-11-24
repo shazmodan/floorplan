@@ -199,4 +199,89 @@ let tests =
                   Expect.stringContains orders "<title>Orders · Landscape · Floorplan</title>" "titled in its landscape"
                   Expect.stringContains orders "href=\"../../index.html#/solutions\"" "the way back"
                   Expect.stringContains orders "<option value=\"shipping\">Shipping</option>" "the other solutions"
+          }
+
+          test "golden: the Landscape fixture" {
+              Golden.check "landscape.txt" ((Landscape.describe (landscape ()) |> String.concat "\n") + "\n")
+          }
+
+          test "matching: a queue, a host that names the system, the landscape file, a route only one system has" {
+              let l = landscape ()
+
+              let found =
+                  l.Interactions |> List.map (fun i -> i.FromContainer, i.ToContainer, i.What, i.Methods, i.MatchedBy, i.Probable)
+
+              Expect.equal
+                  found
+                  [ "container:billing/Billing.Api", "container:orders/Orders.Api", "/orders/{id}", [ "GET" ], "route-only", true
+                    "container:orders/Orders.Api", "container:billing/Billing.Api", "/invoices/{id}", [ "GET" ], "host", false
+                    "container:orders/Orders.Api", "container:shipping/Shipping.Worker", "shipments", [], "queue", false
+                    "container:shipping/Shipping.Worker", "container:orders/Orders.Api", "/orders/{id}/delivered", [ "PUT" ], "landscape-file", false ]
+                  "every call between the systems, and how it was matched"
+
+              let ship = l.Interactions |> List.find (fun i -> i.MatchedBy = "queue")
+              Expect.equal ship.Technology (Some "RabbitMQ.Client") "how the systems talk"
+              Expect.equal ship.Sources.Length 2 "the exit point and the entry point"
+              Expect.isTrue (ship.Sources |> List.forall (fun s -> l.Sources |> List.exists (fun x -> x.Id = s))) "each source is described"
+          }
+
+          test "a matched call goes to the other system, not to the external system its host names" {
+              let l = landscape ()
+              let ids = l.Architecture.Elements |> List.map (fun e -> e.Id)
+
+              Expect.containsAll ids [ "system:billing"; "system:orders"; "system:shipping" ] "a system per solution"
+              Expect.contains ids "container:orders/Orders.Api" "its applications as containers"
+              Expect.isFalse (ids |> List.contains "external:http:billing-api.internal") "the host of a matched call"
+              Expect.contains ids "external:http:inventory.example.net" "a call that matches nothing reaches an external system"
+              Expect.contains ids "external:filesystem@billing" "the file system is each system's own"
+              Expect.contains ids "person:user" "one user for every system"
+
+              let parent = l.Architecture.Elements |> List.find (fun e -> e.Id = "container:orders/Orders.Api") |> fun e -> e.Parent
+              Expect.equal parent (Some "system:orders") "in its system"
+          }
+
+          test "without the landscape file, a host that names nothing leaves only a route, matched as probable" {
+              let _, outcome = landscapeRun.Force()
+              let l = Landscape.derive "test" "now" landscapeDir Landscape.noFile [] outcome.Analyzed
+              let delivered = l.Interactions |> List.find (fun i -> i.What = "/orders/{id}/delivered")
+              Expect.equal (delivered.MatchedBy, delivered.Probable) ("route-only", true) "probable"
+          }
+
+          test "a landscape file that names an unknown system says so" {
+              let _, outcome = landscapeRun.Force()
+              let file = { Landscape.Hosts = Map.ofList [ "api.example.com", "Nowhere" ] }
+              let l = Landscape.derive "test" "now" landscapeDir file [] outcome.Analyzed
+              Expect.isTrue (l.Diagnostics |> List.exists (fun d -> d.Code = "landscape-file.unknown-system")) "a warning"
+              Expect.isFalse (l.Interactions |> List.exists (fun i -> i.What = "/orders/{id}/delivered")) "the file decides: nowhere"
+          }
+
+          test "routes: parameters take any segment, a run-time segment only a parameter, a catch-all nothing" {
+              Expect.isTrue (Landscape.routeMatches "/orders/17" "/orders/{id}") "a parameter"
+              Expect.isTrue (Landscape.routeMatches "/orders/{…}" "/orders/{id}") "a run-time segment and a parameter"
+              Expect.isFalse (Landscape.routeMatches "/orders/{…}" "/orders/open") "a run-time segment and a literal"
+              Expect.isTrue (Landscape.routeMatches "/Orders" "/orders") "any case"
+              Expect.isTrue (Landscape.routeMatches "/orders" "/orders/{id?}") "an optional parameter"
+              Expect.isTrue (Landscape.routeMatches "/files/a/b" "/files/{*path}") "a catch-all after a literal"
+              Expect.isFalse (Landscape.routeMatches "/x/y" "/{service}/{method}") "parameters only"
+              Expect.isFalse (Landscape.routeMatches "/orders/17/lines" "/orders/{id}") "more segments"
+              Expect.equal (Landscape.hostOf "https://Billing-Api.internal:8443/x") (Some "billing-api.internal") "host"
+              Expect.equal (Landscape.hostOf "https://{…}/x") None "a host only known at run time"
+              Expect.equal (Landscape.pathOf "https://h/a/b?c=1#d") "/a/b" "path"
+          }
+
+          test "solutions that do not call each other give no link but by route only, and those are probable" {
+              let analyzed =
+                  [ "CSharp", CSharpTests.csharpModel
+                    "Routing", EntryPointTests.routingModel
+                    "Shop", ExitPointTests.shopModel
+                    "Frameworks", FrameworkTests.frameworksModel ]
+                  |> List.map (fun (name, m) -> ({ File = Fixtures.path $"{name}/{name}.slnx"; Model = Ok(m.Force()) }: Landscape.Analyzed))
+
+              let l = Landscape.derive "test" "now" Fixtures.fixturesDir Landscape.noFile [] analyzed
+              Expect.isTrue (l.Interactions |> List.forall (fun i -> i.Probable)) $"only probable links: %A{l.Interactions}"
+
+              Expect.equal
+                  (l.Interactions |> List.map (fun i -> i.FromContainer, i.ToContainer, i.What))
+                  [ "container:csharp/CSharp.Clients", "container:routing/Routing.Conventional", "/Products" ]
+                  "CSharp.Clients calls /products, which only Routing.Conventional has"
           } ]

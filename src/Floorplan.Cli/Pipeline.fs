@@ -206,6 +206,8 @@ let folderOfSolutions (options: AnalyzeOptions) : Discovery.FoundSolutions optio
 
 type LandscapeOutcome =
     { Landscape: Landscape
+      /// Each solution as analyzed, in the landscape's order.
+      Analyzed: Landscape.Analyzed list
       /// The landscape site's index.html or landscape.json.
       Written: string
       /// Some solution, or some project of one, could not be analyzed.
@@ -271,7 +273,9 @@ let runLandscape (log: string -> unit) (options: AnalyzeOptions) (found: Discove
 
         log "Deriving the landscape"
         let generatedAt = DateTime.UtcNow.ToString "yyyy-MM-ddTHH:mm:ssZ"
-        let landscape = Landscape.derive toolVersion generatedAt root found.Nested analyzed
+        let file, fileDiagnostics = Landscape.readFile root
+        let landscape = Landscape.derive toolVersion generatedAt root file found.Nested analyzed
+        let landscape = { landscape with Diagnostics = landscape.Diagnostics @ fileDiagnostics }
         let link (slug: string) : WebsiteRenderer.LandscapeLink =
             { Landscape = landscape.Name
               Current = slug
@@ -301,6 +305,7 @@ let runLandscape (log: string -> unit) (options: AnalyzeOptions) (found: Discove
 
             Ok
                 { Landscape = landscape
+                  Analyzed = analyzed
                   Written = Path.GetFullPath written
                   HadFailures = failures }
         with e ->
