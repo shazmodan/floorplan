@@ -1880,7 +1880,8 @@
         "Messages: a queue, topic or address another system receives at, through the same library (also gRPC services, WCF actions and Orleans grains).",
         "HTTP to a host that floorplan.landscape.json in the analyzed folder maps to a system, to one of its routes.",
         "HTTP whose URL's host names another system or one of its applications, to one of its routes.",
-        "HTTP to a route only one other system has, when the caller's own system does not have it: probable, drawn dashed."
+        "HTTP to a route only one other system has, when the caller's own system does not have it: probable, drawn dashed.",
+        "A folder (an absolute path) that more than one system reads, writes or watches is one external element they share, on the Landscape."
       ].map(function (t) { return el("li", null, t); }))
     ]);
     main.appendChild(page);

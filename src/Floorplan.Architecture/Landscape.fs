@@ -427,6 +427,56 @@ let private matchAll (file: LandscapeFile) (parts: Part list) : (Interaction * s
                       | _ -> ()
               | _ -> () ]
 
+/// The folder of an absolute path the analysis knows (a template's up to its first hole), with forward slashes: a
+/// file's folder, or the path itself when it is a folder (a watched one). A relative path depends on the working
+/// folder of each process, so it names no folder two systems could share.
+let folderOf (isFolder: bool) (path: string) =
+    let p = path.Replace('\\', '/')
+    let known = match p.IndexOfAny [| '{'; '…' |] with -1 -> p | i -> p.Substring(0, i)
+    let drive = known.Length >= 3 && Char.IsAsciiLetter known[0] && known[1] = ':' && known[2] = '/'
+
+    if not (drive || known.StartsWith "/") then
+        None
+    else
+        let folder =
+            if isFolder && known.Length = p.Length then known.TrimEnd '/'
+            else match known.LastIndexOf '/' with i when i > 0 -> known.Substring(0, i) | _ -> ""
+
+        if folder = "" || folder.EndsWith ":" || folder = "/" then None
+        // A Windows path is the same in any case.
+        elif drive then Some(folder.ToLowerInvariant(), folder)
+        else Some(folder, folder)
+
+/// The folders more than one system uses (docs/landscape-plan.md, "Matching", step 5): files one system writes and
+/// another reads or watches. Each source ("<slug>:<id>", an exit point or a watched folder's entry point) that uses
+/// one, with its element's id and the folder's name.
+let private sharedFolders (parts: Part list) : Map<string, string * string> =
+    let uses =
+        [ for p in parts do
+              for x in p.Model.ExitPoints |> List.filter (shown p.Model) do
+                  match x.Category, x.Payload with
+                  | (EffectCategory.FilesystemRead | EffectCategory.FilesystemWrite), Some { Kind = (PayloadKind.Literal | PayloadKind.Template); Value = Some path } ->
+                      match folderOf false path with
+                      | Some(key, name) -> yield key, name, p.Slug, $"{p.Slug}:{x.Id}"
+                      | None -> ()
+                  | _ -> ()
+
+              for e in p.Model.EntryPoints do
+                  match e.Category, e.Route with
+                  | (EffectCategory.FilesystemRead | EffectCategory.FilesystemWrite), Some folder ->
+                      match folderOf true folder with
+                      | Some(key, name) -> yield key, name, p.Slug, $"{p.Slug}:{e.Id}"
+                      | None -> ()
+                  | _ -> () ]
+
+    uses
+    |> List.groupBy (fun (key, _, _, _) -> key)
+    |> List.filter (fun (_, us) -> (us |> List.map (fun (_, _, slug, _) -> slug) |> List.distinct).Length >= 2)
+    |> List.collect (fun (key, us) ->
+        let _, name, _, _ = us.Head
+        us |> List.map (fun (_, _, _, source) -> source, ($"external:folder:{key}", name)))
+    |> Map.ofList
+
 /// What a source of the landscape is, as its solution's site shows it.
 let private sourceOf (p: Part) : Map<string, LandscapeSource> =
     let label (e: EntryPoint) =
@@ -451,6 +501,7 @@ let private sourceOf (p: Part) : Map<string, LandscapeSource> =
 let private architectureOf (file: LandscapeFile) (parts: Part list) =
     let matches = matchAll file parts
     let matched = matches |> List.map (fun (i, _) -> i.Sources.Head) |> Set.ofList
+    let folders = sharedFolders parts
 
     let systems =
         parts
@@ -477,6 +528,21 @@ let private architectureOf (file: LandscapeFile) (parts: Part list) =
                               Parent = Some(systemId p.Slug)
                               Sources = e.Sources |> List.map (fun s -> $"{p.Slug}:{s}") } ]
 
+    // A folder two systems use is one element, which both reach instead of their own file system.
+    let shared =
+        folders
+        |> Map.toList
+        |> List.groupBy (fun (_, (id, _)) -> id)
+        |> List.map (fun (id, uses) ->
+            { Id = id
+              Kind = C4Kind.ExternalSystem
+              Name = snd (snd uses.Head)
+              Technology = None
+              Description = "A folder more than one system uses"
+              Parent = None
+              Tags = [ "shared folder" ]
+              Sources = uses |> List.map fst |> List.sort })
+
     let outside =
         [ for p in parts do
               for e in p.Model.Architecture.Elements do
@@ -487,6 +553,7 @@ let private architectureOf (file: LandscapeFile) (parts: Part list) =
                       yield { e with Id = id; Name = name; Sources = e.Sources |> List.map (fun s -> $"{p.Slug}:{s}") } ]
         |> List.groupBy (fun e -> e.Id)
         |> List.map (fun (_, es) -> { es.Head with Sources = es |> List.collect (fun e -> e.Sources) |> List.distinct |> List.sort })
+        |> List.append shared
 
     // Each solution's relationships between the elements the landscape shows, without the calls matched to another
     // system, which go there instead of to an external system.
@@ -499,13 +566,18 @@ let private architectureOf (file: LandscapeFile) (parts: Part list) =
                       let toExternal = not (t.StartsWith "container:" || t.StartsWith "system:")
                       let left = if toExternal then sources |> List.filter (matched.Contains >> not) else sources
 
-                      if not left.IsEmpty then
+                      // A use of a shared folder goes to the folder, not to the system's own file system.
+                      let own = $"external:filesystem@{p.Slug}"
+                      let at (id: string) (source: string) =
+                          if id = own then folders.TryFind source |> Option.map fst |> Option.defaultValue id else id
+
+                      for (f, t), sources in left |> List.groupBy (fun s -> at f s, at t s) do
                           yield
                               { From = f
                                 To = t
                                 Description = r.Description
                                 Technology = r.Technology
-                                Sources = left }
+                                Sources = sources }
                   | _ -> () ]
 
     let between =

@@ -173,7 +173,7 @@ docs/c4-plan.md.
 | 2 | The landscape model: systems, shared externals, links by messages and by HTTP (a naming host, the landscape file, route only); JSON and `describe` goldens | `claude/landscape-model` | done |
 | 3 | Landscape views and their layout (boundaries per system), Structurizr landscape workspace | `claude/landscape-views` | done |
 | 4 | The landscape site: Solutions, Landscape, Interactions, Diagnostics; back links and cross links in solution sites | `claude/landscape-website` | done |
-| 5 | More matching: shared databases and folders (the landscape file and route-only links came with iteration 2) | `claude/landscape-matching` | |
+| 5 | More matching: shared databases and folders (the landscape file and route-only links came with iteration 2) | `claude/landscape-matching` | done (folders) |
 | 6 | Documentation, TODO, review on the demo projects (each solution's C4 model knowing the other systems came with iteration 4) | `claude/landscape-docs` | |
 
 Tests: a new fixture folder `tests/fixtures/Landscape/` with three small solutions made to talk to each other:
@@ -270,3 +270,12 @@ What the prototype found on the fixtures:
   not to the host it is called at, and an entry point another system calls has that system among its callers.
   In a solution's site, such an element opens the other system's site. The landscape is derived from the models
   as analyzed; only the sites (and `floorplan.json` files) get the models derived again in the landscape.
+- 2026-11-24, iteration 5: shared folders. A file exit point's absolute path (a template's up to its first hole)
+  gives its folder, a watched folder's entry point the folder itself; a folder more than one system uses is one
+  element (`external:folder:<path>`, tagged "shared folder", a Windows path compared in any case), and those uses go
+  there instead of to each system's own file system. Relative paths name no folder: each process has its own
+  working folder. **Shared databases are not matched yet**: the analysis does not record a connection string
+  (`DbConnection.Open` has no payload, and real connection strings come from configuration), so there is nothing
+  to compare; a database reached through a named client library is already one element per library. This waits
+  for TODO 2 (reading more of the configuration). The fixture's Billing and Shipping now both write to
+  `/srv/exchange`.

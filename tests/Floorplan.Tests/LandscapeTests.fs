@@ -233,7 +233,7 @@ let tests =
               Expect.contains ids "container:orders/Orders.Api" "its applications as containers"
               Expect.isFalse (ids |> List.contains "external:http:billing-api.internal") "the host of a matched call"
               Expect.contains ids "external:http:inventory.example.net" "a call that matches nothing reaches an external system"
-              Expect.contains ids "external:filesystem@billing" "the file system is each system's own"
+              Expect.contains ids "external:network@orders" "the network is each system's own"
               Expect.contains ids "person:user" "one user for every system"
 
               let parent = l.Architecture.Elements |> List.find (fun e -> e.Id = "container:orders/Orders.Api") |> fun e -> e.Parent
@@ -297,7 +297,7 @@ let tests =
 
               let context = view "context"
               Expect.equal context.Scope Landscape.LandscapeScope "of the whole landscape"
-              Expect.equal context.Elements [ "system:billing"; "system:orders"; "system:shipping"; "person:user" ] "the systems and what more than one uses"
+              Expect.equal context.Elements [ "system:billing"; "system:orders"; "system:shipping"; "external:folder:/srv/exchange"; "person:user" ] "the systems and what more than one uses"
               Expect.contains (context.Relationships |> List.map (fun r -> r.From, r.To)) ("system:orders", "system:shipping") "lifted to the systems"
               Expect.contains (view "context-all").Elements "external:http:inventory.example.net" "with every external system"
 
@@ -404,4 +404,26 @@ let tests =
 
                   let orders = Browser.dumpDom browser (Path.Combine(out, "solutions", "orders", "index.html")) "#/architecture/context"
                   Expect.stringContains orders "Double-click to open it in Billing's site." "Billing opens its site"
+          }
+
+          test "a folder two systems use is one element both reach, instead of their own file system" {
+              let l = landscape ()
+              let folder = l.Architecture.Elements |> List.find (fun e -> e.Id = "external:folder:/srv/exchange")
+              Expect.equal (folder.Name, folder.Tags) ("/srv/exchange", [ "shared folder" ]) "named by its path"
+
+              Expect.containsAll
+                  (l.Architecture.Relationships |> List.map (fun r -> r.From, r.To))
+                  [ "container:billing/Billing.Api", folder.Id; "container:shipping/Shipping.Worker", folder.Id ]
+                  "both write there"
+
+              Expect.isFalse (l.Architecture.Elements |> List.exists (fun e -> e.Id = "external:filesystem@billing")) "Billing has no other file"
+              Expect.contains (l.Architecture.Views |> List.find (fun v -> v.Id = "context")).Elements folder.Id "on the landscape, as more than one system uses it"
+          }
+
+          test "folders: an absolute path's, a template's up to its hole; a relative path names none" {
+              Expect.equal (Landscape.folderOf false "/srv/exchange/a.csv") (Some("/srv/exchange", "/srv/exchange")) "a file's folder"
+              Expect.equal (Landscape.folderOf false @"C:\Exchange\Out\{…}.csv") (Some("c:/exchange/out", "C:/Exchange/Out")) "a Windows path, in any case"
+              Expect.equal (Landscape.folderOf true "/srv/inbox/") (Some("/srv/inbox", "/srv/inbox")) "a watched folder"
+              Expect.equal (Landscape.folderOf false "logs/app.log") None "relative"
+              Expect.equal (Landscape.folderOf false "/a.txt") None "the root names nothing"
           } ]
