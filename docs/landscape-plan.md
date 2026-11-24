@@ -1,7 +1,7 @@
 # Analyzing a folder of solutions (a system landscape): plan
 
-Date: 2026-11-24. Status: proposed, waiting for the owner's decisions (see **Decisions for the owner**). Nothing is built yet.
-A mock of the website is generated outside the repository (see **Mock**).
+Date: 2026-11-24. Status: in progress (see **Iterations**). The owner took the four proposals in **Decisions**.
+A mock of the website was generated outside the repository before the work started (see **Mock**).
 
 ## Goal
 
@@ -57,8 +57,7 @@ solutions (`*.sln`, `*.slnx`) in its subfolders:
   and the existing `--include`, `--exclude`, `--include-tests`, `--framework`, `--configuration`, `--no-build`
   and `--catalog` apply to every solution.
 
-Each solution found is a **system**, named after its solution file (or its folder, when that name is more
-specific; see **Decisions for the owner**).
+Each solution found is a **system**, named after its solution file (see **Decisions**).
 
 ### 2. Analyzing each solution
 
@@ -170,7 +169,7 @@ docs/c4-plan.md.
 
 | # | Iteration | Branch | Status |
 |---|---|---|---|
-| 1 | Find the solutions in a folder, analyze each one into `solutions/<slug>/`, write a landscape index listing them | `claude/landscape-discovery` | |
+| 1 | Find the solutions in a folder, analyze each one into `solutions/<slug>/`, write a landscape index listing them | `claude/landscape-discovery` | done |
 | 2 | The landscape model: systems, shared externals, links by messages and by HTTP with a naming host; JSON and `describe` goldens | `claude/landscape-model` | |
 | 3 | Landscape views and their layout (boundaries per system), Structurizr landscape workspace | `claude/landscape-views` | |
 | 4 | The landscape site: Solutions, Landscape, Interactions, Diagnostics; back links and cross links in solution sites | `claude/landscape-website` | |
@@ -182,16 +181,17 @@ HTTP to a host that names the system, HTTP by route only, a queue, a shared data
 nothing. The existing `tests/fixtures/` folder is itself a folder of six solutions, and serves as the test that
 unrelated solutions give no links.
 
-## Decisions for the owner
+## Decisions
 
-1. **System = solution, or system = top-level folder?** Proposed: a solution is a system (it is what gets built
-   and deployed together). When a top-level folder has several solutions, they would be several systems, shown
-   grouped by folder. The other choice merges them into one system.
-2. **Probable links (route only)**: shown dashed by default, or hidden behind a switch? Proposed: shown dashed.
-3. **The landscape file** (`floorplan.landscape.json`): worth having, for hosts that name nothing? Proposed: yes,
-   in iteration 5, and optional.
-4. **Solutions inside a solution's folder** (samples, tools): skipped unless named. Proposed as described in
-   **Finding the solutions**.
+The owner took every proposal (2026-11-24):
+
+1. **A solution is a system** (it is what gets built and deployed together). When a top-level folder has several
+   solutions, they are several systems; the Solutions page shows each one's path, so those of one folder stand
+   together.
+2. **Probable links (route only) are shown, dashed**, and marked "route only".
+3. **The landscape file** (`floorplan.landscape.json`) is read, and optional.
+4. **Solutions inside a solution's folder** (samples, tools) are skipped unless named with `--solutions`, as
+   described in **Finding the solutions**.
 
 ## Mock
 
@@ -231,3 +231,13 @@ What the prototype found on the fixtures:
 
 - 2026-11-24: plan written, mock generated from a prototype of the matching on the six fixture solutions.
   No product code yet.
+- 2026-11-24, iteration 1: `Discovery.findSolutions` and `isFolderOfSolutions`; `Pipeline.runLandscape` analyzes
+  each solution in turn (a solution that fails is listed with why, and the run fails at the end) and writes
+  `solutions/<slug>/` and the landscape (`Landscape` in Floorplan.Model, derived by
+  `Floorplan.Architecture.Landscape`). The landscape's site is the same `app.js`, which shows the landscape's own
+  pages when `window.FLOORPLAN_LANDSCAPE` is set; a solution's site in a landscape gets `FLOORPLAN_LANDSCAPE_LINK`
+  and shows the way back and a solution switcher (moved here from iteration 4, as the index is no use without
+  it). The Interactions page is in place, empty until iteration 2. `--single-file` with a folder is refused for
+  now: one file holding every solution's data was not measured. New fixture `tests/fixtures/Landscape/` (Orders,
+  Billing, Shipping, and `Billing/samples/Billing.Samples.slnx` as a nested solution). Analyzing
+  `tests/fixtures` (nine solutions now) takes about 3 minutes without the cache.

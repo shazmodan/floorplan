@@ -22,6 +22,23 @@ let dataScript (model: AnalysisModel) =
     let json = (Json.serialize false model).Replace("</", "<\\/")
     $"window.FLOORPLAN_DATA = {json};\n"
 
+/// A solution's place in a landscape of solutions (docs/landscape-plan.md): its site links back to the landscape
+/// and to the other solutions' sites, which are its siblings.
+type LandscapeLink =
+    { Landscape: string
+      /// The solution's own slug, and every solution's name and slug, in the landscape's order.
+      Current: string
+      Solutions: (string * string) list }
+
+let private linkScript (link: LandscapeLink) =
+    let solutions =
+        link.Solutions |> List.map (fun (name, slug) -> {| name = name; slug = slug |})
+
+    let json =
+        (Json.serializeValue false {| landscape = link.Landscape; current = link.Current; solutions = solutions |}).Replace("</", "<\\/")
+
+    $"window.FLOORPLAN_LANDSCAPE_LINK = {json};\n"
+
 let private inline' (html: string) (css: string) (js: string) (data: string) =
     let script (body: string) = "<script>\n" + body.Replace("</script", "<\\/script") + "\n</script>"
 
@@ -30,11 +47,12 @@ let private inline' (html: string) (css: string) (js: string) (data: string) =
         .Replace("<script src=\"data.js\"></script>", script data)
         .Replace("<script src=\"app.js\"></script>", script js)
 
-let render (model: AnalysisModel) (output: OutputTarget) =
+/// The site of one solution, in a landscape when it is part of one.
+let renderIn (link: LandscapeLink option) (model: AnalysisModel) (output: OutputTarget) =
     let html = asset "index.html"
     let css = asset "app.css"
     let js = asset "app.js"
-    let data = dataScript model
+    let data = dataScript model + (link |> Option.map linkScript |> Option.defaultValue "")
 
     if output.SingleFile then
         let file =
@@ -62,6 +80,18 @@ let render (model: AnalysisModel) (output: OutputTarget) =
         File.WriteAllText(dsl, StructurizrDsl.write model)
         File.SetLastWriteTimeUtc(layout, File.GetLastWriteTimeUtc(dsl).AddSeconds -2.0)
         Path.Combine(output.Path, "index.html")
+
+let render (model: AnalysisModel) (output: OutputTarget) = renderIn None model output
+
+/// The landscape's site: the same pages, which show a landscape when the data is one (docs/landscape-plan.md).
+let renderLandscape (landscape: Landscape) (dir: string) =
+    Directory.CreateDirectory dir |> ignore
+    File.WriteAllText(Path.Combine(dir, "index.html"), asset "index.html")
+    File.WriteAllText(Path.Combine(dir, "app.css"), asset "app.css")
+    File.WriteAllText(Path.Combine(dir, "app.js"), asset "app.js")
+    let json = (Json.serializeValue false landscape).Replace("</", "<\\/")
+    File.WriteAllText(Path.Combine(dir, "data.js"), $"window.FLOORPLAN_LANDSCAPE = {json};\nwindow.FLOORPLAN_FILES = [];\n")
+    Path.Combine(dir, "index.html")
 
 let create () =
     { new IRenderer with

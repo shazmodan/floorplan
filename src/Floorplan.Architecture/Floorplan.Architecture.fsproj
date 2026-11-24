@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="C4.fs" />
+    <Compile Include="Landscape.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Floorplan.Model\Floorplan.Model.fsproj" />

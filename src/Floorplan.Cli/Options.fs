@@ -14,6 +14,8 @@ type AnalyzeArgs =
     | [<AltCommandLine("-o"); Unique>] Output of dir: string
     | Include of projects: string
     | Exclude of projects: string
+    | Solutions of names: string
+    | Exclude_Solutions of names: string
     | Include_Tests
     | [<AltCommandLine("-f"); Unique>] Framework of tfm: string
     | [<AltCommandLine("-c"); Unique>] Configuration of name: string
@@ -29,10 +31,13 @@ type AnalyzeArgs =
     interface IArgParserTemplate with
         member a.Usage =
             match a with
-            | Path _ -> "the solution (.sln, .slnx) or project to analyze. Default: the solution in the current directory."
+            | Path _ ->
+                "the solution (.sln, .slnx) or project to analyze, or a folder of solutions to analyze as one landscape. Default: the solution in the current directory."
             | Output _ -> "output directory. Default: ./floorplan-out"
             | Include _ -> "analyze only these projects (comma-separated) and what they reference."
             | Exclude _ -> "leave out these projects (comma-separated)."
+            | Solutions _ -> "in a folder of solutions: analyze only these solutions (comma-separated names), nested ones too."
+            | Exclude_Solutions _ -> "in a folder of solutions: leave out these solutions (comma-separated names)."
             | Include_Tests -> "include test projects, which are excluded by default."
             | Framework _ -> "preferred target framework for multi-targeting projects."
             | Configuration _ -> "build configuration. Default: Debug"
@@ -60,6 +65,9 @@ type AnalyzeOptions =
       Output: string
       Include: string list
       Exclude: string list
+      /// In a folder of solutions: the solutions to analyze (by name; empty: every one found), and those left out.
+      Solutions: string list
+      ExcludeSolutions: string list
       IncludeTests: bool
       Framework: string option
       Configuration: string
@@ -93,6 +101,8 @@ let toOptions (args: ParseResults<AnalyzeArgs>) : Result<AnalyzeOptions, string>
               Output = args.GetResult(Output, defaultValue = "floorplan-out")
               Include = args.GetResults Include |> splitList
               Exclude = args.GetResults Exclude |> splitList
+              Solutions = args.GetResults Solutions |> splitList
+              ExcludeSolutions = args.GetResults Exclude_Solutions |> splitList
               IncludeTests = args.Contains Include_Tests
               Framework = args.TryGetResult Framework
               Configuration = args.GetResult(Configuration, defaultValue = "Debug")
@@ -110,6 +120,8 @@ let defaults =
       Output = "floorplan-out"
       Include = []
       Exclude = []
+      Solutions = []
+      ExcludeSolutions = []
       IncludeTests = false
       Framework = None
       Configuration = "Debug"
