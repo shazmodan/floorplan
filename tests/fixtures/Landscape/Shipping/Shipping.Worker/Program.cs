@@ -17,7 +17,11 @@ namespace Shipping.Worker
         private static readonly HttpClient Http = new();
 
         // api.example.com names no system; floorplan.landscape.json maps it to Orders.
-        public static void Delivered(string id) =>
+        public static void Delivered(string id)
+        {
             Http.PutAsync("https://api.example.com/orders/" + id + "/delivered", null).GetAwaiter().GetResult();
+            // The folder Billing writes to: shared, so the systems integrate through it too.
+            File.AppendAllText("/srv/exchange/delivered.csv", id);
+        }
     }
 }

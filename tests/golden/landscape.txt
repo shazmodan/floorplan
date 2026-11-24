@@ -1,6 +1,6 @@
 solution billing | Billing | Billing/Billing.slnx | 1 applications, 1 projects, 5 entry points, 2 exit points
 solution orders | Orders | Orders/Orders.slnx | 1 applications, 1 projects, 3 entry points, 4 exit points
-solution shipping | Shipping | Shipping/Shipping.slnx | 1 applications, 1 projects, 1 entry points, 2 exit points
+solution shipping | Shipping | Shipping/Shipping.slnx | 1 applications, 1 projects, 1 entry points, 3 exit points
 nested Billing/samples/Billing.Samples.slnx
 software-system | system:billing | Billing | - | in - | - | 1 sources
 software-system | system:orders | Orders | - | in - | - | 1 sources
@@ -8,52 +8,58 @@ software-system | system:shipping | Shipping | - | in - | - | 1 sources
 container | container:billing/Billing.Api | Billing.Api | C# · net8.0 | in system:billing | web application | 6 sources
 container | container:orders/Orders.Api | Orders.Api | C# · net8.0 | in system:orders | web application | 4 sources
 container | container:shipping/Shipping.Worker | Shipping.Worker | C# · net8.0 | in system:shipping | message consumer | 2 sources
-external-system | external:filesystem@billing | File system (Billing) | - | in - | - | 1 sources
+external-system | external:folder:/srv/exchange | /srv/exchange | - | in - | shared folder | 2 sources
 external-system | external:http:inventory.example.net | inventory.example.net | - | in - | - | 1 sources
 external-system | external:library:RabbitMQ.Client | RabbitMQ.Client | - | in - | - | 2 sources
 external-system | external:network@orders | Network (Orders) | - | in - | - | 1 sources
 external-system | external:network@shipping | Network (Shipping) | - | in - | - | 1 sources
 person | person:user | User | - | in - | - | 8 sources
 container:billing/Billing.Api -> container:orders/Orders.Api | sends HTTP requests to /orders/{id} | HTTP | 2 sources
-container:billing/Billing.Api -> external:filesystem@billing | writes files | - | 1 sources
+container:billing/Billing.Api -> external:folder:/srv/exchange | writes files | - | 1 sources
 container:orders/Orders.Api -> container:billing/Billing.Api | sends HTTP requests to /invoices/{id} | HTTP | 2 sources
 container:orders/Orders.Api -> container:shipping/Shipping.Worker | sends messages to shipments | RabbitMQ.Client | 2 sources
 container:orders/Orders.Api -> external:http:inventory.example.net | sends HTTP requests | HTTP | 1 sources
 container:orders/Orders.Api -> external:network@orders | sends and receives over the network | RabbitMQ.Client | 1 sources
 container:shipping/Shipping.Worker -> container:orders/Orders.Api | sends HTTP requests to /orders/{id}/delivered | HTTP | 2 sources
+container:shipping/Shipping.Worker -> external:folder:/srv/exchange | writes files | - | 1 sources
 container:shipping/Shipping.Worker -> external:network@shipping | sends and receives over the network | RabbitMQ.Client | 1 sources
 external:library:RabbitMQ.Client -> container:shipping/Shipping.Worker | delivers messages to | - | 1 sources
 person:user -> container:billing/Billing.Api | sends HTTP requests to | HTTP | 5 sources
 person:user -> container:orders/Orders.Api | sends HTTP requests to | HTTP | 3 sources
-view context | context of landscape | 4 elements | 314 x 1032
+view context | context of landscape | 5 elements | 338 x 1262
   person:user -> system:billing | sends HTTP requests to | HTTP | 5 sources
   person:user -> system:orders | sends HTTP requests to | HTTP | 3 sources
+  system:billing -> external:folder:/srv/exchange | writes files | - | 1 sources
   system:billing -> system:orders | sends HTTP requests to /orders/{id} | HTTP | 2 sources
   system:orders -> system:billing | sends HTTP requests to /invoices/{id} | HTTP | 2 sources
   system:orders -> system:shipping | sends messages to shipments | RabbitMQ.Client | 2 sources
+  system:shipping -> external:folder:/srv/exchange | writes files | - | 1 sources
   system:shipping -> system:orders | sends HTTP requests to /orders/{id}/delivered | HTTP | 2 sources
 view context-all | context of landscape | 9 elements | 1104 x 1262
   external:library:RabbitMQ.Client -> system:shipping | delivers messages to | - | 1 sources
   person:user -> system:billing | sends HTTP requests to | HTTP | 5 sources
   person:user -> system:orders | sends HTTP requests to | HTTP | 3 sources
-  system:billing -> external:filesystem@billing | writes files | - | 1 sources
+  system:billing -> external:folder:/srv/exchange | writes files | - | 1 sources
   system:billing -> system:orders | sends HTTP requests to /orders/{id} | HTTP | 2 sources
   system:orders -> external:http:inventory.example.net | sends HTTP requests | HTTP | 1 sources
   system:orders -> external:network@orders | sends and receives over the network | RabbitMQ.Client | 1 sources
   system:orders -> system:billing | sends HTTP requests to /invoices/{id} | HTTP | 2 sources
   system:orders -> system:shipping | sends messages to shipments | RabbitMQ.Client | 2 sources
+  system:shipping -> external:folder:/srv/exchange | writes files | - | 1 sources
   system:shipping -> external:network@shipping | sends and receives over the network | RabbitMQ.Client | 1 sources
   system:shipping -> system:orders | sends HTTP requests to /orders/{id}/delivered | HTTP | 2 sources
-view containers | containers of landscape | 4 elements | 384 x 1068
+view containers | containers of landscape | 5 elements | 413 x 1298
   container:billing/Billing.Api -> container:orders/Orders.Api | sends HTTP requests to /orders/{id} | HTTP | 2 sources
+  container:billing/Billing.Api -> external:folder:/srv/exchange | writes files | - | 1 sources
   container:orders/Orders.Api -> container:billing/Billing.Api | sends HTTP requests to /invoices/{id} | HTTP | 2 sources
   container:orders/Orders.Api -> container:shipping/Shipping.Worker | sends messages to shipments | RabbitMQ.Client | 2 sources
   container:shipping/Shipping.Worker -> container:orders/Orders.Api | sends HTTP requests to /orders/{id}/delivered | HTTP | 2 sources
+  container:shipping/Shipping.Worker -> external:folder:/srv/exchange | writes files | - | 1 sources
   person:user -> container:billing/Billing.Api | sends HTTP requests to | HTTP | 5 sources
   person:user -> container:orders/Orders.Api | sends HTTP requests to | HTTP | 3 sources
 view containers:billing | containers of system:billing | 4 elements | 577 x 691
   container:billing/Billing.Api -> container:orders/Orders.Api | sends HTTP requests to /orders/{id} | HTTP | 2 sources
-  container:billing/Billing.Api -> external:filesystem@billing | writes files | - | 1 sources
+  container:billing/Billing.Api -> external:folder:/srv/exchange | writes files | - | 1 sources
   container:orders/Orders.Api -> container:billing/Billing.Api | sends HTTP requests to /invoices/{id} | HTTP | 2 sources
   person:user -> container:billing/Billing.Api | sends HTTP requests to | HTTP | 5 sources
 view containers:orders | containers of system:orders | 6 elements | 865 x 691
@@ -64,9 +70,10 @@ view containers:orders | containers of system:orders | 6 elements | 865 x 691
   container:orders/Orders.Api -> external:network@orders | sends and receives over the network | RabbitMQ.Client | 1 sources
   container:shipping/Shipping.Worker -> container:orders/Orders.Api | sends HTTP requests to /orders/{id}/delivered | HTTP | 2 sources
   person:user -> container:orders/Orders.Api | sends HTTP requests to | HTTP | 3 sources
-view containers:shipping | containers of system:shipping | 4 elements | 577 x 691
+view containers:shipping | containers of system:shipping | 5 elements | 632 x 691
   container:orders/Orders.Api -> container:shipping/Shipping.Worker | sends messages to shipments | RabbitMQ.Client | 2 sources
   container:shipping/Shipping.Worker -> container:orders/Orders.Api | sends HTTP requests to /orders/{id}/delivered | HTTP | 2 sources
+  container:shipping/Shipping.Worker -> external:folder:/srv/exchange | writes files | - | 1 sources
   container:shipping/Shipping.Worker -> external:network@shipping | sends and receives over the network | RabbitMQ.Client | 1 sources
   external:library:RabbitMQ.Client -> container:shipping/Shipping.Worker | delivers messages to | - | 1 sources
 interaction container:billing/Billing.Api -> container:orders/Orders.Api | /orders/{id} | GET | called as http://10.0.0.7/orders/{…} | route-only (probable) | billing:exit-1 orders:entry-2

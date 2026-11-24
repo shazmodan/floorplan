@@ -19,6 +19,7 @@ namespace Billing.Api
 
     public static class Ledger
     {
-        public static void Forget(string id) => File.AppendAllText("forgotten.log", id);
+        // A folder Shipping writes to as well: one shared folder in the landscape.
+        public static void Forget(string id) => File.AppendAllText("/srv/exchange/forgotten.csv", id);
     }
 }
