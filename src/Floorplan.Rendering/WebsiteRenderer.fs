@@ -90,7 +90,25 @@ let renderLandscape (landscape: Landscape) (dir: string) =
     File.WriteAllText(Path.Combine(dir, "app.css"), asset "app.css")
     File.WriteAllText(Path.Combine(dir, "app.js"), asset "app.js")
     let json = (Json.serializeValue false landscape).Replace("</", "<\\/")
-    File.WriteAllText(Path.Combine(dir, "data.js"), $"window.FLOORPLAN_LANDSCAPE = {json};\nwindow.FLOORPLAN_FILES = [];\n")
+    let files = $"window.FLOORPLAN_FILES = [\"{StructurizrDsl.FileName}\", \"{StructurizrDsl.LayoutFileName}\"];\n"
+    File.WriteAllText(Path.Combine(dir, "data.js"), $"window.FLOORPLAN_LANDSCAPE = {json};\n" + files)
+
+    // The landscape as a Structurizr workspace, its probable relationships (matched by route only) dashed.
+    let probableSources =
+        landscape.Interactions |> List.filter (fun i -> i.Probable) |> List.collect (fun i -> i.Sources) |> Set.ofList
+
+    let probable =
+        landscape.Architecture.Relationships
+        |> List.filter (fun r -> not r.Sources.IsEmpty && r.Sources |> List.forall probableSources.Contains)
+        |> List.map (fun r -> r.From, r.To, r.Description)
+        |> Set.ofList
+
+    let title = landscape.Name
+    let layout = Path.Combine(dir, StructurizrDsl.LayoutFileName)
+    let dsl = Path.Combine(dir, StructurizrDsl.FileName)
+    File.WriteAllText(layout, StructurizrDsl.writeLayoutC4 title landscape.Architecture)
+    File.WriteAllText(dsl, StructurizrDsl.writeC4 title probable landscape.Architecture)
+    File.SetLastWriteTimeUtc(layout, File.GetLastWriteTimeUtc(dsl).AddSeconds -2.0)
     Path.Combine(dir, "index.html")
 
 let create () =

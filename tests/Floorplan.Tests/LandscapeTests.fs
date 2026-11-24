@@ -284,4 +284,82 @@ let tests =
                   (l.Interactions |> List.map (fun i -> i.FromContainer, i.ToContainer, i.What))
                   [ "container:csharp/CSharp.Clients", "container:routing/Routing.Conventional", "/Products" ]
                   "CSharp.Clients calls /products, which only Routing.Conventional has"
+          }
+
+          test "views: the systems, each system's containers, and every container in its system" {
+              let l = landscape ()
+              let view (id: string) = l.Architecture.Views |> List.find (fun v -> v.Id = id)
+
+              Expect.equal
+                  (l.Architecture.Views |> List.map (fun v -> v.Id))
+                  [ "context"; "context-all"; "containers"; "containers:billing"; "containers:orders"; "containers:shipping" ]
+                  "the views"
+
+              let context = view "context"
+              Expect.equal context.Scope Landscape.LandscapeScope "of the whole landscape"
+              Expect.equal context.Elements [ "system:billing"; "system:orders"; "system:shipping"; "person:user" ] "the systems and what more than one uses"
+              Expect.contains (context.Relationships |> List.map (fun r -> r.From, r.To)) ("system:orders", "system:shipping") "lifted to the systems"
+              Expect.contains (view "context-all").Elements "external:http:inventory.example.net" "with every external system"
+
+              let orders = view "containers:orders"
+              Expect.equal orders.Scope "system:orders" "of one system"
+              Expect.containsAll orders.Elements [ "container:orders/Orders.Api"; "container:billing/Billing.Api"; "container:shipping/Shipping.Worker" ] "its containers and those it talks to"
+
+              for v in l.Architecture.Views do
+                  let laid = v.Layout.Nodes |> List.map (fun n -> n.Id) |> Set.ofList
+                  Expect.equal laid (Set.ofList v.Elements) $"{v.Id}: every element laid out"
+          }
+
+          test "the view of every container draws each system's containers apart from the rest" {
+              let l = landscape ()
+              let v = l.Architecture.Views |> List.find (fun v -> v.Id = "containers")
+              let parent (id: string) = l.Architecture.Elements |> List.find (fun e -> e.Id = id) |> fun e -> e.Parent
+              let boxes = v.Layout.Nodes
+
+              let overlaps (a: NodeLayout) (b: NodeLayout) =
+                  a.X < b.X + b.Width && b.X < a.X + a.Width && a.Y < b.Y + b.Height && b.Y < a.Y + a.Height
+
+              for a in boxes do
+                  for b in boxes do
+                      if a.Id < b.Id then
+                          Expect.isFalse (overlaps a b) $"{a.Id} and {b.Id} apart"
+
+              // A system's boundary (its containers' box, as the website pads it) holds nothing of another system.
+              for system in [ "system:billing"; "system:orders"; "system:shipping" ] do
+                  let mine = boxes |> List.filter (fun n -> parent n.Id = Some system)
+                  let x0, y0 = (mine |> List.map (fun n -> n.X) |> List.min) - 28.0, (mine |> List.map (fun n -> n.Y) |> List.min) - 58.0
+                  let x1, y1 = (mine |> List.map (fun n -> n.X + n.Width) |> List.max) + 28.0, (mine |> List.map (fun n -> n.Y + n.Height) |> List.max) + 28.0
+
+                  for n in boxes |> List.filter (fun n -> parent n.Id <> Some system) do
+                      Expect.isFalse (n.X < x1 && x0 < n.X + n.Width && n.Y < y1 && y0 < n.Y + n.Height) $"{n.Id} outside {system}'s boundary"
+          }
+
+          test "golden: the landscape as a Structurizr workspace, probable relationships dashed" {
+              let out, _ = landscapeRun.Force()
+              let dsl = File.ReadAllText(Path.Combine(out, "workspace.dsl"))
+              Golden.check "landscape.workspace.dsl" dsl
+              Expect.stringContains dsl "systemLandscape \"context\"" "a landscape view"
+              Expect.stringContains dsl "\"sends HTTP requests to /orders/{id}\" \"HTTP\" \"Probable\"" "the probable one tagged"
+              Expect.stringContains dsl "dashed true" "and drawn dashed"
+              Expect.stringContains (File.ReadAllText(Path.Combine(out, "workspace.json"))) "\"systemLandscapeViews\"" "its layout"
+          }
+
+          test "browser: the landscape's views, a probable line dashed, a boundary per system" {
+              match Browser.find () with
+              | None -> skiptest "no Chromium-based browser found (set FLOORPLAN_BROWSER)"
+              | Some browser ->
+                  let out, _ = landscapeRun.Force()
+                  let index = Path.Combine(out, "index.html")
+                  let context = Browser.dumpDom browser index "#/architecture/context"
+                  Expect.stringContains context ">Landscape</a>" "the Landscape page in the menu"
+                  Expect.stringContains context "c4-rel c4-probable" "the route-only link dashed"
+                  Expect.stringContains context "probable: route only" "and labelled"
+
+                  let every = Browser.dumpDom browser index "#/architecture/containers"
+                  let count (text: string) (s: string) = s.Split(text).Length - 1
+                  Expect.equal (count "class=\"c4-boundary\"" every) 3 "a boundary per system"
+                  Expect.isFalse (every.Contains "c4-container c4-outside") "every container is the view's own"
+
+                  let orders = Browser.dumpDom browser index "#/architecture/containers:orders"
+                  Expect.stringContains orders "open site ↗" "a container opens its solution's site"
           } ]

@@ -187,6 +187,9 @@ th.center, td.center { text-align: center; }
 th.right, td.right { text-align: right; }
 .small { font-size: 12px; }
 
+/* A landscape's relationship matched by route only (docs/landscape-plan.md): probable, so dashed. */
+.c4-probable .g-edge { stroke-dasharray: 7 5; }
+
 /* A solution's site in a landscape (docs/landscape-plan.md): the way back, and the other solutions. */
 .landscape-bar { display: flex; align-items: center; gap: 6px; padding-right: 12px; border-right: 1px solid var(--border); }
 .landscape-bar a { color: var(--text); text-decoration: none; font-size: 13.5px; padding: 4px 10px; border-radius: 6px; }

@@ -663,7 +663,7 @@ let rowLength = 6
 
 /// The edges that close a cycle, found by a depth-first search in a fixed order: without them the graph is
 /// acyclic, so the layout keeps every element a box of its own rather than collapsing a cycle into one.
-let private closingCycles (nodes: string list) (edges: (string * string) list) =
+let internal closingCycles (nodes: string list) (edges: (string * string) list) =
     let out = edges |> List.groupBy fst |> List.map (fun (a, es) -> a, es |> List.map snd |> List.sort) |> Map.ofList
     let state = Dictionary<string, int>() // 1 on the stack, 2 done
     let closing = HashSet<string * string>()
@@ -691,7 +691,7 @@ let private closingCycles (nodes: string list) (edges: (string * string) list) =
 /// Two invisible anchors hold the layers in that order: one above the parts nothing else in the scope calls, and
 /// one below the parts that call nothing else in it, which every element below hangs from. A relationship against
 /// that order (a part calling an element above it), or one closing a cycle among the parts, is drawn straight.
-let private laidOut (view: C4View) (parts: Set<string>) : GraphLayout =
+let internal laidOut (view: C4View) (parts: Set<string>) : GraphLayout =
     let pairs = view.Relationships |> List.map (fun r -> r.From, r.To) |> List.distinct
     let inside = view.Elements |> List.filter parts.Contains
     let around = view.Elements |> List.filter (parts.Contains >> not)

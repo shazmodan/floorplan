@@ -80,9 +80,13 @@ let private tags (extra: string list) (e: C4Element) =
     | [] -> None
     | all -> Some(String.Join(",", all |> List.map (fun t -> t.Replace(",", ";"))))
 
-/// The workspace for a model.
-let write (model: AnalysisModel) : string =
-    let c4 = model.Architecture
+/// The scope of a landscape's views of every system (docs/landscape-plan.md): no element of the model.
+[<Literal>]
+let LandscapeScope = "landscape"
+
+/// The workspace for a C4 model, titled `title`; the relationships `probable` holds (by from, to and description)
+/// are tagged and drawn dashed.
+let writeC4 (title: string) (probable: Set<string * string * string>) (c4: C4Model) : string =
     let shown = c4.Elements |> List.filter (fun e -> e.Kind <> C4Kind.Code)
     let byId = c4.Elements |> List.map (fun e -> e.Id, e) |> Map.ofList
     let ident = identifiers shown
@@ -155,9 +159,6 @@ let write (model: AnalysisModel) : string =
             a, b, d, (if technology.IsEmpty then None else Some(String.Join(", ", technology))))
         |> List.sort
 
-    let system = c4.Elements |> List.tryFind (fun e -> e.Kind = C4Kind.SoftwareSystem)
-    let title = system |> Option.map (fun s -> s.Name) |> Option.defaultValue model.Solution.Name
-
     let about = quoted (title + ", derived by Floorplan from its code")
     line 0 $"workspace {quoted title} {about} {{"
     line 1 "model {"
@@ -173,7 +174,12 @@ let write (model: AnalysisModel) : string =
 
     for a, b, d, technology in relationships do
         let tech = technology |> Option.map (fun t -> " " + quoted t) |> Option.defaultValue ""
-        line 2 $"{ident[a]} -> {ident[b]} {quoted d}{tech}"
+
+        if probable.Contains((a, b, d)) then
+            let tech = quoted (defaultArg technology "")
+            line 2 $"{ident[a]} -> {ident[b]} {quoted d} {tech} \"Probable\""
+        else
+            line 2 $"{ident[a]} -> {ident[b]} {quoted d}{tech}"
 
     line 1 "}"
     line 0 ""
@@ -190,6 +196,11 @@ let write (model: AnalysisModel) : string =
             | C4Level.Code -> None
 
         match keyword with
+        | Some _ when v.Scope = LandscapeScope && v.Level = C4Level.Context ->
+            let included = v.Elements |> List.filter ident.ContainsKey |> List.map (fun id -> ident[id])
+            line 2 $"systemLandscape {quoted (safe v.Id)} {{"
+            line 3 ("include " + String.Join(" ", included))
+            line 2 "}"
         | Some keyword when ident.ContainsKey v.Scope ->
             let included = v.Elements |> List.filter ident.ContainsKey |> List.map (fun id -> ident[id])
             line 2 $"{keyword} {ident[v.Scope]} {quoted (safe v.Id)} {{"
@@ -213,15 +224,29 @@ let write (model: AnalysisModel) : string =
 
         line 3 "}"
 
+    if not probable.IsEmpty then
+        line 3 "relationship \"Probable\" {"
+        line 4 "dashed true"
+        line 3 "}"
+
     line 2 "}"
     line 1 "}"
     line 0 "}"
     sb.ToString()
 
+/// The title of a solution's workspace: its system's name.
+let private titleOf (model: AnalysisModel) =
+    model.Architecture.Elements
+    |> List.tryFind (fun e -> e.Kind = C4Kind.SoftwareSystem)
+    |> Option.map (fun s -> s.Name)
+    |> Option.defaultValue model.Solution.Name
+
+/// The workspace for a solution's model.
+let write (model: AnalysisModel) : string = writeC4 (titleOf model) Set.empty model.Architecture
+
 /// The layout of every view the workspace has, as a Structurizr JSON workspace: the elements by name and place in
 /// the model (Structurizr matches them to the DSL's by name), and each view's element positions.
-let writeLayout (model: AnalysisModel) : string =
-    let c4 = model.Architecture
+let writeLayoutC4 (title: string) (c4: C4Model) : string =
     let shown = c4.Elements |> List.filter (fun e -> e.Kind <> C4Kind.Code)
     let ident = identifiers shown
     let name = names shown
@@ -232,7 +257,8 @@ let writeLayout (model: AnalysisModel) : string =
 
     // The relationships the views show, each between the elements a view shows (Structurizr's implied ones for
     // the DSL's), for the bends of their lines.
-    let views = c4.Views |> List.filter (fun v -> v.Level <> C4Level.Code && number.ContainsKey v.Scope)
+    let landscapes = c4.Views |> List.filter (fun v -> v.Level = C4Level.Context && v.Scope = LandscapeScope)
+    let views = landscapes @ (c4.Views |> List.filter (fun v -> v.Level <> C4Level.Code && number.ContainsKey v.Scope))
 
     let relationships =
         views
@@ -287,7 +313,7 @@ let writeLayout (model: AnalysisModel) : string =
     let top = shown |> List.filter (fun e -> e.Parent.IsNone)
 
     w.WriteStartObject()
-    w.WriteString("name", (top |> List.tryFind (fun e -> e.Kind = C4Kind.SoftwareSystem) |> Option.map (fun s -> s.Name) |> Option.defaultValue model.Solution.Name))
+    w.WriteString("name", title)
     w.WriteStartObject "model"
     w.WriteStartArray "people"
 
@@ -304,16 +330,20 @@ let writeLayout (model: AnalysisModel) : string =
     w.WriteEndObject()
     w.WriteStartObject "views"
 
-    for kind, level, scopeField in
-        [ "systemContextViews", C4Level.Context, "softwareSystemId"
-          "containerViews", C4Level.Containers, "softwareSystemId"
-          "componentViews", C4Level.Components, "containerId" ] do
+    let kinds =
+        [ if not landscapes.IsEmpty then
+              "systemLandscapeViews", (fun (v: C4View) -> v.Scope = LandscapeScope), None
+          "systemContextViews", (fun v -> v.Level = C4Level.Context && v.Scope <> LandscapeScope), Some "softwareSystemId"
+          "containerViews", (fun v -> v.Level = C4Level.Containers), Some "softwareSystemId"
+          "componentViews", (fun v -> v.Level = C4Level.Components), Some "containerId" ]
+
+    for kind, ofKind, scopeField in kinds do
         w.WriteStartArray kind
 
-        for v in views |> List.filter (fun v -> v.Level = level) do
+        for v in views |> List.filter ofKind do
             w.WriteStartObject()
             w.WriteString("key", safe v.Id)
-            w.WriteString(scopeField, number[v.Scope])
+            scopeField |> Option.iter (fun field -> w.WriteString(field, number[v.Scope]))
             w.WriteStartArray "elements"
 
             for n in v.Layout.Nodes |> List.filter (fun n -> number.ContainsKey n.Id) do
@@ -358,3 +388,5 @@ let writeLayout (model: AnalysisModel) : string =
     w.WriteEndObject()
     w.Flush()
     Text.Encoding.UTF8.GetString(stream.ToArray()).Replace("\r\n", "\n") + "\n"
+
+let writeLayout (model: AnalysisModel) : string = writeLayoutC4 (titleOf model) model.Architecture

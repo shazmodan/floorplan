@@ -5,6 +5,7 @@ module Floorplan.Architecture.Landscape
 open System
 open System.IO
 open Floorplan.Model
+open Floorplan.Layout
 
 /// A solution of the landscape as analyzed: its file, and its model when it could be analyzed.
 type Analyzed =
@@ -480,7 +481,10 @@ let private architectureOf (file: LandscapeFile) (parts: Part list) =
         [ for p in parts do
               for e in p.Model.Architecture.Elements do
                   if e.Kind = C4Kind.Person || e.Kind = C4Kind.ExternalSystem then
-                      yield { e with Id = externalId p.Slug e.Id; Sources = e.Sources |> List.map (fun s -> $"{p.Slug}:{s}") } ]
+                      let id = externalId p.Slug e.Id
+                      // One of a system's own, named with it: "File system (Billing)".
+                      let name = if id = e.Id then e.Name else $"{e.Name} ({p.Name})"
+                      yield { e with Id = id; Name = name; Sources = e.Sources |> List.map (fun s -> $"{p.Slug}:{s}") } ]
         |> List.groupBy (fun e -> e.Id)
         |> List.map (fun (_, es) -> { es.Head with Sources = es |> List.collect (fun e -> e.Sources) |> List.distinct |> List.sort })
 
@@ -524,6 +528,174 @@ let private architectureOf (file: LandscapeFile) (parts: Part list) =
     let touched = relationships |> List.collect (fun r -> [ r.From; r.To ]) |> Set.ofList
     let outside = outside |> List.filter (fun e -> touched.Contains e.Id) |> List.sortBy (fun e -> e.Id)
     systems @ containers @ outside, relationships, interactions
+
+// ---------- Views ----------
+
+/// The scope of the views of the whole landscape, which is no element of the model.
+[<Literal>]
+let LandscapeScope = "landscape"
+
+/// The relationships as a view shows them: each end moved up to the shown element that contains it (a container
+/// to its system), those within one shown element dropped, and the rest merged.
+let private liftedTo (byId: Map<string, C4Element>) (shown: string list) (relationships: C4Relationship list) =
+    let shownSet = Set.ofList shown
+
+    let rec within (id: string) (guard: int) =
+        if shownSet.Contains id then Some id
+        elif guard > 8 then None
+        else byId.TryFind id |> Option.bind (fun e -> e.Parent) |> Option.bind (fun p -> within p (guard + 1))
+
+    relationships
+    |> List.choose (fun r ->
+        match within r.From 0, within r.To 0 with
+        | Some f, Some t when f <> t ->
+            Some
+                { From = f
+                  To = t
+                  Description = r.Description
+                  Technology = r.Technology
+                  Sources = r.Sources }
+        | _ -> None)
+    |> merge
+
+/// The containers of every system, each system a box around its own in rows of at most three, laid out as one
+/// graph with the people and external systems around them; relationships are drawn straight between the boxes.
+let private grouped (view: C4View) (byId: Map<string, C4Element>) : GraphLayout =
+    let gap, pad, head = 48.0, 28.0, 30.0
+    let isContainer (id: string) = byId.TryFind id |> Option.exists (fun e -> e.Kind = C4Kind.Container)
+    let groupOf (id: string) = if isContainer id then byId[id].Parent.Value else id
+
+    let groups =
+        view.Elements |> List.filter isContainer |> List.groupBy groupOf |> List.map (fun (g, cs) -> g, cs) |> Map.ofList
+
+    let others = view.Elements |> List.filter (isContainer >> not)
+    let columns (n: int) = min n 3
+
+    let size (n: int) =
+        let c = columns n
+        let rows = (n + c - 1) / c
+        float c * C4.boxWidth + float (c - 1) * gap + 2.0 * pad, float rows * C4.boxHeight + float (rows - 1) * gap + 2.0 * pad + head
+
+    let pairs =
+        view.Relationships |> List.map (fun r -> groupOf r.From, groupOf r.To) |> List.filter (fun (a, b) -> a <> b) |> List.distinct
+
+    let ids = (groups |> Map.toList |> List.map fst) @ others
+    let closing = C4.closingCycles ids pairs
+
+    let graph =
+        Layered.layout
+            { Layered.defaults with LayerGap = 110.0; NodeGap = 48.0 }
+            ((groups |> Map.toList |> List.map (fun (g, cs) -> let w, h = size cs.Length in Layered.node g w h))
+             @ (others |> List.map (fun id -> Layered.node id C4.boxWidth C4.boxHeight)))
+            (pairs |> List.filter (closing.Contains >> not) |> List.map (fun (a, b) -> Layered.edge a b))
+
+    let placed =
+        graph.Nodes
+        |> List.collect (fun n ->
+            match groups.TryFind n.Id with
+            | Some cs ->
+                let c = columns cs.Length
+
+                cs
+                |> List.mapi (fun i id ->
+                    { n with
+                        Id = id
+                        X = n.X + pad + float (i % c) * (C4.boxWidth + gap)
+                        Y = n.Y + pad + head + float (i / c) * (C4.boxHeight + gap)
+                        Width = C4.boxWidth
+                        Height = C4.boxHeight
+                        Members = [] })
+            | None -> [ n ])
+
+    let at = placed |> List.map (fun n -> n.Id, n) |> Map.ofList
+
+    let edges =
+        view.Relationships
+        |> List.map (fun r -> r.From, r.To)
+        |> List.distinct
+        |> List.choose (fun (a, b) ->
+            match at.TryFind a, at.TryFind b with
+            | Some s, Some t ->
+                let points =
+                    if t.Y > s.Y + s.Height then
+                        [ { X = s.X + s.Width / 2.0; Y = s.Y + s.Height }; { X = t.X + t.Width / 2.0; Y = t.Y } ]
+                    elif s.Y > t.Y + t.Height then
+                        [ { X = s.X + s.Width / 2.0; Y = s.Y }; { X = t.X + t.Width / 2.0; Y = t.Y + t.Height } ]
+                    elif t.X > s.X then
+                        [ { X = s.X + s.Width; Y = s.Y + s.Height / 2.0 }; { X = t.X; Y = t.Y + t.Height / 2.0 } ]
+                    else
+                        [ { X = s.X; Y = s.Y + s.Height / 2.0 }; { X = t.X + t.Width; Y = t.Y + t.Height / 2.0 } ]
+
+                Some { From = a; To = b; Points = points }
+            | _ -> None)
+
+    { graph with Nodes = placed; Edges = edges }
+
+/// The landscape's views (docs/landscape-plan.md, "Views"): every system with the people and the external systems
+/// more than one of them uses, the same with every external system, each system's containers with the containers
+/// and systems they talk to, and every container grouped in its system.
+let private viewsOf (elements: C4Element list) (relationships: C4Relationship list) : C4View list =
+    let byId = elements |> List.map (fun e -> e.Id, e) |> Map.ofList
+    let ofKind (kinds: C4Kind list) = elements |> List.filter (fun e -> List.contains e.Kind kinds) |> List.map (fun e -> e.Id)
+    let systems = ofKind [ C4Kind.SoftwareSystem ]
+    let containers = ofKind [ C4Kind.Container ]
+    let outside = ofKind [ C4Kind.Person; C4Kind.ExternalSystem ]
+
+    let systemOf (id: string) =
+        match byId.TryFind id with
+        | Some e when e.Kind = C4Kind.Container -> e.Parent
+        | Some e when e.Kind = C4Kind.SoftwareSystem -> Some id
+        | _ -> None
+
+    let usedBy (id: string) =
+        relationships
+        |> List.choose (fun r -> if r.To = id then systemOf r.From elif r.From = id then systemOf r.To else None)
+        |> List.distinct
+
+    let shared = outside |> List.filter (fun o -> (usedBy o).Length >= 2)
+
+    let view (id: string) (level: C4Level) (scope: string) (shown: string list) (parts: Set<string>) =
+        let v =
+            { Id = id
+              Level = level
+              Scope = scope
+              Elements = shown
+              Relationships = liftedTo byId shown relationships |> List.filter (fun r -> parts.Contains r.From || parts.Contains r.To)
+              Layout = AnalysisModel.emptyGraph }
+
+        { v with Layout = C4.laidOut v parts }
+
+    let ofSystem (system: string) =
+        let mine = containers |> List.filter (fun c -> byId[c].Parent = Some system)
+        let mineSet = Set.ofList mine
+        let around = (containers |> List.filter (mineSet.Contains >> not)) @ outside
+        let all = liftedTo byId (mine @ around) relationships
+
+        let related =
+            around |> List.filter (fun a -> all |> List.exists (fun r -> (r.From = a && mineSet.Contains r.To) || (r.To = a && mineSet.Contains r.From)))
+
+        view $"containers:{system.Substring 7}" C4Level.Containers system (mine @ related) mineSet
+
+    let every =
+        let shown = containers @ shared
+        let shownSet = Set.ofList containers
+
+        let v =
+            { Id = "containers"
+              Level = C4Level.Containers
+              Scope = LandscapeScope
+              Elements = shown
+              Relationships = liftedTo byId shown relationships |> List.filter (fun r -> shownSet.Contains r.From || shownSet.Contains r.To)
+              Layout = AnalysisModel.emptyGraph }
+
+        { v with Layout = grouped v byId }
+
+    let touched = relationships |> List.collect (fun r -> [ r.From; r.To ]) |> Set.ofList
+
+    [ view "context" C4Level.Context LandscapeScope (systems @ shared) (Set.ofList systems)
+      view "context-all" C4Level.Context LandscapeScope (systems @ (outside |> List.filter touched.Contains)) (Set.ofList systems)
+      every ]
+    @ (systems |> List.filter (fun s -> containers |> List.exists (fun c -> byId[c].Parent = Some s)) |> List.map ofSystem)
 
 /// The landscape of the solutions found in a folder.
 let derive
@@ -570,7 +742,7 @@ let derive
       Architecture =
         { Elements = elements
           Relationships = relationships
-          Views = [] }
+          Views = viewsOf elements relationships }
       Interactions = interactions
       Sources = sources
       Diagnostics = diagnosticsOf solutions @ unknown }
