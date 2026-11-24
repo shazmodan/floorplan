@@ -26,7 +26,9 @@ In the order they are worth doing: the first ones change results already shown, 
    real application, to see which of these it uses.
 3. **Folder of solutions, what is left** (the feature is done, docs/landscape-plan.md): shared databases, once
    connection strings are read (after item 2); `--single-file` for a folder of solutions (refused for now);
-   analyzing solutions in parallel, once a run's memory is measured.
+   analyzing solutions in parallel, once a run's memory is measured; a run over both demo projects together, once
+   the API demo can be restored (its private package feed is not reachable from this machine, so only the admin
+   demo was analyzed, and no link between them was found).
 
 ## Later, if wanted (from docs/library-payloads-plan.md)
 
