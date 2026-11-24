@@ -24,6 +24,10 @@ In the order they are worth doing: the first ones change results already shown, 
    options object kept in a field (`_options = options.Value`), named options (`Configure<T>("name", section)`),
    or other configuration sources (environment variables, `AddJsonFile("other.json")`). Next step: a probe on a
    real application, to see which of these it uses.
+3. **Analyze a folder of solutions** (waiting for the owner's decisions): `floorplan analyze C:\Projects\` analyzes
+   each solution in its subfolders and derives one C4 landscape of how the systems talk to each other, with a
+   Solutions menu on the website. Plan, decisions and prototype findings: docs/landscape-plan.md; a mock of the
+   website is generated in `landscape-mock/` (not committed).
 
 ## Later, if wanted (from docs/library-payloads-plan.md)
 
