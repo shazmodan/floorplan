@@ -183,6 +183,8 @@ th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--bor
 th { font-weight: 600; color: var(--muted); font-size: 12px; background: var(--surface-2); position: sticky; top: 0; }
 tr:last-child td { border-bottom: none; }
 td.num { text-align: right; font-variant-numeric: tabular-nums; }
+th.center, td.center { text-align: center; }
+th.right, td.right { text-align: right; }
 /* Long member names wrap inside their cell instead of widening the table. */
 td .mono, td code { overflow-wrap: anywhere; }
 code, .mono { font-family: var(--mono); font-size: 12.5px; }

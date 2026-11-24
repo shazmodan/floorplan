@@ -758,17 +758,20 @@
         catalogs.length ? " · Catalogs: " + catalogs.join(", ") : ""),
       el("h2", null, "Projects"),
       el("div", { class: "table-wrap" }, el("table", null,
-        el("thead", null, el("tr", null, ["Project", "Language", "Target", "Kind", unitWord.many, "Entry", "Exit"].map(function (h) { return el("th", { scope: "col" }, h); }))),
+        // The project name reads from the left, the last column ends at the right edge, the rest are centred.
+        el("thead", null, el("tr", null, ["Project", "Language", "Target", "Kind", unitWord.many, "Entry", "Exit"].map(function (h, i, all) {
+          return el("th", { scope: "col", class: i === 0 ? null : i === all.length - 1 ? "right" : "center" }, h);
+        }))),
         el("tbody", null, D.projects.map(function (p) {
           var us = unitsByProject[p.id] || [];
           var ids = {}; us.forEach(function (u) { ids[u.id] = true; });
           return el("tr", null,
             el("td", null, el("a", { href: "#/units?project=" + enc(p.id) }, p.name)),
-            el("td", null, LANGUAGE_LABEL[p.language] || p.language, p.supportLevel === "limited" ? [" ", el("span", { class: "tag limited", title: "Shown as one node; effects attributed to the whole project" }, "limited support")] : null),
-            el("td", null, p.targetFramework),
-            el("td", null, p.isApplication ? "Application" : "Library"),
-            el("td", { class: "num" }, p.supportLevel === "limited" ? "—" : String(us.filter(function (u) { return u.kind !== "project"; }).length)),
-            el("td", { class: "num" }, String(D.entryPoints.filter(function (e) { return ids[e.handlerUnit]; }).length)),
+            el("td", { class: "center" }, LANGUAGE_LABEL[p.language] || p.language, p.supportLevel === "limited" ? [" ", el("span", { class: "tag limited", title: "Shown as one node; effects attributed to the whole project" }, "limited support")] : null),
+            el("td", { class: "center" }, p.targetFramework),
+            el("td", { class: "center" }, p.isApplication ? "Application" : "Library"),
+            el("td", { class: "num center" }, p.supportLevel === "limited" ? "—" : String(us.filter(function (u) { return u.kind !== "project"; }).length)),
+            el("td", { class: "num center" }, String(D.entryPoints.filter(function (e) { return ids[e.handlerUnit]; }).length)),
             el("td", { class: "num" }, String(visibleExits.filter(function (x) { return ids[x.unit]; }).length)));
         }))))
     ]);
