@@ -171,7 +171,7 @@ docs/c4-plan.md.
 |---|---|---|---|
 | 1 | Find the solutions in a folder, analyze each one into `solutions/<slug>/`, write a landscape index listing them | `claude/landscape-discovery` | done |
 | 2 | The landscape model: systems, shared externals, links by messages and by HTTP (a naming host, the landscape file, route only); JSON and `describe` goldens | `claude/landscape-model` | done |
-| 3 | Landscape views and their layout (boundaries per system), Structurizr landscape workspace | `claude/landscape-views` | |
+| 3 | Landscape views and their layout (boundaries per system), Structurizr landscape workspace | `claude/landscape-views` | done |
 | 4 | The landscape site: Solutions, Landscape, Interactions, Diagnostics; back links and cross links in solution sites | `claude/landscape-website` | |
 | 5 | More matching: shared databases and folders (the landscape file and route-only links came with iteration 2) | `claude/landscape-matching` | |
 | 6 | Each solution's C4 model knows the other systems; documentation, TODO, review on the demo projects | `claude/landscape-docs` | |
@@ -250,3 +250,16 @@ What the prototype found on the fixtures:
   none. A matched exit point's relationship to the external system goes, and an external system nothing reaches any
   more is left out. Golden `landscape.txt`: on the fixture, one link of each kind. The six older fixture solutions
   give one link, by route only (CSharp.Clients calls `/products`, which only Routing.Conventional has).
+- 2026-11-24, iteration 3: the landscape's views. `context` (every system, and the people and external systems
+  more than one of them uses), `context-all` (every external system too), `containers` (every container, in a
+  boundary per system) and `containers:<slug>` (a system's containers, with the containers of other systems and
+  the external systems they talk to); all of scope `landscape` but the last. The view of every container is laid
+  out in two steps: each system becomes a box sized for its containers (rows of at most three), the boxes and the
+  elements around them go through the layered layout, and the relationships are drawn straight between the
+  boxes, so the boundaries never overlap. The others use `C4.laidOut`, now internal to the assembly. The website's
+  Architecture page shows them when the data is a landscape: level 1 is "Landscape", level 2 a system's
+  containers (or every system's), a container opens its solution's site at its components, a system's details
+  link to its site, and a relationship matched by route only is dashed and labelled "probable: route only". The
+  Structurizr export writes `systemLandscape` views and tags probable relationships ("Probable", dashed); the view
+  of every container is left out of it (Structurizr has no view of several systems' containers). A system's own
+  external systems are named with it in the landscape ("File system (Billing)").

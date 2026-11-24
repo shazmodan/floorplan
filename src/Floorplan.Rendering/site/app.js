@@ -258,10 +258,34 @@
   // More labelled lines than this in one view, and labels show only on selection or hover.
   var C4_QUIET_LABELS = 24;
   var C4_LEVEL = { "context": "System context", "containers": "Containers", "components": "Components", "code": "Code" };
+  // A landscape's views (docs/landscape-plan.md): its systems ("context", and "context-all" with every external
+  // system), every system's containers in a boundary each ("containers", whose scope is the landscape), and each
+  // system's containers with those it talks to. A container's components are in its solution's site.
+  var C4_ALL_SCOPE = "landscape";
+  if (LANDSCAPE) C4_LEVEL.context = "Landscape";
+  // The relationships matched by route only (probable), by their sources.
+  var c4Probable = {};
+  if (LANDSCAPE) LANDSCAPE.interactions.forEach(function (i) { if (i.probable) i.sources.forEach(function (s) { c4Probable[s] = true; }); });
+  function c4IsProbable(rel) { return LANDSCAPE && rel.sources.length > 0 && rel.sources.every(function (s) { return c4Probable[s]; }); }
+  // Where an element of a landscape is shown in full: a system's or a container's architecture in its solution's site.
+  function c4SiteOf(e) {
+    if (!LANDSCAPE || !e) return null;
+    var m = /^(system|container):([^\/]+)(?:\/(.*))?$/.exec(e.id);
+    if (!m) return null;
+    var page = m[1] === "container" ? "architecture/components:" + enc(m[3]) : "architecture";
+    return { href: "solutions/" + enc(m[2]) + "/index.html#/" + page, solution: systemName("system:" + m[2]) };
+  }
 
   // The views from the system down to this one: context, containers, a container's components, a component's code.
   function c4Trail(v) {
     var trail = [];
+    if (LANDSCAPE) {
+      trail.push({ view: c4Views.context, label: C4_LEVEL.context });
+      if (v.id === "context-all") trail.push({ view: v, label: "Every external system" });
+      else if (v.scope === C4_ALL_SCOPE && v.level !== "context") trail.push({ view: v, label: "Every system's containers" });
+      else if (v.level !== "context") trail.push({ view: v, label: systemName(v.scope) });
+      return trail.filter(function (t) { return t.view; });
+    }
     var scope = v.level === "context" ? null : c4Elements[v.scope];
     if (v.level === "code" && scope) {
       var container = c4Elements[scope.parent];
@@ -297,13 +321,15 @@
   function c4ByName(a, b) { return a.name.localeCompare(b.name) || (a.id < b.id ? -1 : 1); }
   // The container a view lies in: a components view's scope, or a code view's component's container.
   function c4ContainerOf(v) {
+    if (LANDSCAPE) return v.level === "containers" && v.scope !== C4_ALL_SCOPE ? v.scope : null;
     if (v.level === "components") return v.scope;
     if (v.level === "code") { var c = c4Elements[v.scope]; return c ? c.parent : null; }
     return null;
   }
-  var c4Containers = C4.elements.filter(function (e) { return e.kind === "container" && c4ViewOf[e.id]; }).sort(c4ByName);
+  var c4Containers = C4.elements.filter(function (e) { return (LANDSCAPE ? e.kind === "software-system" : e.kind === "container") && c4ViewOf[e.id]; }).sort(c4ByName);
   // The view one level up, and the element of it that this view opened from.
   function c4Up(v) {
+    if (LANDSCAPE) return v.id !== "context" && c4Views.context ? { view: c4Views.context, select: c4Elements[v.scope] ? v.scope : null } : null;
     if (v.level === "code") { var c = c4Elements[v.scope]; var cv = c && c4ViewOf[c.parent]; return cv ? { view: cv, select: v.scope } : null; }
     if (v.level === "components") return c4Views.containers ? { view: c4Views.containers, select: v.scope } : null;
     if (v.level === "containers") return c4Views.context ? { view: c4Views.context, select: "system" } : null;
@@ -319,6 +345,11 @@
       var up = c4Up(v);
       while (up && up.view.level !== level) up = c4Up(up.view);
       return up || { reason: "No " + C4_LEVEL[level].toLowerCase() + " view" };
+    }
+    if (LANDSCAPE) {
+      if (level !== "containers") return { reason: "A container's components and code are in its solution's site: open the container" };
+      var system = sel && sel.kind === "software-system" ? sel.id : sel && sel.kind === "container" ? sel.parent : null;
+      return system && c4ViewOf[system] ? { view: c4ViewOf[system] } : c4Views.containers ? { view: c4Views.containers } : { reason: "No containers view" };
     }
     if (level === "containers") return c4Views.containers ? { view: c4Views.containers } : { reason: "No containers view" };
     if (level === "components") {
@@ -338,7 +369,8 @@
   var c4Filter = "";
   // Components of a container, grouped by the project they come from: the container's own project first.
   function c4ComponentGroups(containerId) {
-    var comps = C4.elements.filter(function (e) { return e.kind === "component" && e.parent === containerId; });
+    var comps = C4.elements.filter(function (e) { return (LANDSCAPE ? e.kind === "container" : e.kind === "component") && e.parent === containerId; });
+    if (LANDSCAPE) return [{ project: "", name: "", components: comps.sort(c4ByName) }];
     var projectOf = function (e) { var u = e.sources.map(function (s) { return units[s]; }).filter(Boolean)[0]; return u ? u.projectId : ""; };
     var groups = groupBy(comps, projectOf);
     var own = (c4Elements[containerId] || {}).name;
@@ -378,11 +410,12 @@
       }
       var list = el("ul", { class: "plain" });
       if (c4Views.context) list.appendChild(el("li", null, item(c4Views.context, "1 · " + C4_LEVEL.context)));
-      if (c4Views.containers) list.appendChild(el("li", null, item(c4Views.containers, "2 · " + C4_LEVEL.containers)));
+      if (c4Views["context-all"]) list.appendChild(el("li", null, item(c4Views["context-all"], "1 · With every external system")));
+      if (c4Views.containers) list.appendChild(el("li", null, item(c4Views.containers, "2 · " + (LANDSCAPE ? "Every system's containers" : C4_LEVEL.containers))));
       c4Containers.forEach(function (c) {
         var open = !!c4Expanded[c.id];
         var groups = open ? c4ComponentGroups(c.id) : null;
-        var count = C4.elements.filter(function (e) { return e.kind === "component" && e.parent === c.id; }).length;
+        var count = C4.elements.filter(function (e) { return (LANDSCAPE ? e.kind === "container" : e.kind === "component") && e.parent === c.id; }).length;
         var toggle = function () { c4Expanded[c.id] = !c4Expanded[c.id]; draw(); };
         var li = el("li", { class: "c4-branch" },
           el("div", { class: "c4-row" },
@@ -393,7 +426,10 @@
             return [groups.length > 1 ? el("li", { class: "c4-group", title: "Components from the project " + gr.name }, gr.name) : null,
               gr.components.map(function (comp) {
                 var cv = c4ViewOf[comp.id];
-                return el("li", null, cv ? item(cv, comp.name) : el("span", { class: "c4-item muted", title: comp.name }, comp.name));
+                var site = c4SiteOf(comp);
+                return el("li", null, cv ? item(cv, comp.name)
+                  : site ? el("a", { class: "c4-item", href: site.href, title: "Open in " + site.solution + "'s site" }, el("span", { class: "c4-item-name" }, comp.name + " ↗"))
+                  : el("span", { class: "c4-item muted", title: comp.name }, comp.name));
               })];
           })));
         }
@@ -438,6 +474,9 @@
       return;
     }
     var g = v.layout;
+    // Whether an element is one of the view's own: its scope's part (or, in a landscape's view of every system's
+    // containers, any container).
+    var c4Inside = function (e, id) { return e.parent === v.scope || id === v.scope || (LANDSCAPE && v.scope === C4_ALL_SCOPE && e.kind === "container"); };
     var host = el("div", { class: "graph" });
     var canvas = graphCanvas(g.width, g.height);
     var side = el("div", { class: "side c4-side", hidden: true });
@@ -445,19 +484,24 @@
     var shown = {};
     v.elements.forEach(function (id) { shown[id] = true; });
 
-    // The boundary of the view's scope, around the elements that are its parts.
-    var parts = v.level === "context" ? [] : g.nodes.filter(function (n) { var e = c4Elements[n.id]; return e && e.parent === v.scope; });
-    if (parts.length) {
+    // The boundary of the view's scope, around the elements that are its parts; in a landscape's view of every
+    // system's containers, one around each system's.
+    var boundaries = v.level === "context" ? [] : LANDSCAPE && v.scope === C4_ALL_SCOPE
+      ? Object.keys(groupBy(g.nodes.filter(function (n) { var e = c4Elements[n.id]; return e && e.kind === "container"; }), function (n) { return c4Elements[n.id].parent; }))
+      : [v.scope];
+    boundaries.forEach(function (scopeId) {
+      var parts = g.nodes.filter(function (n) { var e = c4Elements[n.id]; return e && e.parent === scopeId; });
+      if (!parts.length) return;
       var pad = 28, head = 30;
       var x0 = Math.min.apply(null, parts.map(function (n) { return n.x; })) - pad;
       var y0 = Math.min.apply(null, parts.map(function (n) { return n.y; })) - pad - head;
       var x1 = Math.max.apply(null, parts.map(function (n) { return n.x + n.width; })) + pad;
       var y1 = Math.max.apply(null, parts.map(function (n) { return n.y + n.height; })) + pad;
-      var scope = c4Elements[v.scope] || { name: v.scope, kind: "software-system" };
+      var scope = c4Elements[scopeId] || { name: scopeId, kind: "software-system" };
       canvas.world.appendChild(svg("g", { class: "c4-boundary" },
         svg("rect", { x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 10 }),
         svg("text", { x: x0 + 12, y: y0 + 20, text: scope.name + " [" + (C4_KIND[scope.kind] || scope.kind) + "]" })));
-    }
+    });
 
     var edgeEls = [], nodeEls = {};
     // Layers: lines under elements, then a veil and, above it, what a selection or a search brings forward.
@@ -515,8 +559,11 @@
       var tech = Array.from(new Set(rels.map(function (rel) { return rel.technology; }).filter(Boolean))).join(", ");
       var lines = label ? wrapText(label, 30, 2) : [];
       if (tech) lines.push("[" + nodeText(tech, 230) + "]");
+      // Matched by route only: two deployments can run the same route, so the line is dashed and says so.
+      var probable = rels.every(c4IsProbable);
+      if (probable) lines.push("probable: route only");
       var mid = lines.length ? place(p, lines) : p[0];
-      var group = svg("g", { class: "c4-rel" },
+      var group = svg("g", { class: "c4-rel" + (probable ? " c4-probable" : "") },
         svg("path", { class: "g-edge", d: curve(p) }),
         lines.length ? svg("text", { x: mid.x, y: mid.y - (lines.length - 1) * 7, "text-anchor": "middle" },
           lines.map(function (t, i) { return svg("tspan", { x: mid.x, dy: i === 0 ? 0 : 14, class: i === lines.length - 1 && tech ? "tech" : null, text: t }); })) : null,
@@ -539,7 +586,8 @@
       var kind = C4_KIND[e.kind] || e.kind;
       var sub = "[" + kind + (e.technology ? ": " + e.technology : "") + "]";
       var below = c4ViewOf[e.id];
-      var open = function () { if (below) location.hash = c4Link(below.id); };
+      var site = below ? null : c4SiteOf(e);
+      var open = function () { if (below) location.hash = c4Link(below.id); else if (site) location.href = site.href; };
       var children = [];
       if (e.kind === "person") {
         children.push(svg("circle", { class: "c4-head", cx: n.x + n.width / 2, cy: n.y + 4, r: 18 }));
@@ -553,15 +601,16 @@
       wrapText(e.description, 34, e.kind === "person" ? 2 : 3).forEach(function (t, i) {
         children.push(svg("text", { class: "c4-desc", x: n.x + n.width / 2, y: top + 38 + i * 15, "text-anchor": "middle", text: t }));
       });
-      if (below) children.push(svg("text", { class: "c4-open", x: n.x + n.width - 10, y: n.y + n.height - 8, "text-anchor": "end", text: "open ›" }));
-      children.push(svg("title", { text: e.name + " " + sub + (e.description ? "\n" + e.description : "") + (below ? "\nDouble-click to open its " + C4_LEVEL[below.level].toLowerCase() + "." : "") }));
+      if (below || site) children.push(svg("text", { class: "c4-open", x: n.x + n.width - 10, y: n.y + n.height - 8, "text-anchor": "end", text: below ? "open ›" : "open site ↗" }));
+      children.push(svg("title", { text: e.name + " " + sub + (e.description ? "\n" + e.description : "") +
+        (below ? "\nDouble-click to open its " + C4_LEVEL[below.level].toLowerCase() + "." : site ? "\nDouble-click to open it in " + site.solution + "'s site." : "") }));
       var node = svg("g", {
-        class: "g-node c4-el c4-" + e.kind + (e.parent === v.scope || n.id === v.scope ? "" : " c4-outside"),
+        class: "g-node c4-el c4-" + e.kind + (c4Inside(e, n.id) ? "" : " c4-outside"),
         tabindex: "0", role: "button", "aria-label": e.name + ", " + kind,
         on: {
           click: function () { select(n.id); },
           dblclick: open,
-          keydown: function (ev) { if (ev.key === "Enter") { ev.preventDefault(); if (selected === n.id && below) open(); else select(n.id); } }
+          keydown: function (ev) { if (ev.key === "Enter") { ev.preventDefault(); if (selected === n.id && (below || site)) open(); else select(n.id); } }
         }
       }, children);
       nodeEls[n.id] = node;
@@ -593,6 +642,11 @@
     }
 
     function sourceLink(s) {
+      if (LANDSCAPE) {
+        var ls = landscapeSource(s), href = sourceHref(s);
+        var solution = systemName("system:" + s.split(":")[0]);
+        return ls && href ? el("a", { class: "mono", href: href }, solution + " · " + ls.label) : el("span", { class: "mono" }, s);
+      }
       if (entryById[s]) return el("a", { class: "mono", href: "#/evidence/entry:" + enc(s) }, routeLabel(entryById[s]));
       if (exitById[s]) {
         var x = exitById[s];
@@ -621,6 +675,7 @@
       if (!e) { side.hidden = true; return; }
       side.hidden = false;
       var below = c4ViewOf[e.id];
+      var site = c4SiteOf(e);
       var unitSources = e.sources.filter(function (s) { return units[s]; });
       var parent = e.parent && c4Elements[e.parent];
       var parts = below ? below.elements.filter(function (p) { var pe = c4Elements[p]; return pe && pe.parent === e.id; }).length : 0;
@@ -634,7 +689,9 @@
         el("p", null,
           below ? el("a", { class: "c4-open-link", href: c4Link(below.id) }, "Open its " + C4_LEVEL[below.level].toLowerCase() + (parts ? " (" + parts + ")" : "") + " ›") : null,
           below && unitSources.length ? " · " : null,
-          unitSources.length ? el("a", { href: "#/unit/" + enc(unitSources[0]) }, "Open the " + kindLabel(units[unitSources[0]].kind).toLowerCase()) : null),
+          unitSources.length ? el("a", { href: "#/unit/" + enc(unitSources[0]) }, "Open the " + kindLabel(units[unitSources[0]].kind).toLowerCase()) : null,
+          below && site ? " · " : null,
+          site ? el("a", { href: site.href }, e.kind === "software-system" ? "Open " + e.name + "'s site ↗" : "Open in " + site.solution + "'s site ↗") : null),
         relList("Called by", v.relationships.filter(function (rel) { return rel.to === id; }), function (rel) { return rel.from; }),
         relList("Uses", v.relationships.filter(function (rel) { return rel.from === id; }), function (rel) { return rel.to; })
       ]);
@@ -741,7 +798,7 @@
       }).map(function (k) {
         return el("span", null, el("i", { class: "c4-swatch c4-" + k }), C4_KIND[k]);
       }),
-      g.nodes.some(function (n) { var e = c4Elements[n.id]; return e && e.parent !== v.scope && n.id !== v.scope && (e.kind === "container" || e.kind === "component"); })
+      g.nodes.some(function (n) { var e = c4Elements[n.id]; return e && !c4Inside(e, n.id) && (e.kind === "container" || e.kind === "component"); })
         ? el("span", null, el("i", { class: "c4-swatch c4-outside-swatch" }), "Outside this view's scope") : null,
       el("div", { class: "c4-hint" },
         "Level " + (C4_LEVELS.indexOf(v.level) + 1) + " of 4 · click an element for details, double-click to open the level below" +
