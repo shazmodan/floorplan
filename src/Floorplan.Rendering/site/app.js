@@ -269,7 +269,11 @@
   function c4IsProbable(rel) { return LANDSCAPE && rel.sources.length > 0 && rel.sources.every(function (s) { return c4Probable[s]; }); }
   // Where an element of a landscape is shown in full: a system's or a container's architecture in its solution's site.
   function c4SiteOf(e) {
-    if (!LANDSCAPE || !e) return null;
+    if (!e) return null;
+    // In a solution's site: another system of its landscape, in that system's site.
+    var other = LANDSCAPE_LINK && /^external:system:(.+)$/.exec(e.id);
+    if (other) return { href: "../" + enc(other[1]) + "/index.html#/architecture", solution: e.name };
+    if (!LANDSCAPE) return null;
     var m = /^(system|container):([^\/]+)(?:\/(.*))?$/.exec(e.id);
     if (!m) return null;
     var page = m[1] === "container" ? "architecture/components:" + enc(m[3]) : "architecture";
@@ -691,7 +695,7 @@
           below && unitSources.length ? " · " : null,
           unitSources.length ? el("a", { href: "#/unit/" + enc(unitSources[0]) }, "Open the " + kindLabel(units[unitSources[0]].kind).toLowerCase()) : null,
           below && site ? " · " : null,
-          site ? el("a", { href: site.href }, e.kind === "software-system" ? "Open " + e.name + "'s site ↗" : "Open in " + site.solution + "'s site ↗") : null),
+          site ? el("a", { href: site.href }, e.kind === "container" ? "Open in " + site.solution + "'s site ↗" : "Open " + e.name + "'s site ↗") : null),
         relList("Called by", v.relationships.filter(function (rel) { return rel.to === id; }), function (rel) { return rel.from; }),
         relList("Uses", v.relationships.filter(function (rel) { return rel.from === id; }), function (rel) { return rel.to; })
       ]);

@@ -172,9 +172,9 @@ docs/c4-plan.md.
 | 1 | Find the solutions in a folder, analyze each one into `solutions/<slug>/`, write a landscape index listing them | `claude/landscape-discovery` | done |
 | 2 | The landscape model: systems, shared externals, links by messages and by HTTP (a naming host, the landscape file, route only); JSON and `describe` goldens | `claude/landscape-model` | done |
 | 3 | Landscape views and their layout (boundaries per system), Structurizr landscape workspace | `claude/landscape-views` | done |
-| 4 | The landscape site: Solutions, Landscape, Interactions, Diagnostics; back links and cross links in solution sites | `claude/landscape-website` | |
+| 4 | The landscape site: Solutions, Landscape, Interactions, Diagnostics; back links and cross links in solution sites | `claude/landscape-website` | done |
 | 5 | More matching: shared databases and folders (the landscape file and route-only links came with iteration 2) | `claude/landscape-matching` | |
-| 6 | Each solution's C4 model knows the other systems; documentation, TODO, review on the demo projects | `claude/landscape-docs` | |
+| 6 | Documentation, TODO, review on the demo projects (each solution's C4 model knowing the other systems came with iteration 4) | `claude/landscape-docs` | |
 
 Tests: a new fixture folder `tests/fixtures/Landscape/` with three small solutions made to talk to each other:
 HTTP to a host that names the system, HTTP by route only, a queue, a shared database, and one call that matches
@@ -263,3 +263,10 @@ What the prototype found on the fixtures:
   Structurizr export writes `systemLandscape` views and tags probable relationships ("Probable", dashed); the view
   of every container is left out of it (Structurizr has no view of several systems' containers). A system's own
   external systems are named with it in the landscape ("File system (Billing)").
+- 2026-11-24, iteration 4: most of the website had come with iterations 1 (Solutions, Interactions, the way back)
+  and 3 (Landscape). What was left were the cross links: each solution's own C4 model now knows the other systems
+  of its landscape (`C4.deriveIn`, given `Landscape.knownOf`): a call another system receives goes to an element
+  standing for that system (`external:system:<slug>`, tagged "in the landscape", with what the call does there),
+  not to the host it is called at, and an entry point another system calls has that system among its callers.
+  In a solution's site, such an element opens the other system's site. The landscape is derived from the models
+  as analyzed; only the sites (and `floorplan.json` files) get the models derived again in the landscape.
