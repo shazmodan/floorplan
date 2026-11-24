@@ -170,10 +170,10 @@ docs/c4-plan.md.
 | # | Iteration | Branch | Status |
 |---|---|---|---|
 | 1 | Find the solutions in a folder, analyze each one into `solutions/<slug>/`, write a landscape index listing them | `claude/landscape-discovery` | done |
-| 2 | The landscape model: systems, shared externals, links by messages and by HTTP with a naming host; JSON and `describe` goldens | `claude/landscape-model` | |
+| 2 | The landscape model: systems, shared externals, links by messages and by HTTP (a naming host, the landscape file, route only); JSON and `describe` goldens | `claude/landscape-model` | done |
 | 3 | Landscape views and their layout (boundaries per system), Structurizr landscape workspace | `claude/landscape-views` | |
 | 4 | The landscape site: Solutions, Landscape, Interactions, Diagnostics; back links and cross links in solution sites | `claude/landscape-website` | |
-| 5 | More matching: the landscape file, route-only (probable) links, shared databases and folders | `claude/landscape-matching` | |
+| 5 | More matching: shared databases and folders (the landscape file and route-only links came with iteration 2) | `claude/landscape-matching` | |
 | 6 | Each solution's C4 model knows the other systems; documentation, TODO, review on the demo projects | `claude/landscape-docs` | |
 
 Tests: a new fixture folder `tests/fixtures/Landscape/` with three small solutions made to talk to each other:
@@ -241,3 +241,12 @@ What the prototype found on the fixtures:
   now: one file holding every solution's data was not measured. New fixture `tests/fixtures/Landscape/` (Orders,
   Billing, Shipping, and `Billing/samples/Billing.Samples.slnx` as a nested solution). Analyzing
   `tests/fixtures` (nine solutions now) takes about 3 minutes without the cache.
+- 2026-11-24, iteration 2: `Landscape.derive` builds the landscape's C4 model (systems, their containers, people
+  and external systems; a host's or library's element shared, the file system, the network or "a database" each
+  system's own) and matches calls between systems with steps 1 to 4 of **Matching** at once: the prototype had
+  shown the four belong together (the landscape file and route-only matching only make sense beside the other
+  two). The HTTP method of a call is taken from the member it calls when that names one (`GetStringAsync`,
+  `PutAsync`), and a route that does not take it is no match; an interface the solution declares (Refit's) names
+  none. A matched exit point's relationship to the external system goes, and an external system nothing reaches any
+  more is left out. Golden `landscape.txt`: on the fixture, one link of each kind. The six older fixture solutions
+  give one link, by route only (CSharp.Clients calls `/products`, which only Routing.Conventional has).
