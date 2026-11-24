@@ -362,4 +362,46 @@ let tests =
 
                   let orders = Browser.dumpDom browser index "#/architecture/containers:orders"
                   Expect.stringContains orders "open site ↗" "a container opens its solution's site"
+          }
+
+          test "a solution's own C4 model shows the systems of its landscape it talks to, not their hosts" {
+              let l = landscape ()
+              let known = Landscape.knownOf l "orders"
+              let toBilling = known.Sends |> Map.toList |> List.map (fun (_, (o, d)) -> o.Name, d)
+              Expect.contains toBilling ("Billing", "sends HTTP requests to /invoices/{id}") "what Orders sends Billing"
+              Expect.equal (known.Receives |> Map.toList |> List.collect snd |> List.map (fun o -> o.Name) |> List.sort) [ "Billing"; "Shipping" ] "who calls Orders"
+
+              let out, outcome = landscapeRun.Force()
+              let original = outcome.Analyzed |> List.pick (fun a -> match a.Model with Ok m when m.Solution.Name = "Orders" -> Some m | _ -> None)
+              let c4 = C4.deriveIn known original
+              let billing = c4.Elements |> List.find (fun e -> e.Id = "external:system:billing")
+              Expect.equal (billing.Name, billing.Kind, billing.Tags) ("Billing", C4Kind.ExternalSystem, [ "in the landscape" ]) "Billing, as a system of the landscape"
+              Expect.isFalse (c4.Elements |> List.exists (fun e -> e.Id = "external:http:billing-api.internal")) "not the host it is called at"
+
+              let context = c4.Views |> List.find (fun v -> v.Id = "context")
+              Expect.contains (context.Relationships |> List.map (fun r -> r.From, r.To, r.Description)) (C4.SystemId, "external:system:billing", "sends HTTP requests to /invoices/{id}") "what it sends there"
+              Expect.contains (context.Relationships |> List.map (fun r -> r.From, r.To)) ("external:system:shipping", C4.SystemId) "Shipping calls it"
+              Expect.isFalse ((C4.derive original).Elements |> List.exists (fun e -> e.Id.StartsWith "external:system:")) "alone, no system of a landscape"
+
+              let data = File.ReadAllText(Path.Combine(out, "solutions", "orders", "data.js"))
+              Expect.stringContains data "\"id\":\"external:system:billing\"" "its site has it"
+          }
+
+          test "browser: the Interactions page, and another system in a solution's site opens that system's site" {
+              match Browser.find () with
+              | None -> skiptest "no Chromium-based browser found (set FLOORPLAN_BROWSER)"
+              | Some browser ->
+                  let out, _ = landscapeRun.Force()
+                  let page = Browser.dumpDom browser (Path.Combine(out, "index.html")) "#/interactions"
+                  let count (text: string) (s: string) = s.Split(text).Length - 1
+                  Expect.equal (count "exit point ↗" page) 4 "every interaction"
+                  Expect.stringContains page "route only (probable)" "the probable one"
+                  Expect.stringContains page "href=\"solutions/billing/index.html#/evidence/exit:" "its evidence in the caller's site"
+                  Expect.stringContains page "landscape file" "matched by the landscape file"
+
+                  let from = Browser.dumpDom browser (Path.Combine(out, "index.html")) "#/interactions?from=system%3Aorders"
+                  Expect.equal (count "exit point ↗" from) 2 "filtered by caller"
+
+                  let orders = Browser.dumpDom browser (Path.Combine(out, "solutions", "orders", "index.html")) "#/architecture/context"
+                  Expect.stringContains orders "Double-click to open it in Billing's site." "Billing opens its site"
           } ]

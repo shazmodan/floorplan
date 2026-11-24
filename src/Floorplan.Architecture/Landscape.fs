@@ -761,3 +761,31 @@ let describe (l: Landscape) : string list =
           let sources = String.concat " " i.Sources
           yield
               $"interaction {i.FromContainer} -> {i.ToContainer} | {i.What} | {methods} | called as {i.Called} | {i.MatchedBy}{probable} | {sources}" ]
+
+/// What the landscape found about one of its solutions, for that solution's own C4 model: its calls other systems
+/// receive, and its entry points other systems call.
+let knownOf (l: Landscape) (slug: string) : C4.Known =
+    let other (system: string) : C4.OtherSystem =
+        let s = system.Substring 7
+        let name = l.Solutions |> List.tryFind (fun x -> x.Slug = s) |> Option.map (fun x -> x.Name) |> Option.defaultValue s
+        { Slug = s; Name = name }
+
+    let idIn (prefix: string) (source: string) =
+        if source.StartsWith(prefix + ":") then Some(source.Substring(prefix.Length + 1)) else None
+
+    let sends =
+        l.Interactions
+        |> List.filter (fun i -> i.FromSystem = systemId slug)
+        |> List.choose (fun i -> idIn slug i.Sources.Head |> Option.map (fun x -> x, (other i.ToSystem, i.Description)))
+        |> List.distinctBy fst
+        |> Map.ofList
+
+    let receives =
+        l.Interactions
+        |> List.filter (fun i -> i.ToSystem = systemId slug)
+        |> List.choose (fun i -> idIn slug (List.last i.Sources) |> Option.map (fun e -> e, other i.FromSystem))
+        |> List.groupBy fst
+        |> List.map (fun (e, os) -> e, os |> List.map snd |> List.distinct)
+        |> Map.ofList
+
+    { Sends = sends; Receives = receives }

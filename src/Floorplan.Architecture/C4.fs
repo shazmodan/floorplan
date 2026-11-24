@@ -242,9 +242,28 @@ let private sentence (kinds: string list) =
     | [ one ] -> $"A {one}"
     | many -> "A " + String.Join(", ", List.take (many.Length - 1) many) + " and " + List.last many
 
+/// Another system of a landscape (docs/landscape-plan.md): its slug and name.
+type OtherSystem = { Slug: string; Name: string }
+
+/// What a landscape found about the solution's calls: the exit points another system of it receives (with what the
+/// call does there, e.g. "sends HTTP requests to /orders/{id}"), and the entry points other systems call.
+type Known =
+    { Sends: Map<string, OtherSystem * string>
+      Receives: Map<string, OtherSystem list> }
+
+/// Nothing known: a solution analyzed alone.
+let alone = { Sends = Map.empty; Receives = Map.empty }
+
+/// The external system that stands for another system of the landscape.
+let private landscapeSystem (other: OtherSystem) =
+    { Key = $"system:{other.Slug}"
+      Name = other.Name
+      Description = $"The {other.Name} system, in the same landscape" }
+
 /// Everything the levels are derived from, worked out once.
 type private Facts =
-    { Model: AnalysisModel
+    { Known: Known
+      Model: AnalysisModel
       Exits: ExitPoint list
       Solution: Solution
       Library: ExitPoint -> string option
@@ -258,7 +277,7 @@ type private Facts =
       /// The units of a container's code: its project's and those of every project it references.
       UnitsOf: string -> Set<string> }
 
-let private factsOf (model: AnalysisModel) : Facts =
+let private factsOf (known: Known) (model: AnalysisModel) : Facts =
     let exits = model.ExitPoints |> List.filter (shown model)
 
     let solution =
@@ -314,7 +333,8 @@ let private factsOf (model: AnalysisModel) : Facts =
             | [], _ :: _ -> users |> List.map containerId
             | [], [] -> [ containerId p ]
 
-    { Model = model
+    { Known = known
+      Model = model
       Exits = exits
       Solution = solution
       Library = fun x -> libraryIn solution x |> Option.map root
@@ -454,14 +474,27 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
                 | _ -> None
         | _ -> None
 
+    // A call another system of the landscape receives goes to that system.
     let outbound =
         facts.Exits
         |> List.filter (fun x -> not (matched.Contains x.Id))
-        |> List.map (fun x -> defaultArg (deliveredBy x) (externalOf facts.Library x), x)
+        |> List.map (fun x ->
+            match facts.Known.Sends.TryFind x.Id with
+            | Some(other, _) -> landscapeSystem other, x
+            | None -> defaultArg (deliveredBy x) (externalOf facts.Library x), x)
 
+    // An entry point another system of the landscape calls: that system, beside whoever else calls it.
     let inbound =
         model.EntryPoints
-        |> List.choose (fun e -> callerOf facts.EntryLibrary e |> Option.map (fun (kind, ext, verb) -> (kind, ext), verb, e))
+        |> List.collect (fun e ->
+            let callers =
+                facts.Known.Receives.TryFind e.Id
+                |> Option.defaultValue []
+                |> List.map (fun other ->
+                    let verb = if e.Category = EffectCategory.HttpIn then "sends HTTP requests to" else "sends messages to"
+                    (C4Kind.ExternalSystem, landscapeSystem other), verb, e)
+
+            (callerOf facts.EntryLibrary e |> Option.map (fun (kind, ext, verb) -> (kind, ext), verb, e) |> Option.toList) @ callers)
 
     let externals =
         (outbound |> List.map (fun (ext, x) -> (C4Kind.ExternalSystem, ext), x.Id))
@@ -469,7 +502,10 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
         |> List.groupBy (fun ((kind, ext), _) -> idOf kind ext)
         |> List.map (fun (id, items) ->
             let (kind, ext), _ = items.Head
-            { element id kind ext.Name ext.Description with Sources = items |> List.map snd |> List.distinct |> List.sort })
+
+            { element id kind ext.Name ext.Description with
+                Tags = (if ext.Key.StartsWith "system:" then [ "in the landscape" ] else [])
+                Sources = items |> List.map snd |> List.distinct |> List.sort })
 
     let uses =
         outbound
@@ -478,7 +514,7 @@ let private elementsAndLinks (facts: Facts) : C4Element list * Link list =
             |> List.map (fun c ->
                 { From = codeOf c x.Unit x.Member
                   To = idOf C4Kind.ExternalSystem ext
-                  Description = verb x.Category
+                  Description = facts.Known.Sends.TryFind x.Id |> Option.map snd |> Option.defaultValue (verb x.Category)
                   Technology = technologyOf facts.Solution facts.Library x
                   Source = x.Id }))
 
@@ -803,9 +839,9 @@ let internal laidOut (view: C4View) (parts: Set<string>) : GraphLayout =
 
     { graph with Nodes = nodes; Edges = edges @ straight }
 
-/// The C4 model of the solution the analysis model describes.
-let derive (model: AnalysisModel) : C4Model =
-    let facts = factsOf model
+/// The C4 model of the solution the analysis model describes, in a landscape when `known` says what of it.
+let deriveIn (known: Known) (model: AnalysisModel) : C4Model =
+    let facts = factsOf known model
     let elements, links = elementsAndLinks facts
     let byId = elements |> List.map (fun e -> e.Id, e) |> Map.ofList
 
@@ -881,6 +917,9 @@ let derive (model: AnalysisModel) : C4Model =
           view "containers" C4Level.Containers SystemId (containers @ outside) ]
         @ (containers |> List.map componentsView)
         @ (componentKeys |> List.map codeView) }
+
+/// The C4 model of a solution analyzed alone.
+let derive (model: AnalysisModel) : C4Model = deriveIn alone model
 
 /// The model as text, one line per element and relationship, then each view with its relationships, for people
 /// and golden files.

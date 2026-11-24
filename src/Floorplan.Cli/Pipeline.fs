@@ -289,6 +289,13 @@ let runLandscape (log: string -> unit) (options: AnalyzeOptions) (found: Discove
                 | Ok model ->
                     let dir = Path.Combine(options.Output, "solutions", s.Slug)
 
+                    // Its own C4 model shows the other systems of the landscape it talks to, not hosts.
+                    let known = Landscape.knownOf landscape s.Slug
+
+                    let model =
+                        if known.Sends.IsEmpty && known.Receives.IsEmpty then model
+                        else { model with Architecture = C4.deriveIn known model }
+
                     match options.Format with
                     | Json -> JsonRenderer.create().Render(model, { Path = dir; SingleFile = false }) |> ignore
                     | Site -> WebsiteRenderer.renderIn (Some(link s.Slug)) model { Path = dir; SingleFile = false } |> ignore
