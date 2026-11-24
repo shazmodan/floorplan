@@ -1,6 +1,6 @@
 # Analyzing a folder of solutions (a system landscape): plan
 
-Date: 2026-11-24. Status: in progress (see **Iterations**). The owner took the four proposals in **Decisions**.
+Date: 2026-11-24. Status: done (see **Iterations**; what is left is in TODO.md). The owner took the four proposals in **Decisions**.
 A mock of the website was generated outside the repository before the work started (see **Mock**).
 
 ## Goal
@@ -174,7 +174,7 @@ docs/c4-plan.md.
 | 3 | Landscape views and their layout (boundaries per system), Structurizr landscape workspace | `claude/landscape-views` | done |
 | 4 | The landscape site: Solutions, Landscape, Interactions, Diagnostics; back links and cross links in solution sites | `claude/landscape-website` | done |
 | 5 | More matching: shared databases and folders (the landscape file and route-only links came with iteration 2) | `claude/landscape-matching` | done (folders) |
-| 6 | Documentation, TODO, review on the demo projects (each solution's C4 model knowing the other systems came with iteration 4) | `claude/landscape-docs` | |
+| 6 | Documentation, TODO, review on the demo projects (each solution's C4 model knowing the other systems came with iteration 4) | `claude/landscape-docs` | done |
 
 Tests: a new fixture folder `tests/fixtures/Landscape/` with three small solutions made to talk to each other:
 HTTP to a host that names the system, HTTP by route only, a queue, a shared database, and one call that matches
@@ -279,3 +279,9 @@ What the prototype found on the fixtures:
   to compare; a database reached through a named client library is already one element per library. This waits
   for TODO 2 (reading more of the configuration). The fixture's Billing and Shipping now both write to
   `/srv/exchange`.
+- 2026-11-24, iteration 6: README and TODO. Review on the owner's two demo projects, put side by side in a
+  scratch folder (junctions, nothing committed): the first was analyzed; the second could not be restored here
+  (its private package feed is unreachable from this machine), so it was listed as not analyzed with the restore
+  error, the landscape was still written, and the run failed at the end, as designed. The two do not call each
+  other, and no link was found. Left for later (TODO.md): shared databases after connection strings are read,
+  `--single-file` for a folder, solutions analyzed in parallel.

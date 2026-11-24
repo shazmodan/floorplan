@@ -81,10 +81,32 @@ compiled and analyzed. On a terminal, a spinner line under the steps shows how l
 
 `floorplan analyze C:\Projects`, where `C:\Projects` has no solution of its own but folders that do
 (`SystemA\SystemA.sln`, `SystemB\SystemB.slnx`), analyzes each solution as a system of one landscape
-([docs/landscape-plan.md](docs/landscape-plan.md)). Each solution's site is written to `solutions/<name>/` with a
-way back, and the landscape's site beside them lists the solutions. Build output, `node_modules` and hidden
-folders are skipped, and a solution inside another solution's folder (a `samples` solution) belongs to that
-system: it is listed, and analyzed only when named with `--solutions`. The other options apply to every solution.
+([docs/landscape-plan.md](docs/landscape-plan.md)). Build output, `node_modules` and hidden folders are skipped,
+and a solution inside another solution's folder (a `samples` solution) belongs to that system: it is listed, and
+analyzed only when named with `--solutions`. The other options apply to every solution; a solution that cannot
+be analyzed is listed with why, and the others still are.
+
+Each solution's site is written to `solutions/<name>/`, with a way back and a switcher to the other solutions.
+The landscape's site beside them has:
+
+- **Solutions**: each solution with its applications, projects, entry and exit points, and how many calls it makes
+  to the others and receives from them.
+- **Landscape**: a C4 model of the whole: every system with its users and the external systems more than one of
+  them uses (or every external system), every system's applications in a boundary each, and each system's
+  applications with those of other systems they talk to. An application opens its solution's site.
+- **Interactions**: every call one system makes that another receives, from which member to which handler, what
+  (route, queue), and how it was matched, with links to the evidence in both sites.
+- **Diagnostics** of every solution.
+
+A call is matched to another system when the code says so: a message to a queue or topic the other system
+consumes through the same library (also gRPC, WCF and Orleans calls); an HTTP call to one of the other system's
+routes whose URL's host names that system or one of its applications (`billing-api.internal` names Billing); or a
+call to a route only one other system has, which is drawn dashed as probable, since two deployments can run the
+same route. For hosts that name nothing, `floorplan.landscape.json` in the analyzed folder can say which system
+they are: `{ "hosts": { "api.contoso.com": "SystemB" } }`. A folder (an absolute path) that more than one system
+uses is shown as one element they share. In each solution's own site, a system it talks to is shown as that
+system, opening its site, rather than as the host it is called at. `workspace.dsl` beside the landscape's site
+holds the landscape as a Structurizr workspace, its probable relationships dashed.
 
 Results are cached per project and per dependency assembly in `FLOORPLAN_CACHE` (by default the local
 application data folder), so a second run is about twice as fast.
