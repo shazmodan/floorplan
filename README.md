@@ -51,9 +51,12 @@ their PDBs.
 
 ```
 floorplan analyze [<path/to/App.sln>]    default: the solution in the current directory
+floorplan analyze <path/to/folder>       a folder of solutions, analyzed as one landscape (below)
       [-o|--output <dir>]            default ./floorplan-out
       [--include <project,...>]      analyze only these projects and what they reference
       [--exclude <project,...>]
+      [--solutions <name,...>]       in a folder of solutions: only these, nested ones too
+      [--exclude-solutions <name,...>]
       [--include-tests]              test projects are excluded by default
       [-f|--framework <tfm>]         preferred target framework for multi-targeting projects
       [-c|--configuration <name>]    default Debug
@@ -73,6 +76,15 @@ The exit code is 1 when some project could not be analyzed; the others are still
 While it runs, Floorplan writes each step to stderr with the time since the start: each project built, loaded,
 compiled and analyzed. On a terminal, a spinner line under the steps shows how long the current one has taken.
 `--quiet` writes only errors and the path of the output, `--silent` nothing at all.
+
+### A folder of solutions
+
+`floorplan analyze C:\Projects`, where `C:\Projects` has no solution of its own but folders that do
+(`SystemA\SystemA.sln`, `SystemB\SystemB.slnx`), analyzes each solution as a system of one landscape
+([docs/landscape-plan.md](docs/landscape-plan.md)). Each solution's site is written to `solutions/<name>/` with a
+way back, and the landscape's site beside them lists the solutions. Build output, `node_modules` and hidden
+folders are skipped, and a solution inside another solution's folder (a `samples` solution) belongs to that
+system: it is listed, and analyzed only when named with `--solutions`. The other options apply to every solution.
 
 Results are cached per project and per dependency assembly in `FLOORPLAN_CACHE` (by default the local
 application data folder), so a second run is about twice as fast.

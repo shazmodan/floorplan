@@ -147,24 +147,28 @@ let buildModel (log: string -> unit) (store: Caching.Store) (catalogs: string li
     log "Deriving the C4 model"
     { model with Architecture = C4.derive model }
 
+let private loadOptionsOf (options: AnalyzeOptions) =
+    { Configuration = options.Configuration
+      Framework = options.Framework
+      IncludeTests = options.IncludeTests
+      Build = options.Build
+      Include = options.Include
+      Exclude = options.Exclude }
+
+let private noProjects (solution: LoadedSolution) =
+    let reasons = solution.Failures |> List.map (fun f -> $"  {Path.GetFileName f.Path}: {f.Message}") |> String.concat "\n"
+
+    let build =
+        solution.BuildOutput |> Option.map (fun o -> $"\nThe build failed:\n{o}") |> Option.defaultValue ""
+
+    $"No project could be analyzed.\n{reasons}{build}"
+
 let run (log: string -> unit) (options: AnalyzeOptions) : Result<Outcome, string> =
-    let loadOptions =
-        { Configuration = options.Configuration
-          Framework = options.Framework
-          IncludeTests = options.IncludeTests
-          Build = options.Build
-          Include = options.Include
-          Exclude = options.Exclude }
+    let loadOptions = loadOptionsOf options
 
     match SolutionLoader.load loadOptions options.Path with
     | Error e -> Error(SolutionLoader.describe e)
-    | Ok solution when solution.Projects.IsEmpty ->
-        let reasons = solution.Failures |> List.map (fun f -> $"  {Path.GetFileName f.Path}: {f.Message}") |> String.concat "\n"
-
-        let build =
-            solution.BuildOutput |> Option.map (fun o -> $"\nThe build failed:\n{o}") |> Option.defaultValue ""
-
-        Error $"No project could be analyzed.\n{reasons}{build}"
+    | Ok solution when solution.Projects.IsEmpty -> Error(noProjects solution)
     | Ok solution ->
         let store = if options.Cache then Caching.Store(Some(Caching.defaultDirectory ())) else Caching.Store.Disabled
         let model = buildModel log store options.Catalogs options.Show solution
@@ -190,6 +194,117 @@ let run (log: string -> unit) (options: AnalyzeOptions) : Result<Outcome, string
                 { Model = model
                   Written = Path.GetFullPath written
                   HadFailures = not solution.Failures.IsEmpty }
+
+/// The solutions to analyze in a folder of solutions (docs/landscape-plan.md), when the path is one: a folder with
+/// no solution or project of its own, with solutions in its subfolders.
+let folderOfSolutions (options: AnalyzeOptions) : Discovery.FoundSolutions option =
+    if Discovery.isFolderOfSolutions options.Path then
+        let found = Discovery.findSolutions (defaultArg options.Path Environment.CurrentDirectory)
+        if found.Solutions.IsEmpty && found.Nested.IsEmpty then None else Some found
+    else
+        None
+
+type LandscapeOutcome =
+    { Landscape: Landscape
+      /// The landscape site's index.html or landscape.json.
+      Written: string
+      /// Some solution, or some project of one, could not be analyzed.
+      HadFailures: bool }
+
+/// The solutions chosen with --solutions and --exclude-solutions, by name without extension (any case): named ones
+/// from every solution found, nested ones too; without --solutions, those found.
+let chooseSolutions (options: AnalyzeOptions) (found: Discovery.FoundSolutions) =
+    let name (path: string) = Path.GetFileNameWithoutExtension(path).ToLowerInvariant()
+    let lower = List.map (fun (s: string) -> s.ToLowerInvariant()) >> Set.ofList
+    let named, excluded = lower options.Solutions, lower options.ExcludeSolutions
+
+    let chosen =
+        if named.IsEmpty then found.Solutions
+        else found.Solutions @ found.Nested |> List.filter (fun p -> named.Contains(name p))
+
+    let unknown =
+        named - Set.ofList ((found.Solutions @ found.Nested) |> List.map name) |> Set.toList
+
+    if not unknown.IsEmpty then
+        let known = found.Solutions @ found.Nested |> List.map Path.GetFileNameWithoutExtension |> String.concat ", "
+        let names = String.concat ", " unknown
+        Error $"No solution named {names}. Solutions found: {known}."
+    else
+        match chosen |> List.filter (fun p -> not (excluded.Contains(name p))) with
+        | [] -> Error "No solution left to analyze."
+        | some -> Ok some
+
+/// Analyzes every solution of a folder of solutions, one after the other, and writes each one's site (or JSON) under
+/// solutions/<slug>/, and the landscape beside them.
+let runLandscape (log: string -> unit) (options: AnalyzeOptions) (found: Discovery.FoundSolutions) : Result<LandscapeOutcome, string> =
+    match chooseSolutions options found with
+    | Error e -> Error e
+    | Ok _ when options.SingleFile && options.Format = Site ->
+        Error "--single-file writes one solution's site; a folder of solutions is written as a folder."
+    | Ok files ->
+        let root = Path.GetFullPath(defaultArg options.Path Environment.CurrentDirectory)
+        let store = if options.Cache then Caching.Store(Some(Caching.defaultDirectory ())) else Caching.Store.Disabled
+        let loadOptions = loadOptionsOf options
+        let mutable failures = false
+
+        let analyzed =
+            files
+            |> List.mapi (fun i file ->
+                let name = Path.GetFileNameWithoutExtension file
+                let prefix = $"Solution {i + 1} of {files.Length}, {name}"
+                log prefix
+                let say (message: string) = log $"{prefix}: {message}"
+
+                let model =
+                    try
+                        match SolutionLoader.load loadOptions (Some file) with
+                        | Error e -> Error(SolutionLoader.describe e)
+                        | Ok solution when solution.Projects.IsEmpty -> Error(noProjects solution)
+                        | Ok solution ->
+                            if not solution.Failures.IsEmpty then failures <- true
+                            Ok(buildModel say store options.Catalogs options.Show solution)
+                    with e ->
+                        Error $"The analysis failed: {e.Message}"
+
+                if Result.isError model then failures <- true
+                ({ File = file; Model = model }: Landscape.Analyzed))
+
+        log "Deriving the landscape"
+        let generatedAt = DateTime.UtcNow.ToString "yyyy-MM-ddTHH:mm:ssZ"
+        let landscape = Landscape.derive toolVersion generatedAt root found.Nested analyzed
+        let link (slug: string) : WebsiteRenderer.LandscapeLink =
+            { Landscape = landscape.Name
+              Current = slug
+              Solutions = landscape.Solutions |> List.map (fun s -> s.Name, s.Slug) }
+
+        log "Writing the landscape"
+
+        try
+            for s, a in List.zip landscape.Solutions analyzed do
+                match a.Model with
+                | Ok model ->
+                    let dir = Path.Combine(options.Output, "solutions", s.Slug)
+
+                    match options.Format with
+                    | Json -> JsonRenderer.create().Render(model, { Path = dir; SingleFile = false }) |> ignore
+                    | Site -> WebsiteRenderer.renderIn (Some(link s.Slug)) model { Path = dir; SingleFile = false } |> ignore
+                | Error _ -> ()
+
+            let written =
+                match options.Format with
+                | Json ->
+                    let file = Path.Combine(options.Output, "landscape.json")
+                    Directory.CreateDirectory options.Output |> ignore
+                    File.WriteAllText(file, Json.serializeValue true landscape)
+                    file
+                | Site -> WebsiteRenderer.renderLandscape landscape options.Output
+
+            Ok
+                { Landscape = landscape
+                  Written = Path.GetFullPath written
+                  HadFailures = failures }
+        with e ->
+            Error $"Could not write output: {e.Message}"
 
 /// Diagnostics as printed after a run: errors in full; warnings of one kind up to `perCode`, then how many more
 /// there are. Every one is in the output (the site's diagnostics, the JSON model).

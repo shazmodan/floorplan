@@ -185,6 +185,13 @@ tr:last-child td { border-bottom: none; }
 td.num { text-align: right; font-variant-numeric: tabular-nums; }
 th.center, td.center { text-align: center; }
 th.right, td.right { text-align: right; }
+.small { font-size: 12px; }
+
+/* A solution's site in a landscape (docs/landscape-plan.md): the way back, and the other solutions. */
+.landscape-bar { display: flex; align-items: center; gap: 6px; padding-right: 12px; border-right: 1px solid var(--border); }
+.landscape-bar a { color: var(--text); text-decoration: none; font-size: 13.5px; padding: 4px 10px; border-radius: 6px; }
+.landscape-bar a:hover { background: var(--surface-2); }
+.landscape-bar select { font: inherit; font-size: 13px; padding: 3px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); }
 /* Long member names wrap inside their cell instead of widening the table. */
 td .mono, td code { overflow-wrap: anywhere; }
 code, .mono { font-family: var(--mono); font-size: 12.5px; }

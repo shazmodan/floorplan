@@ -447,3 +447,72 @@ module EffectCategory =
 
     /// Categories the website hides unless asked (plan section 4.2).
     let hiddenByDefault = [ EffectCategory.Environment; EffectCategory.Nondeterminism ]
+
+/// One solution of a landscape (docs/landscape-plan.md): a system.
+type LandscapeSolution =
+    { Name: string
+      /// Its folder under the landscape site's solutions/, and its system's id, "system:<slug>".
+      Slug: string
+      /// Its solution file, relative to the analyzed folder.
+      Path: string
+      Languages: Language list
+      Frameworks: string list
+      Applications: int
+      Projects: int
+      EntryPoints: int
+      /// The exit points shown by default.
+      ExitPoints: int
+      Errors: int
+      Warnings: int
+      /// Why it could not be analyzed, when it was not.
+      Failure: string option }
+
+/// A call one system of a landscape makes that another one receives.
+type Interaction =
+    { FromSystem: string
+      FromContainer: string
+      /// The member that makes the call.
+      FromMember: string
+      ToSystem: string
+      ToContainer: string
+      /// The member that handles it.
+      ToMember: string
+      /// The route or queue it reaches, as the receiver has it.
+      What: string
+      /// For HTTP: the methods the call can be, the call's own when its member names one, else the route's.
+      Methods: string list
+      /// The address as the caller's code has it.
+      Called: string
+      Description: string
+      Technology: string option
+      /// How the two ends were matched: "queue", "landscape-file", "host" or "route-only".
+      MatchedBy: string
+      /// Matched by route only: two deployments can run the same route, so the link is probable.
+      Probable: bool
+      /// The exit point and the entry point, as "<slug>:<id>".
+      Sources: string list }
+
+/// What a source "<slug>:<id>" of the landscape is, and its page in that solution's site.
+type LandscapeSource =
+    { Id: string
+      Label: string
+      /// The page in the solution's site, e.g. "#/evidence/exit:<id>".
+      Page: string }
+
+/// A folder of solutions analyzed as one landscape of systems (docs/landscape-plan.md).
+type Landscape =
+    { SchemaVersion: int
+      ToolVersion: string
+      GeneratedAt: string
+      /// The analyzed folder's name, and its path.
+      Name: string
+      Path: string
+      Solutions: LandscapeSolution list
+      /// Solutions found in another solution's folder and not analyzed, relative to the analyzed folder.
+      Nested: string list
+      /// The C4 model of the landscape: its systems, their containers, and the people and systems around them.
+      Architecture: C4Model
+      Interactions: Interaction list
+      Sources: LandscapeSource list
+      /// Every solution's errors and warnings, each message starting with "[<solution>]", and the landscape's own.
+      Diagnostics: Diagnostic list }

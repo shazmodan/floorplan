@@ -4,8 +4,24 @@
 (function () {
   "use strict";
 
-  var D = window.FLOORPLAN_DATA;
+  // A folder of solutions analyzed as one landscape (docs/landscape-plan.md) has pages of its own and shows its C4
+  // model on the Architecture page; each solution's site, under solutions/<slug>/, links back to it.
+  var LANDSCAPE = window.FLOORPLAN_LANDSCAPE || null;
+  var LANDSCAPE_LINK = window.FLOORPLAN_LANDSCAPE_LINK || null;
+  var D = window.FLOORPLAN_DATA || landscapeModel(LANDSCAPE);
   var main = document.getElementById("main");
+
+  // The landscape as an analysis model with nothing but its C4 model and diagnostics, for the pages they share.
+  function landscapeModel(L) {
+    var graph = { width: 0, height: 0, nodes: [], edges: [] };
+    return {
+      toolVersion: L.toolVersion, generatedAt: L.generatedAt, solution: { name: L.name, path: L.path },
+      projects: [], units: [], dependencies: [], typeDependencies: [], entryPoints: [], exitPoints: [], traces: [],
+      layout: { projectGraph: graph, unitGraph: graph, projectBoxes: [], projectEdges: [], detachedBoxes: [], flowGraph: graph },
+      presentation: { hiddenCategories: ["environment", "nondeterminism"], hiddenConfidence: ["low"] },
+      architecture: L.architecture, diagnostics: L.diagnostics
+    };
+  }
   var SVGNS = "http://www.w3.org/2000/svg";
 
   // ---------- Theme ----------
@@ -157,6 +173,31 @@
     { id: "diagnostics", label: "Diagnostics", count: function () { return D.diagnostics.filter(function (d) { return d.severity !== "info"; }).length; } }
   ];
 
+  if (LANDSCAPE) {
+    VIEWS = [
+      { id: "solutions", label: "Solutions", count: function () { return LANDSCAPE.solutions.length; } },
+      { id: "architecture", label: "Landscape" },
+      { id: "interactions", label: "Interactions", count: function () { return LANDSCAPE.interactions.length; } },
+      VIEWS[VIEWS.length - 1]
+    ].filter(function (v) { return v.id !== "architecture" || D.architecture.views.length; });
+    document.title = LANDSCAPE.name + " · Floorplan";
+  }
+
+  // In a solution's site that is part of a landscape: the way back to it, and to the other solutions' sites (the
+  // page shown is kept).
+  if (LANDSCAPE_LINK) {
+    var current = LANDSCAPE_LINK.solutions.filter(function (s) { return s.slug === LANDSCAPE_LINK.current; })[0];
+    var switcher = el("select", { "aria-label": "Solution" }, LANDSCAPE_LINK.solutions.map(function (s) {
+      return el("option", { value: s.slug, selected: s.slug === LANDSCAPE_LINK.current ? "selected" : null }, s.name);
+    }));
+    switcher.addEventListener("change", function () { location.href = "../" + enc(switcher.value) + "/index.html" + location.hash; });
+    var nav0 = document.getElementById("nav");
+    nav0.parentNode.insertBefore(el("div", { class: "landscape-bar" },
+      el("a", { href: "../../index.html#/solutions", title: "Every solution in " + LANDSCAPE_LINK.landscape }, "◂ Solutions"),
+      switcher), nav0);
+    document.title = (current ? current.name + " · " : "") + LANDSCAPE_LINK.landscape + " · Floorplan";
+  }
+
   function renderNav(active) {
     var nav = document.getElementById("nav");
     nav.textContent = "";
@@ -186,6 +227,11 @@
       "entry-points": entryPoints, "exit-points": exitPoints, "evidence": evidence, "diagnostics": diagnostics
     }[r.view] || overview;
     var navId = r.view === "unit" ? "units" : (r.view === "evidence" ? null : r.view);
+    if (LANDSCAPE) {
+      view = { "architecture": architecture, "interactions": interactions, "diagnostics": diagnostics }[r.view] || solutions;
+      if (view === architecture && !D.architecture.views.length) view = solutions;
+      navId = view === solutions ? "solutions" : r.view;
+    }
     renderNav(navId);
     if (viewLeave) viewLeave();
     viewKeys = null;
@@ -1661,6 +1707,121 @@
       var exits = t ? t.exitPointIds.map(function (x) { return exitById[x]; }).filter(Boolean) : [];
       append(page, [el("h2", null, "Side-effects this entry point can cause (" + exits.length + ")"), exitTable(exits, true)]);
     }
+    main.appendChild(page);
+  }
+
+  // ---------- Landscape: solutions and the interactions between them ----------
+  // A table's columns: the first reads from the left, the last ends at the right edge, the rest are centred.
+  function columnAlign(i, count) { return i === 0 ? null : i === count - 1 ? "right" : "center"; }
+  function landscapeTable(heads, rows) {
+    return el("div", { class: "table-wrap" }, el("table", null,
+      el("thead", null, el("tr", null, heads.map(function (h, i) { return el("th", { scope: "col", class: columnAlign(i, heads.length) }, h); }))),
+      el("tbody", null, rows.map(function (cells) {
+        return el("tr", null, cells.map(function (c, i) { return el("td", { class: columnAlign(i, cells.length) }, c); }));
+      }))));
+  }
+  function solutionHref(s, page) { return "solutions/" + enc(s.slug) + "/index.html#/" + (page || "overview"); }
+  function systemName(id) { var e = c4Elements[id]; return e ? e.name : id; }
+  function landscapeSource(id) { return (LANDSCAPE.sources || []).filter(function (s) { return s.id === id; })[0] || null; }
+  function sourceHref(id) {
+    var s = landscapeSource(id), slug = id.split(":")[0];
+    var sol = LANDSCAPE.solutions.filter(function (x) { return x.slug === slug; })[0];
+    return s && sol ? "solutions/" + enc(sol.slug) + "/index.html" + s.page : null;
+  }
+
+  function solutions() {
+    var L = LANDSCAPE, page = el("div", { class: "page" });
+    var out = {}, inn = {};
+    L.interactions.forEach(function (i) { out[i.fromSystem] = (out[i.fromSystem] || 0) + 1; inn[i.toSystem] = (inn[i.toSystem] || 0) + 1; });
+    var analyzed = L.solutions.filter(function (s) { return !s.failure; });
+    var sum = function (k) { return analyzed.reduce(function (a, s) { return a + s[k]; }, 0); };
+    function card(n, label, href) { return el(href ? "a" : "div", { class: "card", href: href }, el("div", { class: "n" }, String(n)), el("div", { class: "l" }, label)); }
+    var failed = L.solutions.length - analyzed.length;
+
+    append(page, [
+      el("h1", null, L.name),
+      el("p", { class: "sub" }, el("span", { class: "mono" }, L.path), " · ", plural(L.solutions.length, "solution"), " · generated ", L.generatedAt, " · Floorplan ", L.toolVersion),
+      failed ? el("div", { class: "notice error" }, plural(failed, "solution"), " could not be analyzed. ", el("a", { href: "#/diagnostics" }, "See diagnostics.")) : null,
+      el("div", { class: "cards" },
+        card(L.solutions.length, "Solutions"),
+        card(sum("applications"), "Applications"),
+        card(sum("projects"), "Projects"),
+        card(sum("entryPoints"), "Entry points"),
+        card(sum("exitPoints"), "Exit points"),
+        card(L.interactions.length, "Interactions between them", "#/interactions")),
+      el("p", { class: "muted" }, "Each solution is a system. Open one to see its projects, code, architecture and evidence",
+        D.architecture.views.length ? ["; ", el("a", { href: "#/architecture" }, "the Landscape"), " shows how the systems talk to each other."] : "."),
+      el("h2", null, "Solutions"),
+      landscapeTable(["Solution", "Path", "Language", "Target", "Applications", "Projects", "Entry", "Exit", "Calls out", "Called by", "Diagnostics"],
+        L.solutions.map(function (s) {
+          var id = "system:" + s.slug;
+          var problems = (s.errors ? plural(s.errors, "error") : "") + (s.errors && s.warnings ? ", " : "") + (s.warnings ? plural(s.warnings, "warning") : "");
+          if (s.failure) {
+            return [el("span", null, s.name, " ", el("span", { class: "tag limited" }, "not analyzed")), el("span", { class: "mono" }, s.path),
+              "", "", "", "", "", "", "", "", el("a", { href: "#/diagnostics" }, problems)];
+          }
+          return [
+            el("a", { href: solutionHref(s) }, s.name),
+            el("span", { class: "mono" }, s.path),
+            s.languages.map(function (l) { return LANGUAGE_LABEL[l] || l; }).join(", "),
+            s.frameworks.join(", "),
+            String(s.applications), String(s.projects), String(s.entryPoints), String(s.exitPoints),
+            out[id] ? el("a", { href: "#/interactions?from=" + enc(id) }, String(out[id])) : "0",
+            inn[id] ? el("a", { href: "#/interactions?to=" + enc(id) }, String(inn[id])) : "0",
+            problems ? el("a", { href: solutionHref(s, "diagnostics") }, problems) : "none"
+          ];
+        })),
+      L.nested.length ? [
+        el("h2", null, "Not analyzed"),
+        el("p", { class: "muted" }, "Solutions in the folder of another solution are part of its system, so they are not analyzed unless named with ",
+          el("span", { class: "mono" }, "--solutions"), ":"),
+        el("ul", null, L.nested.map(function (n) { return el("li", { class: "mono" }, n); }))
+      ] : null
+    ]);
+    main.appendChild(page);
+  }
+
+  var MATCHED_BY = {
+    "queue": ["queue name", "A message to a queue, topic or address the other system receives at, through the same library"],
+    "landscape-file": ["landscape file", "floorplan.landscape.json maps the URL's host to the other system"],
+    "host": ["host names it", "The URL's host names the other system or one of its applications"],
+    "route-only": ["route only", "No host names a system, but only this system has the route: probable, since two deployments can run the same route"]
+  };
+
+  function interactions(r) {
+    var L = LANDSCAPE, page = el("div", { class: "page" });
+    var list = L.interactions.filter(function (i) { return (!r.query.from || i.fromSystem === r.query.from) && (!r.query.to || i.toSystem === r.query.to); });
+    var filter = r.query.from ? " from " + systemName(r.query.from) : r.query.to ? " to " + systemName(r.query.to) : "";
+    function evidenceLinks(i) {
+      return el("span", null, i.sources.map(function (s, k) {
+        var href = sourceHref(s);
+        return [k ? el("br") : null, href ? el("a", { href: href }, k ? "entry point ↗" : "exit point ↗") : s];
+      }));
+    }
+    append(page, [
+      el("h1", null, "Interactions" + filter),
+      el("p", { class: "sub" }, "Every call one system makes that another one receives: the exit point in the caller's code and the entry point in the receiver's. ",
+        filter ? el("a", { href: "#/interactions" }, "Show all.") : null),
+      list.length ? landscapeTable(["From", "To", "What", "How", "Matched by", "Evidence"], list.map(function (i) {
+        var by = MATCHED_BY[i.matchedBy] || [i.matchedBy, ""];
+        return [
+          [el("strong", null, systemName(i.fromSystem)), " › ", systemName(i.fromContainer), el("div", { class: "mono small muted" }, shortMember(i.fromMember))],
+          [el("strong", null, systemName(i.toSystem)), " › ", systemName(i.toContainer), el("div", { class: "mono small muted" }, shortMember(i.toMember))],
+          [el("span", { class: "mono" }, i.what), i.methods.length ? el("div", { class: "small muted" }, i.methods.join(", ")) : null,
+            el("div", { class: "mono small muted", title: "As the caller's code has it" }, "called as " + i.called)],
+          i.technology || "",
+          el("span", { class: "tag" + (i.probable ? " limited" : ""), title: by[1] }, by[0] + (i.probable ? " (probable)" : "")),
+          evidenceLinks(i)
+        ];
+      })) : el("p", { class: "empty" }, filter ? "None." : "No call of one system was found to reach another. Calls whose address is read from configuration are matched once the configuration is read."),
+      el("h2", null, "How calls are matched"),
+      el("ol", null, [
+        "Messages: a queue, topic or address another system receives at, through the same library (also gRPC services, WCF actions and Orleans grains).",
+        "HTTP to a host that floorplan.landscape.json in the analyzed folder maps to a system, to one of its routes.",
+        "HTTP whose URL's host names another system or one of its applications, to one of its routes.",
+        "HTTP to a route only one other system has, when the caller's own system does not have it: probable, drawn dashed."
+      ].map(function (t) { return el("li", null, t); }))
+    ]);
     main.appendChild(page);
   }
 

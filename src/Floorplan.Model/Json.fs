@@ -107,3 +107,10 @@ let serialize (indented: bool) (model: AnalysisModel) =
 
 let deserialize (json: string) : AnalysisModel =
     JsonSerializer.Deserialize<AnalysisModel>(json, indentedOptions)
+
+/// Any other document of the model's types (the landscape), spelled as the model is.
+let serializeValue (indented: bool) (value: 'T) =
+    JsonSerializer.Serialize<'T>(value, (if indented then indentedOptions else compactOptions))
+
+let deserializeValue<'T> (json: string) : 'T =
+    JsonSerializer.Deserialize<'T>(json, indentedOptions)

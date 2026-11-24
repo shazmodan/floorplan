@@ -40,3 +40,56 @@ let resolve (input: string option) : Result<string, LoadError> =
             Error(UnsupportedInput $"Several solutions in {path} ({names}); name the one to analyze.")
     else
         Error(InputNotFound $"Not found: {path}")
+
+/// The solutions in a folder of solutions (docs/landscape-plan.md, "Finding the solutions"): each one a system.
+type FoundSolutions =
+    { /// The solutions found, in path order: the first in each branch of the folder tree.
+      Solutions: string list
+      /// Solutions in the folder of another one (a samples/ or tools/ solution): part of that system, analyzed only
+      /// when named.
+      Nested: string list }
+
+let private skippedFolders =
+    set [ "bin"; "obj"; "node_modules"; ".git"; ".vs"; "artifacts" ]
+
+/// The solution files directly in a folder; of X.sln and X.slnx, the .slnx.
+let private solutionsIn (dir: string) =
+    let files = Directory.GetFiles dir |> Array.filter isSolution |> Array.sort |> Array.toList
+    let stem (f: string) = Path.Combine(Path.GetDirectoryName f, Path.GetFileNameWithoutExtension f).ToLowerInvariant()
+    let newer = files |> List.filter (fun f -> extensionOf f = ".slnx") |> List.map stem |> Set.ofList
+    files |> List.filter (fun f -> extensionOf f = ".slnx" || not (newer.Contains(stem f)))
+
+/// Whether a path is a folder with no solution or project of its own, which `resolve` gives no meaning: a folder
+/// of solutions.
+let isFolderOfSolutions (input: string option) =
+    let path = Path.GetFullPath(defaultArg input Environment.CurrentDirectory)
+
+    Directory.Exists path
+    && Directory.GetFiles path |> Array.forall (fun f -> not (isSolution f || isProject f))
+
+/// The solutions in the subfolders of a folder. Build output, package and tool folders and hidden folders are
+/// skipped, and the search stops at a folder with a solution: solutions further down belong to its system.
+let findSolutions (folder: string) : FoundSolutions =
+    let root = Path.GetFullPath folder
+
+    let hidden (dir: string) =
+        let name = Path.GetFileName dir
+
+        name.StartsWith "."
+        || skippedFolders.Contains(name.ToLowerInvariant())
+        || (try File.GetAttributes(dir).HasFlag FileAttributes.Hidden with _ -> false)
+
+    let rec walk (dir: string) (inside: bool) : (string * bool) list =
+        let here = if dir = root then [] else solutionsIn dir
+        let below = inside || not here.IsEmpty
+
+        let children =
+            try Directory.GetDirectories dir |> Array.sort |> Array.toList with _ -> []
+
+        (here |> List.map (fun s -> s, inside))
+        @ (children |> List.filter (hidden >> not) |> List.collect (fun c -> walk c below))
+
+    let all = walk root false
+
+    { Solutions = all |> List.filter (snd >> not) |> List.map fst
+      Nested = all |> List.filter snd |> List.map fst }
