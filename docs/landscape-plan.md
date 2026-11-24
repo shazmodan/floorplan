@@ -1,0 +1,233 @@
+# Analyzing a folder of solutions (a system landscape): plan
+
+Date: 2026-11-24. Status: proposed, waiting for the owner's decisions (see **Decisions for the owner**). Nothing is built yet.
+A mock of the website is generated outside the repository (see **Mock**).
+
+## Goal
+
+`floorplan analyze C:\Projects\` where `C:\Projects` holds a folder per system, each with its solution:
+
+```
+C:\Projects\SystemA\SystemA.sln
+C:\Projects\SystemB\SystemB.sln
+C:\Projects\SystemC\SystemC.sln
+```
+
+Every solution is analyzed as `floorplan analyze SystemA.sln` would analyze it, and on top of that Floorplan
+derives one C4 model of the whole landscape: the systems, how they talk to each other (System A sends HTTP
+requests to System B's `/orders/{id}`, System B sends messages to the queue System C consumes), the people who use
+them, and the external systems they share. The website opens on that landscape. A **Solutions** menu lists the
+solutions, and each one opens today's site for that solution (Overview, Projects, Namespaces, Flow, Architecture,
+Entry points, Exit points, Diagnostics), with a way back.
+
+As everywhere in Floorplan, the landscape is derived, not configured: a link between two systems is shown because
+the code of one sends what the code of the other receives, and each link keeps the exit point and the entry point
+it was derived from. Configuration by hand stays optional (see **Matching**, step 2).
+
+Not goals: deployment diagrams, analyzing repositories that are not on disk, and languages Floorplan does not
+read today.
+
+## How it works today, and what it builds on
+
+- `Discovery.resolve` turns a folder into its single solution (or single F# project). A folder with no solution
+  and no project is an error today, so giving that case a meaning breaks nothing.
+- `Pipeline.buildModel` turns one loaded solution into an `AnalysisModel`, with its C4 model (`C4.derive`).
+  It can run once per solution unchanged. The analysis cache (summaries per assembly and closure) is already
+  shared between runs, so package assemblies common to several solutions are summarized once.
+- `C4.derive` already links two applications in one solution: a message to a queue another application consumes,
+  and an HTTP request to a route exactly one other application has, when the URL's host is a local one or the
+  application's name. Orleans grain calls go to the system that delivers them. The landscape matches the same
+  kinds of evidence, across solutions instead of within one.
+- `WebsiteRenderer` writes one site per model. The landscape site is a new set of pages beside it, and each
+  solution keeps the site it has today.
+
+## Design
+
+### 1. Finding the solutions
+
+A folder with a solution or project directly in it keeps today's meaning. A folder with neither is searched for
+solutions (`*.sln`, `*.slnx`) in its subfolders:
+
+- Folders named `bin`, `obj`, `node_modules`, `.git`, `.vs`, `artifacts`, and hidden folders are skipped.
+- A folder with both `X.sln` and `X.slnx` counts once (the `.slnx`, as `resolve` prefers today).
+- The search stops at a folder that has a solution: solutions in its subfolders (a `samples/` or `tools/`
+  solution) belong to the same system and are not further systems. They are listed as skipped, and
+  `--solutions` names them when wanted.
+- New options: `--solutions <names>` and `--exclude-solutions <names>` (comma-separated, like `--include`),
+  and the existing `--include`, `--exclude`, `--include-tests`, `--framework`, `--configuration`, `--no-build`
+  and `--catalog` apply to every solution.
+
+Each solution found is a **system**, named after its solution file (or its folder, when that name is more
+specific; see **Decisions for the owner**).
+
+### 2. Analyzing each solution
+
+One run of `Pipeline.buildModel` per solution, one after the other (memory: a big solution's program is
+disposed of before the next one is loaded). The status line shows `Solution 2 of 5: SystemB`. A solution that
+fails to load or build doesn't stop the others; it is listed with its errors, and the run fails at the end as
+today. Each solution's model is written as soon as it is done (its site, or its JSON), and the landscape keeps
+only what it needs: projects, entry points, exit points with their payloads, and the C4 model.
+
+Parallel runs (`--parallel 2`) are a later option, once the memory of a run is measured.
+
+### 3. The landscape model
+
+A new module `Floorplan.Architecture.Landscape`, beside `C4`, derives a `C4Model` from the solutions' models:
+
+- **Systems**: one `SoftwareSystem` per solution (`system:<slug>`), with its containers inside
+  (`container:<slug>/<project>`), so the landscape can be shown at two levels: systems, and containers grouped
+  in their systems.
+- **People and external systems**: those of every solution, merged by the key `C4.derive` already gives them
+  (a URL's host, a library's name). An external system two solutions use is one element with links from both,
+  so it shows that they share it.
+- **Links between systems**: from matching each solution's exit points against the other solutions' entry
+  points (next section). A matched exit point is a link to the system that receives it, not to an external
+  system.
+- **Sources**: every element and link keeps its sources as `<slug>:<id>` (an exit point, an entry point, a
+  project in that solution), so the website links each one to the evidence page in that solution's site.
+
+The new types are the landscape's own (`Landscape` = solutions + `C4Model` + diagnostics), and each solution's
+`AnalysisModel` stays as it is, so the schema of today's output doesn't change.
+
+### 4. Matching what one system sends to what another receives
+
+In order, the first that applies decides; only exact matches of text the analysis found:
+
+1. **Messages**: a network exit point whose payload is a queue or topic name that another system's network entry
+   point receives, through the same library (a different library is a different broker), as within one solution
+   today. Also gRPC services, WCF SOAP actions and Orleans grain interfaces, which are already named the same on
+   both sides.
+2. **A landscape file**, optional: `floorplan.landscape.json` in the analyzed folder maps hosts (and config keys)
+   to systems, for hosts that name nothing (`https://10.2.3.4`, `https://api.contoso.com`):
+   `{ "hosts": { "api.contoso.com": "SystemB" } }`. A call to a host it maps goes to that system's route, and
+   nowhere else.
+3. **HTTP with a host that names the system**: an HTTP exit point with a literal URL whose path matches one of
+   another system's routes (a route parameter matches any segment: `/orders/17` and `/orders/{id}`; a segment
+   only known at run time matches only a parameter), and whose host names that system or one of its
+   applications (`systemb`, `system-b`, `systemb-api.internal`, compared without case, dashes and dots).
+4. **HTTP to a route only one system has**: the same, when the host names nothing known, the caller's own
+   system doesn't have the route, exactly one other system has it, and the route is specific (not `/`, not
+   `/health`, not made only of parameters). Shown as a *probable* link (dashed, marked "route only"), because
+   two deployments can run the same route.
+5. **Shared data**: a database (the same server and database name in a connection string) or folder that two
+   systems use is one external element both link to, so the integration through it shows. Not a link between the
+   systems themselves.
+
+Everything else stays an external system named by its host, as today. HTTP URLs whose host comes from
+configuration but whose value Floorplan can't read are the common case in real systems: reading more of the
+configuration (TODO 2) makes steps 3 and 4 find more.
+
+### 5. Views
+
+- **Landscape**: every system, the people who use them, and the external systems more than one system uses.
+  External systems only one system uses are left out by default (there can be dozens), with a switch to show
+  them all.
+- **System context, in the landscape**: one system, the systems it talks to (both ways), its people and its
+  external systems.
+- **Containers across systems**: every container, grouped in a boundary per system, with the links between
+  them. This is the view that answers "how does A talk to B": which application, which call, which route or
+  queue. It needs the layered layout to draw several boundaries (today it draws one around the scope's parts).
+- From any system, its own site's Architecture page goes on to its containers, components and code.
+
+Layout reuses `C4.laidOut` (made internal to the assembly). The Structurizr DSL export gets a landscape
+workspace: every system with its containers, and a `systemLandscape` view.
+
+### 6. Output
+
+```
+floorplan-out/
+  index.html, app.css, app.js     the landscape site
+  data.js                         the landscape model (small: no solution's details)
+  workspace.dsl, workspace.json   the landscape as a Structurizr workspace
+  solutions/
+    systema/                      SystemA's site, as today's run writes it
+      index.html, data.js, ...
+    systemb/
+    ...
+```
+
+- One site per solution keeps each `data.js` as large as it is today, and pages load only the solution opened.
+- `--format json` writes `landscape.json` and `solutions/<slug>/floorplan.json`.
+- `--single-file` writes one file for the landscape, with every solution's data in it, when the total is small
+  enough. Otherwise it fails and says to use the folder output (decided when measured).
+
+### 7. Website
+
+- The landscape site's menu: **Solutions** (a table: system, solution path, applications, projects, entry
+  points, exit points, links in and out, errors), **Landscape** (the views above, with the Architecture page's
+  navigation: sidebar, level switcher, Up, find, details), **Interactions** (every link between systems as a
+  table: from system, application and member, to system, application and handler, what (route, queue), how,
+  how it was matched, each with links to the evidence in both solutions' sites), **Diagnostics** (per solution).
+- Each solution's site gets, when it is part of a landscape, a **Solutions** item first in its menu and the
+  landscape's name in its title, linking back. Its Architecture page shows another system of the landscape as
+  that system (linking to its site), not as an external system named by host.
+- Solution sites stay usable alone (opened from their folder, or copied elsewhere).
+
+## Iterations
+
+Each iteration is a branch of its own, ends with every test green, and is merged on its own, as in
+docs/c4-plan.md.
+
+| # | Iteration | Branch | Status |
+|---|---|---|---|
+| 1 | Find the solutions in a folder, analyze each one into `solutions/<slug>/`, write a landscape index listing them | `claude/landscape-discovery` | |
+| 2 | The landscape model: systems, shared externals, links by messages and by HTTP with a naming host; JSON and `describe` goldens | `claude/landscape-model` | |
+| 3 | Landscape views and their layout (boundaries per system), Structurizr landscape workspace | `claude/landscape-views` | |
+| 4 | The landscape site: Solutions, Landscape, Interactions, Diagnostics; back links and cross links in solution sites | `claude/landscape-website` | |
+| 5 | More matching: the landscape file, route-only (probable) links, shared databases and folders | `claude/landscape-matching` | |
+| 6 | Each solution's C4 model knows the other systems; documentation, TODO, review on the demo projects | `claude/landscape-docs` | |
+
+Tests: a new fixture folder `tests/fixtures/Landscape/` with three small solutions made to talk to each other:
+HTTP to a host that names the system, HTTP by route only, a queue, a shared database, and one call that matches
+nothing. The existing `tests/fixtures/` folder is itself a folder of six solutions, and serves as the test that
+unrelated solutions give no links.
+
+## Decisions for the owner
+
+1. **System = solution, or system = top-level folder?** Proposed: a solution is a system (it is what gets built
+   and deployed together). When a top-level folder has several solutions, they would be several systems, shown
+   grouped by folder. The other choice merges them into one system.
+2. **Probable links (route only)**: shown dashed by default, or hidden behind a switch? Proposed: shown dashed.
+3. **The landscape file** (`floorplan.landscape.json`): worth having, for hosts that name nothing? Proposed: yes,
+   in iteration 5, and optional.
+4. **Solutions inside a solution's folder** (samples, tools): skipped unless named. Proposed as described in
+   **Finding the solutions**.
+
+## Mock
+
+`landscape-mock/index.html` at the repository root (listed in `.gitignore`, not committed) is the website as
+`floorplan analyze tests\fixtures` could write it. The six fixture folders are a folder of solutions like the
+one in **Goal**.
+
+- `solutions/<slug>/`: each solution's site is today's real output, with one addition: a **◂ Solutions** link
+  and a solution switcher before the menu (the switcher keeps the page you are on).
+- The landscape pages (**Solutions**, **Landscape**, **Interactions**, **Diagnostics**) are drawn by a copy of
+  today's `app.js` with the landscape added (marked `MOCK`). The Landscape is the Architecture page: level 1 is
+  every system; opening a system shows its containers inside a boundary, with the containers of other systems
+  it talks to outside it; opening a container goes to that solution's site.
+- The landscape's data came from a prototype of **Matching** (steps 1 to 4) run on the six analysis models,
+  laid out by `C4.laidOut` itself. The scripts are in `landscape-mock/_prototype/` (`build.py` derives the
+  landscape, `layout.fsx` lays it out, `site.py` writes the site).
+
+What the prototype found on the fixtures:
+
+- **Route-only matching needs limits.** At first it matched gRPC's catch-all route
+  (`/{unimplementedService}/{unimplementedMethod}`) and matched `/products/{id}` to `/Products/Details/{id?}`.
+  A route made only of parameters now matches nothing, and a segment the caller only knows at run time (`{…}`)
+  matches only a route parameter. One probable link is left: `CSharp.Clients` calls `/products`, which only
+  `Routing.Conventional` has.
+- **Common routes are ambiguous.** `GET /api/orders` is in four of the six solutions, so route-only matching
+  rightly finds nothing for it. That is why steps 2 and 3 (the landscape file, a host that names the system)
+  matter. With a sample landscape file mapping `api.example.org` to Routing, three calls from CSharp and
+  Effects go to Routing.
+- **Generic external systems aren't shared.** The file system, the operating system, "a database" or "HTTP
+  services whose address is not known" are each system's own. Merged, they connected every system to every
+  other. Only named externals (a host, a library) are merged.
+- **An exit point doesn't record its HTTP method.** A call to `/orders/{id}` matches a route that takes
+  DELETE, GET, PATCH and PUT. The Interactions table shows the methods the route accepts. Recording the method
+  where the call names it (`GetAsync`, `DeleteAsync`) belongs in iteration 2.
+
+## Log
+
+- 2026-11-24: plan written, mock generated from a prototype of the matching on the six fixture solutions.
+  No product code yet.
