@@ -4,7 +4,7 @@ workspace "Landscape" "Landscape, derived by Floorplan from its code" {
         system_billing = softwareSystem "Billing" "The Billing solution: 1 applications in 1 projects" {
             container_billing_Billing_Api = container "Billing.Api" "A web application" "C# · net8.0" "web application"
         }
-        system_orders = softwareSystem "Orders" "The Orders solution: 1 applications in 1 projects" {
+        system_orders = softwareSystem "Orders" "The Orders solution: 1 applications in 2 projects" {
             container_orders_Orders_Api = container "Orders.Api" "A web application" "C# · net8.0" "web application"
         }
         system_shipping = softwareSystem "Shipping" "The Shipping solution: 1 applications in 1 projects" {
@@ -23,6 +23,7 @@ workspace "Landscape" "Landscape, derived by Floorplan from its code" {
         container_billing_Billing_Api -> external_folder__srv_exchange "writes files"
         container_orders_Orders_Api -> container_billing_Billing_Api "sends HTTP requests to /invoices/{id}" "HTTP"
         container_orders_Orders_Api -> container_shipping_Shipping_Worker "sends messages to shipments" "RabbitMQ.Client"
+        container_orders_Orders_Api -> external_database_db_internal_5432_ledger "reads and writes data"
         container_orders_Orders_Api -> external_http_inventory_example_net "sends HTTP requests" "HTTP"
         container_orders_Orders_Api -> external_network_orders "sends and receives over the network" "RabbitMQ.Client"
         container_shipping_Shipping_Worker -> container_orders_Orders_Api "sends HTTP requests to /orders/{id}/delivered" "HTTP"
@@ -47,7 +48,7 @@ workspace "Landscape" "Landscape, derived by Floorplan from its code" {
             include container_billing_Billing_Api container_orders_Orders_Api external_database_db_internal_5432_ledger external_folder__srv_exchange person_user
         }
         container system_orders "containers_orders" {
-            include container_orders_Orders_Api container_billing_Billing_Api container_shipping_Shipping_Worker external_http_inventory_example_net external_network_orders person_user
+            include container_orders_Orders_Api container_billing_Billing_Api container_shipping_Shipping_Worker external_database_db_internal_5432_ledger external_http_inventory_example_net external_network_orders person_user
         }
         container system_shipping "containers_shipping" {
             include container_shipping_Shipping_Worker container_orders_Orders_Api external_database_db_internal_5432_ledger external_folder__srv_exchange external_library_RabbitMQ_Client external_network_shipping

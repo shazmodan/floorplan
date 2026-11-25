@@ -129,8 +129,8 @@ let tests =
               Expect.equal l.Name "Landscape" "named after the folder"
 
               let orders = l.Solutions |> List.find (fun s -> s.Name = "Orders")
-              Expect.equal (orders.Applications, orders.Projects, orders.Languages) (1, 1, [ Language.CSharp ]) "a summary of each"
-              Expect.equal orders.EntryPoints 3 "its routes"
+              Expect.equal (orders.Applications, orders.Projects, orders.Languages) (1, 2, [ Language.CSharp ]) "a summary of each"
+              Expect.equal orders.EntryPoints 4 "its routes"
 
               for s in l.Solutions do
                   let site = Path.Combine(out, "solutions", s.Slug)
@@ -450,8 +450,19 @@ let tests =
 
               Expect.equal
                   (List.sort uses)
-                  [ "container:billing/Billing.Api", 2; "container:shipping/Shipping.Worker", 1 ]
-                  "Billing's connection and its command (from appsettings.json), Shipping's connection"
+                  [ "container:billing/Billing.Api", 2; "container:orders/Orders.Api", 2; "container:shipping/Shipping.Worker", 1 ]
+                  "Billing's connection and its command (from appsettings.json), Shipping's connection, Orders' context"
+
+              let orders =
+                  l.Architecture.Relationships |> List.find (fun r -> r.From = "container:orders/Orders.Api" && r.To = database.Id)
+
+              let label (source: string) = (l.Sources |> List.find (fun s -> s.Id = source)).Label
+
+              Expect.equal
+                  (orders.Sources |> List.map label |> List.sort)
+                  [ "database: Microsoft.EntityFrameworkCore.DbContext::SaveChanges"
+                    "database: Server=db.internal;Port=5432;Database=ledger;User Id=orders;Password=…" ]
+                  "where the context is configured, and its library's call, which has no connection of its own"
 
               Expect.isFalse (l.Architecture.Elements |> List.exists (fun e -> e.Id = "external:database@billing")) "Billing has no other database"
               Expect.contains (l.Architecture.Views |> List.find (fun v -> v.Id = "context")).Elements database.Id "on the landscape"

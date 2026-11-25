@@ -508,15 +508,45 @@ let private sharedDatabases (parts: Part list) : Map<string, string * string> =
             key, ($"external:database:{key}", name))
         |> Map.ofList
 
-    // A project whose connections all name one shared database: its other database uses go there as well.
+    // A project whose connections all name one shared database: its other database uses go there as well. A
+    // project with no connection of its own (a library whose Entity Framework Core context the application
+    // registers) does the same with its solution's connections.
+    let onlyOne (cs: (string * string * string * string option * string) list) =
+        match cs |> List.map (fun (key, _, _, _, _) -> key) |> List.distinct with
+        | [ key ] when shared.ContainsKey key -> Some shared[key]
+        | _ -> None
+
     let only =
         connections
         |> List.groupBy (fun (_, _, slug, project, _) -> slug, project)
         |> List.choose (fun ((slug, project), cs) ->
-            match cs |> List.map (fun (key, _, _, _, _) -> key) |> List.distinct, project with
-            | [ key ], Some project when shared.ContainsKey key -> Some((slug, project), shared[key])
+            match project, onlyOne cs with
+            | Some project, Some element -> Some((slug, project), element)
             | _ -> None)
         |> Map.ofList
+
+    // Projects that make a connection of their own, whether or not its database is known.
+    let connected =
+        [ for p in parts do
+              let project = projectOf p
+
+              for x in p.Model.ExitPoints |> List.filter (shown p.Model) do
+                  match x.Category, x.Payload, project x with
+                  | EffectCategory.Database, Some { Role = "connection" }, Some pr -> yield p.Slug, pr
+                  | _ -> () ]
+        |> Set.ofList
+
+    let solutionOnly =
+        connections
+        |> List.groupBy (fun (_, _, slug, _, _) -> slug)
+        |> List.choose (fun (slug, cs) -> onlyOne cs |> Option.map (fun element -> slug, element))
+        |> Map.ofList
+
+    let databaseOf slug project =
+        match only.TryFind(slug, project) with
+        | Some element -> Some element
+        | None when not (connected.Contains(slug, project)) -> solutionOnly.TryFind slug
+        | None -> None
 
     [ for (key, _, _, _, source) in connections do
           match shared.TryFind key with
@@ -528,7 +558,7 @@ let private sharedDatabases (parts: Part list) : Map<string, string * string> =
 
           for x in p.Model.ExitPoints |> List.filter (shown p.Model) do
               if x.Category = EffectCategory.Database then
-                  match project x |> Option.bind (fun pr -> only.TryFind(p.Slug, pr)) with
+                  match project x |> Option.bind (databaseOf p.Slug) with
                   | Some element -> yield $"{p.Slug}:{x.Id}", element
                   | None -> () ]
     |> Map.ofList

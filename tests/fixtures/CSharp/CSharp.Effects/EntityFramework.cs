@@ -15,6 +15,13 @@ namespace CSharp.Effects.Ordering
         public DbSet<Order> Orders => Set<Order>();
     }
 
+    // A context that names its database itself: where it does is a database exit point, the connection string its
+    // payload.
+    public class LocalContext : DbContext
+    {
+        protected override void OnConfiguring(DbContextOptionsBuilder options) => options.UseSqlite("Data Source=shop.db");
+    }
+
     public class OrderStore(ShopContext db)
     {
         public void Add(string name)
