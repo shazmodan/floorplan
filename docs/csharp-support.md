@@ -473,8 +473,12 @@ Also new, outside the recognizer:
   sections is bound to neither). A property of an object inside an options object is at its path under the
   section (`options.Value.Rabbit.Queue` at `Section:Rabbit:Queue`), and an options object, or an object inside
   one, kept in a field (`_options = options.Value` in a constructor) is found again where the field is read:
-  a field every store gives the same key, in the methods that read options, is at that key. A key the files do
-  not have, environment variables and other configuration
+  a field every store gives the same key, in the methods that read options, is at that key. Named options are
+  bound and read by type and name: `Configure<T>("name", section)` and a bind on `AddOptions<T>("name")` (through
+  the builder's other methods) bind them, `IOptionsMonitor<T>.Get("name")` and `IOptionsSnapshot<T>.Get("name")`
+  read them (a rule's `"name"` argument; reads `"options-builder"` for `AddOptions<T>(name)`), and `Value` and
+  `CurrentValue` read the default options (the empty name). A name nothing binds, or one not known, is at no key.
+  A key the files do not have, environment variables and other configuration
   sources stay dynamic. The symbolic run that finds registrations reads them too, so a minimal API route named
   in the configuration has its template. Fixtures: `CSharp.Messaging` (`CSharp.Messaging.Configured`), with
   `appsettings.json` and `appsettings.Production.json`, and `CSharp.Endpoints` (`Configured.cs`).

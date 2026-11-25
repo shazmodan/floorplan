@@ -109,13 +109,19 @@ type SettingRead =
     | BindSection
     /// Binds the options type that is the call's generic argument to the section at the path `Argument` names.
     | BindPath
+    /// Makes a builder of the options of the call's generic argument under the name `Name` gives
+    /// (AddOptions<T>(name)); a bind called on the builder binds options of that name.
+    | OptionsBuilder
 
 /// What a setting rule's call reads: `Argument` as in a payload (the first declared parameter is 0), and keys
-/// read are under `Prefix` (GetConnectionString's are under "ConnectionStrings").
+/// read are under `Prefix` (GetConnectionString's are under "ConnectionStrings"). `Name`: the argument that names
+/// the options read, bound or built (IOptionsMonitor<T>.Get(name), Configure<T>(name, section)); without it they
+/// are the default options (the empty name), or for a bind on a builder, the builder's.
 type SettingSpec =
     { Reads: SettingRead
       Argument: int
-      Prefix: string option }
+      Prefix: string option
+      Name: int option }
 
 /// Which argument of a matched call carries something worth showing: a URL, SQL text, a path, a route template,
 /// a handler. Argument 0 is the first declared parameter; for instance methods `this` is not counted.

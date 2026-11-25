@@ -275,6 +275,7 @@ let tests =
                   [ Some "audit-log", Completeness.Complete
                     Some "credits", Completeness.Complete
                     Some "invoices", Completeness.Complete
+                    Some "primary", Completeness.Complete
                     Some "reminders", Completeness.Complete
                     Some "settlements", Completeness.Complete ]
                   "configuration[key], GetSection(...).GetSection(...).Value, GetValue<string> (appsettings.Production.json overrides), IOptions<T>.Value of Configure<T>(section), a nested options object kept in a field"
@@ -291,6 +292,16 @@ let tests =
                   (published "CSharp.Messaging.Configured.Settlements::Notify")
                   [ Some "settlements" ]
                   "a nested options object's property, the options kept in a field"
+
+              Expect.equal (published "CSharp.Messaging.Configured.Channels::NotifyPrimary") [ Some "primary" ] "IOptionsMonitor<T>.Get(name) of Configure<T>(name, section)"
+
+              Expect.equal
+                  (published "CSharp.Messaging.Configured.Channels::NotifyBackup")
+                  [ Some "backup" ]
+                  "IOptionsSnapshot<T>.Get(name) of AddOptions<T>(name).Validate(...).Bind(section)"
+
+              Expect.equal (published "CSharp.Messaging.Configured.Channels::NotifyDefault") [ Some "fallback" ] "the default options of a type that also has named ones"
+              Expect.equal (published "CSharp.Messaging.Configured.Channels::NotifyUnbound") [ None ] "a name nothing binds"
           }
 
           test "Azure Functions: each function is an entry point of its trigger's kind, HTTP routes under host.json's prefix" {

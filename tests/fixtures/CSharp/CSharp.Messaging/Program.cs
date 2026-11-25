@@ -241,4 +241,40 @@ namespace CSharp.Messaging.Configured
         public void Notify(IModel channel) =>
             channel.BasicPublish("", _options.Queues.Settlements, null, Encoding.UTF8.GetBytes("x"));
     }
+
+    public class Endpoint
+    {
+        public string Queue { get; set; } = "";
+    }
+
+    // Named options: bound by name, through a builder made for a name, and the default options of the same type.
+    public class Channels(IOptionsMonitor<Endpoint> monitor, IOptionsSnapshot<Endpoint> snapshot)
+    {
+        public static void Configure(IServiceCollection services, IConfiguration configuration)
+        {
+            services.Configure<Endpoint>("primary", configuration.GetSection("Endpoints:Primary"));
+            services.AddOptions<Endpoint>("backup").Validate(e => e.Queue != "").Bind(configuration.GetSection("Endpoints:Backup"));
+            services.Configure<Endpoint>(configuration.GetSection("Endpoints:Default"));
+        }
+
+        public void Start(IModel channel)
+        {
+            var primary = new EventingBasicConsumer(channel);
+            primary.Received += (_, e) => File.AppendAllText("primary.log", e.RoutingKey);
+            channel.BasicConsume(monitor.Get("primary").Queue, true, primary);
+        }
+
+        public void NotifyPrimary(IModel channel) =>
+            channel.BasicPublish("", monitor.Get("primary").Queue, null, Encoding.UTF8.GetBytes("x"));
+
+        public void NotifyBackup(IModel channel) =>
+            channel.BasicPublish("", snapshot.Get("backup").Queue, null, Encoding.UTF8.GetBytes("x"));
+
+        public void NotifyDefault(IModel channel) =>
+            channel.BasicPublish("", monitor.CurrentValue.Queue, null, Encoding.UTF8.GetBytes("x"));
+
+        // A name nothing binds: not the default options.
+        public void NotifyUnbound(IModel channel) =>
+            channel.BasicPublish("", monitor.Get("spare").Queue, null, Encoding.UTF8.GetBytes("x"));
+    }
 }
