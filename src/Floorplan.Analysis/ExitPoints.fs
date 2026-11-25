@@ -72,6 +72,15 @@ let private fixedPayload (d: DependencyEffect) =
 
 /// Confidence from the evidence path through a dependency: each call is one step, each virtual call one more,
 /// because virtual dispatch is where a static call graph over-approximates.
+/// Of the effects a dependency reaches in one category, with their payloads, those whose payload is known; one
+/// that says what the effect does (its SQL) before one that says only where it goes (a connection string).
+let private preferred (resolved: ('d * Payload option) list) =
+    let known = resolved |> List.filter (fun (_, p) -> p |> Option.exists (fun p -> p.Kind <> PayloadKind.Dynamic))
+
+    match known |> List.filter (fun (_, p) -> p |> Option.exists (fun p -> p.Role <> "connection")) with
+    | [] -> known
+    | what -> what
+
 let confidenceOf (path: PathStep list) =
     let score = path.Length + (path |> List.filter (fun e -> e.Virtual) |> List.length)
 
@@ -793,7 +802,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                 let shortest = List.minBy (fun (d: DependencyEffect, _) -> d.Steps.Length, d.RuleId)
 
                                 let d, payload =
-                                    match resolved |> List.filter (fun (_, p) -> p |> Option.exists (fun p -> p.Kind <> PayloadKind.Dynamic)) with
+                                    match preferred resolved with
                                     | [] -> shortest resolved
                                     | known -> shortest known
 
@@ -979,7 +988,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                     let shortest = List.minBy (fun (d: DependencyEffect, _) -> d.Steps.Length, d.RuleId)
 
                                     let d, payload =
-                                        match resolved |> List.filter (fun (_, p) -> p |> Option.exists (fun p -> p.Kind <> PayloadKind.Dynamic)) with
+                                        match preferred resolved with
                                         | [] -> shortest resolved
                                         | known -> shortest known
 
@@ -1004,7 +1013,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                 let shortest = List.minBy (fun (d: DependencyEffect, _) -> d.Steps.Length, d.RuleId)
 
                                 let d, payload =
-                                    match resolved |> List.filter (fun (_, p) -> p |> Option.exists (fun p -> p.Kind <> PayloadKind.Dynamic)) with
+                                    match preferred resolved with
                                     | [] -> shortest resolved
                                     | known -> shortest known
 

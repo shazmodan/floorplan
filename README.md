@@ -104,7 +104,9 @@ routes whose URL's host names that system or one of its applications (`billing-a
 call to a route only one other system has, which is drawn dashed as probable, since two deployments can run the
 same route. For hosts that name nothing, `floorplan.landscape.json` in the analyzed folder can say which system
 they are: `{ "hosts": { "api.contoso.com": "SystemB" } }`. A folder (an absolute path) that more than one system
-uses is shown as one element they share. In each solution's own site, a system it talks to is shown as that
+uses is shown as one element they share, and so is a database their connection strings name (the same server and
+database, on a server that is not `localhost`); connection strings are shown with their passwords and keys left
+out. In each solution's own site, a system it talks to is shown as that
 system, opening its site, rather than as the host it is called at. `workspace.dsl` beside the landscape's site
 holds the landscape as a Structurizr workspace, its probable relationships dashed.
 

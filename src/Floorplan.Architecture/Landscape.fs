@@ -477,6 +477,62 @@ let private sharedFolders (parts: Part list) : Map<string, string * string> =
         us |> List.map (fun (_, _, _, source) -> source, ($"external:folder:{key}", name)))
     |> Map.ofList
 
+/// The databases more than one system uses (docs/landscape-plan.md, "Matching", step 5): the same server and
+/// database in the connection strings of their connections (ConnectionString.database). Each source that uses one,
+/// with its element's id and the database's name: the connections opened to it, and every other database use of a
+/// project whose connections all name that one database.
+let private sharedDatabases (parts: Part list) : Map<string, string * string> =
+    let projectOf (p: Part) =
+        let units = p.Model.Units |> List.map (fun u -> u.Id, u.ProjectId) |> Map.ofList
+        fun (x: ExitPoint) -> units.TryFind x.Unit
+
+    // Each known connection: its database, the solution, the project and the source.
+    let connections =
+        [ for p in parts do
+              let project = projectOf p
+
+              for x in p.Model.ExitPoints |> List.filter (shown p.Model) do
+                  match x.Category, x.Payload with
+                  | EffectCategory.Database, Some { Role = "connection"; Kind = PayloadKind.Literal; Value = Some text } ->
+                      match ConnectionString.database text with
+                      | Some(key, name) -> yield key, name, p.Slug, project x, $"{p.Slug}:{x.Id}"
+                      | None -> ()
+                  | _ -> () ]
+
+    let shared =
+        connections
+        |> List.groupBy (fun (key, _, _, _, _) -> key)
+        |> List.filter (fun (_, cs) -> (cs |> List.map (fun (_, _, slug, _, _) -> slug) |> List.distinct).Length >= 2)
+        |> List.map (fun (key, cs) ->
+            let _, name, _, _, _ = cs.Head
+            key, ($"external:database:{key}", name))
+        |> Map.ofList
+
+    // A project whose connections all name one shared database: its other database uses go there as well.
+    let only =
+        connections
+        |> List.groupBy (fun (_, _, slug, project, _) -> slug, project)
+        |> List.choose (fun ((slug, project), cs) ->
+            match cs |> List.map (fun (key, _, _, _, _) -> key) |> List.distinct, project with
+            | [ key ], Some project when shared.ContainsKey key -> Some((slug, project), shared[key])
+            | _ -> None)
+        |> Map.ofList
+
+    [ for (key, _, _, _, source) in connections do
+          match shared.TryFind key with
+          | Some element -> yield source, element
+          | None -> ()
+
+      for p in parts do
+          let project = projectOf p
+
+          for x in p.Model.ExitPoints |> List.filter (shown p.Model) do
+              if x.Category = EffectCategory.Database then
+                  match project x |> Option.bind (fun pr -> only.TryFind(p.Slug, pr)) with
+                  | Some element -> yield $"{p.Slug}:{x.Id}", element
+                  | None -> () ]
+    |> Map.ofList
+
 /// What a source of the landscape is, as its solution's site shows it.
 let private sourceOf (p: Part) : Map<string, LandscapeSource> =
     let label (e: EntryPoint) =
@@ -502,6 +558,7 @@ let private architectureOf (file: LandscapeFile) (parts: Part list) =
     let matches = matchAll file parts
     let matched = matches |> List.map (fun (i, _) -> i.Sources.Head) |> Set.ofList
     let folders = sharedFolders parts
+    let databases = sharedDatabases parts
 
     let systems =
         parts
@@ -528,9 +585,10 @@ let private architectureOf (file: LandscapeFile) (parts: Part list) =
                               Parent = Some(systemId p.Slug)
                               Sources = e.Sources |> List.map (fun s -> $"{p.Slug}:{s}") } ]
 
-    // A folder two systems use is one element, which both reach instead of their own file system.
-    let shared =
-        folders
+    // A folder or database two systems use is one element, which both reach instead of their own file system or
+    // database.
+    let sharedOf (uses: Map<string, string * string>) (description: string) (tag: string) =
+        uses
         |> Map.toList
         |> List.groupBy (fun (_, (id, _)) -> id)
         |> List.map (fun (id, uses) ->
@@ -538,10 +596,14 @@ let private architectureOf (file: LandscapeFile) (parts: Part list) =
               Kind = C4Kind.ExternalSystem
               Name = snd (snd uses.Head)
               Technology = None
-              Description = "A folder more than one system uses"
+              Description = description
               Parent = None
-              Tags = [ "shared folder" ]
+              Tags = [ tag ]
               Sources = uses |> List.map fst |> List.sort })
+
+    let shared =
+        sharedOf folders "A folder more than one system uses" "shared folder"
+        @ sharedOf databases "A database more than one system uses" "shared database"
 
     let outside =
         [ for p in parts do
@@ -566,10 +628,13 @@ let private architectureOf (file: LandscapeFile) (parts: Part list) =
                       let toExternal = not (t.StartsWith "container:" || t.StartsWith "system:")
                       let left = if toExternal then sources |> List.filter (matched.Contains >> not) else sources
 
-                      // A use of a shared folder goes to the folder, not to the system's own file system.
+                      // A use of a shared folder goes to the folder, not to the system's own file system, and one of
+                      // a shared database to the database, not to the database or library the system reaches.
                       let own = $"external:filesystem@{p.Slug}"
                       let at (id: string) (source: string) =
-                          if id = own then folders.TryFind source |> Option.map fst |> Option.defaultValue id else id
+                          if id = own then folders.TryFind source |> Option.map fst |> Option.defaultValue id
+                          elif id.StartsWith "external:" then databases.TryFind source |> Option.map fst |> Option.defaultValue id
+                          else id
 
                       for (f, t), sources in left |> List.groupBy (fun s -> at f s, at t s) do
                           yield

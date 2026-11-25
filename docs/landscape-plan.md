@@ -173,7 +173,7 @@ docs/c4-plan.md.
 | 2 | The landscape model: systems, shared externals, links by messages and by HTTP (a naming host, the landscape file, route only); JSON and `describe` goldens | `claude/landscape-model` | done |
 | 3 | Landscape views and their layout (boundaries per system), Structurizr landscape workspace | `claude/landscape-views` | done |
 | 4 | The landscape site: Solutions, Landscape, Interactions, Diagnostics; back links and cross links in solution sites | `claude/landscape-website` | done |
-| 5 | More matching: shared databases and folders (the landscape file and route-only links came with iteration 2) | `claude/landscape-matching` | done (folders) |
+| 5 | More matching: shared databases and folders (the landscape file and route-only links came with iteration 2) | `claude/landscape-matching`, `claude/landscape-shared-databases` | done |
 | 6 | Documentation, TODO, review on the demo projects (each solution's C4 model knowing the other systems came with iteration 4) | `claude/landscape-docs` | done |
 
 Tests: a new fixture folder `tests/fixtures/Landscape/` with three small solutions made to talk to each other:
@@ -285,3 +285,19 @@ What the prototype found on the fixtures:
   error, the landscape was still written, and the run failed at the end, as designed. The two do not call each
   other, and no link was found. Left for later (TODO.md): shared databases after connection strings are read,
   `--single-file` for a folder, solutions analyzed in parallel.
+- 2026-11-25, shared databases (after TODO 2 made configuration readable). `DbConnection.Open`, `OpenAsync`,
+  `BeginTransaction` and `ChangeDatabase` (and `IDbConnection`'s) now have a payload, role `connection`: the
+  connection's `ConnectionString`, or its constructor's argument, so `new NpgsqlConnection(configuration
+  .GetConnectionString("Ledger"))` shows the string `appsettings.json` gives. Every payload of that role has its
+  secrets replaced by `…` (`Password`, `Pwd`, keys, tokens; `ConnectionString.redact` in Floorplan.Model), so no
+  output holds them. A literal connection string names a database by its server (with its port; `tcp:` and SQL
+  Server's `,port` read) and database, compared without case; `localhost`, `.`, `(local)`, `(localdb)` name none,
+  as each process has its own. A database more than one system connects to is one element
+  (`external:database:<server>/<database>`, tagged "shared database", named "ledger on db.internal:5432"); the
+  connections go there, and so does every other database use (the commands) of a project whose connections all
+  name that one database. The fixture's Billing (from `appsettings.json`) and Shipping (inline, other keys and
+  case) share `ledger`. Not read: Entity Framework Core's `UseSqlServer(connectionString)` and the like (a context's
+  uses are not tied to its registration), Dapper on a connection it opens itself, `DbDataSource`s and connection
+  strings built with a `DbConnectionStringBuilder`. Of the effects a call into a dependency reaches in one
+  category, one whose payload says what it does (Dapper's SQL) is shown before one that only says where it goes
+  (the connection it opens), as the first full run showed Dapper's calls turned into `IDbConnection::Open`.
