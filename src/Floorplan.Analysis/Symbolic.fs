@@ -1349,7 +1349,9 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
         elif m.Name = "get_IsCompleted" then
             // Awaits complete synchronously: the analysis follows the code, not the scheduling.
             one (Const(box 1L))
-        elif (settings.Read m |> Option.exists (fun spec -> spec.Reads <> SettingRead.BindSection && spec.Reads <> SettingRead.BindPath)) then
+        elif (settings.Read m
+              |> Option.exists (fun spec ->
+                  spec.Reads <> SettingRead.BindSection && spec.Reads <> SettingRead.BindPath && spec.Reads <> SettingRead.OptionsBuilder)) then
             // A read of the configuration: a section is an object that knows its path ("" for the root), an
             // options object reads its fields from the section its type is bound to.
             let spec = (settings.Read m).Value
@@ -1405,10 +1407,23 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 | Some sec, Some k -> made configurationSection (Some(Values.Settings.join sec k))
                 | _ -> made configurationSection None
             | _ ->
-                // An options object knows its key when the read names its options type (IOptions<T>.Value).
-                match m.DeclaringTypeArguments with
-                | t :: _ -> made optionsObject (settings.Bound t.FullName)
-                | [] -> made optionsObject None
+                // An options object knows its key when the read names its options type (IOptions<T>.Value) and
+                // the options' name; one of a name not known is at no key.
+                let name =
+                    match spec.Name with
+                    | None -> Some ""
+                    | Some n ->
+                        match arg n with
+                        | Const(:? string as s) -> Some s
+                        | Null -> Some ""
+                        | _ -> None
+
+                match m.DeclaringTypeArguments, name with
+                | t :: _, Some name when (settings.Bound t.FullName name).IsSome -> made optionsObject (settings.Bound t.FullName name)
+                | [], Some "" -> made optionsObject None
+                | _ ->
+                    let id, s = allocate state { Assembly = "System.Runtime"; FullName = optionsObject } site
+                    [ Ref id, update s id (fun o -> { o with Fields = o.Fields.Add("<path>", Unknown) }) ]
         elif m.Type.FullName = "Microsoft.AspNetCore.Routing.Patterns.RoutePatternFactory" && m.Name = "Parse" then
             one (arg 0)
         elif (Values.isTransparent m) && not operands.IsEmpty then
@@ -2171,7 +2186,8 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                                         let at =
                                             match o.Fields.TryFind "<path>" with
                                             | Some(Const(:? string as p)) -> Some p
-                                            | _ -> settings.Bound f.Type.FullName
+                                            | Some _ -> None
+                                            | None -> settings.Bound f.Type.FullName ""
 
                                         match at with
                                         | Some p -> options (Values.Settings.join p (Values.memberOfField f.Name)) t.State

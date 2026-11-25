@@ -445,7 +445,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                         match values.TryGetValue k with
                         | true, v -> Some v
                         | _ -> None
-                  Bound = fun _ -> None
+                  Bound = fun _ _ -> None
                   SectionTypes =
                     matcher.Catalog.Rules
                     |> List.filter (fun r -> r.Kind = Setting && r.Setting |> Option.exists (fun s -> s.Reads = SettingRead.Own))
@@ -494,7 +494,10 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                                                       else
                                                           evaluator.Section(offset, index)
 
-                                                  yield r.TypeArguments.Head.FullName, section
+                                                  // Options of a name not known are bound to nothing read.
+                                                  match evaluator.BindName(offset, r, spec) with
+                                                  | Some name -> yield (r.TypeArguments.Head.FullName, name), section
+                                                  | None -> ()
                                           | None -> ()
                                   | None -> () ]
                 |> List.groupBy fst
@@ -504,7 +507,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                     | _ -> None)
                 |> Map.ofList
 
-            let bound = { unbound with Bound = fun t -> Map.tryFind t binds }
+            let bound = { unbound with Bound = fun t name -> Map.tryFind (t, name) binds }
 
             // Fields an options object is kept in (`_options = options.Value`, or an object inside one): stored in
             // methods that read options, each store at the same key.

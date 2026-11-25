@@ -168,18 +168,26 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
                 | "options" -> SettingRead.Options
                 | "bind-section" -> SettingRead.BindSection
                 | "bind-path" -> SettingRead.BindPath
+                | "options-builder" -> SettingRead.OptionsBuilder
                 | other -> fail $"{context}: unknown setting read \"{other}\"."
 
             let argument =
                 match s.TryGetProperty "argument" with
                 | true, a -> a.GetInt32()
-                | _ when reads = SettingRead.Own || reads = SettingRead.Options -> -1
+                | _ when reads = SettingRead.Own || reads = SettingRead.Options || reads = SettingRead.OptionsBuilder -> -1
                 | _ -> fail $"{context}: a setting read by key names its argument."
+
+            let name =
+                match s.TryGetProperty "name" with
+                | true, n -> Some(n.GetInt32())
+                | _ when reads = SettingRead.OptionsBuilder -> fail $"{context}: an options builder names its argument \"name\"."
+                | _ -> None
 
             Some
                 { Reads = reads
                   Argument = argument
-                  Prefix = str s "prefix" }
+                  Prefix = str s "prefix"
+                  Name = name }
         | _ when k = Setting -> fail $"{context}: setting rules say what they read."
         | _ -> None
 

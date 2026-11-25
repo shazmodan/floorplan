@@ -116,14 +116,15 @@ let private getterName (m: MethodRef) =
     if m.HasThis && m.ParameterCount = 0 && m.ReturnsValue && m.Name.StartsWith "get_" then Some(m.Name.Substring 4) else None
 
 /// What the evaluator knows of the application's configuration: what a call reads of it (the catalog's setting
-/// rules), the value at a key ("Section:Key", ignoring case), the section an options type is bound to, and the
-/// types a configuration section has, which is not the configuration's root when nothing says which section.
-/// `IsSection`: whether a key has keys under it. `OptionsField`: for a field (by its key) the application keeps
-/// an options object in (`_options = options.Value`), the key that object is at.
+/// rules), the value at a key ("Section:Key", ignoring case), the section an options type is bound to under a
+/// name (the default options' name is ""), and the types a configuration section has, which is not the
+/// configuration's root when nothing says which section. `IsSection`: whether a key has keys under it.
+/// `OptionsField`: for a field (by its key) the application keeps an options object in (`_options =
+/// options.Value`), the key that object is at.
 type Settings =
     { Read: MethodRef -> SettingSpec option
       Value: string -> string option
-      Bound: string -> string option
+      Bound: string -> string -> string option
       SectionTypes: Set<string>
       IsSection: string -> bool
       OptionsField: string -> string option }
@@ -132,7 +133,7 @@ module Settings =
     let none: Settings =
         { Read = (fun _ -> None)
           Value = (fun _ -> None)
-          Bound = (fun _ -> None)
+          Bound = (fun _ _ -> None)
           SectionTypes = Set.empty
           IsSection = (fun _ -> false)
           OptionsField = (fun _ -> None) }
@@ -186,12 +187,9 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                     lookup (Settings.join (optionsPath (depth + 1) operands.Head m.Type.FullName).Value (getterName m).Value)
                 | LdFld f when not operands.IsEmpty && (optionsPath (depth + 1) operands.Head f.Type.FullName).IsSome ->
                     lookup (Settings.join (optionsPath (depth + 1) operands.Head f.Type.FullName).Value (memberOfField f.Name))
-                // An options type bound to no single section.
+                // An options type bound to no single section, or options of a name not known.
                 | Call m
-                | CallVirt m when (getterName m).IsSome && not operands.IsEmpty && isOptions operands.Head ->
-                    match settings.Bound m.Type.FullName with
-                    | Some section -> lookup (Settings.join section (getterName m).Value)
-                    | None -> Hole
+                | CallVirt m when (getterName m).IsSome && not operands.IsEmpty && isOptions operands.Head -> Hole
                 | NewArr _ -> arrayElements depth (Set.singleton (Pushed offset))
                 | Call m
                 | CallVirt m when m.Type.FullName = "System.String" && m.Name = "Concat" ->
@@ -335,9 +333,12 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
 
                 match flow.InstructionAt o with
                 | Some { Op = (Call r | CallVirt r) } when settings.Read r |> Option.exists (fun spec -> spec.Reads = SettingRead.Options) ->
-                    match r.DeclaringTypeArguments with
-                    | t :: _ -> settings.Bound t.FullName
-                    | [] -> settings.Bound owner
+                    match optionsName depth r (settings.Read r).Value operands with
+                    | Some name ->
+                        match r.DeclaringTypeArguments with
+                        | t :: _ -> settings.Bound t.FullName name
+                        | [] -> settings.Bound owner name
+                    | None -> None
                 | Some { Op = (Call r | CallVirt r) } when (getterName r).IsSome && not operands.IsEmpty ->
                     optionsPath (depth + 1) operands.Head r.Type.FullName
                     |> Option.map (fun p -> Settings.join p (getterName r).Value)
@@ -351,6 +352,36 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                 | Some { Op = (CastClass _ | IsInst _) } when not operands.IsEmpty -> optionsPath (depth + 1) operands.Head owner
                 | _ -> None
             | _ -> None
+
+    /// The name of the options a setting call reads, binds or builds: the default options' ("") when the rule
+    /// names no argument for it, else the argument's constant (null for the default), when known.
+    and optionsName (depth: int) (m: MethodRef) (spec: SettingSpec) (operands: Values list) : string option =
+        match spec.Name with
+        | None -> Some ""
+        | Some n ->
+            match List.tryItem (operandIndex m n) operands |> Option.map (value (depth + 1)) with
+            | Some(Text name) -> Some name
+            | _ -> None
+
+    /// The name of the options a builder builds (AddOptions<T>(name), passed on by the builder's own methods); a
+    /// value that is no builder made so builds the default options.
+    and builderName (depth: int) (values: Values) : string option =
+        if depth > 12 then
+            None
+        else
+            match Set.toList values with
+            | [ Pushed o ] ->
+                let operands = flow.OperandsAt o
+
+                match flow.InstructionAt o with
+                | Some { Op = (Call r | CallVirt r) } ->
+                    match settings.Read r with
+                    | Some spec when spec.Reads = SettingRead.OptionsBuilder -> optionsName depth r spec operands
+                    | _ when r.ReturnType.StartsWith "Microsoft.Extensions.Options.OptionsBuilder`1" && not operands.IsEmpty ->
+                        builderName (depth + 1) operands.Head
+                    | _ -> Some ""
+                | _ -> Some ""
+            | _ -> Some ""
 
     /// Whether a value is an options object read from the configuration (IOptions<T>.Value).
     and isOptions (values: Values) : bool =
@@ -640,6 +671,16 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
         match List.tryItem index (flow.OperandsAt offset) with
         | Some v -> optionsPath 0 v owner
         | None -> None
+
+    /// The name of the options the setting call at `offset` binds: the one its rule's `Name` argument gives, or else
+    /// the name of the builder it is called on (its first operand), when known.
+    member _.BindName(offset: int, m: MethodRef, spec: SettingSpec) : string option =
+        let operands = flow.OperandsAt offset
+
+        match spec.Name, operands with
+        | Some _, _ -> optionsName 0 m spec operands
+        | None, first :: _ -> builderName 0 first
+        | None, [] -> Some ""
 
     /// The section of the configuration that operand `index` of the instruction at `offset` is, when known.
     member _.Section(offset: int, index: int) : string option =

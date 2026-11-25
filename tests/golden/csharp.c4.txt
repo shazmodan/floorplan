@@ -11,7 +11,7 @@ container | container:CSharp.Endpoints | CSharp.Endpoints | C# · net8.0 | in sy
 container | container:CSharp.Functions | CSharp.Functions | C# · net8.0 | in system | web application,message consumer,background worker | 5 sources
 container | container:CSharp.FunctionsInProcess | CSharp.FunctionsInProcess | C# · net8.0 | in system | web application,message consumer,background worker | 5 sources
 container | container:CSharp.Grpc | CSharp.Grpc | C# · net8.0 | in system | web application | 3 sources
-container | container:CSharp.Messaging | CSharp.Messaging | C# · net8.0 | in system | message consumer | 14 sources
+container | container:CSharp.Messaging | CSharp.Messaging | C# · net8.0 | in system | message consumer | 15 sources
 container | container:CSharp.Middleware | CSharp.Middleware | C# · net8.0 | in system | web application | 9 sources
 container | container:CSharp.Orleans | CSharp.Orleans | C# · net8.0 | in system | web application,message consumer,background worker | 7 sources
 container | container:CSharp.Switch | CSharp.Switch | C# · net8.0 | in system | web application | 10 sources
@@ -220,6 +220,8 @@ code | code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking|CSharp.Grpc.Restockin
 code | code:CSharp.Grpc|CSharp.Grpc:| (response built by a library function) |  (response built by a library function) | type | in component:CSharp.Grpc|CSharp.Grpc: | handles requests | 1 sources
 code | code:CSharp.Grpc|CSharp.Grpc:|Program | Program | type | in component:CSharp.Grpc|CSharp.Grpc: | - | 1 sources
 code | code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.AuditQueue | AuditQueue | type | in component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | - | 1 sources
+code | code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Channels | Channels | type | in component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | handles requests,reaches out | 1 sources
+code | code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Endpoint | Endpoint | type | in component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | - | 1 sources
 code | code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices | Invoices | type | in component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | handles requests,reaches out | 1 sources
 code | code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.QueueNames | QueueNames | type | in component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | - | 1 sources
 code | code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.RabbitOptions | RabbitOptions | type | in component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | - | 1 sources
@@ -281,7 +283,7 @@ code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Re
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule | Schedule | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | - | 1 sources
 code | code:CSharp.Worker|CSharp.Worker:|Program | Program | type | in component:CSharp.Worker|CSharp.Worker: | reaches out | 1 sources
 external-system | external:database | Database | - | in - | - | 47 sources
-external-system | external:filesystem | File system | - | in - | - | 114 sources
+external-system | external:filesystem | File system | - | in - | - | 115 sources
 external-system | external:http | HTTP services | - | in - | - | 8 sources
 external-system | external:http:agent:4317 | agent:4317 | - | in - | - | 1 sources
 external-system | external:http:api.example.org | api.example.org | - | in - | - | 7 sources
@@ -317,7 +319,7 @@ external-system | external:library:MongoDB.Driver | MongoDB.Driver | - | in - | 
 external-system | external:library:NServiceBus | NServiceBus | - | in - | - | 2 sources
 external-system | external:library:OpenTelemetry | OpenTelemetry | - | in - | - | 1 sources
 external-system | external:library:Orleans | Orleans | - | in - | - | 8 sources
-external-system | external:library:RabbitMQ.Client | RabbitMQ.Client | - | in - | - | 12 sources
+external-system | external:library:RabbitMQ.Client | RabbitMQ.Client | - | in - | - | 17 sources
 external-system | external:library:SendGrid | SendGrid | - | in - | - | 1 sources
 external-system | external:library:StackExchange.Redis | StackExchange.Redis | - | in - | - | 6 sources
 external-system | external:native | Native libraries | - | in - | - | 5 sources
@@ -499,6 +501,9 @@ code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking|CSharp.Grpc.Restocking.Resto
 code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking|CSharp.Grpc.Restocking.Restocker -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.Stock | uses | - | 1 sources
 code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Restocking|CSharp.Grpc.Restocking.Restocker -> external:library:Grpc.Core | sends HTTP requests | - | 1 sources
 code:CSharp.Grpc|CSharp.Grpc:|Program -> code:CSharp.Grpc|CSharp.Grpc:CSharp.Grpc.Inventory|CSharp.Grpc.Inventory.StockService | uses | - | 1 sources
+code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Channels -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Endpoint | uses | - | 1 sources
+code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Channels -> external:filesystem | writes files | - | 1 sources
+code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Channels -> external:library:RabbitMQ.Client | sends and receives over the network | - | 4 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.AuditQueue | uses | - | 1 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices -> external:filesystem | writes files | - | 4 sources
 code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices -> external:library:RabbitMQ.Client | sends and receives over the network | - | 2 sources
@@ -615,6 +620,7 @@ external:library:Microsoft.Azure.WebJobs -> code:CSharp.FunctionsInProcess|CShar
 external:library:NServiceBus -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales|CSharp.Messaging.Sales.PlaceOrderHandler | delivers messages to | - | 1 sources
 external:library:Orleans -> code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Orders|CSharp.Silo.Orders.OrderGrain | delivers messages to | - | 2 sources
 external:library:Orleans -> code:CSharp.Orleans|CSharp.Orleans:CSharp.Silo.Stock|CSharp.Silo.Stock.StockGrain | delivers messages to | - | 1 sources
+external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Channels | delivers messages to | - | 1 sources
 external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices | delivers messages to | - | 4 sources
 external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Settlements | delivers messages to | - | 1 sources
 external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders|CSharp.Messaging.Orders.Listener | delivers messages to | - | 2 sources
@@ -668,12 +674,12 @@ view context | context of system | 45 elements | 2370 x 2737
   external:library:Microsoft.Azure.WebJobs -> system | delivers messages to | - | 1 sources
   external:library:NServiceBus -> system | delivers messages to | - | 1 sources
   external:library:Orleans -> system | delivers messages to | - | 3 sources
-  external:library:RabbitMQ.Client -> system | delivers messages to | - | 8 sources
+  external:library:RabbitMQ.Client -> system | delivers messages to | - | 9 sources
   external:library:StackExchange.Redis -> system | delivers messages to | - | 1 sources
   person:user -> system | sends HTTP requests to | HTTP | 88 sources
   system -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 47 sources
   system -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 10 more | 36 sources
-  system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 77 sources
+  system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 78 sources
   system -> external:http | sends HTTP requests | AWSSDK.SQS, Flurl.Http, HTTP and 1 more | 8 sources
   system -> external:http:agent:4317 | sends HTTP requests | OpenTelemetry | 1 sources
   system -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
@@ -708,7 +714,7 @@ view context | context of system | 45 elements | 2370 x 2737
   system -> external:library:OpenTelemetry | sends HTTP requests | - | 1 sources
   system -> external:library:Orleans | reads and writes data | - | 2 sources
   system -> external:library:Orleans | sends and receives over the network | - | 3 sources
-  system -> external:library:RabbitMQ.Client | sends and receives over the network | - | 4 sources
+  system -> external:library:RabbitMQ.Client | sends and receives over the network | - | 8 sources
   system -> external:library:SendGrid | sends HTTP requests | - | 1 sources
   system -> external:library:StackExchange.Redis | reads and writes data | - | 3 sources
   system -> external:library:StackExchange.Redis | sends and receives over the network | - | 2 sources
@@ -766,12 +772,12 @@ view containers | containers of system | 65 elements | 3168 x 3990
   container:CSharp.Grpc -> external:filesystem | writes files | - | 1 sources
   container:CSharp.Grpc -> external:library:Grpc.Core | sends HTTP requests | - | 1 sources
   container:CSharp.Messaging -> external:filesystem | reads files | NServiceBus.Core | 1 sources
-  container:CSharp.Messaging -> external:filesystem | writes files | NServiceBus.Core | 14 sources
+  container:CSharp.Messaging -> external:filesystem | writes files | NServiceBus.Core | 15 sources
   container:CSharp.Messaging -> external:library:Azure.Messaging.ServiceBus | sends and receives over the network | - | 1 sources
   container:CSharp.Messaging -> external:library:Confluent.Kafka | sends and receives over the network | - | 2 sources
   container:CSharp.Messaging -> external:library:MassTransit | sends and receives over the network | - | 1 sources
   container:CSharp.Messaging -> external:library:NServiceBus | sends and receives over the network | - | 1 sources
-  container:CSharp.Messaging -> external:library:RabbitMQ.Client | sends and receives over the network | - | 4 sources
+  container:CSharp.Messaging -> external:library:RabbitMQ.Client | sends and receives over the network | - | 8 sources
   container:CSharp.Messaging -> external:native | calls native code | Confluent.Kafka | 1 sources
   container:CSharp.Messaging -> external:network | sends and receives over the network | RabbitMQ.Client | 1 sources
   container:CSharp.Messaging -> external:processes | starts or inspects processes | MassTransit | 1 sources
@@ -806,7 +812,7 @@ view containers | containers of system | 65 elements | 3168 x 3990
   external:library:Microsoft.Azure.WebJobs -> container:CSharp.FunctionsInProcess | delivers messages to | - | 1 sources
   external:library:NServiceBus -> container:CSharp.Messaging | delivers messages to | - | 1 sources
   external:library:Orleans -> container:CSharp.Orleans | delivers messages to | - | 3 sources
-  external:library:RabbitMQ.Client -> container:CSharp.Messaging | delivers messages to | - | 8 sources
+  external:library:RabbitMQ.Client -> container:CSharp.Messaging | delivers messages to | - | 9 sources
   external:library:StackExchange.Redis -> container:CSharp.Clients | delivers messages to | - | 1 sources
   person:user -> container:CSharp.Blazor | sends HTTP requests to | HTTP | 7 sources
   person:user -> container:CSharp.Controllers | sends HTTP requests to | HTTP | 16 sources
@@ -975,8 +981,8 @@ view components:CSharp.Messaging | components of container:CSharp.Messaging | 17
   component:CSharp.Messaging|CSharp.Messaging: -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders | uses | - | 1 sources
   component:CSharp.Messaging|CSharp.Messaging: -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Payments | uses | - | 1 sources
   component:CSharp.Messaging|CSharp.Messaging: -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping | uses | - | 1 sources
-  component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured -> external:filesystem | writes files | - | 5 sources
-  component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured -> external:library:RabbitMQ.Client | sends and receives over the network | - | 3 sources
+  component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured -> external:filesystem | writes files | - | 6 sources
+  component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured -> external:library:RabbitMQ.Client | sends and receives over the network | - | 7 sources
   component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders -> external:filesystem | writes files | - | 2 sources
   component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders -> external:network | sends and receives over the network | RabbitMQ.Client | 1 sources
   component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Payments -> external:filesystem | writes files | - | 1 sources
@@ -997,7 +1003,7 @@ view components:CSharp.Messaging | components of container:CSharp.Messaging | 17
   external:library:Confluent.Kafka -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Refunds | delivers messages to | - | 1 sources
   external:library:MassTransit -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping | delivers messages to | - | 1 sources
   external:library:NServiceBus -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Sales | delivers messages to | - | 1 sources
-  external:library:RabbitMQ.Client -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | delivers messages to | - | 5 sources
+  external:library:RabbitMQ.Client -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | delivers messages to | - | 6 sources
   external:library:RabbitMQ.Client -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders | delivers messages to | - | 2 sources
   external:library:RabbitMQ.Client -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Refunds | delivers messages to | - | 1 sources
 view components:CSharp.Middleware | components of container:CSharp.Middleware | 3 elements | 314 x 802
@@ -1361,7 +1367,10 @@ view code:CSharp.Messaging|CSharp.Messaging: | code of component:CSharp.Messagin
   code:CSharp.Messaging|CSharp.Messaging:|Program -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders | uses | - | 1 sources
   code:CSharp.Messaging|CSharp.Messaging:|Program -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Payments | uses | - | 1 sources
   code:CSharp.Messaging|CSharp.Messaging:|Program -> component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Shipping | uses | - | 1 sources
-view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | code of component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | 7 elements | 594 x 1262
+view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | code of component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | 9 elements | 912 x 1262
+  code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Channels -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Endpoint | uses | - | 1 sources
+  code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Channels -> external:filesystem | writes files | - | 1 sources
+  code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Channels -> external:library:RabbitMQ.Client | sends and receives over the network | - | 4 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.AuditQueue | uses | - | 1 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices -> external:filesystem | writes files | - | 4 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices -> external:library:RabbitMQ.Client | sends and receives over the network | - | 2 sources
@@ -1370,6 +1379,7 @@ view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured | code o
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Settlements -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.RabbitOptions | uses | - | 1 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Settlements -> external:filesystem | writes files | - | 1 sources
   code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Settlements -> external:library:RabbitMQ.Client | sends and receives over the network | - | 1 sources
+  external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Channels | delivers messages to | - | 1 sources
   external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Invoices | delivers messages to | - | 4 sources
   external:library:RabbitMQ.Client -> code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Configured|CSharp.Messaging.Configured.Settlements | delivers messages to | - | 1 sources
 view code:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders | code of component:CSharp.Messaging|CSharp.Messaging:CSharp.Messaging.Orders | 5 elements | 632 x 691

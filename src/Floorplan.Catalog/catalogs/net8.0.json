@@ -1064,6 +1064,19 @@
       "kind": "setting", "setting": { "reads": "bind-section", "argument": 1 } },
     { "id": "setting.options-bind-configuration", "assembly": "Microsoft.Extensions.Options.ConfigurationExtensions",
       "type": "Microsoft.Extensions.DependencyInjection.OptionsBuilderConfigurationExtensions", "members": ["BindConfiguration"],
-      "kind": "setting", "setting": { "reads": "bind-path", "argument": 1 } }
+      "kind": "setting", "setting": { "reads": "bind-path", "argument": 1 } },
+    // Named options: read by name, bound by name, or bound through a builder made for a name.
+    { "id": "setting.options-monitor-named", "assembly": "Microsoft.Extensions.Options", "type": "Microsoft.Extensions.Options.IOptionsMonitor`1",
+      "members": ["Get"], "includeDerivedTypes": true, "kind": "setting", "setting": { "reads": "options", "name": 0 } },
+    { "id": "setting.options-snapshot-named", "assembly": "Microsoft.Extensions.Options", "type": "Microsoft.Extensions.Options.IOptionsSnapshot`1",
+      "members": ["Get"], "includeDerivedTypes": true, "kind": "setting", "setting": { "reads": "options", "name": 0 } },
+    { "id": "setting.options-configure-named", "assembly": "Microsoft.Extensions.Options.ConfigurationExtensions",
+      "type": "Microsoft.Extensions.DependencyInjection.OptionsConfigurationServiceCollectionExtensions", "members": ["Configure"],
+      "whenParameters": ["Microsoft.Extensions.DependencyInjection.IServiceCollection", "System.String", "Microsoft.Extensions.Configuration.IConfiguration"],
+      "kind": "setting", "setting": { "reads": "bind-section", "argument": 2, "name": 1 } },
+    { "id": "setting.options-builder-named", "assembly": "Microsoft.Extensions.Options",
+      "type": "Microsoft.Extensions.DependencyInjection.OptionsServiceCollectionExtensions", "members": ["AddOptions"],
+      "whenParameters": ["Microsoft.Extensions.DependencyInjection.IServiceCollection", "System.String"],
+      "kind": "setting", "setting": { "reads": "options-builder", "name": 1 } }
   ]
 }
