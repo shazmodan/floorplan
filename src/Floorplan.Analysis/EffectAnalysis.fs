@@ -426,6 +426,18 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
             let matcher: Matcher = this.MatcherFor project
             let values = Configured.appSettings (IO.Path.GetDirectoryName project.AssemblyPath)
 
+            // The keys with keys under them: "A" and "A:B" for "A:B:C".
+            let sections =
+                let s = HashSet<string>(StringComparer.OrdinalIgnoreCase)
+
+                for k in values.Keys do
+                    let parts = k.Split ':'
+
+                    for n in 1 .. parts.Length - 1 do
+                        s.Add(String.Join(":", parts, 0, n)) |> ignore
+
+                s
+
             let unbound: Values.Settings =
                 { Read = matcher.Setting
                   Value =
@@ -438,7 +450,9 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                     matcher.Catalog.Rules
                     |> List.filter (fun r -> r.Kind = Setting && r.Setting |> Option.exists (fun s -> s.Reads = SettingRead.Own))
                     |> List.map (fun r -> r.Type)
-                    |> Set.ofList }
+                    |> Set.ofList
+                  IsSection = fun k -> sections.Contains k
+                  OptionsField = fun _ -> None }
 
             // Configure<T>(section), AddOptions<T>().Bind(section) and BindConfiguration(path), with a constant
             // section: an options type bound to two sections is bound to neither.
@@ -490,7 +504,52 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                     | _ -> None)
                 |> Map.ofList
 
-            let s = { unbound with Bound = fun t -> Map.tryFind t binds }
+            let bound = { unbound with Bound = fun t -> Map.tryFind t binds }
+
+            // Fields an options object is kept in (`_options = options.Value`, or an object inside one): stored in
+            // methods that read options, each store at the same key.
+            let fields =
+                if binds.IsEmpty then
+                    Map.empty
+                else
+                    let readsOptions (i: Instruction) =
+                        match i.Op with
+                        | Call r
+                        | CallVirt r -> matcher.Setting r |> Option.exists (fun spec -> spec.Reads = SettingRead.Options)
+                        | _ -> false
+
+                    [ for (_, a) in userList do
+                          if closure.Contains a.Name then
+                              for t in a.Types do
+                                  for m in t.Methods do
+                                      match m.Body.Value with
+                                      | Some body when body.Instructions |> Array.exists readsOptions ->
+                                          let stores =
+                                              body.Instructions
+                                              |> Array.choose (fun i ->
+                                                  match i.Op with
+                                                  | StFld f -> Some(i.Offset, f, 1)
+                                                  | StSFld f -> Some(i.Offset, f, 0)
+                                                  | _ -> None)
+
+                                          if stores.Length > 0 then
+                                              match DataFlow.ofMethod m with
+                                              | Some flow ->
+                                                  let evaluator =
+                                                      Values.Evaluator(flow, recognizers, Values.constantReturn set, (fun m n -> producers.Member(m, n)), bound)
+
+                                                  for (offset, f, index) in stores do
+                                                      yield f.Key, evaluator.OptionsPath(offset, index, f.FieldType)
+                                              | None -> ()
+                                      | _ -> () ]
+                    |> List.groupBy fst
+                    |> List.choose (fun (f, paths) ->
+                        match paths |> List.map snd |> List.distinct with
+                        | [ Some p ] -> Some(f, p)
+                        | _ -> None)
+                    |> Map.ofList
+
+            let s = { bound with OptionsField = fun f -> Map.tryFind f fields }
             settings[project.ProjectId] <- s
             s
 

@@ -210,4 +210,35 @@ namespace CSharp.Messaging.Configured
         public void Notify(IModel channel) =>
             channel.BasicPublish("", configuration["Queues:Invoices"], null, Encoding.UTF8.GetBytes("x"));
     }
+
+    public class RabbitOptions
+    {
+        public QueueNames Queues { get; set; } = new();
+    }
+
+    public class QueueNames
+    {
+        public string Settlements { get; set; } = "";
+    }
+
+    // A queue named by a nested options object, kept in a field when the consumer is made.
+    public class Settlements
+    {
+        private readonly RabbitOptions _options;
+
+        public Settlements(IOptions<RabbitOptions> options) => _options = options.Value;
+
+        public static void Configure(IServiceCollection services, IConfiguration configuration) =>
+            services.Configure<RabbitOptions>(configuration.GetSection("Rabbit"));
+
+        public void Start(IModel channel)
+        {
+            var settlements = new EventingBasicConsumer(channel);
+            settlements.Received += (_, e) => File.AppendAllText("settlements.log", e.RoutingKey);
+            channel.BasicConsume(_options.Queues.Settlements, true, settlements);
+        }
+
+        public void Notify(IModel channel) =>
+            channel.BasicPublish("", _options.Queues.Settlements, null, Encoding.UTF8.GetBytes("x"));
+    }
 }

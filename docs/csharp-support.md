@@ -470,7 +470,11 @@ Also new, outside the recognizer:
   `GetRequiredSection`) and a section's own `Value`, an options object (`IOptions<T>.Value`,
   `IOptionsMonitor<T>.CurrentValue`), and the binds that tie an options type to a section in the project's
   code (`Configure<T>(section)`, `AddOptions<T>().Bind(section)`, `BindConfiguration(path)`; a type bound to two
-  sections is bound to neither). A key the files do not have, environment variables and other configuration
+  sections is bound to neither). A property of an object inside an options object is at its path under the
+  section (`options.Value.Rabbit.Queue` at `Section:Rabbit:Queue`), and an options object, or an object inside
+  one, kept in a field (`_options = options.Value` in a constructor) is found again where the field is read:
+  a field every store gives the same key, in the methods that read options, is at that key. A key the files do
+  not have, environment variables and other configuration
   sources stay dynamic. The symbolic run that finds registrations reads them too, so a minimal API route named
   in the configuration has its template. Fixtures: `CSharp.Messaging` (`CSharp.Messaging.Configured`), with
   `appsettings.json` and `appsettings.Production.json`, and `CSharp.Endpoints` (`Configured.cs`).
