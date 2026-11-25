@@ -254,10 +254,11 @@ let tests =
 
               Expect.equal
                   routes
-                  [ Some "GET", Some "/configured/health", Completeness.Complete
+                  [ Some "GET", Some "/configured/docs", Completeness.Complete
+                    Some "GET", Some "/configured/health", Completeness.Complete
                     Some "GET", Some "/configured/status", Completeness.Complete
                     Some "GET", Some "/configured/version", Completeness.Complete ]
-                  "app.Configuration[key], a section's indexer, IOptions<T>.Value of Configure<T>(section)"
+                  "app.Configuration[key], a section's indexer, IOptions<T>.Value of Configure<T>(section) and a nested object of it"
           }
 
           test "a queue named in appsettings.json: by key, through a section, with GetValue, and through bound options" {
@@ -274,8 +275,9 @@ let tests =
                   [ Some "audit-log", Completeness.Complete
                     Some "credits", Completeness.Complete
                     Some "invoices", Completeness.Complete
-                    Some "reminders", Completeness.Complete ]
-                  "configuration[key], GetSection(...).GetSection(...).Value, GetValue<string> (appsettings.Production.json overrides), IOptions<T>.Value of Configure<T>(section)"
+                    Some "reminders", Completeness.Complete
+                    Some "settlements", Completeness.Complete ]
+                  "configuration[key], GetSection(...).GetSection(...).Value, GetValue<string> (appsettings.Production.json overrides), IOptions<T>.Value of Configure<T>(section), a nested options object kept in a field"
 
               let published (memberName: string) =
                   m.ExitPoints
@@ -284,6 +286,11 @@ let tests =
 
               Expect.equal (published "CSharp.Messaging.Configured.Invoices::Notify") [ Some "invoices" ] "a publish to a configured queue"
               Expect.equal (published "CSharp.Messaging.Configured.Invoices::Missing") [ None ] "a key the configuration does not have"
+
+              Expect.equal
+                  (published "CSharp.Messaging.Configured.Settlements::Notify")
+                  [ Some "settlements" ]
+                  "a nested options object's property, the options kept in a field"
           }
 
           test "Azure Functions: each function is an entry point of its trigger's kind, HTTP routes under host.json's prefix" {

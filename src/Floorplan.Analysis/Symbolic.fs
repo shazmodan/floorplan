@@ -1404,7 +1404,11 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 match under, key () with
                 | Some sec, Some k -> made configurationSection (Some(Values.Settings.join sec k))
                 | _ -> made configurationSection None
-            | _ -> made optionsObject None
+            | _ ->
+                // An options object knows its key when the read names its options type (IOptions<T>.Value).
+                match m.DeclaringTypeArguments with
+                | t :: _ -> made optionsObject (settings.Bound t.FullName)
+                | [] -> made optionsObject None
         elif m.Type.FullName = "Microsoft.AspNetCore.Routing.Patterns.RoutePatternFactory" && m.Name = "Parse" then
             one (arg 0)
         elif (Values.isTransparent m) && not operands.IsEmpty then
@@ -2141,24 +2145,47 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                         | LdFld f ->
                             let v, rest = pop 1
 
-                            let value =
+                            // An options object at a key: the value there, or the object inside it.
+                            let options (key: string) (state: PathState) =
+                                match settings.Value key with
+                                | Some text -> Const(box text), state
+                                | None when settings.IsSection key ->
+                                    let id, s = allocate state { Assembly = "System.Runtime"; FullName = optionsObject } (Some(me, ins.Offset))
+                                    Ref id, update s id (fun o -> { o with Fields = o.Fields.Add("<path>", Const(box key)) })
+                                | None -> Unknown, state
+
+                            // A field the application keeps an options object in, when the object was not seen
+                            // stored (the analysis did not make its owner).
+                            let kept (state: PathState) =
+                                match settings.OptionsField f.Key with
+                                | Some key -> options key state
+                                | None -> Unknown, state
+
+                            let value, state =
                                 match deref t.State v.Head with
                                 | Ref id ->
                                     match t.State.Heap.TryFind id with
                                     | Some o when o.Type.FullName = optionsObject ->
-                                        // A property of an options object: the value under its type's section.
-                                        match settings.Bound f.Type.FullName with
-                                        | Some section ->
-                                            match settings.Value(Values.Settings.join section (Values.memberOfField f.Name)) with
-                                            | Some text -> Const(box text)
-                                            | None -> Unknown
-                                        | None -> Unknown
-                                    | Some o -> o.Fields.TryFind f.Name |> Option.defaultValue (defaultOf f.FieldType)
-                                    | None -> Unknown
-                                | Req tags -> Req tags
-                                | _ -> Unknown
+                                        // A property of an options object: the value at its key, under the key the
+                                        // object is at, or else under its type's section.
+                                        let at =
+                                            match o.Fields.TryFind "<path>" with
+                                            | Some(Const(:? string as p)) -> Some p
+                                            | _ -> settings.Bound f.Type.FullName
 
-                            t <- push value rest
+                                        match at with
+                                        | Some p -> options (Values.Settings.join p (Values.memberOfField f.Name)) t.State
+                                        | None -> Unknown, t.State
+                                    | Some o ->
+                                        match o.Fields.TryFind f.Name with
+                                        | Some stored -> stored, t.State
+                                        | None when (settings.OptionsField f.Key).IsSome -> kept t.State
+                                        | None -> defaultOf f.FieldType, t.State
+                                    | None -> kept t.State
+                                | Req tags -> Req tags, t.State
+                                | _ -> kept t.State
+
+                            t <- { push value rest with State = state }
                         | LdFldA f ->
                             let v, rest = pop 1
 

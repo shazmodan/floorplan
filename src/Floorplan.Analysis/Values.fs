@@ -118,18 +118,24 @@ let private getterName (m: MethodRef) =
 /// What the evaluator knows of the application's configuration: what a call reads of it (the catalog's setting
 /// rules), the value at a key ("Section:Key", ignoring case), the section an options type is bound to, and the
 /// types a configuration section has, which is not the configuration's root when nothing says which section.
+/// `IsSection`: whether a key has keys under it. `OptionsField`: for a field (by its key) the application keeps
+/// an options object in (`_options = options.Value`), the key that object is at.
 type Settings =
     { Read: MethodRef -> SettingSpec option
       Value: string -> string option
       Bound: string -> string option
-      SectionTypes: Set<string> }
+      SectionTypes: Set<string>
+      IsSection: string -> bool
+      OptionsField: string -> string option }
 
 module Settings =
     let none: Settings =
         { Read = (fun _ -> None)
           Value = (fun _ -> None)
           Bound = (fun _ -> None)
-          SectionTypes = Set.empty }
+          SectionTypes = Set.empty
+          IsSection = (fun _ -> false)
+          OptionsField = (fun _ -> None) }
 
     /// A key under a section: the root's keys are its own.
     let join (section: string) (key: string) = if section = "" then key else section + ":" + key
@@ -174,7 +180,13 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                 | Box t when not operands.IsEmpty && isInteger t -> integer (depth + 1) operands.Head
                 | Call m
                 | CallVirt m when (settings.Read m).IsSome -> setting depth m (settings.Read m).Value operands
-                // A property of an options object: the value under the section its type is bound to.
+                // A property of an options object, or of an object inside one: the value at its key.
+                | Call m
+                | CallVirt m when (getterName m).IsSome && not operands.IsEmpty && (optionsPath (depth + 1) operands.Head m.Type.FullName).IsSome ->
+                    lookup (Settings.join (optionsPath (depth + 1) operands.Head m.Type.FullName).Value (getterName m).Value)
+                | LdFld f when not operands.IsEmpty && (optionsPath (depth + 1) operands.Head f.Type.FullName).IsSome ->
+                    lookup (Settings.join (optionsPath (depth + 1) operands.Head f.Type.FullName).Value (memberOfField f.Name))
+                // An options type bound to no single section.
                 | Call m
                 | CallVirt m when (getterName m).IsSome && not operands.IsEmpty && isOptions operands.Head ->
                     match settings.Bound m.Type.FullName with
@@ -308,6 +320,37 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                     section (depth + 1) (flow.OperandsAt o).Head
                 | _ -> Some ""
             | _ -> Some ""
+
+    /// The key of the configuration an options object, or an object inside one, is at: the section its options type
+    /// is bound to, then the properties read to reach it (`options.Value.Rabbit` is at "Section:Rabbit"); an options
+    /// object kept in a field is at the field's key. `owner`: the type whose member is read of the value, taken
+    /// for the options type when the read does not say it.
+    and optionsPath (depth: int) (values: Values) (owner: string) : string option =
+        if depth > 12 then
+            None
+        else
+            match Set.toList values with
+            | [ Pushed o ] ->
+                let operands = flow.OperandsAt o
+
+                match flow.InstructionAt o with
+                | Some { Op = (Call r | CallVirt r) } when settings.Read r |> Option.exists (fun spec -> spec.Reads = SettingRead.Options) ->
+                    match r.DeclaringTypeArguments with
+                    | t :: _ -> settings.Bound t.FullName
+                    | [] -> settings.Bound owner
+                | Some { Op = (Call r | CallVirt r) } when (getterName r).IsSome && not operands.IsEmpty ->
+                    optionsPath (depth + 1) operands.Head r.Type.FullName
+                    |> Option.map (fun p -> Settings.join p (getterName r).Value)
+                | Some { Op = LdFld f } when not operands.IsEmpty ->
+                    match settings.OptionsField f.Key with
+                    | Some p -> Some p
+                    | None ->
+                        optionsPath (depth + 1) operands.Head f.Type.FullName
+                        |> Option.map (fun p -> Settings.join p (memberOfField f.Name))
+                | Some { Op = LdSFld f } -> settings.OptionsField f.Key
+                | Some { Op = (CastClass _ | IsInst _) } when not operands.IsEmpty -> optionsPath (depth + 1) operands.Head owner
+                | _ -> None
+            | _ -> None
 
     /// Whether a value is an options object read from the configuration (IOptions<T>.Value).
     and isOptions (values: Values) : bool =
@@ -590,6 +633,13 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
         | None -> Hole
 
     member _.Value(values: Values) = value 0 values
+
+    /// The key of the configuration that operand `index` of the instruction at `offset` is at, when it is an
+    /// options object or an object inside one.
+    member _.OptionsPath(offset: int, index: int, owner: string) : string option =
+        match List.tryItem index (flow.OperandsAt offset) with
+        | Some v -> optionsPath 0 v owner
+        | None -> None
 
     /// The section of the configuration that operand `index` of the instruction at `offset` is, when known.
     member _.Section(offset: int, index: int) : string option =
