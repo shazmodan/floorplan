@@ -21,10 +21,10 @@ In the order they are worth doing: the first ones change results already shown, 
    - or a copy of the application on this machine, kept untracked like the demo projects.
 2. **Folder of solutions, what is left** (the feature is done, docs/landscape-plan.md): shared databases reached
    through Dapper on a connection it opens itself, and the database of each Entity Framework Core context when one
-   solution has several (a context's calls are not tied to its registration); `--single-file` for a folder of solutions
-   (refused for now); analyzing solutions in parallel, once a run's memory is measured; a run over both demo
-   projects together, once the API demo can be restored (its private package feed is not reachable from this
-   machine, so only the admin demo was analyzed, and no link between them was found).
+   solution has several (a context's calls are not tied to its registration); analyzing solutions in parallel,
+   once a run's memory is measured; a run over both demo projects together, once the API demo can be restored
+   (its private package feed is not reachable from this machine, so only the admin demo was analyzed, and no link
+   between them was found).
 
 ## Later, if wanted (from docs/library-payloads-plan.md)
 

@@ -111,6 +111,62 @@ let renderLandscape (landscape: Landscape) (dir: string) =
     File.SetLastWriteTimeUtc(layout, File.GetLastWriteTimeUtc(dsl).AddSeconds -2.0)
     Path.Combine(dir, "index.html")
 
+/// What one file may hold of a landscape: past it, the landscape is written as a folder. A browser reads the whole
+/// file however much of it a page shows; a solution's model is a few megabytes, so this is some twenty of them.
+let singleFileLimit = 64L * 1024L * 1024L
+
+/// JSON inside a `<script type="application/json">` element: "<" written as an escape, so nothing in it can end
+/// the element or start a comment.
+let private jsonBlock (id: string) (json: string) =
+    $"<script type=\"application/json\" id=\"{id}\">" + json.Replace("<", "\u003c") + "</script>\n"
+
+/// The landscape in one HTML file (`--single-file`): its pages, and every solution's site, which the file opens as
+/// `<file>?solution=<slug>`. Each model is kept as JSON and only the one shown is read. Refused, with the size, when
+/// the file would be larger than `limit`.
+let renderLandscapeFile (landscape: Landscape) (models: (string * AnalysisModel) list) (path: string) (limit: int64) : Result<string, string> =
+    let file =
+        if Path.GetExtension(path).ToLowerInvariant() = ".html" then path
+        else Path.Combine(path, "floorplan.html")
+
+    let solutions =
+        landscape.Solutions |> List.map (fun s -> {| name = s.Name; slug = s.Slug |})
+
+    let link =
+        Json.serializeValue false {| landscape = landscape.Name; solutions = solutions |}
+
+    let blocks =
+        jsonBlock "floorplan-landscape" (Json.serializeValue false landscape)
+        + (models |> List.map (fun (slug, model) -> jsonBlock $"floorplan-solution:{slug}" (Json.serialize false model)) |> String.concat "")
+
+    // Which page the file is: the solution its query names, or the landscape.
+    let choose =
+        "(function () {\n"
+        + "  var m = /[?&]solution=([^&#]*)/.exec(location.search), slug = m ? decodeURIComponent(m[1]) : null;\n"
+        + "  function read(id) { var e = document.getElementById(id); return e ? JSON.parse(e.textContent) : null; }\n"
+        + "  var model = slug ? read(\"floorplan-solution:\" + slug) : null;\n"
+        + "  window.FLOORPLAN_SINGLE_FILE = true;\n"
+        + "  if (model) {\n"
+        + "    var link = " + link.Replace("<", "\u003c") + ";\n"
+        + "    link.current = slug;\n"
+        + "    window.FLOORPLAN_DATA = model;\n"
+        + "    window.FLOORPLAN_LANDSCAPE_LINK = link;\n"
+        + "  } else window.FLOORPLAN_LANDSCAPE = read(\"floorplan-landscape\");\n"
+        + "})();\n"
+
+    // The models go before the script that reads them; with "<" escaped, none can match what inline' replaces.
+    let page = (asset "index.html").Replace("<script src=\"data.js\"></script>", blocks + "<script src=\"data.js\"></script>")
+    let html = inline' page (asset "app.css") (asset "app.js") choose
+
+    let size = int64 (System.Text.Encoding.UTF8.GetByteCount html)
+
+    if size > limit then
+        let mb (n: int64) = float n / (1024.0 * 1024.0)
+        Error(sprintf "The landscape would be %.0f MB in one file, more than the %.0f MB one file is allowed; write it as a folder (without --single-file)." (mb size) (mb limit))
+    else
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath file)) |> ignore
+        File.WriteAllText(file, html)
+        Ok file
+
 let create () =
     { new IRenderer with
         member _.Name = "site"

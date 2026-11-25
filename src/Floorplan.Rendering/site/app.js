@@ -5,7 +5,8 @@
   "use strict";
 
   // A folder of solutions analyzed as one landscape (docs/landscape-plan.md) has pages of its own and shows its C4
-  // model on the Architecture page; each solution's site, under solutions/<slug>/, links back to it.
+  // model on the Architecture page; each solution's site, under solutions/<slug>/ (or in the same file, with
+  // --single-file), links back to it.
   var LANDSCAPE = window.FLOORPLAN_LANDSCAPE || null;
   var LANDSCAPE_LINK = window.FLOORPLAN_LANDSCAPE_LINK || null;
   var D = window.FLOORPLAN_DATA || landscapeModel(LANDSCAPE);
@@ -76,6 +77,13 @@
   function fileName(path) { return path ? path.split(/[\\/]/).pop() : ""; }
   function loc(l) { return l ? fileName(l.file) + ":" + l.startLine : ""; }
   function enc(s) { return encodeURIComponent(s); }
+  // A page of a solution's site (slug), or of the landscape's (null). Written as one file (--single-file), the
+  // landscape holds every site, each opened as the file with ?solution=<slug>; otherwise solutions/<slug>/ holds one.
+  function siteHref(slug, hash) {
+    if (window.FLOORPLAN_SINGLE_FILE) return (location.pathname.split("/").pop() || "") + (slug ? "?solution=" + enc(slug) : "") + hash;
+    if (LANDSCAPE_LINK) return (slug ? "../" + enc(slug) + "/" : "../../") + "index.html" + hash;
+    return "solutions/" + enc(slug) + "/index.html" + hash;
+  }
 
   var KIND_LABEL = { module: ["Module", "Modules"], namespace: ["Namespace", "Namespaces"], type: ["Type", "Types"], folder: ["Folder", "Folders"], project: ["Project", "Projects"] };
   function kindLabel(kind, many) { var k = KIND_LABEL[kind] || ["Unit", "Units"]; return many ? k[1] : k[0]; }
@@ -190,10 +198,10 @@
     var switcher = el("select", { "aria-label": "Solution" }, LANDSCAPE_LINK.solutions.map(function (s) {
       return el("option", { value: s.slug, selected: s.slug === LANDSCAPE_LINK.current ? "selected" : null }, s.name);
     }));
-    switcher.addEventListener("change", function () { location.href = "../" + enc(switcher.value) + "/index.html" + location.hash; });
+    switcher.addEventListener("change", function () { location.href = siteHref(switcher.value, location.hash); });
     var nav0 = document.getElementById("nav");
     nav0.parentNode.insertBefore(el("div", { class: "landscape-bar" },
-      el("a", { href: "../../index.html#/solutions", title: "Every solution in " + LANDSCAPE_LINK.landscape }, "◂ Solutions"),
+      el("a", { href: siteHref(null, "#/solutions"), title: "Every solution in " + LANDSCAPE_LINK.landscape }, "◂ Solutions"),
       switcher), nav0);
     document.title = (current ? current.name + " · " : "") + LANDSCAPE_LINK.landscape + " · Floorplan";
   }
@@ -272,12 +280,12 @@
     if (!e) return null;
     // In a solution's site: another system of its landscape, in that system's site.
     var other = LANDSCAPE_LINK && /^external:system:(.+)$/.exec(e.id);
-    if (other) return { href: "../" + enc(other[1]) + "/index.html#/architecture", solution: e.name };
+    if (other) return { href: siteHref(other[1], "#/architecture"), solution: e.name };
     if (!LANDSCAPE) return null;
     var m = /^(system|container):([^\/]+)(?:\/(.*))?$/.exec(e.id);
     if (!m) return null;
     var page = m[1] === "container" ? "architecture/components:" + enc(m[3]) : "architecture";
-    return { href: "solutions/" + enc(m[2]) + "/index.html#/" + page, solution: systemName("system:" + m[2]) };
+    return { href: siteHref(m[2], "#/" + page), solution: systemName("system:" + m[2]) };
   }
 
   // The views from the system down to this one: context, containers, a container's components, a component's code.
@@ -1781,13 +1789,13 @@
         return el("tr", null, cells.map(function (c, i) { return el("td", { class: columnAlign(i, cells.length) }, c); }));
       }))));
   }
-  function solutionHref(s, page) { return "solutions/" + enc(s.slug) + "/index.html#/" + (page || "overview"); }
+  function solutionHref(s, page) { return siteHref(s.slug, "#/" + (page || "overview")); }
   function systemName(id) { var e = c4Elements[id]; return e ? e.name : id; }
   function landscapeSource(id) { return (LANDSCAPE.sources || []).filter(function (s) { return s.id === id; })[0] || null; }
   function sourceHref(id) {
     var s = landscapeSource(id), slug = id.split(":")[0];
     var sol = LANDSCAPE.solutions.filter(function (x) { return x.slug === slug; })[0];
-    return s && sol ? "solutions/" + enc(sol.slug) + "/index.html" + s.page : null;
+    return s && sol ? siteHref(sol.slug, s.page) : null;
   }
 
   function solutions() {

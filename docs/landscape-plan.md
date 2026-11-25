@@ -310,3 +310,12 @@ What the prototype found on the fixtures:
   connections all name. The fixture's Orders now has Orders.Data, whose `SaveChanges` reaches `ledger` through
   the context Orders.Api registers with `UseNpgsql`. Left: several contexts on several databases in one solution
   (their calls go to none), and Dapper on a connection it opens itself.
+- 2026-11-25, `--single-file` for a folder of solutions. One HTML file holds the landscape and every solution's
+  model, each as JSON in a `<script type="application/json">` element ("<" escaped), so only the one shown is
+  parsed. The file is the landscape; with `?solution=<slug>` it is that solution's site (a small script picks the
+  model and sets `FLOORPLAN_DATA` and `FLOORPLAN_LANDSCAPE_LINK`, or `FLOORPLAN_LANDSCAPE`), and every link
+  between the sites (`siteHref` in app.js) stays in the file. No `workspace.dsl`, as with one solution. Measured:
+  the fixture's three solutions are 0.3 MB; a real solution's model is 2-4 MB (the admin demo's `data.js` 3.8 MB).
+  A file over 64 MB (some twenty real solutions) is refused with its size, to be written as a folder
+  (`WebsiteRenderer.singleFileLimit`). `Pipeline.writeLandscape` writes a derived landscape, so tests write it
+  without analyzing again.
