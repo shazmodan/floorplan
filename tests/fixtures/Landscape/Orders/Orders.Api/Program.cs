@@ -1,16 +1,20 @@
 // The Orders system of the landscape fixture (docs/landscape-plan.md). It calls Billing at a host that names it,
 // sends Shipping the orders to ship through a queue Shipping consumes, calls a service outside the landscape, and
-// keeps its orders in the ledger database Billing and Shipping connect to, through Entity Framework Core.
+// keeps its orders in the ledger database Billing and Shipping connect to, and its stock in the one Shipping
+// connects to, through two Entity Framework Core contexts.
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<Orders.Data.OrdersContext>(o => o.UseNpgsql(builder.Configuration.GetConnectionString("Ledger")));
+builder.Services.AddDbContext<Orders.Data.StockContext>(o => o.UseNpgsql(builder.Configuration.GetConnectionString("Stock")));
+builder.Services.AddScoped<Orders.Data.StockLog>();
 var app = builder.Build();
 app.MapGet("/orders/{id}", (string id) => Orders.Api.Invoices.Of(id));
 app.MapPost("/orders", (string id) => Orders.Api.Shipments.Ship(id));
 app.MapPost("/orders/{id}/log", (Orders.Data.OrdersContext db, string id) => Orders.Data.OrderLog.Record(db, id));
+app.MapPost("/stock/{id}", (Orders.Data.StockLog stock, int id) => stock.Take(id));
 app.MapPut("/orders/{id}/delivered", (string id) => Orders.Api.Stock.Check(id));
 app.Run();
 

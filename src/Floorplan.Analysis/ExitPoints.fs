@@ -217,6 +217,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
 
     // Following a query into the methods that return it: bodies outside the shared framework, read once.
     let bodies = Dictionary<string, (MethodDef * DataFlow.Flow) option>()
+    let efContexts = EfContexts.Contexts(ctx.Set, assembly)
 
     let queries: Queries.Context =
         { Matcher = ctx.Matcher
@@ -734,6 +735,11 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                           Primitive = primitive
                                           Payload = payload
                                           ViaAssembly = via
+                                          Context =
+                                              if category = EffectCategory.Database then
+                                                  efContexts.At(m, flow.Value, ins.Offset, declared)
+                                              else
+                                                  None
                                           Confidence = confidence
                                           Evidence = { Steps = steps } }
                                       SortKey = sortKey u.Id location ins.Offset category ruleId }
@@ -1062,6 +1068,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                   Primitive = d.Primitive
                   Payload = g.Payload
                   ViaAssembly = Some g.ViaAssembly
+                  Context = None
                   Confidence = confidenceOf d.Steps
                   Evidence = { Steps = steps } }
               SortKey = sortKey g.Unit (location first) first.Offset g.Category d.RuleId }

@@ -10,6 +10,7 @@
     <Compile Include="Wcf.fs" />
     <Compile Include="Queries.fs" />
     <Compile Include="DynamicSites.fs" />
+    <Compile Include="EfContexts.fs" />
     <Compile Include="ExitPoints.fs" />
     <Compile Include="Taint.fs" />
     <Compile Include="PlatformRouting.fs" />

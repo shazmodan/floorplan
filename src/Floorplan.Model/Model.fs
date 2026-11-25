@@ -219,6 +219,9 @@ type ExitPoint =
       Payload: Payload option
       /// The dependency assembly the call went through, if any.
       ViaAssembly: string option
+      /// For a database call through Entity Framework Core, the context type it is made on, or for where a
+      /// context is given its connection string, that context; when the code shows which.
+      Context: string option
       Confidence: Confidence
       Evidence: Evidence }
 
@@ -372,9 +375,9 @@ type AnalysisModel =
 
 module AnalysisModel =
     /// 2: the C4 model (Architecture). 3: dependencies between types, and what an entry point is registered
-    /// through.
+    /// through. 4: the Entity Framework Core context of a database exit point.
     [<Literal>]
-    let CurrentSchemaVersion = 3
+    let CurrentSchemaVersion = 4
 
     let emptyArchitecture =
         { Elements = []

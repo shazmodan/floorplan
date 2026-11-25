@@ -27,5 +27,12 @@ namespace Shipping.Worker
             using var connection = new Npgsql.NpgsqlConnection("Server=DB.internal;Port=5432;Database=Ledger;User Id=shipping;Password=other");
             connection.Open();
         }
+
+        // The stock database Orders keeps through a context of its own.
+        public static void Packed()
+        {
+            using var connection = new Npgsql.NpgsqlConnection("Host=stock-db.internal;Database=stock;Username=shipping");
+            connection.Open();
+        }
     }
 }

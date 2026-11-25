@@ -1762,7 +1762,8 @@
     append(page, [
       el("p", { class: "muted" }, el("a", { href: kind === "entry" ? "#/entry-points" : "#/exit-points" }, "← Back")),
       el("h1", { class: kind === "entry" ? "mono" : null }, title),
-      el("p", { class: "sub" }, kind === "entry" ? ["Handled by ", unitLink(item.handlerUnit), " · ", el("span", { class: "tag " + item.completeness }, item.completeness)] : ["Rule ", el("code", null, item.ruleId), " · primitive ", el("code", null, item.primitive)])
+      el("p", { class: "sub" }, kind === "entry" ? ["Handled by ", unitLink(item.handlerUnit), " · ", el("span", { class: "tag " + item.completeness }, item.completeness)] : ["Rule ", el("code", null, item.ruleId), " · primitive ", el("code", null, item.primitive),
+          item.context ? [" · context ", el("code", { title: item.context }, item.context.split(".").pop())] : null])
     ]);
     if (kind === "entry" && item.predicates.length) {
       append(page, [el("h2", null, "Conditions on the request"), el("ul", null, item.predicates.map(function (p) { return el("li", null, el("code", null, predicateText(p)), p.location ? el("span", { class: "muted" }, " at " + loc(p.location)) : null); }))]);
