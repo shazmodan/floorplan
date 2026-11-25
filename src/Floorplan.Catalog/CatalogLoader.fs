@@ -169,6 +169,7 @@ let private parseRule (source: string) (e: JsonElement) : Rule =
                 | "bind-section" -> SettingRead.BindSection
                 | "bind-path" -> SettingRead.BindPath
                 | "options-builder" -> SettingRead.OptionsBuilder
+                | "json-file" -> SettingRead.JsonFile
                 | other -> fail $"{context}: unknown setting read \"{other}\"."
 
             let argument =

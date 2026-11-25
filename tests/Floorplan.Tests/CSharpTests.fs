@@ -256,9 +256,10 @@ let tests =
                   routes
                   [ Some "GET", Some "/configured/docs", Completeness.Complete
                     Some "GET", Some "/configured/health", Completeness.Complete
+                    Some "GET", Some "/configured/ping", Completeness.Complete
                     Some "GET", Some "/configured/status", Completeness.Complete
                     Some "GET", Some "/configured/version", Completeness.Complete ]
-                  "app.Configuration[key], a section's indexer, IOptions<T>.Value of Configure<T>(section) and a nested object of it"
+                  "app.Configuration[key], a section's indexer, IOptions<T>.Value of Configure<T>(section) and a nested object of it, a key AddJsonFile's file gives over appsettings.json"
           }
 
           test "a queue named in appsettings.json: by key, through a section, with GetValue, and through bound options" {

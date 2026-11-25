@@ -20,6 +20,10 @@ public static class Routes
     public static void Configure(IServiceCollection services, IConfiguration configuration) =>
         services.Configure<StatusOptions>(configuration.GetSection("Status"));
 
+    // Another file over appsettings.json.
+    public static void AddFiles(IConfigurationBuilder configuration) =>
+        configuration.AddJsonFile("routes.json", optional: true);
+
     public static void Map(WebApplication app)
     {
         app.MapGet(app.Configuration["Routes:Health"]!, () => "healthy");
@@ -32,5 +36,8 @@ public static class Routes
 
         // A property of a nested options object.
         app.MapGet(status.Links.Docs, () => "docs");
+
+        // A key routes.json gives, over appsettings.json's.
+        app.MapGet(app.Configuration["Extra:Ping"]!, () => "pong");
     }
 }

@@ -19,12 +19,8 @@ In the order they are worth doing: the first ones change results already shown, 
      or returning `Async`/`Task`, routes split across modules, one very large match, the startup and middleware
      wiring;
    - or a copy of the application on this machine, kept untracked like the demo projects.
-2. **Read more of the configuration**: values read from `appsettings.json` by a constant key, sections, options
-   bound to a section (with nested objects, kept in fields, and named) are read, but not other configuration
-   sources (environment variables, `AddJsonFile("other.json")`). Being built without a probe (no application on
-   this machine reads its configuration).
-3. **Folder of solutions, what is left** (the feature is done, docs/landscape-plan.md): shared databases, once
-   connection strings are read (after item 2); `--single-file` for a folder of solutions (refused for now);
+2. **Folder of solutions, what is left** (the feature is done, docs/landscape-plan.md): shared databases, now that
+   connection strings are read; `--single-file` for a folder of solutions (refused for now);
    analyzing solutions in parallel, once a run's memory is measured; a run over both demo projects together, once
    the API demo can be restored (its private package feed is not reachable from this machine, so only the admin
    demo was analyzed, and no link between them was found).
