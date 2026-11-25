@@ -769,7 +769,16 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
     /// A callee's origin evaluated at the call at `offset`, as a value: what the user's call site passes.
     member _.Resolve(callee: Origin, offset: int, isNewObj: bool) : Symbolic = resolveAt 0 callee offset isNewObj
 
+    /// As a payload: literal, template or dynamic. A connection string's secrets are never kept.
     static member ToPayload(value: Symbolic, role: string) : Payload =
+        let p = Evaluator.Shown(value, role)
+
+        if role = "connection" then
+            { p with Value = p.Value |> Option.map ConnectionString.redact }
+        else
+            p
+
+    static member private Shown(value: Symbolic, role: string) : Payload =
         match value with
         | Text t ->
             { Role = role

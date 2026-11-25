@@ -113,9 +113,9 @@ database | CSharp.Dapr:CSharp.Dapr.Payouts | CSharp.Dapr.Payouts.Ledger/<Record>
 database | CSharp.Dapr:CSharp.Dapr.Payouts | CSharp.Dapr.Payouts.Ledger/<Record>d__0::MoveNext | Dapr.Client.DaprClient::GetStateAsync | via - | literal:ledger | CSharp/CSharp.Dapr/Program.cs:28
 database | CSharp.Dapr:CSharp.Dapr.Payouts | CSharp.Dapr.Payouts.Ledger/<Record>d__0::MoveNext | Dapr.Client.DaprClient::DeleteStateAsync | via - | literal:ledger | CSharp/CSharp.Dapr/Program.cs:29
 filesystem-write | CSharp.Dapr:CSharp.Dapr.Receipts | CSharp.Dapr.Receipts.ReceiptsController/<OnReceipt>d__0::MoveNext | System.IO.File::AppendAllTextAsync | via - | literal:receipts.log | CSharp/CSharp.Dapr/Program.cs:47
-database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Sqlite | System.Data.Common.DbConnection::Open | via - | - | CSharp/CSharp.Effects/Database.cs:12
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Sqlite | System.Data.Common.DbConnection::Open | via - | literal:Data Source=app.db | CSharp/CSharp.Effects/Database.cs:12
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Sqlite | System.Data.Common.DbCommand::ExecuteNonQuery | via - | literal:DELETE FROM sessions | CSharp/CSharp.Effects/Database.cs:15
-database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Postgres | System.Data.Common.DbConnection::Open | via - | - | CSharp/CSharp.Effects/Database.cs:21
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Postgres | System.Data.Common.DbConnection::Open | via - | literal:Host=localhost | CSharp/CSharp.Effects/Database.cs:21
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Postgres | System.Data.Common.DbCommand::ExecuteScalar | via - | literal:SELECT count(*) FROM orders | CSharp/CSharp.Effects/Database.cs:23
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Purge | System.Data.Common.DbCommand::ExecuteNonQuery | via - | template:DELETE FROM {…} | CSharp/CSharp.Effects/Database.cs:32
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Database::Run | System.Data.Common.DbCommand::ExecuteNonQuery | via - | dynamic:- | CSharp/CSharp.Effects/Database.cs:36

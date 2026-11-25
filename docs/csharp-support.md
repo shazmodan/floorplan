@@ -447,6 +447,10 @@ Also new, outside the recognizer:
   set as a property, in an object initializer or through the constructor; built from values it is a template
   (`DELETE FROM {…}`), and a command made elsewhere stays dynamic. A request's URL is read the same way
   (`RequestUri`, or the URL given to `new HttpRequestMessage(method, url)`).
+- **Connection strings** (F# and C#): a connection's `Open`, `OpenAsync`, `BeginTransaction` and `ChangeDatabase`
+  have its `ConnectionString` as their payload (role `connection`), read like SQL text, from configuration too.
+  Passwords, keys and tokens in it are replaced by `…` before anything is recorded. A folder of solutions uses it
+  to show a database more than one system connects to (`docs/landscape-plan.md`).
 - **Payloads through libraries** (F# and C#, `docs/library-payloads-plan.md`): for an effect behind a dependency,
   the payload is worked out from the dependency's own code, in terms of its arguments, and evaluated at the call
   site; no rule names the library. Arguments passed on, text built from them, properties and fields of objects

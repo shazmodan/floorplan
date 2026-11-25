@@ -22,6 +22,10 @@ namespace Shipping.Worker
             Http.PutAsync("https://api.example.com/orders/" + id + "/delivered", null).GetAwaiter().GetResult();
             // The folder Billing writes to: shared, so the systems integrate through it too.
             File.AppendAllText("/srv/exchange/delivered.csv", id);
+
+            // The database Billing uses, written another way (case, key names, another user and password).
+            using var connection = new Npgsql.NpgsqlConnection("Server=DB.internal;Port=5432;Database=Ledger;User Id=shipping;Password=other");
+            connection.Open();
         }
     }
 }

@@ -297,7 +297,15 @@ let tests =
 
               let context = view "context"
               Expect.equal context.Scope Landscape.LandscapeScope "of the whole landscape"
-              Expect.equal context.Elements [ "system:billing"; "system:orders"; "system:shipping"; "external:folder:/srv/exchange"; "person:user" ] "the systems and what more than one uses"
+              Expect.equal
+                  context.Elements
+                  [ "system:billing"
+                    "system:orders"
+                    "system:shipping"
+                    "external:database:db.internal:5432/ledger"
+                    "external:folder:/srv/exchange"
+                    "person:user" ]
+                  "the systems and what more than one uses"
               Expect.contains (context.Relationships |> List.map (fun r -> r.From, r.To)) ("system:orders", "system:shipping") "lifted to the systems"
               Expect.contains (view "context-all").Elements "external:http:inventory.example.net" "with every external system"
 
@@ -426,4 +434,46 @@ let tests =
               Expect.equal (Landscape.folderOf true "/srv/inbox/") (Some("/srv/inbox", "/srv/inbox")) "a watched folder"
               Expect.equal (Landscape.folderOf false "logs/app.log") None "relative"
               Expect.equal (Landscape.folderOf false "/a.txt") None "the root names nothing"
+          }
+
+          test "a database two systems connect to is one element both reach, with every database use of a project that names only it" {
+              let l = landscape ()
+              let database = l.Architecture.Elements |> List.find (fun e -> e.Tags = [ "shared database" ])
+
+              Expect.equal
+                  (database.Id, database.Name)
+                  ("external:database:db.internal:5432/ledger", "ledger on db.internal:5432")
+                  "one server and database, however each connection string writes it"
+
+              let uses =
+                  l.Architecture.Relationships |> List.filter (fun r -> r.To = database.Id) |> List.map (fun r -> r.From, r.Sources.Length)
+
+              Expect.equal
+                  (List.sort uses)
+                  [ "container:billing/Billing.Api", 2; "container:shipping/Shipping.Worker", 1 ]
+                  "Billing's connection and its command (from appsettings.json), Shipping's connection"
+
+              Expect.isFalse (l.Architecture.Elements |> List.exists (fun e -> e.Id = "external:database@billing")) "Billing has no other database"
+              Expect.contains (l.Architecture.Views |> List.find (fun v -> v.Id = "context")).Elements database.Id "on the landscape"
+          }
+
+          test "connection strings: the database they name, and what is shown of them" {
+              Expect.equal
+                  (ConnectionString.database "Server=tcp:SQL1,1433;Initial Catalog=Orders;User ID=app;Password=x")
+                  (Some("sql1:1433/orders", "Orders on sql1:1433"))
+                  "SQL Server's keys, its port after a comma"
+
+              Expect.equal
+                  (ConnectionString.database "Host=pg;Port=5432;Database=ledger" |> Option.map fst)
+                  (ConnectionString.database "server=PG;port=5432;database=Ledger;Username=other" |> Option.map fst)
+                  "the same database, written another way"
+
+              Expect.equal (ConnectionString.database "Host=localhost;Database=ledger") None "each process's own machine"
+              Expect.equal (ConnectionString.database "Data Source=app.db") None "no server and database"
+              Expect.equal (ConnectionString.database "Host={…};Database=ledger") None "a server known only at run time"
+
+              Expect.equal
+                  (ConnectionString.redact "Host=pg;Username=app;Password=secret;Pwd=x;AccountKey=k")
+                  "Host=pg;Username=app;Password=…;Pwd=…;AccountKey=…"
+                  "secrets are never shown"
           } ]
