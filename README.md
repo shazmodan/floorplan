@@ -109,7 +109,9 @@ database, on a server that is not `localhost`, from a connection or an Entity Fr
 `UseSqlServer`, `UseNpgsql` and the like); connection strings are shown with their passwords and keys left
 out. In each solution's own site, a system it talks to is shown as that
 system, opening its site, rather than as the host it is called at. `workspace.dsl` beside the landscape's site
-holds the landscape as a Structurizr workspace, its probable relationships dashed.
+holds the landscape as a Structurizr workspace, its probable relationships dashed. With `--single-file` the
+landscape and every solution's site are one HTML file (a solution's site is the file with `?solution=<slug>`),
+without `workspace.dsl`; a landscape of more than 64 MB is refused, to be written as a folder.
 
 Results are cached per project and per dependency assembly in `FLOORPLAN_CACHE` (by default the local
 application data folder), so a second run is about twice as fast.

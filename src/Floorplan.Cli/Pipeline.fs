@@ -236,13 +236,54 @@ let chooseSolutions (options: AnalyzeOptions) (found: Discovery.FoundSolutions) 
         | [] -> Error "No solution left to analyze."
         | some -> Ok some
 
+/// Writes a landscape: each solution's site (or JSON) under solutions/<slug>/ and the landscape beside them, or,
+/// with --single-file, all of it in one HTML file. The landscape site's index.html, landscape.json or the file.
+let writeLandscape (options: AnalyzeOptions) (landscape: Landscape) (analyzed: Landscape.Analyzed list) : Result<string, string> =
+    let link (slug: string) : WebsiteRenderer.LandscapeLink =
+        { Landscape = landscape.Name
+          Current = slug
+          Solutions = landscape.Solutions |> List.map (fun s -> s.Name, s.Slug) }
+
+    // Each solution's model; its own C4 model shows the other systems of the landscape it talks to, not hosts.
+    let models =
+        [ for s, a in List.zip landscape.Solutions analyzed do
+              match a.Model with
+              | Ok model ->
+                  let known = Landscape.knownOf landscape s.Slug
+
+                  let model =
+                      if known.Sends.IsEmpty && known.Receives.IsEmpty then model
+                      else { model with Architecture = C4.deriveIn known model }
+
+                  yield s.Slug, model
+              | Error _ -> () ]
+
+    try
+        match options.Format with
+        | Site when options.SingleFile ->
+            WebsiteRenderer.renderLandscapeFile landscape models options.Output WebsiteRenderer.singleFileLimit
+            |> Result.map Path.GetFullPath
+        | Json ->
+            for slug, model in models do
+                JsonRenderer.create().Render(model, { Path = Path.Combine(options.Output, "solutions", slug); SingleFile = false }) |> ignore
+
+            let file = Path.Combine(options.Output, "landscape.json")
+            Directory.CreateDirectory options.Output |> ignore
+            File.WriteAllText(file, Json.serializeValue true landscape)
+            Ok(Path.GetFullPath file)
+        | Site ->
+            for slug, model in models do
+                WebsiteRenderer.renderIn (Some(link slug)) model { Path = Path.Combine(options.Output, "solutions", slug); SingleFile = false } |> ignore
+
+            Ok(Path.GetFullPath(WebsiteRenderer.renderLandscape landscape options.Output))
+    with e ->
+        Error $"Could not write output: {e.Message}"
+
 /// Analyzes every solution of a folder of solutions, one after the other, and writes each one's site (or JSON) under
 /// solutions/<slug>/, and the landscape beside them.
 let runLandscape (log: string -> unit) (options: AnalyzeOptions) (found: Discovery.FoundSolutions) : Result<LandscapeOutcome, string> =
     match chooseSolutions options found with
     | Error e -> Error e
-    | Ok _ when options.SingleFile && options.Format = Site ->
-        Error "--single-file writes one solution's site; a folder of solutions is written as a folder."
     | Ok files ->
         let root = Path.GetFullPath(defaultArg options.Path Environment.CurrentDirectory)
         let store = if options.Cache then Caching.Store(Some(Caching.defaultDirectory ())) else Caching.Store.Disabled
@@ -276,47 +317,16 @@ let runLandscape (log: string -> unit) (options: AnalyzeOptions) (found: Discove
         let file, fileDiagnostics = Landscape.readFile root
         let landscape = Landscape.derive toolVersion generatedAt root file found.Nested analyzed
         let landscape = { landscape with Diagnostics = landscape.Diagnostics @ fileDiagnostics }
-        let link (slug: string) : WebsiteRenderer.LandscapeLink =
-            { Landscape = landscape.Name
-              Current = slug
-              Solutions = landscape.Solutions |> List.map (fun s -> s.Name, s.Slug) }
-
         log "Writing the landscape"
 
-        try
-            for s, a in List.zip landscape.Solutions analyzed do
-                match a.Model with
-                | Ok model ->
-                    let dir = Path.Combine(options.Output, "solutions", s.Slug)
-
-                    // Its own C4 model shows the other systems of the landscape it talks to, not hosts.
-                    let known = Landscape.knownOf landscape s.Slug
-
-                    let model =
-                        if known.Sends.IsEmpty && known.Receives.IsEmpty then model
-                        else { model with Architecture = C4.deriveIn known model }
-
-                    match options.Format with
-                    | Json -> JsonRenderer.create().Render(model, { Path = dir; SingleFile = false }) |> ignore
-                    | Site -> WebsiteRenderer.renderIn (Some(link s.Slug)) model { Path = dir; SingleFile = false } |> ignore
-                | Error _ -> ()
-
-            let written =
-                match options.Format with
-                | Json ->
-                    let file = Path.Combine(options.Output, "landscape.json")
-                    Directory.CreateDirectory options.Output |> ignore
-                    File.WriteAllText(file, Json.serializeValue true landscape)
-                    file
-                | Site -> WebsiteRenderer.renderLandscape landscape options.Output
-
+        match writeLandscape options landscape analyzed with
+        | Ok written ->
             Ok
                 { Landscape = landscape
                   Analyzed = analyzed
-                  Written = Path.GetFullPath written
+                  Written = written
                   HadFailures = failures }
-        with e ->
-            Error $"Could not write output: {e.Message}"
+        | Error e -> Error e
 
 /// Diagnostics as printed after a run: errors in full; warnings of one kind up to `perCode`, then how many more
 /// there are. Every one is in the output (the site's diagnostics, the JSON model).

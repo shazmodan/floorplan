@@ -201,6 +201,51 @@ let tests =
                   Expect.stringContains orders "<option value=\"shipping\">Shipping</option>" "the other solutions"
           }
 
+          test "--single-file writes the landscape and every solution's site in one file, each opened by its query" {
+              let _, outcome = landscapeRun.Force()
+              let dir = Path.Combine(Path.GetTempPath(), "floorplan-landscape-single-" + string (Guid.NewGuid()))
+              let options = { Options.defaults with Output = Path.Combine(dir, "landscape.html"); SingleFile = true }
+
+              try
+                  match Pipeline.writeLandscape options outcome.Landscape outcome.Analyzed with
+                  | Error e -> failtest e
+                  | Ok file ->
+                      Expect.equal file (Path.GetFullPath(Path.Combine(dir, "landscape.html"))) "the file asked for"
+                      Expect.equal (Directory.GetFileSystemEntries dir |> Array.map Path.GetFileName) [| "landscape.html" |] "one file only"
+                      let html = File.ReadAllText file
+                      Expect.isFalse (html.Contains "src=\"app.js\"" || html.Contains "src=\"data.js\"" || html.Contains "href=\"app.css\"") "nothing beside it"
+
+                      for slug in [ "billing"; "orders"; "shipping" ] do
+                          Expect.stringContains html $"id=\"floorplan-solution:{slug}\"" $"{slug}'s model"
+
+                      match Browser.find () with
+                      | None -> ()
+                      | Some browser ->
+                          let index = Browser.dumpDom browser file "#/solutions"
+                          Expect.stringContains index "<title>Landscape · Floorplan</title>" "the landscape"
+                          Expect.stringContains index "href=\"landscape.html?solution=orders#/overview\">Orders</a>" "each solution, in the same file"
+
+                          let orders = Browser.dumpDom browser file "?solution=orders#/overview"
+                          Expect.stringContains orders "<title>Orders · Landscape · Floorplan</title>" "a solution's site"
+                          Expect.stringContains orders "<h1>Orders</h1>" "its overview"
+                          Expect.stringContains orders "href=\"landscape.html#/solutions\"" "the way back"
+                          Expect.stringContains orders "<option value=\"orders\" selected=\"selected\">Orders</option>" "which one it is"
+              finally
+                  try Directory.Delete(dir, true) with _ -> ()
+          }
+
+          test "--single-file is refused, with the size, for a landscape larger than one file is allowed" {
+              let _, outcome = landscapeRun.Force()
+              let dir = Path.Combine(Path.GetTempPath(), "floorplan-landscape-large-" + string (Guid.NewGuid()))
+              let models = outcome.Analyzed |> List.zip outcome.Landscape.Solutions |> List.choose (fun (s, a) -> a.Model |> Result.toOption |> Option.map (fun m -> s.Slug, m))
+
+              match Floorplan.Rendering.WebsiteRenderer.renderLandscapeFile outcome.Landscape models dir 1024L with
+              | Ok _ -> failtest "written"
+              | Error e ->
+                  Expect.stringContains e "write it as a folder" "what to do instead"
+                  Expect.isFalse (Directory.Exists dir) "nothing written"
+          }
+
           test "golden: the Landscape fixture" {
               Golden.check "landscape.txt" ((Landscape.describe (landscape ()) |> String.concat "\n") + "\n")
           }
