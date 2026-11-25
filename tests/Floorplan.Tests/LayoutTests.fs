@@ -86,6 +86,7 @@ let private exit (owner: CodeUnit) (category: EffectCategory) (payload: string) 
       Primitive = "System.IO.File::WriteAllText"
       Payload = Some { Role = "path"; Kind = PayloadKind.Literal; Value = Some payload }
       ViaAssembly = None
+      Context = None
       Confidence = Confidence.High
       Evidence = { Steps = [] } }
 

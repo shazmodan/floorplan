@@ -453,9 +453,13 @@ Also new, outside the recognizer:
   to show a database more than one system connects to (`docs/landscape-plan.md`). An Entity Framework Core
   context's database is the connection string given where it is configured: `UseSqlServer`, `UseNpgsql`,
   `UseSqlite`, `UseMySql` (Pomelo), `UseOracle` (in `AddDbContext`'s options or `OnConfiguring`), and
-  `AddSqlServer<T>`, `AddNpgsql<T>` and `AddSqlite<T>`, are database exit points with it as their payload. The
-  context's own calls (`SaveChanges`, queries) are not tied to it: a folder of solutions sends them to the
-  database their project, or else their solution, names alone.
+  `AddSqlServer<T>`, `AddNpgsql<T>` and `AddSqlite<T>`, are database exit points with it as their payload. Each
+  database exit point through Entity Framework Core has its context (`Context`, shown on its evidence page) when
+  the code shows which: the context of the call's type arguments, the one whose `OnConfiguring` it is in, the one
+  whose `AddDbContext<T>` lambda it is in, the one its arguments are made from (a field, parameter or member of a
+  context, `db.Orders.Where(...)`, a query an application's method returns), or else the one context the type's
+  fields hold. A query reached through an interface has none. A folder of solutions sends each call to its
+  context's database, and a call with no context to the database its project, or else its solution, names alone.
 - **Payloads through libraries** (F# and C#, `docs/library-payloads-plan.md`): for an effect behind a dependency,
   the payload is worked out from the dependency's own code, in terms of its arguments, and evaluated at the call
   site; no rule names the library. Arguments passed on, text built from them, properties and fields of objects

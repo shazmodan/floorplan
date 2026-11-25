@@ -130,7 +130,7 @@ let tests =
 
               let orders = l.Solutions |> List.find (fun s -> s.Name = "Orders")
               Expect.equal (orders.Applications, orders.Projects, orders.Languages) (1, 2, [ Language.CSharp ]) "a summary of each"
-              Expect.equal orders.EntryPoints 4 "its routes"
+              Expect.equal orders.EntryPoints 5 "its routes"
 
               for s in l.Solutions do
                   let site = Path.Combine(out, "solutions", s.Slug)
@@ -348,6 +348,7 @@ let tests =
                     "system:orders"
                     "system:shipping"
                     "external:database:db.internal:5432/ledger"
+                    "external:database:stock-db.internal/stock"
                     "external:folder:/srv/exchange"
                     "person:user" ]
                   "the systems and what more than one uses"
@@ -483,7 +484,7 @@ let tests =
 
           test "a database two systems connect to is one element both reach, with every database use of a project that names only it" {
               let l = landscape ()
-              let database = l.Architecture.Elements |> List.find (fun e -> e.Tags = [ "shared database" ])
+              let database = l.Architecture.Elements |> List.find (fun e -> e.Id = "external:database:db.internal:5432/ledger")
 
               Expect.equal
                   (database.Id, database.Name)
@@ -507,10 +508,34 @@ let tests =
                   (orders.Sources |> List.map label |> List.sort)
                   [ "database: Microsoft.EntityFrameworkCore.DbContext::SaveChanges"
                     "database: Server=db.internal;Port=5432;Database=ledger;User Id=orders;Password=…" ]
-                  "where the context is configured, and its library's call, which has no connection of its own"
+                  "where the context is configured, and its library's call on it"
 
               Expect.isFalse (l.Architecture.Elements |> List.exists (fun e -> e.Id = "external:database@billing")) "Billing has no other database"
               Expect.contains (l.Architecture.Views |> List.find (fun v -> v.Id = "context")).Elements database.Id "on the landscape"
+          }
+
+          test "a solution with two Entity Framework Core contexts: each call goes to its own context's database" {
+              let l = landscape ()
+              let label (source: string) = (l.Sources |> List.find (fun s -> s.Id = source)).Label
+
+              let uses target =
+                  l.Architecture.Relationships
+                  |> List.filter (fun r -> r.From = "container:orders/Orders.Api" && r.To = target)
+                  |> List.collect (fun r -> r.Sources |> List.map label)
+                  |> List.sort
+
+              Expect.equal
+                  (uses "external:database:stock-db.internal/stock")
+                  [ "database: Host=stock-db.internal;Database=stock;Username=orders;Password=…"
+                    "database: Microsoft.EntityFrameworkCore.DbContext::SaveChanges"
+                    "database: System.Linq.Queryable::First" ]
+                  "StockContext: where it is configured, and the calls its repository makes on it"
+
+              Expect.equal
+                  (uses "external:database:db.internal:5432/ledger")
+                  [ "database: Microsoft.EntityFrameworkCore.DbContext::SaveChanges"
+                    "database: Server=db.internal;Port=5432;Database=ledger;User Id=orders;Password=…" ]
+                  "OrdersContext's, on the ledger"
           }
 
           test "connection strings: the database they name, and what is shown of them" {

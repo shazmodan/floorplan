@@ -319,3 +319,14 @@ What the prototype found on the fixtures:
   A file over 64 MB (some twenty real solutions) is refused with its size, to be written as a folder
   (`WebsiteRenderer.singleFileLimit`). `Pipeline.writeLandscape` writes a derived landscape, so tests write it
   without analyzing again.
+- 2026-11-25, several Entity Framework Core contexts in one solution. An exit point has a new field, `Context`
+  (schema version 4): for a database call through EF Core, the context type it is made on, and for where a
+  connection string is given, the context it is given to (`EfContexts.fs` in Floorplan.Analysis: the call's type
+  arguments, the context whose `OnConfiguring` makes it, the `AddDbContext<T>` lambda it is in, including a
+  cached one, what the call's arguments are made from, through a query an application's method returns, and else
+  the one context the type's fields hold). The landscape sends a call to its context's database when the
+  context's connection strings all name one shared database, to none when they name another, and only a call
+  with no context (or a context given no connection string) falls back to its project's or solution's. The
+  fixture's Orders now has a second context, `StockContext`, on a stock database Shipping connects to as well;
+  its repository's `First` and `SaveChanges` go there, `OrdersContext`'s to the ledger. Not known: a query
+  reached through an interface (`IOrders.All()`).

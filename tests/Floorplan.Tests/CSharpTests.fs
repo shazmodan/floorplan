@@ -66,6 +66,27 @@ let tests =
 
           test "golden: CSharp exit points" { Golden.check "csharp.exit-points.txt" (ExitPointTests.render (csharpModel.Force())) }
 
+          test "Entity Framework Core: the context a database call is made on, and the one a connection string goes to" {
+              let m = csharpModel.Force()
+
+              let contextOf (memberName: string) =
+                  m.ExitPoints
+                  |> List.filter (fun x -> x.Category = EffectCategory.Database && x.Member = memberName)
+                  |> List.map (fun x -> x.Context)
+                  |> List.distinct
+
+              let shop = [ Some "CSharp.Effects.Ordering.ShopContext" ]
+              Expect.equal (contextOf "CSharp.Effects.Ordering.LocalContext::OnConfiguring") [ Some "CSharp.Effects.Ordering.LocalContext" ] "the context that names its database"
+              Expect.equal (contextOf "CSharp.Effects.Ordering.OrderStore::Add") shop "a call on a field of the context"
+              Expect.equal (contextOf "CSharp.Effects.Ordering.OrderStore::Purge") shop "through db.Database"
+              Expect.equal (contextOf "CSharp.Effects.Ordering.OrderStore::Named") shop "a query built on a DbSet"
+              Expect.equal (contextOf "CSharp.Effects.Ordering.OrderStore/<Stream>d__13::MoveNext") shop "in a state machine"
+              Expect.equal (contextOf "CSharp.Effects.Printing.OrderPrinting::Print") shop "a query passed to a method"
+              Expect.equal (contextOf "CSharp.Effects.Reporting.OrderReports::All") shop "a query a repository's method returns"
+              Expect.equal (contextOf "CSharp.Effects.Reporting.OrderReports::Count") [ None ] "through an interface: not known"
+              Expect.equal (contextOf "CSharp.Effects.Database::Sqlite") [ None ] "no Entity Framework Core"
+          }
+
           // A golden of its own: on net8.0 a package's newer copy of an assembly ASP.NET Core 8 ships is followed
           // (CSharp.Telemetry's OpenTelemetry brings Microsoft.Extensions.Configuration 9, whose environment
           // variables provider it reaches); net10.0's framework copy is not.

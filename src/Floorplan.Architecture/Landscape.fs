@@ -525,16 +525,40 @@ let private sharedDatabases (parts: Part list) : Map<string, string * string> =
             | _ -> None)
         |> Map.ofList
 
-    // Projects that make a connection of their own, whether or not its database is known.
-    let connected =
+    // Every connection made, whether or not its database is known: the solution, its project and its Entity
+    // Framework Core context.
+    let made =
         [ for p in parts do
               let project = projectOf p
 
               for x in p.Model.ExitPoints |> List.filter (shown p.Model) do
-                  match x.Category, x.Payload, project x with
-                  | EffectCategory.Database, Some { Role = "connection" }, Some pr -> yield p.Slug, pr
+                  match x.Category, x.Payload with
+                  | EffectCategory.Database, Some { Role = "connection" } -> yield p.Slug, project x, x.Context
                   | _ -> () ]
-        |> Set.ofList
+
+    // Projects that make a connection of their own.
+    let connected =
+        made |> List.choose (fun (slug, project, _) -> project |> Option.map (fun pr -> slug, pr)) |> Set.ofList
+
+    // A context given connection strings that all name one shared database: the calls made on it go there, whatever
+    // other databases its project or solution connects to. A context given another (or one not known) has its calls
+    // go to no shared database.
+    let contextOf =
+        let ids = parts |> List.map (fun p -> p.Slug, p.Model.ExitPoints |> List.map (fun x -> $"{p.Slug}:{x.Id}", x.Context) |> Map.ofList) |> Map.ofList
+        let contextOfSource (slug: string) (source: string) = ids[slug].TryFind source |> Option.flatten
+
+        let known =
+            connections
+            |> List.choose (fun ((_, _, slug, _, source) as c) -> contextOfSource slug source |> Option.map (fun context -> (slug, context), c))
+            |> List.groupBy fst
+            |> List.map (fun (k, cs) -> k, onlyOne (List.map snd cs))
+            |> Map.ofList
+
+        made
+        |> List.choose (fun (slug, _, context) -> context |> Option.map (fun c -> slug, c))
+        |> List.distinct
+        |> List.map (fun k -> k, known.TryFind k |> Option.flatten)
+        |> Map.ofList
 
     let solutionOnly =
         connections
@@ -558,7 +582,12 @@ let private sharedDatabases (parts: Part list) : Map<string, string * string> =
 
           for x in p.Model.ExitPoints |> List.filter (shown p.Model) do
               if x.Category = EffectCategory.Database then
-                  match project x |> Option.bind (databaseOf p.Slug) with
+                  let element =
+                      match x.Context |> Option.bind (fun c -> contextOf.TryFind(p.Slug, c)) with
+                      | Some ofContext -> ofContext
+                      | None -> project x |> Option.bind (databaseOf p.Slug)
+
+                  match element with
                   | Some element -> yield $"{p.Slug}:{x.Id}", element
                   | None -> () ]
     |> Map.ofList
