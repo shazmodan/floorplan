@@ -1077,6 +1077,11 @@
     { "id": "setting.options-builder-named", "assembly": "Microsoft.Extensions.Options",
       "type": "Microsoft.Extensions.DependencyInjection.OptionsServiceCollectionExtensions", "members": ["AddOptions"],
       "whenParameters": ["Microsoft.Extensions.DependencyInjection.IServiceCollection", "System.String"],
-      "kind": "setting", "setting": { "reads": "options-builder", "name": 1 } }
+      "kind": "setting", "setting": { "reads": "options-builder", "name": 1 } },
+    // A JSON file the application adds to its configuration: AddJsonFile(path), (path, optional) and (path,
+    // optional, reloadOnChange); the overloads taking a file provider or a source lambda name no path.
+    { "id": "setting.configuration-json-file", "assembly": "Microsoft.Extensions.Configuration.Json",
+      "type": "Microsoft.Extensions.Configuration.JsonConfigurationExtensions", "members": ["AddJsonFile"],
+      "kind": "setting", "setting": { "reads": "json-file", "argument": 1 } }
   ]
 }

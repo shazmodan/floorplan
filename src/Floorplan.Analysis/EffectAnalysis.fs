@@ -424,7 +424,47 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
         | true, s -> s
         | _ ->
             let matcher: Matcher = this.MatcherFor project
-            let values = Configured.appSettings (IO.Path.GetDirectoryName project.AssemblyPath)
+            let closure = closureOf project
+
+            // The JSON files code in the project's reference closure adds to the configuration by a constant path
+            // (AddJsonFile("other.json")), in the order the methods and calls come.
+            let added =
+                let reading: Values.Settings = { Values.Settings.none with Read = matcher.Setting }
+
+                [ for (_, a) in userList do
+                      if closure.Contains a.Name then
+                          for t in a.Types do
+                              for m in t.Methods do
+                                  match m.Body.Value with
+                                  | Some body ->
+                                      let calls =
+                                          body.Instructions
+                                          |> Array.choose (fun i ->
+                                              match i.Op with
+                                              | Call r
+                                              | CallVirt r ->
+                                                  match matcher.Setting r with
+                                                  | Some spec when spec.Reads = SettingRead.JsonFile -> Some(i.Offset, r, spec)
+                                                  | _ -> None
+                                              | _ -> None)
+
+                                      if calls.Length > 0 then
+                                          match DataFlow.ofMethod m with
+                                          | Some flow ->
+                                              let evaluator =
+                                                  Values.Evaluator(flow, recognizers, Values.constantReturn set, (fun m n -> producers.Member(m, n)), reading)
+
+                                              for (offset, r, spec) in calls do
+                                                  let index = if r.HasThis then spec.Argument + 1 else spec.Argument
+
+                                                  match evaluator.Operand(offset, index) with
+                                                  | Values.Text path when path.Trim() <> "" -> yield path.Trim()
+                                                  | _ -> ()
+                                          | None -> ()
+                                  | None -> () ]
+                |> List.distinct
+
+            let values = Configured.appSettings (IO.Path.GetDirectoryName project.AssemblyPath) added
 
             // The keys with keys under them: "A" and "A:B" for "A:B:C".
             let sections =
@@ -456,7 +496,6 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
 
             // Configure<T>(section), AddOptions<T>().Bind(section) and BindConfiguration(path), with a constant
             // section: an options type bound to two sections is bound to neither.
-            let closure = closureOf project
 
             let binds =
                 [ for (_, a) in userList do

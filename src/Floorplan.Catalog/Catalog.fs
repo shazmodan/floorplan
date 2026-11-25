@@ -112,6 +112,9 @@ type SettingRead =
     /// Makes a builder of the options of the call's generic argument under the name `Name` gives
     /// (AddOptions<T>(name)); a bind called on the builder binds options of that name.
     | OptionsBuilder
+    /// Adds the JSON file at the path `Argument` names to the configuration, over the files already in it
+    /// (AddJsonFile("other.json")).
+    | JsonFile
 
 /// What a setting rule's call reads: `Argument` as in a payload (the first declared parameter is 0), and keys
 /// read are under `Prefix` (GetConnectionString's are under "ConnectionStrings"). `Name`: the argument that names

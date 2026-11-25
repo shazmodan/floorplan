@@ -88,8 +88,9 @@ let private loadJson (file: string) =
 
 /// The settings the application's configuration files in a folder give, by key ("Section:Key", ignoring case, an
 /// array's elements by index), as Microsoft.Extensions.Configuration flattens them: appsettings.json, then
-/// appsettings.Production.json over it, as in the default environment.
-let appSettings (folder: string) : Collections.Generic.IReadOnlyDictionary<string, string> =
+/// appsettings.Production.json over it, as in the default environment, then the files the application adds
+/// (`added`, paths relative to the folder, in the order added) over those.
+let appSettings (folder: string) (added: string list) : Collections.Generic.IReadOnlyDictionary<string, string> =
     let values = Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 
     let rec flatten (prefix: string) (e: JsonElement) =
@@ -104,7 +105,7 @@ let appSettings (folder: string) : Collections.Generic.IReadOnlyDictionary<strin
         | JsonValueKind.Null -> values.Remove prefix |> ignore
         | _ -> values[prefix] <- e.GetRawText()
 
-    for name in [ "appsettings.json"; "appsettings.Production.json" ] do
+    for name in [ "appsettings.json"; "appsettings.Production.json" ] @ added do
         let file = Path.Combine(folder, name)
 
         if File.Exists file then

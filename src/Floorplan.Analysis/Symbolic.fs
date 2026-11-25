@@ -1351,7 +1351,15 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
             one (Const(box 1L))
         elif (settings.Read m
               |> Option.exists (fun spec ->
-                  spec.Reads <> SettingRead.BindSection && spec.Reads <> SettingRead.BindPath && spec.Reads <> SettingRead.OptionsBuilder)) then
+                  match spec.Reads with
+                  | SettingRead.Value
+                  | SettingRead.Own
+                  | SettingRead.Section
+                  | SettingRead.Options -> true
+                  | SettingRead.BindSection
+                  | SettingRead.BindPath
+                  | SettingRead.OptionsBuilder
+                  | SettingRead.JsonFile -> false)) then
             // A read of the configuration: a section is an object that knows its path ("" for the root), an
             // options object reads its fields from the section its type is bound to.
             let spec = (settings.Read m).Value

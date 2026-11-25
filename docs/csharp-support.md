@@ -478,8 +478,12 @@ Also new, outside the recognizer:
   the builder's other methods) bind them, `IOptionsMonitor<T>.Get("name")` and `IOptionsSnapshot<T>.Get("name")`
   read them (a rule's `"name"` argument; reads `"options-builder"` for `AddOptions<T>(name)`), and `Value` and
   `CurrentValue` read the default options (the empty name). A name nothing binds, or one not known, is at no key.
-  A key the files do not have, environment variables and other configuration
-  sources stay dynamic. The symbolic run that finds registrations reads them too, so a minimal API route named
+  A JSON file the code adds by a constant path (`AddJsonFile("other.json")`, setting read `"json-file"`) is read
+  from the output folder over the `appsettings*.json` files, as the application adds it after them. A key the
+  files do not have stays dynamic, and so do other configuration sources: environment variables (nothing on
+  disk says what they are in production; `launchSettings.json` is the Development profile), command-line
+  arguments, user secrets, in-memory collections, and files outside the output folder or named by a computed
+  path. The symbolic run that finds registrations reads them too, so a minimal API route named
   in the configuration has its template. Fixtures: `CSharp.Messaging` (`CSharp.Messaging.Configured`), with
   `appsettings.json` and `appsettings.Production.json`, and `CSharp.Endpoints` (`Configured.cs`).
 
