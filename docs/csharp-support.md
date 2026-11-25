@@ -450,7 +450,12 @@ Also new, outside the recognizer:
 - **Connection strings** (F# and C#): a connection's `Open`, `OpenAsync`, `BeginTransaction` and `ChangeDatabase`
   have its `ConnectionString` as their payload (role `connection`), read like SQL text, from configuration too.
   Passwords, keys and tokens in it are replaced by `…` before anything is recorded. A folder of solutions uses it
-  to show a database more than one system connects to (`docs/landscape-plan.md`).
+  to show a database more than one system connects to (`docs/landscape-plan.md`). An Entity Framework Core
+  context's database is the connection string given where it is configured: `UseSqlServer`, `UseNpgsql`,
+  `UseSqlite`, `UseMySql` (Pomelo), `UseOracle` (in `AddDbContext`'s options or `OnConfiguring`), and
+  `AddSqlServer<T>`, `AddNpgsql<T>` and `AddSqlite<T>`, are database exit points with it as their payload. The
+  context's own calls (`SaveChanges`, queries) are not tied to it: a folder of solutions sends them to the
+  database their project, or else their solution, names alone.
 - **Payloads through libraries** (F# and C#, `docs/library-payloads-plan.md`): for an effect behind a dependency,
   the payload is worked out from the dependency's own code, in terms of its arguments, and evaluated at the call
   site; no rule names the library. Arguments passed on, text built from them, properties and fields of objects

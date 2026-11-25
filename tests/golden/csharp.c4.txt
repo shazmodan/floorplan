@@ -166,6 +166,7 @@ code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Labels|CSharp.Effects.L
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading|CSharp.Effects.Loading.Setup | Setup | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Loading | reaches out | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Orders | Orders | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging | reaches out | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Setup | Setup | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging | reaches out | 1 sources
+code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.LocalContext | LocalContext | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | reaches out | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | Order | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | - | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore | OrderStore | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | reaches out | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext | ShopContext | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | - | 1 sources
@@ -314,7 +315,7 @@ external-system | external:library:Microsoft.AspNetCore.SignalR.Client | Microso
 external-system | external:library:Microsoft.Azure.Cosmos | Microsoft.Azure.Cosmos | - | in - | - | 3 sources
 external-system | external:library:Microsoft.Azure.Functions.Worker | Microsoft.Azure.Functions.Worker | - | in - | - | 1 sources
 external-system | external:library:Microsoft.Azure.WebJobs | Microsoft.Azure.WebJobs | - | in - | - | 1 sources
-external-system | external:library:Microsoft.EntityFrameworkCore | Microsoft.EntityFrameworkCore | - | in - | - | 8 sources
+external-system | external:library:Microsoft.EntityFrameworkCore | Microsoft.EntityFrameworkCore | - | in - | - | 9 sources
 external-system | external:library:MongoDB.Driver | MongoDB.Driver | - | in - | - | 3 sources
 external-system | external:library:NServiceBus | NServiceBus | - | in - | - | 2 sources
 external-system | external:library:OpenTelemetry | OpenTelemetry | - | in - | - | 1 sources
@@ -405,6 +406,7 @@ code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Orders -> external:filesystem | writes files | Serilog | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Setup -> external:filesystem | reads files | Serilog.Sinks.File | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Setup -> external:filesystem | writes files | Serilog.Sinks.File | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.LocalContext -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext | uses | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> external:database | reads and writes data | - | 7 sources
@@ -708,7 +710,7 @@ view context | context of system | 45 elements | 2370 x 2737
   system -> external:library:MassTransit | sends and receives over the network | - | 1 sources
   system -> external:library:Microsoft.AspNetCore.SignalR.Client | sends and receives over the network | - | 1 sources
   system -> external:library:Microsoft.Azure.Cosmos | reads and writes data | - | 3 sources
-  system -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | - | 8 sources
+  system -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | - | 9 sources
   system -> external:library:MongoDB.Driver | reads and writes data | - | 3 sources
   system -> external:library:NServiceBus | sends and receives over the network | - | 1 sources
   system -> external:library:OpenTelemetry | sends HTTP requests | - | 1 sources
@@ -760,7 +762,7 @@ view containers | containers of system | 65 elements | 3168 x 3990
   container:CSharp.Effects -> external:filesystem | writes files | CSharp.Wrappers, NLog.Extensions.Logging, Serilog and 3 more | 16 sources
   container:CSharp.Effects -> external:http | sends HTTP requests | Flurl.Http, log4net | 4 sources
   container:CSharp.Effects -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
-  container:CSharp.Effects -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | - | 8 sources
+  container:CSharp.Effects -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | - | 9 sources
   container:CSharp.Effects -> external:native | calls native code | - | 1 sources
   container:CSharp.Effects -> external:network | sends and receives over the network | log4net | 1 sources
   container:CSharp.Effects -> external:processes | starts or inspects processes | NLog, NLog.Extensions.Logging | 3 sources
@@ -924,7 +926,7 @@ view components:CSharp.Effects | components of container:CSharp.Effects | 20 ele
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging -> external:filesystem | reads files | Serilog, Serilog.Sinks.File | 2 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging -> external:filesystem | writes files | Serilog, Serilog.Sinks.File | 2 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering -> external:database | reads and writes data | - | 7 sources
-  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | - | 8 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | - | 9 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing -> external:filesystem | reads files | NLog | 4 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Packing -> external:processes | starts or inspects processes | NLog | 1 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Printing -> component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | uses | - | 6 sources
@@ -1243,7 +1245,8 @@ view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging | code of compone
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Orders -> external:filesystem | writes files | Serilog | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Setup -> external:filesystem | reads files | Serilog.Sinks.File | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Logging|CSharp.Effects.Logging.Setup -> external:filesystem | writes files | Serilog.Sinks.File | 1 sources
-view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | 7 elements | 555 x 1262
+view code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering | 8 elements | 667 x 1262
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.LocalContext -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.Order | uses | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.ShopContext | uses | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Ordering|CSharp.Effects.Ordering.OrderStore -> external:database | reads and writes data | - | 7 sources

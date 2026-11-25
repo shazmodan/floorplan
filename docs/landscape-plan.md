@@ -301,3 +301,12 @@ What the prototype found on the fixtures:
   strings built with a `DbConnectionStringBuilder`. Of the effects a call into a dependency reaches in one
   category, one whose payload says what it does (Dapper's SQL) is shown before one that only says where it goes
   (the connection it opens), as the first full run showed Dapper's calls turned into `IDbConnection::Open`.
+- 2026-11-25, Entity Framework Core's databases. Where a context is given its connection string (`UseSqlServer`,
+  `UseNpgsql`, `UseSqlite`, `UseMySql`, `UseOracle`, and `AddSqlServer<T>` and the like) is now a database exit
+  point with the string as its payload, role `connection`; it is read inside `AddDbContext`'s lambda, from
+  `appsettings.json` too. The context's calls are not tied to it (they go through the context's own service
+  container, and which context a call is made on is not followed), so a project with no connection of its own
+  (the library that holds the context) sends its database uses to the shared database its solution's
+  connections all name. The fixture's Orders now has Orders.Data, whose `SaveChanges` reaches `ledger` through
+  the context Orders.Api registers with `UseNpgsql`. Left: several contexts on several databases in one solution
+  (their calls go to none), and Dapper on a connection it opens itself.
