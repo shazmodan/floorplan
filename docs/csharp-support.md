@@ -460,6 +460,8 @@ Also new, outside the recognizer:
   context, `db.Orders.Where(...)`, a query an application's method returns), or else the one context the type's
   fields hold. A query reached through an interface has none. A folder of solutions sends each call to its
   context's database, and a call with no context to the database its project, or else its solution, names alone.
+  A call into a library that opens the connection it is given (Dapper's `Query` and `Execute`) shows its SQL and
+  keeps the connection's string (`Connection`, secrets replaced), so it goes to that connection's database.
 - **Payloads through libraries** (F# and C#, `docs/library-payloads-plan.md`): for an effect behind a dependency,
   the payload is worked out from the dependency's own code, in terms of its arguments, and evaluated at the call
   site; no rule names the library. Arguments passed on, text built from them, properties and fields of objects

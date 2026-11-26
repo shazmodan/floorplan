@@ -330,3 +330,13 @@ What the prototype found on the fixtures:
   fixture's Orders now has a second context, `StockContext`, on a stock database Shipping connects to as well;
   its repository's `First` and `SaveChanges` go there, `OrdersContext`'s to the ledger. Not known: a query
   reached through an interface (`IOrders.All()`).
+- 2026-11-26, Dapper on a connection it opens itself. A call into a dependency whose database effects include
+  both a command (shown, with its SQL) and the connection's `Open` with a literal connection string now keeps
+  that string too, in a new exit point field, `Connection` (schema version 5; secrets replaced, shown on the
+  evidence page). Dapper's `Open` of the connection it is given already resolved through Dapper's code to the
+  caller's `new NpgsqlConnection("...")`; it was only dropped for the SQL. The landscape counts such a call as a
+  connection, so it goes to its own connection's database, whatever else its project connects to. The fixture's
+  Shipping, which connects to two databases, gained `Restock`: `SqlMapper.Execute` on a connection to the stock
+  database. When the landscape splits a solution's relationship (its database calls) between shared databases,
+  each part's technology is that of its own calls, so the ledger link is not labelled Dapper because the stock one
+  is. Not read: a plain ADO.NET command on a connection opened elsewhere (`DbCommand.Connection`).

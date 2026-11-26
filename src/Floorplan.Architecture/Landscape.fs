@@ -492,8 +492,9 @@ let private sharedDatabases (parts: Part list) : Map<string, string * string> =
               let project = projectOf p
 
               for x in p.Model.ExitPoints |> List.filter (shown p.Model) do
-                  match x.Category, x.Payload with
-                  | EffectCategory.Database, Some { Role = "connection"; Kind = PayloadKind.Literal; Value = Some text } ->
+                  match x.Category, x.Payload, x.Connection with
+                  | EffectCategory.Database, Some { Role = "connection"; Kind = PayloadKind.Literal; Value = Some text }, _
+                  | EffectCategory.Database, _, Some text ->
                       match ConnectionString.database text with
                       | Some(key, name) -> yield key, name, p.Slug, project x, $"{p.Slug}:{x.Id}"
                       | None -> ()
@@ -526,14 +527,15 @@ let private sharedDatabases (parts: Part list) : Map<string, string * string> =
         |> Map.ofList
 
     // Every connection made, whether or not its database is known: the solution, its project and its Entity
-    // Framework Core context.
+    // Framework Core context. A dependency's call that opens its own (Dapper's) is one.
     let made =
         [ for p in parts do
               let project = projectOf p
 
               for x in p.Model.ExitPoints |> List.filter (shown p.Model) do
-                  match x.Category, x.Payload with
-                  | EffectCategory.Database, Some { Role = "connection" } -> yield p.Slug, project x, x.Context
+                  match x.Category, x.Payload, x.Connection with
+                  | EffectCategory.Database, Some { Role = "connection" }, _
+                  | EffectCategory.Database, _, Some _ -> yield p.Slug, project x, x.Context
                   | _ -> () ]
 
     // Projects that make a connection of their own.
@@ -581,7 +583,8 @@ let private sharedDatabases (parts: Part list) : Map<string, string * string> =
           let project = projectOf p
 
           for x in p.Model.ExitPoints |> List.filter (shown p.Model) do
-              if x.Category = EffectCategory.Database then
+              // A call that opens its own connection (Dapper's) goes where that connection goes, above.
+              if x.Category = EffectCategory.Database && x.Connection.IsNone then
                   let element =
                       match x.Context |> Option.bind (fun c -> contextOf.TryFind(p.Slug, c)) with
                       | Some ofContext -> ofContext
@@ -680,6 +683,25 @@ let private architectureOf (file: LandscapeFile) (parts: Part list) =
     // system, which go there instead of to an external system.
     let within =
         [ for p in parts do
+              let exits = p.Model.ExitPoints |> List.map (fun x -> $"{p.Slug}:{x.Id}", x) |> Map.ofList
+              let projects = p.Model.Projects |> List.map (fun pr -> pr.Name) |> Set.ofList
+
+              // The libraries a part of a relationship's calls go through, when the landscape sends that part
+              // elsewhere (one shared database of several): the relationship's own says how all of them are made.
+              let technologyOf (sources: string list) (whole: string option) =
+                  match sources |> List.map exits.TryFind with
+                  | found when found |> List.forall Option.isSome ->
+                      let libraries =
+                          found
+                          |> List.choose (Option.bind (fun x -> x.ViaAssembly |> Option.filter (projects.Contains >> not)))
+                          |> List.distinct
+                          |> List.sort
+
+                      match libraries with
+                      | [] -> if found |> List.exists (fun x -> x.Value.Category = EffectCategory.HttpOut) then Some "HTTP" else None
+                      | ls -> Some(String.Join(", ", ls))
+                  | _ -> whole
+
               for r in p.Model.Architecture.Relationships do
                   match p.Lift r.From, p.Lift r.To with
                   | Some f, Some t when f <> t ->
@@ -695,12 +717,16 @@ let private architectureOf (file: LandscapeFile) (parts: Part list) =
                           elif id.StartsWith "external:" then databases.TryFind source |> Option.map fst |> Option.defaultValue id
                           else id
 
-                      for (f, t), sources in left |> List.groupBy (fun s -> at f s, at t s) do
+                      let groups = left |> List.groupBy (fun s -> at f s, at t s)
+
+                      for (gf, gt), sources in groups do
                           yield
-                              { From = f
-                                To = t
+                              { From = gf
+                                To = gt
                                 Description = r.Description
-                                Technology = r.Technology
+                                Technology =
+                                    if groups.Length = 1 && (gf, gt) = (f, t) then r.Technology
+                                    else technologyOf sources r.Technology
                                 Sources = sources }
                   | _ -> () ]
 

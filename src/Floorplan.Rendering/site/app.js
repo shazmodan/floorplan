@@ -1730,7 +1730,7 @@
         var catOk = anyCat ? state.on[x.category] : !HIDDEN_BY_DEFAULT[x.category];
         var confOk = state.on.__low || !HIDDEN_CONFIDENCE[x.confidence];
         var u = units[x.unit] || {};
-        return catOk && confOk && matches(state.q, [x.category, unitName(x.unit), x.member, x.primitive, x.viaAssembly, x.payload && x.payload.value, projectName(u.projectId)]);
+        return catOk && confOk && matches(state.q, [x.category, unitName(x.unit), x.member, x.primitive, x.viaAssembly, x.payload && x.payload.value, x.connection, projectName(u.projectId)]);
       });
       host.textContent = "";
       var hiddenCats = Object.keys(HIDDEN_BY_DEFAULT).map(function (c) { return CATEGORY_LABEL[c] || c; });
@@ -1765,6 +1765,7 @@
       el("p", { class: "sub" }, kind === "entry" ? ["Handled by ", unitLink(item.handlerUnit), " · ", el("span", { class: "tag " + item.completeness }, item.completeness)] : ["Rule ", el("code", null, item.ruleId), " · primitive ", el("code", null, item.primitive),
           item.context ? [" · context ", el("code", { title: item.context }, item.context.split(".").pop())] : null])
     ]);
+    if (kind !== "entry" && item.connection) append(page, el("p", null, "On the connection ", el("code", null, item.connection), ", which " + (item.viaAssembly || "the dependency") + " opens."));
     if (kind === "entry" && item.predicates.length) {
       append(page, [el("h2", null, "Conditions on the request"), el("ul", null, item.predicates.map(function (p) { return el("li", null, el("code", null, predicateText(p)), p.location ? el("span", { class: "muted" }, " at " + loc(p.location)) : null); }))]);
     }

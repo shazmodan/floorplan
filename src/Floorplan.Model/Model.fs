@@ -222,6 +222,9 @@ type ExitPoint =
       /// For a database call through Entity Framework Core, the context type it is made on, or for where a
       /// context is given its connection string, that context; when the code shows which.
       Context: string option
+      /// For a database call through a dependency whose payload says what it does (Dapper's SQL), the connection
+      /// string of the connection the dependency opens, its secrets replaced; when known.
+      Connection: string option
       Confidence: Confidence
       Evidence: Evidence }
 
@@ -376,8 +379,9 @@ type AnalysisModel =
 module AnalysisModel =
     /// 2: the C4 model (Architecture). 3: dependencies between types, and what an entry point is registered
     /// through. 4: the Entity Framework Core context of a database exit point.
+    /// 5: the connection a dependency opens for a database exit point.
     [<Literal>]
-    let CurrentSchemaVersion = 4
+    let CurrentSchemaVersion = 5
 
     let emptyArchitecture =
         { Elements = []
