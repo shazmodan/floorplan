@@ -57,7 +57,9 @@ type CachedWitness =
       /// The key of the next method on the path; none when Step is the call to the primitive.
       Next: string option
       /// The primitive's payload in terms of the method's arguments; none when the rule has no payload.
-      Payload: CachedPayload option }
+      Payload: CachedPayload option
+      /// The confidence score of the most direct route from the method (Summaries.DependencyEffect.Direct).
+      Direct: int }
 
 type CachedMethod =
     { Key: string
@@ -89,7 +91,7 @@ let private mvidOf (path: string) =
         ""
 
 let private cacheKey (assembly: string) (mvid: string) (catalog: string) (closure: string) =
-    Caching.hash [ "summaries-v21"; assembly; mvid; catalog; closure ]
+    Caching.hash [ "summaries-v23"; assembly; mvid; catalog; closure ]
 
 /// The cache key under which an assembly keeps what a callback member reaches through its implementations there.
 let private callbackKey (assembly: string) (callback: string) = $"[{assembly}]callback:{callback}"
@@ -674,7 +676,8 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                            Primitive = w.Primitive
                            PrimitiveAssembly = w.PrimitiveAssembly
                            Steps = path w [] 0
-                           Payload = w.Payload |> Option.map CachedPayload.toPayload }
+                           Payload = w.Payload |> Option.map CachedPayload.toPayload
+                           Direct = w.Direct }
                         : Summaries.DependencyEffect))
                     |> Some
                 | _ -> Some []
@@ -714,7 +717,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                           Virtual = true }
 
                     effects e.Target
-                    |> List.map (fun d -> e.Target.Type.Assembly, { d with Steps = step :: d.Steps }))
+                    |> List.map (fun d -> e.Target.Type.Assembly, { d with Steps = step :: d.Steps; Direct = d.Direct + 2 }))
 
             let cachedOnly =
                 cachedAssemblies
@@ -743,7 +746,8 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                   Distance = w.Distance
                   Step = Summaries.toStep w.Edge
                   Next = if w.Distance = 1 then None else Some w.Edge.Target.Key
-                  Payload = summaries.PayloadOf(m, w.Hit.Rule.Id) |> Option.map CachedPayload.ofPayload }
+                  Payload = summaries.PayloadOf(m, w.Hit.Rule.Id) |> Option.map CachedPayload.ofPayload
+                  Direct = summaries.Direct(m, w.Hit.Rule.Id) }
 
             // One set of entries for each catalog and reference closure, as the summaries are made.
             for project in input.Projects |> List.distinctBy summaryKey do
@@ -783,6 +787,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                                             // The declared method has the implementation's arguments.
                                             { toCached summaries e.Target w with
                                                 Distance = w.Distance + 1
+                                                Direct = summaries.Direct(e.Target, w.Hit.Rule.Id) + 2
                                                 Step =
                                                     { Caller = d.Display
                                                       CallerAssembly = d.Type.Assembly
@@ -807,6 +812,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                                         |> List.map (fun w ->
                                             { toCached summaries e.Target w with
                                                 Distance = w.Distance + 1
+                                                Direct = summaries.Direct(e.Target, w.Hit.Rule.Id) + 2
                                                 Step =
                                                     { Caller = d.Display
                                                       CallerAssembly = d.Type.Assembly

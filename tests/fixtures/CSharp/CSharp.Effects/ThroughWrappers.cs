@@ -32,6 +32,10 @@ public static class ThroughWrappers
 
     public static List<object> RowsLiteral() => Sql.Rows(Connect(), "SELECT name FROM users").ToList();
 
+    public static int InLambda() => Sql.Deferred(Connect(), "DELETE FROM drafts");
+
+    public static int InBackground() => Sql.InBackground(Connect(), "outbox").Result;
+
     public static int ThroughDictionary() => Sql.Stored(Connect(), "DELETE FROM sessions");
 
     public static void RotateLog(string[] locks) => Files.Rotate("logs/app.log", locks);

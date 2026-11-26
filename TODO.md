@@ -27,7 +27,6 @@ In the order they are worth doing: the first ones change results already shown, 
 
 - A catalog rule that states a library method's payload directly (`"type": "Dapper.SqlMapper"`, ...), for a
   library whose code cannot be followed. Only with the owner's agreement.
-- C# lambdas inside a library (a display class made in another method) give an unknown payload.
 - Values kept in collections or caches before use stay dynamic.
 - Flurl's URL stays dynamic: it is rendered back from Flurl's parsed `Url` object.
 

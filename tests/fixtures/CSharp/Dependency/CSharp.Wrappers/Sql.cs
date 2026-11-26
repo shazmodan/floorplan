@@ -93,6 +93,40 @@ public static class Sql
             yield return reader.GetValue(0);
     }
 
+    /// In a lambda: the argument is a field of the display class this method makes, which the delegate is bound to.
+    public static int Deferred(DbConnection connection, string sql)
+    {
+        Func<int> run = () =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            return command.ExecuteNonQuery();
+        };
+
+        return Retry(run);
+    }
+
+    private static int Retry(Func<int> run)
+    {
+        try
+        {
+            return run();
+        }
+        catch (DbException)
+        {
+            return run();
+        }
+    }
+
+    /// In a lambda run on the thread pool, with text built from the argument.
+    public static Task<int> InBackground(DbConnection connection, string table) =>
+        Task.Run(() =>
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "DELETE FROM " + table;
+            return command.ExecuteNonQuery();
+        });
+
     /// Through a dictionary: not followed, so the SQL stays dynamic.
     public static int Stored(DbConnection connection, string sql)
     {

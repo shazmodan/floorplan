@@ -91,7 +91,13 @@ type DependencyEffect =
       PrimitiveAssembly: string
       Steps: PathStep list
       /// None when the rule has no payload.
-      Payload: PayloadOrigin option }
+      Payload: PayloadOrigin option
+      /// The confidence score (calls, and virtual calls once more) of the rule's most direct route, which `Steps`
+      /// need not be: they follow the route the payload is known on.
+      Direct: int }
+
+/// A route's confidence score: each call is one, each virtual call one more.
+let scoreOf (steps: PathStep list) = steps.Length + (steps |> List.filter (fun s -> s.Virtual) |> List.length)
 
 let toStep (e: CallEdge) =
     { Caller = e.Caller.Display
@@ -203,6 +209,18 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
                 | _ -> List.rev acc
 
         walk m [] 0
+
+    /// The confidence score of the most direct route from `m` to the primitive of `ruleId` (scoreOf).
+    member this.Direct(m: MethodRef, ruleId: string) : int =
+        let rec walk (m: MethodRef) (score: int) (guard: int) =
+            match best.TryGetValue m.Key with
+            | true, d when d.ContainsKey ruleId && guard <= 4096 ->
+                let w = d[ruleId]
+                let score = score + (if w.Edge.Kind = Virtual then 2 else 1)
+                if w.Distance = 1 then score else walk w.Edge.Target score (guard + 1)
+            | _ -> score
+
+        walk m 0 0
 
     /// The payload of the primitive `m` reaches for `ruleId`, in terms of `m`'s arguments, worked out backwards
     /// along the witness path (docs/library-payloads-plan.md). None when the rule has no payload.
@@ -327,4 +345,5 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
               Primitive = w.Hit.Primitive.Display
               PrimitiveAssembly = w.Hit.Primitive.Type.Assembly
               Steps = this.Path(m, w.Hit.Rule.Id) |> List.map toStep
-              Payload = this.PayloadOf(m, w.Hit.Rule.Id) })
+              Payload = this.PayloadOf(m, w.Hit.Rule.Id)
+              Direct = this.Direct(m, w.Hit.Rule.Id) })
