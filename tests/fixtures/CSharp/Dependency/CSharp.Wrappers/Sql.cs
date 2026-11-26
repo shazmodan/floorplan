@@ -127,7 +127,7 @@ public static class Sql
             return command.ExecuteNonQuery();
         });
 
-    /// Through a dictionary: not followed, so the SQL stays dynamic.
+    /// Through a dictionary made here, read at the key it was stored at.
     public static int Stored(DbConnection connection, string sql)
     {
         var statements = new Dictionary<string, string> { ["main"] = sql };
@@ -135,4 +135,27 @@ public static class Sql
         command.CommandText = statements["main"];
         return command.ExecuteNonQuery();
     }
+
+    /// Through a list made here, read at the index it was added at.
+    public static int Listed(DbConnection connection, string sql)
+    {
+        var statements = new List<string>();
+        statements.Add("SELECT 1");
+        statements.Add(sql);
+        using var command = connection.CreateCommand();
+        command.CommandText = statements[1];
+        return command.ExecuteNonQuery();
+    }
+
+    /// Through a dictionary another method fills: what is in it is not known, so the SQL stays dynamic.
+    public static int Filled(DbConnection connection, string sql)
+    {
+        var statements = new Dictionary<string, string> { ["main"] = sql };
+        Override(statements);
+        using var command = connection.CreateCommand();
+        command.CommandText = statements["main"];
+        return command.ExecuteNonQuery();
+    }
+
+    private static void Override(Dictionary<string, string> statements) => statements["main"] = "DELETE FROM everything";
 }

@@ -358,3 +358,12 @@ followed: a delegate made in one method from a display class another method made
   direct route, so a dependency's effect now carries that route's score (`DependencyEffect.Direct`, cached too) and
   an exit point's confidence is the best of its category's; its evidence and payload still follow the route shown.
   No exit point lost confidence; three gained. Cache key `summaries-v23`.
+
+**2026-11-26, values through collections.** `Evaluator` reads an element of a dictionary, list or array the
+same method makes (`newobj` with no arguments but a capacity, so the default key comparer; or `newarr`), at a
+constant key or index (`get_Item`, `ldelem`): the value last stored there before the read (`set_Item`, `Add`, a
+list's `Add` at the next index, `stelem`). Anything else done with the collection before the read (passed to a
+method, kept in a field, `Remove`, `Clear`, a store at a key not known) leaves it unknown. The wrapper case `Sql.Stored`
+(case i) now shows its SQL; new cases `Sql.Listed` (followed) and `Sql.Filled` (a method changes the dictionary:
+dynamic). Not followed: caches and collections kept in fields, which other methods change. Cache key
+`summaries-v24`.

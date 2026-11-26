@@ -111,6 +111,34 @@ let memberOfField (name: string) =
     elif name.EndsWith "@" && name.Length > 1 then name.TrimEnd '@'
     else name
 
+/// Collections a value can be read back from at a constant key or index (`Evaluator`'s `element`): the kind of
+/// collection a type made with `newobj` is, and the types its members are called through.
+type private Kept =
+    | Keyed
+    | Listed
+
+let private keptOf (madeType: string) =
+    match madeType with
+    | "System.Collections.Generic.Dictionary`2" -> Some Keyed
+    | "System.Collections.Generic.List`1" -> Some Listed
+    | _ -> None
+
+let private keptThrough (kept: Kept) (t: string) =
+    match kept with
+    | Keyed ->
+        List.contains
+            t
+            [ "System.Collections.Generic.Dictionary`2"
+              "System.Collections.Generic.IDictionary`2"
+              "System.Collections.Generic.IReadOnlyDictionary`2" ]
+    | Listed ->
+        List.contains
+            t
+            [ "System.Collections.Generic.List`1"
+              "System.Collections.Generic.IList`1"
+              "System.Collections.Generic.IReadOnlyList`1"
+              "System.Collections.Generic.ICollection`1" ]
+
 /// The property an instance getter reads.
 let private getterName (m: MethodRef) =
     if m.HasThis && m.ParameterCount = 0 && m.ReturnsValue && m.Name.StartsWith "get_" then Some(m.Name.Substring 4) else None
@@ -191,6 +219,19 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                 | Call m
                 | CallVirt m when (getterName m).IsSome && not operands.IsEmpty && isOptions operands.Head -> Hole
                 | NewArr _ -> arrayElements depth (Set.singleton (Pushed offset))
+                // An element of a collection or array this method made, read at a constant key or index.
+                | Call m
+                | CallVirt m when
+                    m.Name = "get_Item" && m.HasThis && m.ParameterCount = 1 && operands.Length = 2
+                    && (madeCollection operands[0]).IsSome
+                    ->
+                    match element depth operands[0] operands[1] offset with
+                    | Some v -> v
+                    | None -> formatted depth offset
+                | LdElem when operands.Length = 2 ->
+                    match element depth operands[0] operands[1] offset with
+                    | Some v -> v
+                    | None -> Hole
                 | Call m
                 | CallVirt m when m.Type.FullName = "System.String" && m.Name = "Concat" ->
                     match operands with
@@ -498,6 +539,86 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
         |> function
             | [ single ] -> single
             | parts -> collapse (Parts parts)
+
+    /// An element read at `before` from a collection or array this method made (a dictionary at a constant key, a
+    /// list or array at a constant index): the value last stored there before the read. None when the collection
+    /// is not made here, or is made with arguments (a key comparer), or when anything but reading and storing at
+    /// constant keys is done with it before the read (it is passed on, kept in a field, cleared, or stored into at
+    /// a key not known): what is in it is then not known.
+    and element (depth: int) (collection: Values) (key: Values) (before: int) : Symbolic option =
+        let constantKey (v: Values) =
+            match integer (depth + 1) v with
+            | Text k -> Some k
+            | _ -> None
+
+        match madeCollection collection, constantKey key with
+        | Some(madeAt, kept), Some wanted when depth <= 12 ->
+            let isCollection (v: Values) = v.Contains(Pushed madeAt)
+            let through (m: MethodRef) = kept |> Option.exists (fun k -> keptThrough k m.Type.FullName)
+
+            // Every use before the read, in order: a store at a key (None when the key is not known), a read, or
+            // anything else (Error).
+            let uses =
+                flow.Body.Instructions
+                |> Array.filter (fun i -> i.Offset > madeAt && i.Offset < before)
+                |> Array.choose (fun i ->
+                    let operands = flow.OperandsAt i.Offset
+
+                    if not (operands |> List.exists isCollection) then
+                        None
+                    else
+                        match i.Op, operands, kept with
+                        | (StLoc _ | Dup | Pop), _, _ -> None
+                        | (Call m | CallVirt m), target :: rest, Some kept when isCollection target && through m ->
+                            match m.Name, rest, kept with
+                            | ("set_Item" | "Add"), [ k; v ], Keyed when not (isCollection k || isCollection v) ->
+                                Some(Ok(Some(false, constantKey k, v)))
+                            | "set_Item", [ k; v ], Listed when not (isCollection k || isCollection v) ->
+                                Some(Ok(Some(false, constantKey k, v)))
+                            | "Add", [ v ], Listed when not (isCollection v) -> Some(Ok(Some(true, None, v)))
+                            | ("get_Item" | "ContainsKey" | "TryGetValue" | "get_Count" | "Contains"), _, _ -> Some(Ok None)
+                            | _ -> Some(Error())
+                        | StElem, [ target; k; v ], None when isCollection target && not (isCollection v) ->
+                            Some(Ok(Some(false, constantKey k, v)))
+                        | LdElem, [ target; _ ], None when isCollection target -> Some(Ok None)
+                        | _ -> Some(Error()))
+
+            if uses |> Array.exists Result.isError then
+                None
+            else
+                // A list's `Add` stores at the next index.
+                let stores =
+                    uses
+                    |> Array.choose (function
+                        | Ok s -> s
+                        | Error() -> None)
+                    |> Array.fold
+                        (fun (count, acc) (appended, k, v) ->
+                            if appended then count + 1, (Some(string count), v) :: acc else count, (k, v) :: acc)
+                        (0, [])
+                    |> snd
+                    |> List.rev
+
+                if stores |> List.exists (fun (k, _) -> k.IsNone) then
+                    None
+                else
+                    stores
+                    |> List.filter (fun (k, _) -> k = Some wanted)
+                    |> List.tryLast
+                    |> Option.map (fun (_, v) -> value (depth + 1) v)
+        | _ -> None
+
+    /// A collection or array this method made, by the offset it is made at, and what kind of collection it is
+    /// (None for an array): only one made without arguments but a capacity, so with the default key comparer.
+    and madeCollection (collection: Values) : (int * Kept option) option =
+        match Set.toList collection with
+        | [ Pushed o ] ->
+            match flow.InstructionAt o with
+            | Some { Op = NewObj ctor } when ctor.ParameterTypes.IsEmpty || ctor.ParameterTypes = [ "System.Int32" ] ->
+                keptOf ctor.Type.FullName |> Option.map (fun kept -> o, Some kept)
+            | Some { Op = NewArr _ } -> Some(o, None)
+            | _ -> None
+        | _ -> None
 
     /// A value that may be an integer constant, as text: only where a string is made of it. An integer argument on
     /// its own (an enum, a count) is not text.

@@ -38,6 +38,10 @@ public static class ThroughWrappers
 
     public static int ThroughDictionary() => Sql.Stored(Connect(), "DELETE FROM sessions");
 
+    public static int ThroughList() => Sql.Listed(Connect(), "DELETE FROM carts WHERE stale");
+
+    public static int ThroughFilledDictionary() => Sql.Filled(Connect(), "DELETE FROM sessions WHERE expired");
+
     public static void RotateLog(string[] locks) => Files.Rotate("logs/app.log", locks);
 
     public static int Interpolated(string id) => Sql.Exec(Connect(), $"DELETE FROM orders WHERE id = {id}");
