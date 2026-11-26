@@ -466,7 +466,7 @@ Also new, outside the recognizer:
   the payload is worked out from the dependency's own code, in terms of its arguments, and evaluated at the call
   site; no rule names the library. Arguments passed on, text built from them, properties and fields of objects
   (set by setters, constructors, or methods that return the object), structs passed by reference, async methods,
-  iterators and F# `task { }` / `seq { }` are followed. Dapper's `Query` and `Execute` show their SQL, and so do its async
+  iterators, C# lambdas over the method's arguments (`Task.Run(() => ...)`) and F# `task { }` / `seq { }` are followed. Dapper's `Query` and `Execute` show their SQL, and so do its async
   methods (`QueryAsync`, `QuerySingleAsync`, `ExecuteAsync`, `ExecuteScalarAsync`). A value returned by a
   method that builds it from its arguments (a helper that appends paging to the SQL it is given) is followed
   too; on a real solution every one of 109 Dapper calls shows its SQL (`docs/phase-2-review.md`). When a

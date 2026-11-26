@@ -6,9 +6,9 @@ network | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | StackExchange.Redi
 nondeterminism | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | System.Diagnostics.Stopwatch::GetTimestamp | via StackExchange.Redis | - | CSharp/CSharp.Clients/Program.cs:6
 database | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | MongoDB.Driver.IMongoCollectionExtensions::FindSync | via MongoDB.Driver | - | CSharp/CSharp.Clients/Program.cs:9
 environment | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | System.Environment::GetEnvironmentVariable | via MongoDB.Driver | literal:AWS_EXECUTION_ENV | CSharp/CSharp.Clients/Program.cs:9
-filesystem-read | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | System.IO.FileStream::.ctor | via MongoDB.Driver | dynamic:- | CSharp/CSharp.Clients/Program.cs:9
-filesystem-write | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | System.IO.File::Open | via MongoDB.Driver | dynamic:- | CSharp/CSharp.Clients/Program.cs:9
-http-out | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | System.Net.Http.HttpClient::SendAsync | via MongoDB.Driver | dynamic:- | CSharp/CSharp.Clients/Program.cs:9
+filesystem-read | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | System.IO.File::Exists | via MongoDB.Driver | template:{…}/endpoints.json | CSharp/CSharp.Clients/Program.cs:9
+filesystem-write | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | System.IO.File::Open | via MongoDB.Driver | template:{…}/endpoints.json | CSharp/CSharp.Clients/Program.cs:9
+http-out | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | System.Net.Http.HttpMessageInvoker::SendAsync | via MongoDB.Driver | template:http://{…}/computeMetadata/v1/instance/service-accounts/default/token | CSharp/CSharp.Clients/Program.cs:9
 native | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | Amazon.Runtime.Internal.Settings.UserCrypto::CryptProtectData | via MongoDB.Driver | - | CSharp/CSharp.Clients/Program.cs:9
 network | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | System.Net.Sockets.Socket::SendTo | via MongoDB.Driver | - | CSharp/CSharp.Clients/Program.cs:9
 nondeterminism | CSharp.Clients: | Program/<<Main>$>d__0::MoveNext | System.Diagnostics.Stopwatch::StartNew | via MongoDB.Driver | - | CSharp/CSharp.Clients/Program.cs:9
@@ -43,7 +43,7 @@ http-out | CSharp.Clients:CSharp.Clients.Notifications | CSharp.Clients.Notifica
 environment | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.Environment::GetEnvironmentVariable | via AWSSDK.S3 | template:AWS_ENDPOINT_URL_{…} | CSharp/CSharp.Cloud/Program.cs:11
 filesystem-read | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.IO.File::Exists | via AWSSDK.S3 | template:{…}/config | CSharp/CSharp.Cloud/Program.cs:11
 filesystem-write | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.IO.File::Open | via AWSSDK.S3 | template:{…}/endpoints.json | CSharp/CSharp.Cloud/Program.cs:11
-http-out | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.Net.Http.HttpClient::GetStreamAsync | via AWSSDK.S3 | dynamic:- | CSharp/CSharp.Cloud/Program.cs:11
+http-out | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.Net.Http.HttpClient::SendAsync | via AWSSDK.S3 | template:{…}{…}/api/token | CSharp/CSharp.Cloud/Program.cs:11
 native | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | Amazon.Runtime.Internal.Settings.UserCrypto::CryptProtectData | via AWSSDK.S3 | - | CSharp/CSharp.Cloud/Program.cs:11
 network | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.Net.Sockets.UdpClient::SendAsync | via AWSSDK.S3 | - | CSharp/CSharp.Cloud/Program.cs:11
 nondeterminism | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.DateTime::get_UtcNow | via AWSSDK.S3 | - | CSharp/CSharp.Cloud/Program.cs:11
@@ -51,7 +51,7 @@ process | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.Diagnostics.P
 environment | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.Environment::GetEnvironmentVariable | via AWSSDK.DynamoDBv2 | template:AWS_ENDPOINT_URL_{…} | CSharp/CSharp.Cloud/Program.cs:12
 filesystem-read | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.IO.File::Exists | via AWSSDK.DynamoDBv2 | template:{…}/config | CSharp/CSharp.Cloud/Program.cs:12
 filesystem-write | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.IO.File::Open | via AWSSDK.DynamoDBv2 | template:{…}/endpoints.json | CSharp/CSharp.Cloud/Program.cs:12
-http-out | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.Net.Http.HttpClient::GetStreamAsync | via AWSSDK.DynamoDBv2 | dynamic:- | CSharp/CSharp.Cloud/Program.cs:12
+http-out | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.Net.Http.HttpClient::SendAsync | via AWSSDK.DynamoDBv2 | template:{…}{…}/api/token | CSharp/CSharp.Cloud/Program.cs:12
 native | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | Amazon.Runtime.Internal.Settings.UserCrypto::CryptProtectData | via AWSSDK.DynamoDBv2 | - | CSharp/CSharp.Cloud/Program.cs:12
 network | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.Net.Sockets.UdpClient::SendAsync | via AWSSDK.DynamoDBv2 | - | CSharp/CSharp.Cloud/Program.cs:12
 nondeterminism | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.DateTime::get_UtcNow | via AWSSDK.DynamoDBv2 | - | CSharp/CSharp.Cloud/Program.cs:12
@@ -59,7 +59,7 @@ process | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.Diagnostics.P
 environment | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.Environment::GetEnvironmentVariable | via AWSSDK.SQS | template:AWS_ENDPOINT_URL_{…} | CSharp/CSharp.Cloud/Program.cs:13
 filesystem-read | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.IO.File::Exists | via AWSSDK.SQS | template:{…}/config | CSharp/CSharp.Cloud/Program.cs:13
 filesystem-write | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.IO.File::Open | via AWSSDK.SQS | template:{…}/endpoints.json | CSharp/CSharp.Cloud/Program.cs:13
-http-out | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.Net.Http.HttpClient::GetStreamAsync | via AWSSDK.SQS | dynamic:- | CSharp/CSharp.Cloud/Program.cs:13
+http-out | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.Net.Http.HttpClient::SendAsync | via AWSSDK.SQS | template:{…}{…}/api/token | CSharp/CSharp.Cloud/Program.cs:13
 native | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | Amazon.Runtime.Internal.Settings.UserCrypto::CryptProtectData | via AWSSDK.SQS | - | CSharp/CSharp.Cloud/Program.cs:13
 network | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.Net.Sockets.UdpClient::SendAsync | via AWSSDK.SQS | - | CSharp/CSharp.Cloud/Program.cs:13
 nondeterminism | CSharp.Cloud: | Program/<<Main>$>d__0::MoveNext | System.DateTime::get_UtcNow | via AWSSDK.SQS | - | CSharp/CSharp.Cloud/Program.cs:13
@@ -86,7 +86,7 @@ network | CSharp.Cloud:CSharp.Cloud.Jobs | CSharp.Cloud.Jobs.Queue::Enqueue | Am
 environment | CSharp.Cloud:CSharp.Cloud.Jobs | CSharp.Cloud.Jobs.Queue/<Run>d__2::MoveNext | System.Environment::GetEnvironmentVariable | via AWSSDK.SQS | literal:AWS_DEFAULTS_MODE | CSharp/CSharp.Cloud/Program.cs:99
 filesystem-read | CSharp.Cloud:CSharp.Cloud.Jobs | CSharp.Cloud.Jobs.Queue/<Run>d__2::MoveNext | System.IO.File::Exists | via AWSSDK.SQS | template:{…}/endpoints.json | CSharp/CSharp.Cloud/Program.cs:99
 filesystem-write | CSharp.Cloud:CSharp.Cloud.Jobs | CSharp.Cloud.Jobs.Queue/<Run>d__2::MoveNext | System.IO.File::Open | via AWSSDK.SQS | template:{…}/endpoints.json | CSharp/CSharp.Cloud/Program.cs:99
-http-out | CSharp.Cloud:CSharp.Cloud.Jobs | CSharp.Cloud.Jobs.Queue/<Run>d__2::MoveNext | System.Net.Http.HttpClient::SendAsync | via AWSSDK.SQS | dynamic:- | CSharp/CSharp.Cloud/Program.cs:99
+http-out | CSharp.Cloud:CSharp.Cloud.Jobs | CSharp.Cloud.Jobs.Queue/<Run>d__2::MoveNext | System.Net.Http.HttpClient::SendAsync | via AWSSDK.SQS | template:{…}{…}/api/token | CSharp/CSharp.Cloud/Program.cs:99
 native | CSharp.Cloud:CSharp.Cloud.Jobs | CSharp.Cloud.Jobs.Queue/<Run>d__2::MoveNext | Amazon.Runtime.Internal.Settings.UserCrypto::CryptProtectData | via AWSSDK.SQS | - | CSharp/CSharp.Cloud/Program.cs:99
 network | CSharp.Cloud:CSharp.Cloud.Jobs | CSharp.Cloud.Jobs.Queue/<Run>d__2::MoveNext | System.Net.Sockets.UdpClient::SendAsync | via AWSSDK.SQS | - | CSharp/CSharp.Cloud/Program.cs:99
 nondeterminism | CSharp.Cloud:CSharp.Cloud.Jobs | CSharp.Cloud.Jobs.Queue/<Run>d__2::MoveNext | System.Guid::NewGuid | via AWSSDK.SQS | - | CSharp/CSharp.Cloud/Program.cs:99
@@ -100,7 +100,7 @@ database | CSharp.Cloud:CSharp.Cloud.Search | CSharp.Cloud.Search.ProductIndex::
 filesystem-write | CSharp.Controllers:CSharp.Controllers.Pages.Shop | CSharp.Controllers.Pages.Shop.IndexModel::OnGet | System.IO.File::AppendAllText | via - | literal:shop.log | CSharp/CSharp.Controllers/Pages/Shop/Index.cshtml.cs:8
 filesystem-write | CSharp.Controllers:CSharp.Controllers.Pages.Shop | CSharp.Controllers.Pages.Shop.ItemModel::OnGetAsync | System.IO.File::AppendAllTextAsync | via - | literal:items.log | CSharp/CSharp.Controllers/Pages/Shop/Item.cshtml.cs:9
 filesystem-write | CSharp.Controllers:CSharp.Controllers.Pages.Shop | CSharp.Controllers.Pages.Shop.ItemModel::OnPostRemove | System.IO.File::Delete | via - | template:items/{…} | CSharp/CSharp.Controllers/Pages/Shop/Item.cshtml.cs:13
-environment | CSharp.Dapr: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via Dapr.AspNetCore | dynamic:- | CSharp/CSharp.Dapr/Program.cs:7
+environment | CSharp.Dapr: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via Dapr.AspNetCore | literal:DAPR_GRPC_ENDPOINT | CSharp/CSharp.Dapr/Program.cs:7
 network | CSharp.Dapr:CSharp.Dapr.Checkout | CSharp.Dapr.Checkout.Cart/<Checkout>d__0::MoveNext | Dapr.Client.DaprClient::PublishEventAsync | via - | literal:receipts | CSharp/CSharp.Dapr/Program.cs:63
 http-out | CSharp.Dapr:CSharp.Dapr.Checkout | CSharp.Dapr.Checkout.Cart/<Checkout>d__0::MoveNext | Dapr.Client.DaprClient::InvokeMethodAsync | via - | literal:http://inventory/reserve | CSharp/CSharp.Dapr/Program.cs:64
 http-out | CSharp.Dapr:CSharp.Dapr.Checkout | CSharp.Dapr.Checkout.Cart/<Checkout>d__0::MoveNext | Dapr.Client.DaprClient::InvokeMethodAsync | via - | literal:http://shipping/ship | CSharp/CSharp.Dapr/Program.cs:65
@@ -147,9 +147,11 @@ database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::Execu
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::ExecuteDefinition | System.Data.Common.DbCommand::ExecuteNonQuery | via CSharp.Wrappers | literal:DELETE FROM logs | CSharp/CSharp.Effects/ThroughWrappers.cs:29
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::ExecAsyncLiteral | System.Data.Common.DbCommand::ExecuteNonQueryAsync | via CSharp.Wrappers | literal:DELETE FROM tokens | CSharp/CSharp.Effects/ThroughWrappers.cs:31
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::RowsLiteral | System.Data.Common.DbCommand::ExecuteReader | via CSharp.Wrappers | literal:SELECT name FROM users | CSharp/CSharp.Effects/ThroughWrappers.cs:33
-database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::ThroughDictionary | System.Data.Common.DbCommand::ExecuteNonQuery | via CSharp.Wrappers | dynamic:- | CSharp/CSharp.Effects/ThroughWrappers.cs:35
-filesystem-write | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::RotateLog | System.IO.File::Delete | via CSharp.Wrappers | literal:logs/app.log | CSharp/CSharp.Effects/ThroughWrappers.cs:37
-database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::Interpolated | System.Data.Common.DbCommand::ExecuteNonQuery | via CSharp.Wrappers | template:DELETE FROM orders WHERE id = {…} | CSharp/CSharp.Effects/ThroughWrappers.cs:39
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::InLambda | System.Data.Common.DbCommand::ExecuteNonQuery | via CSharp.Wrappers | literal:DELETE FROM drafts | CSharp/CSharp.Effects/ThroughWrappers.cs:35
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::InBackground | System.Data.Common.DbCommand::ExecuteNonQuery | via CSharp.Wrappers | literal:DELETE FROM outbox | CSharp/CSharp.Effects/ThroughWrappers.cs:37
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::ThroughDictionary | System.Data.Common.DbCommand::ExecuteNonQuery | via CSharp.Wrappers | dynamic:- | CSharp/CSharp.Effects/ThroughWrappers.cs:39
+filesystem-write | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::RotateLog | System.IO.File::Delete | via CSharp.Wrappers | literal:logs/app.log | CSharp/CSharp.Effects/ThroughWrappers.cs:41
+database | CSharp.Effects:CSharp.Effects | CSharp.Effects.ThroughWrappers::Interpolated | System.Data.Common.DbCommand::ExecuteNonQuery | via CSharp.Wrappers | template:DELETE FROM orders WHERE id = {…} | CSharp/CSharp.Effects/ThroughWrappers.cs:43
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::QueryNames | System.Data.IDbCommand::ExecuteReader | via Dapper | literal:SELECT name FROM users | CSharp/CSharp.Effects/Wrapped.cs:13
 nondeterminism | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::QueryNames | System.Guid::NewGuid | via Dapper | - | CSharp/CSharp.Effects/Wrapped.cs:13
 database | CSharp.Effects:CSharp.Effects | CSharp.Effects.Wrapped::DeleteSessions | System.Data.IDbCommand::ExecuteNonQuery | via Dapper | literal:DELETE FROM sessions | CSharp/CSharp.Effects/Wrapped.cs:19
@@ -178,7 +180,7 @@ environment | CSharp.Effects:CSharp.Effects.Loading | CSharp.Effects.Loading.Set
 filesystem-read | CSharp.Effects:CSharp.Effects.Loading | CSharp.Effects.Loading.Setup::FromSettings | System.IO.Directory::Exists | via Serilog.Settings.Configuration | dynamic:- | CSharp/CSharp.Effects/LoadedLoggers.cs:13
 filesystem-write | CSharp.Effects:CSharp.Effects.Loading | CSharp.Effects.Loading.Setup::FromSettings | System.IO.Directory::CreateDirectory | via Serilog.Sinks.File | dynamic:- | CSharp/CSharp.Effects/LoadedLoggers.cs:13
 environment | CSharp.Effects:CSharp.Effects.Loading | CSharp.Effects.Loading.Setup::NLogFromSettings | System.Console::get_Out | via NLog.Extensions.Logging | - | CSharp/CSharp.Effects/LoadedLoggers.cs:16
-filesystem-read | CSharp.Effects:CSharp.Effects.Loading | CSharp.Effects.Loading.Setup::NLogFromSettings | System.IO.Directory::Exists | via NLog.Extensions.Logging | dynamic:- | CSharp/CSharp.Effects/LoadedLoggers.cs:16
+filesystem-read | CSharp.Effects:CSharp.Effects.Loading | CSharp.Effects.Loading.Setup::NLogFromSettings | System.IO.File::Exists | via NLog.Extensions.Logging | literal: | CSharp/CSharp.Effects/LoadedLoggers.cs:16
 filesystem-write | CSharp.Effects:CSharp.Effects.Loading | CSharp.Effects.Loading.Setup::NLogFromSettings | System.IO.Directory::CreateDirectory | via NLog.Extensions.Logging | dynamic:- | CSharp/CSharp.Effects/LoadedLoggers.cs:16
 http-out | CSharp.Effects:CSharp.Effects.Loading | CSharp.Effects.Loading.Setup::NLogFromSettings | System.Net.WebRequest::BeginGetResponse | via NLog.Extensions.Logging | - | CSharp/CSharp.Effects/LoadedLoggers.cs:16
 network | CSharp.Effects:CSharp.Effects.Loading | CSharp.Effects.Loading.Setup::NLogFromSettings | System.Net.Dns::GetHostEntry | via NLog.Extensions.Logging | dynamic:- | CSharp/CSharp.Effects/LoadedLoggers.cs:16
@@ -221,7 +223,7 @@ nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.
 process | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Diagnostics.Process::GetCurrentProcess | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:16
 nondeterminism | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Environment::get_TickCount | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:16
 environment | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Console::get_Out | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
-filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.IO.Directory::Exists | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:17
+filesystem-read | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.IO.File::Exists | via NLog | literal: | CSharp/CSharp.Effects/OtherLoggers.cs:17
 filesystem-write | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.IO.Directory::CreateDirectory | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:17
 http-out | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Net.WebRequest::BeginGetResponse | via NLog | - | CSharp/CSharp.Effects/OtherLoggers.cs:17
 network | CSharp.Effects:CSharp.Effects.Packing | CSharp.Effects.Packing.Setup::Configure | System.Net.Dns::GetHostEntry | via NLog | dynamic:- | CSharp/CSharp.Effects/OtherLoggers.cs:17
@@ -293,7 +295,7 @@ filesystem-read | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.
 filesystem-write | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.IO.File::Delete | via Serilog.Extensions.Logging | template:{…}/{…} | CSharp/CSharp.Endpoints/Shipping.cs:18
 nondeterminism | CSharp.Endpoints:CSharp.Endpoints.Shipping | CSharp.Endpoints.Shipping.Parcels::Ship | System.DateTimeOffset::get_Now | via Serilog.Extensions.Logging | - | CSharp/CSharp.Endpoints/Shipping.cs:18
 environment | CSharp.Functions: | Program::<Main>$ | System.Environment::GetCommandLineArgs | via Microsoft.Azure.Functions.Worker | dynamic:- | CSharp/CSharp.Functions/Functions.cs:8
-environment | CSharp.Functions: | Program::<Main>$ | System.Environment::GetEnvironmentVariables | via Microsoft.Extensions.Hosting | dynamic:- | CSharp/CSharp.Functions/Functions.cs:8
+environment | CSharp.Functions: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via Microsoft.Extensions.Hosting | literal:DOTNET_USE_POLLING_FILE_WATCHER | CSharp/CSharp.Functions/Functions.cs:8
 filesystem-read | CSharp.Functions: | Program::<Main>$ | System.IO.Directory::Exists | via Microsoft.Extensions.Hosting | dynamic:- | CSharp/CSharp.Functions/Functions.cs:8
 filesystem-write | CSharp.Functions:CSharp.Functions.Maintenance | CSharp.Functions.Maintenance.Cleanup::Run | System.IO.File::Delete | via - | literal:tmp.txt | CSharp/CSharp.Functions/Functions.cs:39
 filesystem-write | CSharp.Functions:CSharp.Functions.Orders | CSharp.Functions.Orders.OrderFunctions::Get | System.IO.File::AppendAllText | via - | literal:reads.log | CSharp/CSharp.Functions/Functions.cs:17
@@ -322,18 +324,18 @@ network | CSharp.Messaging:CSharp.Messaging.Orders | CSharp.Messaging.Orders.Lis
 nondeterminism | CSharp.Messaging:CSharp.Messaging.Orders | CSharp.Messaging.Orders.Listener::Start | System.Guid::NewGuid | via RabbitMQ.Client | - | CSharp/CSharp.Messaging/Program.cs:20
 filesystem-write | CSharp.Messaging:CSharp.Messaging.Orders | CSharp.Messaging.Orders.Listener/<>c::<Start>b__0_0 | System.IO.File::AppendAllText | via - | literal:orders.log | CSharp/CSharp.Messaging/Program.cs:23
 filesystem-write | CSharp.Messaging:CSharp.Messaging.Orders | CSharp.Messaging.Orders.Listener::OnReturn | System.IO.File::Delete | via - | template:pending/{…} | CSharp/CSharp.Messaging/Program.cs:32
-environment | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<StartAsync>d__0::MoveNext | System.Environment::FailFast | via Azure.Messaging.ServiceBus | dynamic:- | CSharp/CSharp.Messaging/Program.cs:155
+environment | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<StartAsync>d__0::MoveNext | System.Environment::FailFast | via Azure.Messaging.ServiceBus | literal:Fatal exception | CSharp/CSharp.Messaging/Program.cs:155
 http-out | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<StartAsync>d__0::MoveNext | System.Net.WebSockets.ClientWebSocket::ConnectAsync | via Azure.Messaging.ServiceBus | dynamic:- | CSharp/CSharp.Messaging/Program.cs:155
 network | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<StartAsync>d__0::MoveNext | System.Net.Sockets.Socket::ConnectAsync | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:155
 nondeterminism | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<StartAsync>d__0::MoveNext | System.Guid::NewGuid | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:155
 process | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<StartAsync>d__0::MoveNext | System.Diagnostics.Process::GetCurrentProcess | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:155
 nondeterminism | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<StartAsync>d__0::MoveNext | System.Guid::NewGuid | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:156
-environment | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<StartAsync>d__0::MoveNext | System.Environment::FailFast | via Azure.Messaging.ServiceBus | dynamic:- | CSharp/CSharp.Messaging/Program.cs:159
+environment | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<StartAsync>d__0::MoveNext | System.Environment::FailFast | via Azure.Messaging.ServiceBus | literal:Fatal exception | CSharp/CSharp.Messaging/Program.cs:159
 network | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<StartAsync>d__0::MoveNext | System.Net.Sockets.Socket::SendAsync | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:159
 nondeterminism | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<StartAsync>d__0::MoveNext | System.DateTime::get_UtcNow | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:159
 process | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<StartAsync>d__0::MoveNext | System.Diagnostics.Process::GetCurrentProcess | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:159
 filesystem-write | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<Handle>d__1::MoveNext | System.IO.File::AppendAllTextAsync | via - | literal:payments.log | CSharp/CSharp.Messaging/Program.cs:164
-environment | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<Handle>d__1::MoveNext | System.Environment::FailFast | via Azure.Messaging.ServiceBus | dynamic:- | CSharp/CSharp.Messaging/Program.cs:165
+environment | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<Handle>d__1::MoveNext | System.Environment::FailFast | via Azure.Messaging.ServiceBus | literal:Fatal exception | CSharp/CSharp.Messaging/Program.cs:165
 network | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<Handle>d__1::MoveNext | System.Net.Sockets.Socket::ReceiveAsync | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:165
 nondeterminism | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<Handle>d__1::MoveNext | System.DateTime::get_UtcNow | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:165
 process | CSharp.Messaging:CSharp.Messaging.Payments | CSharp.Messaging.Payments.Listener/<Handle>d__1::MoveNext | System.Diagnostics.Process::GetCurrentProcess | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:165
@@ -342,11 +344,11 @@ network | CSharp.Messaging:CSharp.Messaging.Publishing | CSharp.Messaging.Publis
 network | CSharp.Messaging:CSharp.Messaging.Publishing | CSharp.Messaging.Publishing.Publisher::Shipped | MassTransit.IPublishEndpoint::Publish | via - | - | CSharp/CSharp.Messaging/Program.cs:77
 network | CSharp.Messaging:CSharp.Messaging.Publishing | CSharp.Messaging.Publishing.Publisher::Placed | Confluent.Kafka.IProducer`2::ProduceAsync | via - | literal:placed | CSharp/CSharp.Messaging/Program.cs:80
 network | CSharp.Messaging:CSharp.Messaging.Publishing | CSharp.Messaging.Publishing.Publisher::Cancelled | Confluent.Kafka.IProducer`2::Produce | via - | literal:cancelled | CSharp/CSharp.Messaging/Program.cs:82
-environment | CSharp.Messaging:CSharp.Messaging.Refunds | CSharp.Messaging.Refunds.Poller/<RunAsync>d__0::MoveNext | System.Environment::FailFast | via Azure.Messaging.ServiceBus | dynamic:- | CSharp/CSharp.Messaging/Program.cs:118
+environment | CSharp.Messaging:CSharp.Messaging.Refunds | CSharp.Messaging.Refunds.Poller/<RunAsync>d__0::MoveNext | System.Environment::FailFast | via Azure.Messaging.ServiceBus | literal:Fatal exception | CSharp/CSharp.Messaging/Program.cs:118
 network | CSharp.Messaging:CSharp.Messaging.Refunds | CSharp.Messaging.Refunds.Poller/<RunAsync>d__0::MoveNext | System.Net.Sockets.Socket::ReceiveAsync | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:118
 nondeterminism | CSharp.Messaging:CSharp.Messaging.Refunds | CSharp.Messaging.Refunds.Poller/<RunAsync>d__0::MoveNext | System.Guid::NewGuid | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:118
 process | CSharp.Messaging:CSharp.Messaging.Refunds | CSharp.Messaging.Refunds.Poller/<RunAsync>d__0::MoveNext | System.Diagnostics.Process::GetCurrentProcess | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:118
-environment | CSharp.Messaging:CSharp.Messaging.Refunds | CSharp.Messaging.Refunds.Poller/<RunAsync>d__0::MoveNext | System.Environment::FailFast | via Azure.Messaging.ServiceBus | dynamic:- | CSharp/CSharp.Messaging/Program.cs:122
+environment | CSharp.Messaging:CSharp.Messaging.Refunds | CSharp.Messaging.Refunds.Poller/<RunAsync>d__0::MoveNext | System.Environment::FailFast | via Azure.Messaging.ServiceBus | literal:Fatal exception | CSharp/CSharp.Messaging/Program.cs:122
 network | CSharp.Messaging:CSharp.Messaging.Refunds | CSharp.Messaging.Refunds.Poller/<RunAsync>d__0::MoveNext | System.Net.Sockets.Socket::SendAsync | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:122
 nondeterminism | CSharp.Messaging:CSharp.Messaging.Refunds | CSharp.Messaging.Refunds.Poller/<RunAsync>d__0::MoveNext | System.DateTime::get_UtcNow | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:122
 process | CSharp.Messaging:CSharp.Messaging.Refunds | CSharp.Messaging.Refunds.Poller/<RunAsync>d__0::MoveNext | System.Diagnostics.Process::GetCurrentProcess | via Azure.Messaging.ServiceBus | - | CSharp/CSharp.Messaging/Program.cs:122
@@ -376,9 +378,9 @@ database | CSharp.Orleans:CSharp.Silo.Orders | CSharp.Silo.Orders.OrderGrain/<Ca
 filesystem-write | CSharp.Orleans:CSharp.Silo.Orders | CSharp.Silo.Orders.OrderGrain/<Cancel>d__4::MoveNext | System.IO.File::AppendAllTextAsync | via - | literal:cancelled.log | CSharp/CSharp.Orleans/Program.cs:60
 filesystem-write | CSharp.Orleans:CSharp.Silo.Stock | CSharp.Silo.Stock.StockGrain::Flush | System.IO.File::AppendAllTextAsync | via - | literal:stock.log | CSharp/CSharp.Orleans/Program.cs:89
 environment | CSharp.Telemetry: | Program::<Main>$ | System.Environment::GetFolderPath | via OpenTelemetry.Extensions.Hosting | dynamic:- | CSharp/CSharp.Telemetry/Program.cs:10
-environment | CSharp.Telemetry: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via OpenTelemetry.Extensions.Hosting | dynamic:- | CSharp/CSharp.Telemetry/Program.cs:10
+environment | CSharp.Telemetry: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via OpenTelemetry.Extensions.Hosting | literal:WEBSITE_SITE_NAME | CSharp/CSharp.Telemetry/Program.cs:10
 nondeterminism | CSharp.Telemetry: | Program::<Main>$ | System.Diagnostics.Stopwatch::GetTimestamp | via OpenTelemetry.Extensions.Hosting | - | CSharp/CSharp.Telemetry/Program.cs:10
-environment | CSharp.Telemetry: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via OpenTelemetry.Extensions.Hosting | dynamic:- | CSharp/CSharp.Telemetry/Program.cs:10
+environment | CSharp.Telemetry: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via OpenTelemetry.Extensions.Hosting | literal:WEBSITE_SITE_NAME | CSharp/CSharp.Telemetry/Program.cs:10
 nondeterminism | CSharp.Telemetry: | Program::<Main>$ | System.Diagnostics.Stopwatch::GetTimestamp | via OpenTelemetry.Extensions.Hosting | - | CSharp/CSharp.Telemetry/Program.cs:10
 environment | CSharp.Telemetry: | Program/<>c::<<Main>$>b__0_0 | System.Environment::GetEnvironmentVariables | via OpenTelemetry.Instrumentation.AspNetCore | dynamic:- | CSharp/CSharp.Telemetry/Program.cs:11
 http-out | CSharp.Telemetry: | Program/<>c::<<Main>$>b__0_0 | OpenTelemetry.Trace.OtlpTraceExporterHelperExtensions::AddOtlpExporter | via - | literal:http://collector:4317 | CSharp/CSharp.Telemetry/Program.cs:11
@@ -387,7 +389,7 @@ environment | CSharp.Telemetry: | Program/<>c::<<Main>$>b__0_0 | OpenTelemetry.T
 http-out | CSharp.Telemetry: | Program/<>c::<<Main>$>b__0_1 | OpenTelemetry.Metrics.OtlpMetricExporterExtensions::AddOtlpExporter | via - | literal:http://collector:4318/v1/metrics | CSharp/CSharp.Telemetry/Program.cs:16
 nondeterminism | CSharp.Telemetry: | Program/<>c::<<Main>$>b__0_1 | System.Diagnostics.Stopwatch::GetTimestamp | via OpenTelemetry.Exporter.Prometheus.AspNetCore | - | CSharp/CSharp.Telemetry/Program.cs:16
 http-out | CSharp.Telemetry: | Program/<>c::<<Main>$>b__0_2 | OpenTelemetry.Logs.OtlpLogExporterHelperExtensions::AddOtlpExporter | via - | dynamic:- | CSharp/CSharp.Telemetry/Program.cs:26
-environment | CSharp.Telemetry: | Program::<Main>$ | System.Environment::GetFolderPath | via OpenTelemetry | dynamic:- | CSharp/CSharp.Telemetry/Program.cs:26
+environment | CSharp.Telemetry: | Program::<Main>$ | System.Environment::GetEnvironmentVariable | via OpenTelemetry | literal:WEBSITE_SITE_NAME | CSharp/CSharp.Telemetry/Program.cs:26
 nondeterminism | CSharp.Telemetry: | Program::<Main>$ | System.Diagnostics.Stopwatch::GetTimestamp | via OpenTelemetry | - | CSharp/CSharp.Telemetry/Program.cs:26
 environment | CSharp.Telemetry: | Program::<Main>$ | System.Environment::GetFolderPath | via OpenTelemetry.Extensions.Hosting | dynamic:- | CSharp/CSharp.Telemetry/Program.cs:28
 http-out | CSharp.Telemetry: | Program::<Main>$ | OpenTelemetry.OpenTelemetryBuilderOtlpExporterExtensions::UseOtlpExporter | via - | literal:http://agent:4317 | CSharp/CSharp.Telemetry/Program.cs:28

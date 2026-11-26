@@ -211,6 +211,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         component_CSharp_Cloud_CSharp_Cloud_ -> external_native "calls native code" "AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS"
         component_CSharp_Cloud_CSharp_Cloud_ -> external_processes "starts or inspects processes" "Microsoft.Azure.Cosmos.Client"
         component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Catalog -> external_library_Microsoft_Azure_Cosmos "reads and writes data"
+        component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs -> external_filesystem "reads files" "AWSSDK.SQS"
         component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs -> external_filesystem "writes files" "AWSSDK.SQS"
         component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs -> external_http "sends HTTP requests" "AWSSDK.SQS"
         component_CSharp_Cloud_CSharp_Cloud_CSharp_Cloud_Jobs -> external_library_Amazon_SQS "sends and receives over the network"

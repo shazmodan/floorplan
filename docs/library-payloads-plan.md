@@ -343,3 +343,18 @@ so `AppendPageStatement(sql)` shows the SQL with its paging clause. And the witn
 primitive from the route the callee chose, not from its shortest route: `filesystem-write.file` covers both
 `File.Open` and `File.Delete`, and Serilog's file sink reported `Open` with the evidence and payload of `Delete`.
 Cache key `summaries-v11`. Fixtures: `Wrapped.QueryPage`, and `Files.Rotate` in `Dependency/CSharp.Wrappers`.
+
+**2026-11-26, C# lambdas in a library.** A C# lambda that captures the library method's arguments is an instance
+method of a display class the method makes before it makes the delegate (`newobj <>c__DisplayClass..::.ctor`, the
+`stfld`s of the captured values, then `ldftn <Method>b__0` and the delegate's `newobj`). The call graph's `Deferred`
+edge is at the `ldftn`, so nothing was constructed at it and the payload stayed unknown. `ThroughStateMachine` now
+also takes the object the delegate made right after the `ldftn` is bound to (its constructor's first operand),
+and the lambda's fields are what the method stored into that object. New wrapper cases `Sql.Deferred` (a `Func<int>`
+handed to a retry helper) and `Sql.InBackground` (`Task.Run`, text built from the argument) show their SQL. Not
+followed: a delegate made in one method from a display class another method made.
+  Found: with more payloads known, more exit points showed a longer route (the shortest whose payload is known),
+  and their confidence, worked out from the route shown, dropped: four of the C# fixture's went from medium to low
+  and left the C4 views, which hide low confidence. How sure it is that a call has an effect is a matter of its most
+  direct route, so a dependency's effect now carries that route's score (`DependencyEffect.Direct`, cached too) and
+  an exit point's confidence is the best of its category's; its evidence and payload still follow the route shown.
+  No exit point lost confidence; three gained. Cache key `summaries-v23`.

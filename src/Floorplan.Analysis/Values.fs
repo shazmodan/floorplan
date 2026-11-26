@@ -733,11 +733,24 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
     /// machine is the object constructed at `offset`, or this method's local of type `machine` (a struct
     /// machine, started through the platform's builder). `alternatives` names other fields the argument held in
     /// a field may be stored into. With `constructedOnly` (function objects, such as F# closures and sequence
-    /// expressions), only an object constructed at `offset` counts.
+    /// expressions), only an object constructed at `offset` counts, or the object a delegate made at `offset` is
+    /// bound to (a C# lambda's display class, made earlier in this method; `ldftn` then the delegate's `newobj`).
     member _.ThroughStateMachine(callee: Origin, offset: int, machine: TypeRef, alternatives: string -> string list, constructedOnly: bool) : Origin =
+        // The delegate made from the method loaded at `offset`: its target, the first operand of its constructor.
+        let boundTo () =
+            let instructions = flow.Body.Instructions
+
+            match Instruction.indexOfOffset instructions offset with
+            | i when i >= 0 && i + 1 < instructions.Length ->
+                match instructions[i + 1].Op with
+                | NewObj ctor when ctor.ParameterTypes = [ "System.Object"; "System.IntPtr" ] -> flow.OperandsAt instructions[i + 1].Offset |> List.tryHead
+                | _ -> None
+            | _ -> None
+
         let receiver =
             match flow.InstructionAt offset with
             | Some { Op = NewObj ctor } when ctor.Type.FullName = machine.FullName -> Some(Set.singleton (Pushed offset))
+            | Some { Op = LdFtn target } when target.Type.FullName = machine.FullName -> boundTo ()
             | _ when constructedOnly -> None
             | Some { Op = InitObj t } when t.FullName = machine.FullName -> flow.OperandsAt offset |> List.tryHead
             | _ ->

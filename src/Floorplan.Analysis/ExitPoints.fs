@@ -93,12 +93,12 @@ let private opened (resolved: ('d * Payload option) list) (shown: Payload option
             | Some { Role = "connection"; Kind = PayloadKind.Literal; Value = value } -> value
             | _ -> None)
 
-let confidenceOf (path: PathStep list) =
-    let score = path.Length + (path |> List.filter (fun e -> e.Virtual) |> List.length)
-
+let private confidenceOfScore (score: int) =
     if score <= 4 then Confidence.High
     elif score <= 12 then Confidence.Medium
     else Confidence.Low
+
+let confidenceOf (path: PathStep list) = confidenceOfScore (scoreOf path)
 
 /// The call sites of a method body, with the edges the call graph resolved for each.
 let private callSites (ctx: ProjectContext) (m: MethodDef) (body: MethodBody) =
@@ -1020,7 +1020,10 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                         logged edge.Target via category d payload
                                     else
                                         let steps = step $"{m.Ref.Display} calls {edge.Target.Display}" m.Ref point :: dependencySteps d category
-                                        addOpening (opened resolved payload) category d.RuleId d.Primitive (Some via) payload (confidenceOf d.Steps) steps)
+                                        // How sure it is that the call has the effect: its most direct route, even
+                                        // when a longer one is shown for its payload.
+                                        let confidence = ds |> List.map (fun d -> min d.Direct (scoreOf d.Steps)) |> List.min |> confidenceOfScore
+                                        addOpening (opened resolved payload) category d.RuleId d.Primitive (Some via) payload confidence steps)
                             | _ -> ()
 
                     // A call that loads a configuration file makes the objects it names: what their constructors
