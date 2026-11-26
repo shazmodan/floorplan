@@ -184,6 +184,8 @@ let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list * MethodRef 
     | Some _ when not (registersHandlers ctx) -> [], []
     | Some main ->
         let pipelines = ResizeArray<MethodRef>()
+        // User functions the run called while it followed a pipeline the application wrote.
+        let ran = System.Collections.Generic.HashSet<string>()
         let machine = Machine(set, ctx.Matcher, ctx.Program.Recognizers, defaultLimits, ctx.Program.SettingsFor ctx.Project)
         let args = List.replicate main.ParameterCount Unknown
         Progress.report $"Entry points of {ctx.Project.ProjectId}: running its startup code symbolically to find what it registers"
@@ -297,7 +299,11 @@ let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list * MethodRef 
                 let hits = machine.Explore(handler, state, [], pipeline = true)
 
                 match machine.UserPipeline with
-                | Some p when not hits.IsEmpty -> pipelines.Add p
+                | Some p when not hits.IsEmpty ->
+                    pipelines.Add p
+
+                    for m in machine.RanInPipeline do
+                        ran.Add m.Key |> ignore
                 | _ -> ()
 
                 if System.Environment.GetEnvironmentVariable "FLOORPLAN_DEBUG" = "1" then
@@ -310,7 +316,8 @@ let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list * MethodRef 
 
         // User functions handed to a library but reached by no request path: handlers with no route. Only those
         // whose signature carries the request: a library is also handed configuration callbacks (logging, services,
-        // options), which run at startup and handle nothing.
+        // options), which run at startup and handle nothing. One a pipeline's routing ran and that answered
+        // nothing (a fallback router, `fun _ -> None`) was reached.
         let reached = found |> List.map (fun e -> e.HandlerMember) |> Set.ofList
 
         let requestTypes =
@@ -330,7 +337,8 @@ let private analyzeOnThisThread (ctx: AppContext) : EntryPoint list * MethodRef 
                 []
             else
                 machine.HandedOver
-                |> List.filter (fun (f, _) -> not (reached.Contains f.Display) && not (f.Name.StartsWith "get_") && carriesRequest f)
+                |> List.filter (fun (f, _) ->
+                    not (reached.Contains f.Display) && not (ran.Contains f.Key) && not (f.Name.StartsWith "get_") && carriesRequest f)
                 |> List.choose (fun (f, site) ->
                     entry
                         ctx

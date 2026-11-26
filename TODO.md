@@ -6,19 +6,13 @@ Work that is known and not yet done. Remove an item when its branch is merged.
 
 In the order they are worth doing: the first ones change results already shown, the later ones add new inputs.
 
-1. **Routes of the owner's real F# application** (waiting for more information from the owner): its routes,
-   matched with active patterns (`GET`, `POST`, ... made by partially applying inline matchers over a request
-   record), are still not shown correctly. The same routing library is already read correctly in a stand-in: all
-   routes, with a handler per case, and with `PUT`, `PATCH`, `DELETE`, `POSTQ`, `HEAD` and the total `Request`
-   pattern (fixture `Routing.Wrapped`). So the cause is in the application's own code. Needed from the owner,
-   any of:
-   - confirmation that it was analyzed with a build from 0e2d89b or later;
-   - what is wrong (routes missing, `/X/*`, parameters missing, wrong handler or method), with two or three of
-     the bad routes and the match cases they come from;
-   - the shapes that differ from the stand-in: `when` guards, nested matches, handlers taking the whole request
-     or returning `Async`/`Task`, routes split across modules, one very large match, the startup and middleware
-     wiring;
-   - or a copy of the application on this machine, kept untracked like the demo projects.
+1. **Routes of the owner's real F# application.** The owner's reproduction (demo_project3, 2026-11-26) showed
+   the cause: the router is combined with a fallback (`thenTry routing (fun _ -> None)`) and runs inside
+   FSharp.Core's `Option.orElseWith`, whose budget as a library call (150,000 steps) it ran out of, so no route
+   was found. Fixed and merged 2026-11-26 (docs/framework-routing.md, "A router run by a library call"; fixture
+   `Routing.Wrapped/Program.fs` now routes through such a `thenTry`). The repro gives all 72 routes, identical
+   to its control. Left: the owner runs the real application again with a build from main; if routes are still
+   missing, another reproduction of what differs.
 2. **Folder of solutions, what is left** (the feature is done, docs/landscape-plan.md): a run over both demo
    projects together, once the API demo can be restored (its private package feed is not reachable from this
    machine, so only the admin demo was analyzed, and no link between them was found).

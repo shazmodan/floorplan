@@ -182,6 +182,19 @@ jumps to the next case. Given a handler per case, the stand-in lost all 68 route
 A route whose only open segment the handler is not handed (`["RolesByType"; _] -> RolesByType.all db`) is
 reported as partial, `/RolesByType/*`: that is also how a fall-through to a not-found handler looks.
 
+### A router run by a library call
+
+The owner's reproduction (2026-11-26) of the application's missing routes: the router is combined with a
+fallback before it is handed to the middleware (`thenTry fallback routing = fun request -> routing request |>
+Option.orElseWith (fun () -> fallback request)`), so the router runs inside FSharp.Core's `Option.orElseWith`.
+A library call two or more calls deep runs within a budget of its own (150,000 steps), so that a library's own
+loop cannot spend the whole run; when it runs out, the call yields an unknown value and its paths are dropped.
+Routing 72 cases takes about 205,000 steps, so every route was lost and only the middleware was left. Now, in a
+pipeline the application wrote, a library call handed one of the application's functions keeps its caller's
+budget: what it runs is the application's routing. Fixture: `Routing.Wrapped`'s `Program.fs` hands the
+middleware its router through such a `thenTry`; before, it lost all its routes. The fallback `fun _ -> None`,
+handed the request and answering nothing, is not reported as a handler no request reaches: the run called it.
+
 ## Known limits
 
 - Path explosion is bounded, not solved: frameworks that try alternatives one after another fork at every
