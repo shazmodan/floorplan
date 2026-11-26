@@ -27,7 +27,8 @@ In the order they are worth doing: the first ones change results already shown, 
 
 - A catalog rule that states a library method's payload directly (`"type": "Dapper.SqlMapper"`, ...), for a
   library whose code cannot be followed. Only with the owner's agreement.
-- Values kept in collections or caches before use stay dynamic.
+- Values kept in caches (`IMemoryCache`, a field holding a dictionary) before use stay dynamic. Collections made
+  and read in one method are followed.
 - Flurl's URL stays dynamic: it is rendered back from Flurl's parsed `Url` object.
 
 ## Left to the owner

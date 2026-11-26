@@ -32,7 +32,8 @@ let tests =
         [ test "the wrapper library is a dependency: its effects are reported at the call sites, via the library" {
               for memberName in
                   [ "ExecLiteral"; "RunChain"; "CountLiteral"; "CountDynamic"; "ScalarReturned"; "ExecuteQueryObject"
-                    "ExecuteDefinition"; "ExecAsyncLiteral"; "RowsLiteral"; "ThroughDictionary"; "Interpolated" ] do
+                    "ExecuteDefinition"; "ExecAsyncLiteral"; "RowsLiteral"; "ThroughDictionary"; "ThroughList"
+                    "ThroughFilledDictionary"; "Interpolated" ] do
                   Expect.equal (exitOf memberName EffectCategory.Database).ViaAssembly (Some "CSharp.Wrappers") memberName
 
               Expect.equal (exitOf "FetchLiteral" EffectCategory.HttpOut).ViaAssembly (Some "CSharp.Wrappers") "FetchLiteral"
@@ -48,8 +49,13 @@ let tests =
 
           test "c: passed on through another library call" { Expect.equal (sql "RunChain") (literal "sql" "DELETE FROM carts") "" }
 
-          test "i: through a dictionary the SQL is not followed" {
-              Expect.equal (sql "ThroughDictionary") (Some("sql", PayloadKind.Dynamic, None)) ""
+          test "i: through a dictionary or list the library made, read at a constant key or index" {
+              Expect.equal (sql "ThroughDictionary") (literal "sql" "DELETE FROM sessions") "dictionary"
+              Expect.equal (sql "ThroughList") (literal "sql" "DELETE FROM carts WHERE stale") "list"
+          }
+
+          test "i: through a dictionary another method fills, the SQL is not followed" {
+              Expect.equal (sql "ThroughFilledDictionary") (Some("sql", PayloadKind.Dynamic, None)) ""
           }
 
           test "a warm summary cache gives the same payloads" {

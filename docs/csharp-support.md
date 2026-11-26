@@ -471,7 +471,10 @@ Also new, outside the recognizer:
   method that builds it from its arguments (a helper that appends paging to the SQL it is given) is followed
   too; on a real solution every one of 109 Dapper calls shows its SQL (`docs/phase-2-review.md`). When a
   library reaches the primitive by several routes, the shortest one whose payload is known is shown, with its
-  evidence and the primitive that route ends at. Values kept in collections or caches, or rebuilt from parsed objects (Flurl's `Url`), stay dynamic.
+  evidence and the primitive that route ends at. A value kept in a dictionary, list or array the same method
+  makes, and read back at a constant key or index, is followed; one the collection is passed on, cleared or
+  stored into at a key not known before the read, one in a dictionary with its own key comparer, and values kept
+  in caches or rebuilt from parsed objects (Flurl's `Url`) stay dynamic.
   Fixtures: `Dependency/CSharp.Wrappers` and `Effects/Dependency/Effects.Wrappers`, both built optimized as
   packages are.
 - **Route parameter names** (F# and C#): a segment taken as a parameter is named after the handler parameter
