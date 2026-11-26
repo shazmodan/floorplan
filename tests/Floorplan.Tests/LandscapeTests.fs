@@ -147,6 +147,30 @@ let tests =
               Expect.equal back.Solutions l.Solutions "reads back"
           }
 
+          test "--parallel: solutions analyzed at once give the landscape and models one at a time gives" {
+              let out = Path.Combine(Path.GetTempPath(), "floorplan-landscape-parallel-" + string (Guid.NewGuid()))
+              let options = { Options.defaults with Path = Some landscapeDir; Output = out; Format = Json; Build = false; Cache = false; Quiet = true; Parallel = 3 }
+              let _, sequential = landscapeRun.Force()
+
+              // The same run, but for when it was made.
+              let comparable (l: Landscape) = Json.serializeValue false { l with GeneratedAt = "" }
+
+              try
+                  match Pipeline.runLandscape ignore options (Pipeline.folderOfSolutions options).Value with
+                  | Error e -> failtest e
+                  | Ok outcome ->
+                      Expect.equal (comparable outcome.Landscape) (comparable sequential.Landscape) "the landscape"
+                      Expect.equal (outcome.Analyzed |> List.map (fun a -> a.File)) (sequential.Analyzed |> List.map (fun a -> a.File)) "in the same order"
+
+                      for a, b in List.zip outcome.Analyzed sequential.Analyzed do
+                          let model (r: Landscape.Analyzed) =
+                              r.Model |> Result.map (fun m -> Json.serializeValue false { m with GeneratedAt = "" })
+
+                          Expect.equal (model a) (model b) $"{Path.GetFileName a.File}'s model"
+              finally
+                  try Directory.Delete(out, true) with _ -> ()
+          }
+
           test "--format json writes landscape.json and each solution's floorplan.json" {
               let out = Path.Combine(Path.GetTempPath(), "floorplan-landscape-json-" + string (Guid.NewGuid()))
               let options = { Options.defaults with Path = Some landscapeDir; Output = out; Format = Json; Build = false; Cache = false; Quiet = true }

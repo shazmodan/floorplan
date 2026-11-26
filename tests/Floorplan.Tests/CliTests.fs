@@ -18,7 +18,13 @@ let tests =
     testSequenced
     <| testList
         "CLI"
-        [ test "parses the analyze options of plan section 7.3" {
+        [ test "--parallel: how many solutions of a folder at once, 1 or more" {
+              Expect.equal (parse [ "analyze" ] |> Result.map (fun o -> o.Parallel)) (Ok 1) "one at a time by default"
+              Expect.equal (parse [ "analyze"; "--parallel"; "3" ] |> Result.map (fun o -> o.Parallel)) (Ok 3) "given"
+              Expect.isError (parse [ "analyze"; "--parallel"; "0" ]) "none at once is no run"
+          }
+
+          test "parses the analyze options of plan section 7.3" {
               match
                   parse
                       [ "analyze"; "App.sln"; "-o"; "out"; "--include"; "A,B"; "--exclude"; "C"; "--include-tests"
