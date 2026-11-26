@@ -19,8 +19,9 @@ In the order they are worth doing: the first ones change results already shown, 
      or returning `Async`/`Task`, routes split across modules, one very large match, the startup and middleware
      wiring;
    - or a copy of the application on this machine, kept untracked like the demo projects.
-2. **Folder of solutions, what is left** (the feature is done, docs/landscape-plan.md): a run over both demo projects together, once the API demo can be restored (its private package feed
-   is not reachable from this machine, so only the admin demo was analyzed, and no link between them was found).
+2. **Folder of solutions, what is left** (the feature is done, docs/landscape-plan.md): a run over both demo
+   projects together, once the API demo can be restored (its private package feed is not reachable from this
+   machine, so only the admin demo was analyzed, and no link between them was found).
 
 ## Later, if wanted (from docs/library-payloads-plan.md)
 
