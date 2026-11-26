@@ -30,7 +30,7 @@ workspace "Landscape" "Landscape, derived by Floorplan from its code" {
         container_orders_Orders_Api -> external_network_orders "sends and receives over the network" "RabbitMQ.Client"
         container_shipping_Shipping_Worker -> container_orders_Orders_Api "sends HTTP requests to /orders/{id}/delivered" "HTTP"
         container_shipping_Shipping_Worker -> external_database_db_internal_5432_ledger "reads and writes data"
-        container_shipping_Shipping_Worker -> external_database_stock_db_internal_stock "reads and writes data"
+        container_shipping_Shipping_Worker -> external_database_stock_db_internal_stock "reads and writes data" "Dapper"
         container_shipping_Shipping_Worker -> external_folder__srv_exchange "writes files"
         container_shipping_Shipping_Worker -> external_network_shipping "sends and receives over the network" "RabbitMQ.Client"
         external_library_RabbitMQ_Client -> container_shipping_Shipping_Worker "delivers messages to"

@@ -87,6 +87,7 @@ let private exit (owner: CodeUnit) (category: EffectCategory) (payload: string) 
       Payload = Some { Role = "path"; Kind = PayloadKind.Literal; Value = Some payload }
       ViaAssembly = None
       Context = None
+      Connection = None
       Confidence = Confidence.High
       Evidence = { Steps = [] } }
 

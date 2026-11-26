@@ -34,5 +34,13 @@ namespace Shipping.Worker
             using var connection = new Npgsql.NpgsqlConnection("Host=stock-db.internal;Database=stock;Username=shipping");
             connection.Open();
         }
+
+        // Dapper opens this connection itself: the command goes to the stock database, although the project
+        // connects to two.
+        public static int Restock(string sku)
+        {
+            using var connection = new Npgsql.NpgsqlConnection("Host=stock-db.internal;Database=stock;Username=shipping;Password=secret");
+            return Dapper.SqlMapper.Execute(connection, "UPDATE stock SET count = count + 1 WHERE sku = @sku", new { sku });
+        }
     }
 }

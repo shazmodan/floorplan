@@ -1,6 +1,6 @@
 solution billing | Billing | Billing/Billing.slnx | 1 applications, 1 projects, 6 entry points, 4 exit points
 solution orders | Orders | Orders/Orders.slnx | 1 applications, 2 projects, 5 entry points, 9 exit points
-solution shipping | Shipping | Shipping/Shipping.slnx | 1 applications, 1 projects, 1 entry points, 5 exit points
+solution shipping | Shipping | Shipping/Shipping.slnx | 1 applications, 1 projects, 1 entry points, 6 exit points
 nested Billing/samples/Billing.Samples.slnx
 software-system | system:billing | Billing | - | in - | - | 1 sources
 software-system | system:orders | Orders | - | in - | - | 2 sources
@@ -9,7 +9,7 @@ container | container:billing/Billing.Api | Billing.Api | C# · net8.0 | in syst
 container | container:orders/Orders.Api | Orders.Api | C# · net8.0 | in system:orders | web application | 6 sources
 container | container:shipping/Shipping.Worker | Shipping.Worker | C# · net8.0 | in system:shipping | message consumer | 2 sources
 external-system | external:database:db.internal:5432/ledger | ledger on db.internal:5432 | - | in - | shared database | 5 sources
-external-system | external:database:stock-db.internal/stock | stock on stock-db.internal | - | in - | shared database | 4 sources
+external-system | external:database:stock-db.internal/stock | stock on stock-db.internal | - | in - | shared database | 5 sources
 external-system | external:folder:/srv/exchange | /srv/exchange | - | in - | shared folder | 2 sources
 external-system | external:http:inventory.example.net | inventory.example.net | - | in - | - | 1 sources
 external-system | external:library:RabbitMQ.Client | RabbitMQ.Client | - | in - | - | 2 sources
@@ -27,7 +27,7 @@ container:orders/Orders.Api -> external:http:inventory.example.net | sends HTTP 
 container:orders/Orders.Api -> external:network@orders | sends and receives over the network | RabbitMQ.Client | 1 sources
 container:shipping/Shipping.Worker -> container:orders/Orders.Api | sends HTTP requests to /orders/{id}/delivered | HTTP | 2 sources
 container:shipping/Shipping.Worker -> external:database:db.internal:5432/ledger | reads and writes data | - | 1 sources
-container:shipping/Shipping.Worker -> external:database:stock-db.internal/stock | reads and writes data | - | 1 sources
+container:shipping/Shipping.Worker -> external:database:stock-db.internal/stock | reads and writes data | Dapper | 2 sources
 container:shipping/Shipping.Worker -> external:folder:/srv/exchange | writes files | - | 1 sources
 container:shipping/Shipping.Worker -> external:network@shipping | sends and receives over the network | RabbitMQ.Client | 1 sources
 external:library:RabbitMQ.Client -> container:shipping/Shipping.Worker | delivers messages to | - | 1 sources
@@ -44,7 +44,7 @@ view context | context of landscape | 7 elements | 816 x 1262
   system:orders -> system:billing | sends HTTP requests to /invoices/{id} | HTTP | 2 sources
   system:orders -> system:shipping | sends messages to shipments | RabbitMQ.Client | 2 sources
   system:shipping -> external:database:db.internal:5432/ledger | reads and writes data | - | 1 sources
-  system:shipping -> external:database:stock-db.internal/stock | reads and writes data | - | 1 sources
+  system:shipping -> external:database:stock-db.internal/stock | reads and writes data | Dapper | 2 sources
   system:shipping -> external:folder:/srv/exchange | writes files | - | 1 sources
   system:shipping -> system:orders | sends HTTP requests to /orders/{id}/delivered | HTTP | 2 sources
 view context-all | context of landscape | 11 elements | 1680 x 1262
@@ -61,7 +61,7 @@ view context-all | context of landscape | 11 elements | 1680 x 1262
   system:orders -> system:billing | sends HTTP requests to /invoices/{id} | HTTP | 2 sources
   system:orders -> system:shipping | sends messages to shipments | RabbitMQ.Client | 2 sources
   system:shipping -> external:database:db.internal:5432/ledger | reads and writes data | - | 1 sources
-  system:shipping -> external:database:stock-db.internal/stock | reads and writes data | - | 1 sources
+  system:shipping -> external:database:stock-db.internal/stock | reads and writes data | Dapper | 2 sources
   system:shipping -> external:folder:/srv/exchange | writes files | - | 1 sources
   system:shipping -> external:network@shipping | sends and receives over the network | RabbitMQ.Client | 1 sources
   system:shipping -> system:orders | sends HTTP requests to /orders/{id}/delivered | HTTP | 2 sources
@@ -75,7 +75,7 @@ view containers | containers of landscape | 7 elements | 816 x 1298
   container:orders/Orders.Api -> external:database:stock-db.internal/stock | reads and writes data | - | 3 sources
   container:shipping/Shipping.Worker -> container:orders/Orders.Api | sends HTTP requests to /orders/{id}/delivered | HTTP | 2 sources
   container:shipping/Shipping.Worker -> external:database:db.internal:5432/ledger | reads and writes data | - | 1 sources
-  container:shipping/Shipping.Worker -> external:database:stock-db.internal/stock | reads and writes data | - | 1 sources
+  container:shipping/Shipping.Worker -> external:database:stock-db.internal/stock | reads and writes data | Dapper | 2 sources
   container:shipping/Shipping.Worker -> external:folder:/srv/exchange | writes files | - | 1 sources
   person:user -> container:billing/Billing.Api | sends HTTP requests to | HTTP | 6 sources
   person:user -> container:orders/Orders.Api | sends HTTP requests to | HTTP | 5 sources
@@ -99,7 +99,7 @@ view containers:shipping | containers of system:shipping | 7 elements | 1104 x 6
   container:orders/Orders.Api -> container:shipping/Shipping.Worker | sends messages to shipments | RabbitMQ.Client | 2 sources
   container:shipping/Shipping.Worker -> container:orders/Orders.Api | sends HTTP requests to /orders/{id}/delivered | HTTP | 2 sources
   container:shipping/Shipping.Worker -> external:database:db.internal:5432/ledger | reads and writes data | - | 1 sources
-  container:shipping/Shipping.Worker -> external:database:stock-db.internal/stock | reads and writes data | - | 1 sources
+  container:shipping/Shipping.Worker -> external:database:stock-db.internal/stock | reads and writes data | Dapper | 2 sources
   container:shipping/Shipping.Worker -> external:folder:/srv/exchange | writes files | - | 1 sources
   container:shipping/Shipping.Worker -> external:network@shipping | sends and receives over the network | RabbitMQ.Client | 1 sources
   external:library:RabbitMQ.Client -> container:shipping/Shipping.Worker | delivers messages to | - | 1 sources

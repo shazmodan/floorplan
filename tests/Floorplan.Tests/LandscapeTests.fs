@@ -538,6 +538,33 @@ let tests =
                   "OrdersContext's, on the ledger"
           }
 
+          test "a Dapper call on a connection it opens itself goes to that connection's database" {
+              let l = landscape ()
+              let label (source: string) = (l.Sources |> List.find (fun s -> s.Id = source)).Label
+
+              let uses =
+                  l.Architecture.Relationships
+                  |> List.filter (fun r -> r.From = "container:shipping/Shipping.Worker" && r.To = "external:database:stock-db.internal/stock")
+                  |> List.collect (fun r -> r.Sources |> List.map label)
+                  |> List.sort
+
+              Expect.equal
+                  uses
+                  [ "database: Host=stock-db.internal;Database=stock;Username=shipping"
+                    "database: UPDATE stock SET count = count + 1 WHERE sku = @sku" ]
+                  "its SQL, though Shipping connects to two databases"
+
+              let model =
+                  (snd (landscapeRun.Force())).Analyzed
+                  |> List.pick (fun a ->
+                      match a.Model with
+                      | Ok m when Path.GetFileNameWithoutExtension a.File = "Shipping" -> Some m
+                      | _ -> None)
+
+              let restock = model.ExitPoints |> List.find (fun x -> x.Member = "Shipping.Worker.Delivery::Restock" && x.Category = EffectCategory.Database)
+              Expect.equal restock.Connection (Some "Host=stock-db.internal;Database=stock;Username=shipping;Password=…") "the connection, its password replaced"
+          }
+
           test "connection strings: the database they name, and what is shown of them" {
               Expect.equal
                   (ConnectionString.database "Server=tcp:SQL1,1433;Initial Catalog=Orders;User ID=app;Password=x")

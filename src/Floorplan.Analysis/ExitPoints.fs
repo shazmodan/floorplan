@@ -81,6 +81,18 @@ let private preferred (resolved: ('d * Payload option) list) =
     | [] -> known
     | what -> what
 
+/// Of the database effects a dependency reaches, the connection it opens (Dapper's Open of the connection it is
+/// given), when the effect shown says something else (its SQL): the connection string's literal, secrets replaced.
+let private opened (resolved: ('d * Payload option) list) (shown: Payload option) =
+    match shown with
+    | Some { Role = "connection" } -> None
+    | _ ->
+        resolved
+        |> List.tryPick (fun (_, p) ->
+            match p with
+            | Some { Role = "connection"; Kind = PayloadKind.Literal; Value = value } -> value
+            | _ -> None)
+
 let confidenceOf (path: PathStep list) =
     let score = path.Length + (path |> List.filter (fun e -> e.Virtual) |> List.length)
 
@@ -718,7 +730,8 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
 
                     let unit = lazy (ctx.Attributor.Attribute(projectId, m.Ref, point))
 
-                    let add (category: EffectCategory) (ruleId: string) (primitive: string) (via: string option) (payload: Payload option) (confidence: Confidence) (steps: EvidenceStep list) =
+                    // An exit point at this call; `connection` is the one a dependency opens for it (opened).
+                    let addOpening (connection: string option) (category: EffectCategory) (ruleId: string) (primitive: string) (via: string option) (payload: Payload option) (confidence: Confidence) (steps: EvidenceStep list) =
                         if seen.Add((ins.Offset, category)) then
                             match unit.Value with
                             | Some u ->
@@ -740,10 +753,13 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                                   efContexts.At(m, flow.Value, ins.Offset, declared)
                                               else
                                                   None
+                                          Connection = connection
                                           Confidence = confidence
                                           Evidence = { Steps = steps } }
                                       SortKey = sortKey u.Id location ins.Offset category ruleId }
                             | None -> unattributed category m point
+
+                    let add = addOpening None
 
                     // Blind spots: the analysis cannot follow these calls.
                     let knownDynamic (rule: Rule) =
@@ -1004,7 +1020,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                                         logged edge.Target via category d payload
                                     else
                                         let steps = step $"{m.Ref.Display} calls {edge.Target.Display}" m.Ref point :: dependencySteps d category
-                                        add category d.RuleId d.Primitive (Some via) payload (confidenceOf d.Steps) steps)
+                                        addOpening (opened resolved payload) category d.RuleId d.Primitive (Some via) payload (confidenceOf d.Steps) steps)
                             | _ -> ()
 
                     // A call that loads a configuration file makes the objects it names: what their constructors
@@ -1069,6 +1085,7 @@ let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnos
                   Payload = g.Payload
                   ViaAssembly = Some g.ViaAssembly
                   Context = None
+                  Connection = None
                   Confidence = confidenceOf d.Steps
                   Evidence = { Steps = steps } }
               SortKey = sortKey g.Unit (location first) first.Offset g.Category d.RuleId }
