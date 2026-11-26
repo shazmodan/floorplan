@@ -247,6 +247,8 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
     let registered = ResizeArray<Registered>()
     // User function objects handed to library code while the application registers its routes.
     let handedOver = Dictionary<string, MethodRef * (MethodRef * int)>()
+    // The user methods the last exploration ran while it followed a pipeline the application wrote.
+    let ranInPipeline = Dictionary<string, MethodRef>()
     // Endpoint filters by the builder they are added to (a group or one endpoint), with where each is added, and
     // the group each builder is made on. Kept for the whole run, not per path: a filter is added once.
     let filters = Dictionary<int, ResizeArray<Filter * (MethodRef * int)>>()
@@ -524,6 +526,8 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
 
     /// The request pipeline the application wrote that the last exploration ran through user code, if it was one.
     member _.UserPipeline = pipeline
+    /// The user methods the last exploration ran in that pipeline, function values it called among them.
+    member _.RanInPipeline = ranInPipeline.Values |> List.ofSeq
     member private _.SetPipeline(p: MethodRef option) = pipeline <- p
     member _.Steps = steps
     member _.TotalSteps = totalSteps
@@ -552,7 +556,13 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                 let saved = deadline
                 let entrySteps = steps
                 let entryHits = hits.Count
-                let own = set.Origin m.Type.Assembly = Dependency && depth >= 2
+                // In a pipeline the application wrote, a library call handed one of its functions (FSharp.Core's
+                // `Option.orElseWith` given the router as the fallback) runs the application's routing, which can
+                // take far longer than a library's own work: it keeps the caller's budget.
+                let own =
+                    set.Origin m.Type.Assembly = Dependency
+                    && depth >= 2
+                    && not (followUser && phase = RequestPhase && args |> List.exists (fun a -> (this.UserFunction(a, state)).IsSome))
 
                 if own then
                     deadline <- min saved (steps + 150_000)
@@ -589,6 +599,7 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
                     trace (sprintf "%A d%d enter %s (%s)" phase depth m.Display (args |> List.map show |> String.concat ", "))
 
                 if debug then callStack.Push m.Display
+                if followUser && phase = RequestPhase && isUser m then ranInPipeline[m.Key] <- m
                 let outer = match active.TryGetValue m.Key with | true, o -> o | _ -> []
                 active[m.Key] <- args :: outer
 
@@ -2674,6 +2685,7 @@ type Machine(set: AssemblySet, matcher: Matcher, recognizers: ICodegenRecognizer
         totalSteps <- 0
         deadline <- limits.Steps
         let before = hits.Count
+        ranInPipeline.Clear()
         let state = { state with Predicates = seed; LastUserObject = None; Uncertain = false; Decider = None; DeciderOpen = false; Route = []; Entered = None; PassedOn = false }
         let context = Req(Set.singleton HttpContext)
 
