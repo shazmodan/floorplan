@@ -91,7 +91,7 @@ let private mvidOf (path: string) =
         ""
 
 let private cacheKey (assembly: string) (mvid: string) (catalog: string) (closure: string) =
-    Caching.hash [ "summaries-v24"; assembly; mvid; catalog; closure ]
+    Caching.hash [ "summaries-v25"; assembly; mvid; catalog; closure ]
 
 /// The cache key under which an assembly keeps what a callback member reaches through its implementations there.
 let private callbackKey (assembly: string) (callback: string) = $"[{assembly}]callback:{callback}"
@@ -454,7 +454,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                                           match DataFlow.ofMethod m with
                                           | Some flow ->
                                               let evaluator =
-                                                  Values.Evaluator(flow, recognizers, Values.constantReturn set, (fun m n -> producers.Member(m, n)), reading)
+                                                  Values.Evaluator(flow, recognizers, Values.constantReturn set, (fun m n -> producers.Member(m, n)), reading, producers.Keeping [])
 
                                               for (offset, r, spec) in calls do
                                                   let index = if r.HasThis then spec.Argument + 1 else spec.Argument
@@ -522,7 +522,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                                           match DataFlow.ofMethod m with
                                           | Some flow ->
                                               let evaluator =
-                                                  Values.Evaluator(flow, recognizers, Values.constantReturn set, (fun m n -> producers.Member(m, n)), unbound)
+                                                  Values.Evaluator(flow, recognizers, Values.constantReturn set, (fun m n -> producers.Member(m, n)), unbound, producers.Keeping [])
 
                                               for (offset, r, spec) in calls do
                                                   let index = if r.HasThis then spec.Argument + 1 else spec.Argument
@@ -580,7 +580,7 @@ type Program(input: AnalysisInput, recognizers: ICodegenRecognizer list, store: 
                                               match DataFlow.ofMethod m with
                                               | Some flow ->
                                                   let evaluator =
-                                                      Values.Evaluator(flow, recognizers, Values.constantReturn set, (fun m n -> producers.Member(m, n)), bound)
+                                                      Values.Evaluator(flow, recognizers, Values.constantReturn set, (fun m n -> producers.Member(m, n)), bound, producers.Keeping [])
 
                                                   for (offset, f, index) in stores do
                                                       yield f.Key, evaluator.OptionsPath(offset, index, f.FieldType)

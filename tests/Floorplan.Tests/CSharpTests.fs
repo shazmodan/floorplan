@@ -1459,5 +1459,5 @@ let tests =
 
                   let unitPage = Browser.dumpDom browser index "#/unit/CSharp.Effects%3ACSharp.Effects"
                   Expect.stringContains unitPage "Types (" "a namespace lists its types"
-                  Expect.stringContains unitPage "AuditStore, Database, Direct, FileStore" "sorted type names"
+                  Expect.stringContains unitPage "AuditStore, Cached, Database, Direct" "sorted type names"
           } ]

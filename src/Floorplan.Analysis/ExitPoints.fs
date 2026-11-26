@@ -145,8 +145,22 @@ let private generatedLogger (ctx: ProjectContext) (declared: MethodRef) =
 let analyze (ctx: ProjectContext) (assembly: AssemblyDef) : Found list * Diagnostic list =
     let found = ResizeArray<Found>()
 
+    // The application assemblies that share this one's memory cache: it and the ones of the solution it references.
+    let applications =
+        let rec reach (seen: Set<string>) (name: string) =
+            if seen.Contains name then
+                seen
+            else
+                match ctx.Set.TryLoad name with
+                | Some a when ctx.Set.IsUser a.Name -> a.ReferencedAssemblies |> List.fold reach (seen.Add a.Name)
+                | _ -> seen
+
+        reach Set.empty assembly.Name |> Set.toList
+
+    let keeping = ctx.Producers.Keeping applications
+
     let evaluatorOf (flow: DataFlow.Flow) =
-        Values.Evaluator(flow, ctx.Recognizers, Values.constantReturn ctx.Set, (fun m n -> ctx.Producers.Member(m, n)), ctx.Settings)
+        Values.Evaluator(flow, ctx.Recognizers, Values.constantReturn ctx.Set, (fun m n -> ctx.Producers.Member(m, n)), ctx.Settings, keeping)
     let diagnostics = ResizeArray<Diagnostic>()
     let projectId = ctx.Project.ProjectId
 

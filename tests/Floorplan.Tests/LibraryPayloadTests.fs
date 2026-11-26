@@ -33,7 +33,7 @@ let tests =
               for memberName in
                   [ "ExecLiteral"; "RunChain"; "CountLiteral"; "CountDynamic"; "ScalarReturned"; "ExecuteQueryObject"
                     "ExecuteDefinition"; "ExecAsyncLiteral"; "RowsLiteral"; "ThroughDictionary"; "ThroughList"
-                    "ThroughFilledDictionary"; "Interpolated" ] do
+                    "ThroughFilledDictionary"; "ThroughFieldDictionary"; "ThroughRemembered"; "Interpolated" ] do
                   Expect.equal (exitOf memberName EffectCategory.Database).ViaAssembly (Some "CSharp.Wrappers") memberName
 
               Expect.equal (exitOf "FetchLiteral" EffectCategory.HttpOut).ViaAssembly (Some "CSharp.Wrappers") "FetchLiteral"
@@ -56,6 +56,29 @@ let tests =
 
           test "i: through a dictionary another method fills, the SQL is not followed" {
               Expect.equal (sql "ThroughFilledDictionary") (Some("sql", PayloadKind.Dynamic, None)) ""
+          }
+
+          test "through a dictionary a field of the library holds, read at a constant key" {
+              Expect.equal (sql "ThroughFieldDictionary") (literal "sql" "DELETE FROM sessions WHERE expired") ""
+          }
+
+          test "through a field's dictionary another library method stores the caller's SQL in, it is not followed" {
+              Expect.equal (sql "ThroughRemembered") (Some("sql", PayloadKind.Dynamic, None)) ""
+          }
+
+          test "in the application: a field's dictionary and a memory cache" {
+              let m = model ()
+
+              let payloadOf memberName category =
+                  match m.ExitPoints |> List.filter (fun x -> x.Member = "CSharp.Effects.Cached::" + memberName && x.Category = category) with
+                  | [ x ] -> x.Payload |> Option.map (fun p -> p.Role, p.Kind, p.Value)
+                  | xs -> failtestf "expected one %A exit point in %s, found %d" category memberName xs.Length
+
+              Expect.equal (payloadOf "StaleCarts" EffectCategory.Database) (literal "sql" "DELETE FROM carts WHERE stale") "static field"
+              Expect.equal (payloadOf "OldCarts" EffectCategory.Database) (literal "sql" "DELETE FROM carts WHERE version < 2") "instance field, integer key"
+              Expect.equal (payloadOf "Orders" EffectCategory.HttpOut) (literal "url" "https://api.example.org/orders") "Set, then Get"
+              Expect.equal (payloadOf "Status" EffectCategory.HttpOut) (literal "url" "https://api.example.org/status") "GetOrCreate"
+              Expect.equal (payloadOf "Me" EffectCategory.HttpOut) (Some("url", PayloadKind.Dynamic, None)) "a key made at run time may be it"
           }
 
           test "a warm summary cache gives the same payloads" {

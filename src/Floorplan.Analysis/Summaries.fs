@@ -270,7 +270,7 @@ type Summaries(graph: CallGraph, matcher: Matcher, recognizers: ICodegenRecogniz
                 | None -> Values.Origin.unknown
                 | Some flow ->
                     let evaluator =
-                        Values.Evaluator(flow, recognizers, Values.constantReturn set, fun m n -> producers.Member(m, n))
+                        Values.Evaluator(flow, recognizers, Values.constantReturn set, (fun m n -> producers.Member(m, n)), keeping = producers.Keeping [])
 
                     let isNewObj =
                         match flow.InstructionAt w.Edge.Offset with
