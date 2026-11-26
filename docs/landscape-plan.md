@@ -67,7 +67,8 @@ fails to load or build doesn't stop the others; it is listed with its errors, an
 today. Each solution's model is written as soon as it is done (its site, or its JSON), and the landscape keeps
 only what it needs: projects, entry points, exit points with their payloads, and the C4 model.
 
-Parallel runs (`--parallel 2`) are a later option, once the memory of a run is measured.
+Parallel runs (`--parallel 2`) are a later option, once the memory of a run is measured (done 2026-11-26, see the
+Log).
 
 ### 3. The landscape model
 
@@ -340,3 +341,12 @@ What the prototype found on the fixtures:
   database. When the landscape splits a solution's relationship (its database calls) between shared databases,
   each part's technology is that of its own calls, so the ledger link is not labelled Dapper because the stock one
   is. Not read: a plain ADO.NET command on a connection opened elsewhere (`DbCommand.Connection`).
+- 2026-11-26, solutions analyzed in parallel. Measured first (Release build, `--no-cache`, peak working set of
+  the process): the admin demo 19 s and 561 MB; the Landscape fixture's three solutions 33 s and 841 MB; the
+  20-project `CSharp.slnx` alone 97 s and 3.7 GB. So a run's memory is that of its largest solution, and n at once
+  can take n times it. `--parallel <n>` (default 1) runs n workers, each taking the next solution from loading to
+  its model, so at most n are in memory; loading (the build and MSBuild's evaluation, in this process through
+  Ionide.ProjInfo, which is not safe on two threads, and often of projects two solutions share) stays one at a
+  time behind a lock. Progress reports carry their solution (`Progress.within`, an `AsyncLocal`). On the whole
+  `tests/fixtures` folder (nine solutions): 273 s and 4.2 GB one at a time, 163 s and 7.2 GB with 2, 145 s and
+  5.8 GB with 4 (the C# solution is most of the run); every output file identical to the run one at a time.

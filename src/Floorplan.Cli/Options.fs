@@ -16,6 +16,7 @@ type AnalyzeArgs =
     | Exclude of projects: string
     | Solutions of names: string
     | Exclude_Solutions of names: string
+    | [<Unique>] Parallel of solutions: int
     | Include_Tests
     | [<AltCommandLine("-f"); Unique>] Framework of tfm: string
     | [<AltCommandLine("-c"); Unique>] Configuration of name: string
@@ -38,6 +39,8 @@ type AnalyzeArgs =
             | Exclude _ -> "leave out these projects (comma-separated)."
             | Solutions _ -> "in a folder of solutions: analyze only these solutions (comma-separated names), nested ones too."
             | Exclude_Solutions _ -> "in a folder of solutions: leave out these solutions (comma-separated names)."
+            | Parallel _ ->
+                "in a folder of solutions: analyze this many at once (built one at a time). Each takes the memory of its own run, a few GB for a large one. Default: 1"
             | Include_Tests -> "include test projects, which are excluded by default."
             | Framework _ -> "preferred target framework for multi-targeting projects."
             | Configuration _ -> "build configuration. Default: Debug"
@@ -68,6 +71,8 @@ type AnalyzeOptions =
       /// In a folder of solutions: the solutions to analyze (by name; empty: every one found), and those left out.
       Solutions: string list
       ExcludeSolutions: string list
+      /// In a folder of solutions: how many are analyzed at once.
+      Parallel: int
       IncludeTests: bool
       Framework: string option
       Configuration: string
@@ -91,7 +96,11 @@ let toOptions (args: ParseResults<AnalyzeArgs>) : Result<AnalyzeOptions, string>
     let categories, unknown =
         show |> List.map (fun s -> s, EffectCategory.tryParse s) |> List.partition (snd >> Option.isSome)
 
-    if not unknown.IsEmpty then
+    let parallel = args.GetResult(Parallel, defaultValue = 1)
+
+    if parallel < 1 then
+        Error $"--parallel takes a number of solutions, 1 or more, not {parallel}."
+    elif not unknown.IsEmpty then
         let names = EffectCategory.all |> List.map EffectCategory.name |> String.concat ", "
         let bad = unknown |> List.map fst |> String.concat ", "
         Error $"Unknown category: {bad}. Known categories: {names}."
@@ -103,6 +112,7 @@ let toOptions (args: ParseResults<AnalyzeArgs>) : Result<AnalyzeOptions, string>
               Exclude = args.GetResults Exclude |> splitList
               Solutions = args.GetResults Solutions |> splitList
               ExcludeSolutions = args.GetResults Exclude_Solutions |> splitList
+              Parallel = parallel
               IncludeTests = args.Contains Include_Tests
               Framework = args.TryGetResult Framework
               Configuration = args.GetResult(Configuration, defaultValue = "Debug")
@@ -122,6 +132,7 @@ let defaults =
       Exclude = []
       Solutions = []
       ExcludeSolutions = []
+      Parallel = 1
       IncludeTests = false
       Framework = None
       Configuration = "Debug"

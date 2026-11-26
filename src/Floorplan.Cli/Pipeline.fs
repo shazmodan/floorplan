@@ -288,29 +288,60 @@ let runLandscape (log: string -> unit) (options: AnalyzeOptions) (found: Discove
         let root = Path.GetFullPath(defaultArg options.Path Environment.CurrentDirectory)
         let store = if options.Cache then Caching.Store(Some(Caching.defaultDirectory ())) else Caching.Store.Disabled
         let loadOptions = loadOptionsOf options
-        let mutable failures = false
 
-        let analyzed =
-            files
-            |> List.mapi (fun i file ->
-                let name = Path.GetFileNameWithoutExtension file
-                let prefix = $"Solution {i + 1} of {files.Length}, {name}"
-                log prefix
-                let say (message: string) = log $"{prefix}: {message}"
+        // Loading builds the solution and evaluates its projects with MSBuild in this process, which is not safe
+        // on two threads at once, and solutions in one folder often share projects: one solution loads at a time.
+        let loading = obj ()
 
-                let model =
+        // A solution analyzed, and whether some of it could not be.
+        let analyzeOne (i: int) (file: string) =
+            let name = Path.GetFileNameWithoutExtension file
+            let prefix = $"Solution {i + 1} of {files.Length}, {name}"
+            log prefix
+            let say (message: string) = log $"{prefix}: {message}"
+
+            Progress.within prefix (fun () ->
+                let model, partly =
                     try
-                        match SolutionLoader.load loadOptions (Some file) with
-                        | Error e -> Error(SolutionLoader.describe e)
-                        | Ok solution when solution.Projects.IsEmpty -> Error(noProjects solution)
-                        | Ok solution ->
-                            if not solution.Failures.IsEmpty then failures <- true
-                            Ok(buildModel say store options.Catalogs options.Show solution)
+                        match lock loading (fun () -> SolutionLoader.load loadOptions (Some file)) with
+                        | Error e -> Error(SolutionLoader.describe e), false
+                        | Ok solution when solution.Projects.IsEmpty -> Error(noProjects solution), false
+                        | Ok solution -> Ok(buildModel say store options.Catalogs options.Show solution), not solution.Failures.IsEmpty
                     with e ->
-                        Error $"The analysis failed: {e.Message}"
+                        Error $"The analysis failed: {e.Message}", false
 
-                if Result.isError model then failures <- true
-                ({ File = file; Model = model }: Landscape.Analyzed))
+                ({ File = file; Model = model }: Landscape.Analyzed), partly || Result.isError model)
+
+        // With --parallel n, n workers each take the next solution, from loading to its model, so at most n are in
+        // memory. Workers of their own, not the thread pool's, which the analysis uses.
+        let results =
+            if options.Parallel <= 1 then
+                files |> List.mapi analyzeOne
+            else
+                let all = Array.ofList files
+                let done' = Array.zeroCreate all.Length
+                let next = ref -1
+
+                let worker () =
+                    let mutable i = System.Threading.Interlocked.Increment &next.contents
+
+                    while i < all.Length do
+                        done'[i] <- analyzeOne i all[i]
+                        i <- System.Threading.Interlocked.Increment &next.contents
+
+                let threads =
+                    [ for _ in 1 .. min options.Parallel all.Length ->
+                          let t = System.Threading.Thread(worker, 64 * 1024 * 1024)
+                          t.Start()
+                          t ]
+
+                for t in threads do
+                    t.Join()
+
+                List.ofArray done'
+
+        let analyzed = results |> List.map fst
+        let failures = results |> List.exists snd
 
         log "Deriving the landscape"
         let generatedAt = DateTime.UtcNow.ToString "yyyy-MM-ddTHH:mm:ssZ"

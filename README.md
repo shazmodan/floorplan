@@ -57,6 +57,7 @@ floorplan analyze <path/to/folder>       a folder of solutions, analyzed as one 
       [--exclude <project,...>]
       [--solutions <name,...>]       in a folder of solutions: only these, nested ones too
       [--exclude-solutions <name,...>]
+      [--parallel <n>]               in a folder of solutions: n at once (default 1)
       [--include-tests]              test projects are excluded by default
       [-f|--framework <tfm>]         preferred target framework for multi-targeting projects
       [-c|--configuration <name>]    default Debug
@@ -84,7 +85,9 @@ compiled and analyzed. On a terminal, a spinner line under the steps shows how l
 ([docs/landscape-plan.md](docs/landscape-plan.md)). Build output, `node_modules` and hidden folders are skipped,
 and a solution inside another solution's folder (a `samples` solution) belongs to that system: it is listed, and
 analyzed only when named with `--solutions`. The other options apply to every solution; a solution that cannot
-be analyzed is listed with why, and the others still are.
+be analyzed is listed with why, and the others still are. `--parallel <n>` analyzes n solutions at once (each
+still built one at a time): on the test fixtures' nine solutions, 2 took 163 s instead of 273 s, but each solution
+takes the memory of its own run (a 20-project solution peaks near 4 GB), so the peak grows with n.
 
 Each solution's site is written to `solutions/<name>/`, with a way back and a switcher to the other solutions.
 The landscape's site beside them has:
