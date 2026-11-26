@@ -186,6 +186,7 @@ code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Shipping|CSharp.Effects
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage|CSharp.Effects.Storage.Setup | Setup | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage | reaches out | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage|CSharp.Effects.Storage.Shelves | Shelves | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage | reaches out | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.AuditStore | AuditStore | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects | reaches out | 1 sources
+code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Cached | Cached | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects | reaches out | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Database | Database | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects | reaches out | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Direct | Direct | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects | reaches out | 1 sources
 code | code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.FileStore | FileStore | type | in component:CSharp.Effects|CSharp.Effects:CSharp.Effects | reaches out | 1 sources
@@ -283,11 +284,11 @@ code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Queues|CSharp.Worker.Queue
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Reports | Reports | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | reaches out | 1 sources
 code | code:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting|CSharp.Worker.Reporting.Schedule | Schedule | type | in component:CSharp.Worker|CSharp.Worker:CSharp.Worker.Reporting | - | 1 sources
 code | code:CSharp.Worker|CSharp.Worker:|Program | Program | type | in component:CSharp.Worker|CSharp.Worker: | reaches out | 1 sources
-external-system | external:database | Database | - | in - | - | 51 sources
+external-system | external:database | Database | - | in - | - | 55 sources
 external-system | external:filesystem | File system | - | in - | - | 116 sources
-external-system | external:http | HTTP services | - | in - | - | 8 sources
+external-system | external:http | HTTP services | - | in - | - | 9 sources
 external-system | external:http:agent:4317 | agent:4317 | - | in - | - | 1 sources
-external-system | external:http:api.example.org | api.example.org | - | in - | - | 7 sources
+external-system | external:http:api.example.org | api.example.org | - | in - | - | 9 sources
 external-system | external:http:api.github.com | api.github.com | - | in - | - | 2 sources
 external-system | external:http:billing | billing | - | in - | - | 1 sources
 external-system | external:http:collector:4317 | collector:4317 | - | in - | - | 1 sources
@@ -449,6 +450,9 @@ code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage|CSharp.Effects.Storage
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage|CSharp.Effects.Storage.Shelves -> external:http | sends HTTP requests | log4net | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects.Storage|CSharp.Effects.Storage.Shelves -> external:network | sends and receives over the network | log4net | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.AuditStore -> external:filesystem | writes files | - | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Cached -> external:database | reads and writes data | - | 2 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Cached -> external:http | sends HTTP requests | HTTP | 1 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Cached -> external:http:api.example.org | sends HTTP requests | HTTP | 2 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Database -> external:database | reads and writes data | - | 6 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Direct -> external:filesystem | reads files | - | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Direct -> external:filesystem | writes files | - | 1 sources
@@ -464,7 +468,7 @@ code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.HigherOrder -> 
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.HigherOrder -> external:http:api.example.org | sends HTTP requests | HTTP | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Payloads -> external:filesystem | reads files | - | 2 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Payloads -> external:http:api.example.org | sends HTTP requests | HTTP | 2 sources
-code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.ThroughWrappers -> external:database | reads and writes data | CSharp.Wrappers | 15 sources
+code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.ThroughWrappers -> external:database | reads and writes data | CSharp.Wrappers | 17 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.ThroughWrappers -> external:filesystem | writes files | CSharp.Wrappers | 1 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.ThroughWrappers -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers | 3 sources
 code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Wrapped -> external:database | reads and writes data | Dapper | 7 sources
@@ -680,12 +684,12 @@ view context | context of system | 45 elements | 2370 x 2737
   external:library:RabbitMQ.Client -> system | delivers messages to | - | 9 sources
   external:library:StackExchange.Redis -> system | delivers messages to | - | 1 sources
   person:user -> system | sends HTTP requests to | HTTP | 89 sources
-  system -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 51 sources
+  system -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 55 sources
   system -> external:filesystem | reads files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 10 more | 37 sources
   system -> external:filesystem | writes files | AWSSDK.DynamoDBv2, AWSSDK.S3, AWSSDK.SQS and 7 more | 78 sources
-  system -> external:http | sends HTTP requests | AWSSDK.SQS, Flurl.Http, HTTP and 1 more | 8 sources
+  system -> external:http | sends HTTP requests | AWSSDK.SQS, Flurl.Http, HTTP and 1 more | 9 sources
   system -> external:http:agent:4317 | sends HTTP requests | OpenTelemetry | 1 sources
-  system -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
+  system -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 9 sources
   system -> external:http:api.github.com | sends HTTP requests | HTTP | 2 sources
   system -> external:http:billing | sends HTTP requests | HTTP | 1 sources
   system -> external:http:collector:4317 | sends HTTP requests | OpenTelemetry | 1 sources
@@ -758,11 +762,11 @@ view containers | containers of system | 65 elements | 3168 x 3990
   container:CSharp.Dapr -> external:http:shipping | sends HTTP requests | Dapr | 1 sources
   container:CSharp.Dapr -> external:library:Dapr | reads and writes data | - | 3 sources
   container:CSharp.Dapr -> external:library:Dapr | sends and receives over the network | - | 3 sources
-  container:CSharp.Effects -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 51 sources
+  container:CSharp.Effects -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 55 sources
   container:CSharp.Effects -> external:filesystem | reads files | NLog, NLog.Extensions.Logging, Serilog and 4 more | 19 sources
   container:CSharp.Effects -> external:filesystem | writes files | CSharp.Wrappers, NLog.Extensions.Logging, Serilog and 3 more | 16 sources
-  container:CSharp.Effects -> external:http | sends HTTP requests | Flurl.Http, log4net | 4 sources
-  container:CSharp.Effects -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
+  container:CSharp.Effects -> external:http | sends HTTP requests | Flurl.Http, HTTP, log4net | 5 sources
+  container:CSharp.Effects -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 9 sources
   container:CSharp.Effects -> external:library:Microsoft.EntityFrameworkCore | reads and writes data | - | 9 sources
   container:CSharp.Effects -> external:native | calls native code | - | 1 sources
   container:CSharp.Effects -> external:network | sends and receives over the network | log4net | 1 sources
@@ -910,11 +914,11 @@ view components:CSharp.Delegated | components of container:CSharp.Delegated | 3 
   component:CSharp.Delegated|CSharp.Delegated: -> component:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated | uses | - | 1 sources
   person:user -> component:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated | sends HTTP requests to | HTTP | 6 sources
 view components:CSharp.Effects | components of container:CSharp.Effects | 20 elements | 2282 x 1373
-  component:CSharp.Effects|CSharp.Effects:CSharp.Effects -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 28 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects -> external:database | reads and writes data | CSharp.Wrappers, Dapper | 32 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects -> external:filesystem | reads files | - | 4 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects -> external:filesystem | writes files | CSharp.Wrappers | 5 sources
-  component:CSharp.Effects|CSharp.Effects:CSharp.Effects -> external:http | sends HTTP requests | Flurl.Http | 1 sources
-  component:CSharp.Effects|CSharp.Effects:CSharp.Effects -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 7 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects -> external:http | sends HTTP requests | Flurl.Http, HTTP | 2 sources
+  component:CSharp.Effects|CSharp.Effects:CSharp.Effects -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers, HTTP | 9 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects -> external:native | calls native code | - | 1 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects -> external:processes | starts or inspects processes | - | 1 sources
   component:CSharp.Effects|CSharp.Effects:CSharp.Effects.Billing -> external:filesystem | reads files | Serilog | 1 sources
@@ -1210,8 +1214,11 @@ view code:CSharp.Delegated|CSharp.Delegated: | code of component:CSharp.Delegate
 view code:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated | code of component:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated | 3 elements | 577 x 461
   component:CSharp.Delegated|CSharp.Delegated: -> code:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated|CSharp.Delegated.Orders | uses | - | 1 sources
   person:user -> code:CSharp.Delegated|CSharp.Delegated:CSharp.Delegated|CSharp.Delegated.Orders | sends HTTP requests to | HTTP | 6 sources
-view code:CSharp.Effects|CSharp.Effects:CSharp.Effects | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects | 16 elements | 1968 x 802
+view code:CSharp.Effects|CSharp.Effects:CSharp.Effects | code of component:CSharp.Effects|CSharp.Effects:CSharp.Effects | 17 elements | 2047 x 1032
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.AuditStore -> external:filesystem | writes files | - | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Cached -> external:database | reads and writes data | - | 2 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Cached -> external:http | sends HTTP requests | HTTP | 1 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Cached -> external:http:api.example.org | sends HTTP requests | HTTP | 2 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Database -> external:database | reads and writes data | - | 6 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Direct -> external:filesystem | reads files | - | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Direct -> external:filesystem | writes files | - | 1 sources
@@ -1227,7 +1234,7 @@ view code:CSharp.Effects|CSharp.Effects:CSharp.Effects | code of component:CShar
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.HigherOrder -> external:http:api.example.org | sends HTTP requests | HTTP | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Payloads -> external:filesystem | reads files | - | 2 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Payloads -> external:http:api.example.org | sends HTTP requests | HTTP | 2 sources
-  code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.ThroughWrappers -> external:database | reads and writes data | CSharp.Wrappers | 15 sources
+  code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.ThroughWrappers -> external:database | reads and writes data | CSharp.Wrappers | 17 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.ThroughWrappers -> external:filesystem | writes files | CSharp.Wrappers | 1 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.ThroughWrappers -> external:http:api.example.org | sends HTTP requests | CSharp.Wrappers | 3 sources
   code:CSharp.Effects|CSharp.Effects:CSharp.Effects|CSharp.Effects.Wrapped -> external:database | reads and writes data | Dapper | 7 sources

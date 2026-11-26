@@ -367,3 +367,24 @@ method, kept in a field, `Remove`, `Clear`, a store at a key not known) leaves i
 (case i) now shows its SQL; new cases `Sql.Listed` (followed) and `Sql.Filled` (a method changes the dictionary:
 dynamic). Not followed: caches and collections kept in fields, which other methods change. Cache key
 `summaries-v24`.
+
+**2026-11-26, values through caches.** Two kinds of value kept between methods (`Values.Keeping`, read by
+`Producers`):
+- A dictionary held in a field (static or instance, any object's), read at a constant key (`get_Item`; an
+  integer key is its digits). Every method of the field's own assembly that touches the field is read: the field
+  may only be given a dictionary made where it is stored (`new Dictionary<,>()`, default key comparer) or null, and
+  the dictionary may only be stored into (indexer, `Add`, `TryAdd`) and read (`get_Item`, `TryGetValue`,
+  `ContainsKey`, `Remove`, the counts, keys, values, enumeration). Any other use (passed on, returned, kept
+  elsewhere, its address taken), a store at a key not known, or stores at the key that disagree leave it unknown.
+  A stored value in terms of the storing method's arguments is unknown at the reader. Reading only the field's
+  own assembly keeps a library's summary depending on that library alone; a public field another assembly writes
+  is not seen.
+- An `IMemoryCache` (`CacheExtensions.Set`, `Get`, `GetOrCreate`, whose factory's single return is its value), in
+  application code only: the writes are read in the reading assembly and the solution's assemblies it
+  references (`ExitPoints`), all sharing one cache in one process. A write at a key that may be the one read (a
+  template such as `$"user:{id}"` matched as a pattern, a key not known), `CreateEntry` or `GetOrCreateAsync` there
+  leaves it unknown. Library code's caches are not followed, as the application can write the same keys.
+Fixtures: wrapper cases `Sql.Purge` (followed) and `Sql.RunRemembered` (the caller's SQL, dynamic); in
+`CSharp.Effects`, the new `Cached` class (static and instance field dictionaries, `Set`/`Get`, `GetOrCreate`, a
+templated write that hides a key). Cache key `summaries-v25`. Not followed: `ConcurrentDictionary`, `TryGetValue`'s
+out value, `IDistributedCache`, `HybridCache`.

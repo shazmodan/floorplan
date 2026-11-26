@@ -237,7 +237,7 @@ workspace "CSharp" "CSharp, derived by Floorplan from its code" {
         component_CSharp_Effects_CSharp_Effects_CSharp_Effects -> external_database "reads and writes data" "CSharp.Wrappers, Dapper"
         component_CSharp_Effects_CSharp_Effects_CSharp_Effects -> external_filesystem "reads files"
         component_CSharp_Effects_CSharp_Effects_CSharp_Effects -> external_filesystem "writes files" "CSharp.Wrappers"
-        component_CSharp_Effects_CSharp_Effects_CSharp_Effects -> external_http "sends HTTP requests" "Flurl.Http"
+        component_CSharp_Effects_CSharp_Effects_CSharp_Effects -> external_http "sends HTTP requests" "Flurl.Http, HTTP"
         component_CSharp_Effects_CSharp_Effects_CSharp_Effects -> external_http_api_example_org "sends HTTP requests" "CSharp.Wrappers, HTTP"
         component_CSharp_Effects_CSharp_Effects_CSharp_Effects -> external_native "calls native code"
         component_CSharp_Effects_CSharp_Effects_CSharp_Effects -> external_processes "starts or inspects processes"

@@ -158,4 +158,32 @@ public static class Sql
     }
 
     private static void Override(Dictionary<string, string> statements) => statements["main"] = "DELETE FROM everything";
+
+    /// Statements the type keeps in a dictionary of its own, filled where it is made.
+    private static readonly Dictionary<string, string> Statements = new()
+    {
+        ["purge"] = "DELETE FROM sessions WHERE expired",
+        ["vacuum"] = "VACUUM",
+    };
+
+    /// Through a dictionary held in a field, read at a constant key.
+    public static int Purge(DbConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = Statements["purge"];
+        return command.ExecuteNonQuery();
+    }
+
+    /// The caller's SQL, kept in a field's dictionary by one method and read by another: what it holds is the
+    /// caller's, which is not known there, so the SQL stays dynamic.
+    private static readonly Dictionary<string, string> Remembered = new();
+
+    public static void Remember(string sql) => Remembered["last"] = sql;
+
+    public static int RunRemembered(DbConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = Remembered["last"];
+        return command.ExecuteNonQuery();
+    }
 }

@@ -473,8 +473,10 @@ Also new, outside the recognizer:
   library reaches the primitive by several routes, the shortest one whose payload is known is shown, with its
   evidence and the primitive that route ends at. A value kept in a dictionary, list or array the same method
   makes, and read back at a constant key or index, is followed; one the collection is passed on, cleared or
-  stored into at a key not known before the read, one in a dictionary with its own key comparer, and values kept
-  in caches or rebuilt from parsed objects (Flurl's `Url`) stay dynamic.
+  stored into at a key not known before the read, one in a dictionary with its own key comparer, and values
+  rebuilt from parsed objects (Flurl's `Url`) stay dynamic. A value kept in a dictionary a field holds is
+  followed too, when every store at the key read stores the same value (`docs/library-payloads-plan.md`, "values
+  through caches"), and so is a value in an application's `IMemoryCache` (`Set`, `Get`, `GetOrCreate`).
   Fixtures: `Dependency/CSharp.Wrappers` and `Effects/Dependency/Effects.Wrappers`, both built optimized as
   packages are.
 - **Route parameter names** (F# and C#): a segment taken as a parameter is named after the handler parameter

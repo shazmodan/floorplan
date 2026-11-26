@@ -1473,7 +1473,7 @@ let messageEntries (ctx: AppContext) : EntryPoint list =
     // A queue named by an argument, or by a property of one (an SQS request's QueueUrl).
     let text (r: PlatformRouting.Registration) (spec: PayloadSpec) =
         let evaluator =
-            Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set, (fun m n -> ctx.Program.Producers.Member(m, n)), ctx.Program.SettingsFor ctx.Project)
+            Values.Evaluator(r.Flow, ctx.Program.Recognizers, Values.constantReturn set, (fun m n -> ctx.Program.Producers.Member(m, n)), ctx.Program.SettingsFor ctx.Project, ctx.Program.Producers.Keeping [])
 
         let index = Values.operandIndex r.Declared (isNewObj r) spec.Argument
 

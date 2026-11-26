@@ -169,6 +169,61 @@ module Settings =
     /// A key under a section: the root's keys are its own.
     let join (section: string) (key: string) = if section = "" then key else section + ":" + key
 
+/// Values kept between methods (docs/library-payloads-plan.md, "values through caches"), which `Producers` reads:
+/// `InField settings field key`, what a dictionary held in a field holds at a constant key; `InCache settings key`,
+/// what an `IMemoryCache` holds at one. Each is evaluated with the settings of the evaluator that asks.
+type Keeping =
+    { InField: Settings -> FieldRef -> string -> Origin
+      InCache: Settings -> string -> Origin }
+
+module Keeping =
+    let none: Keeping =
+        { InField = (fun _ _ _ -> Origin.unknown)
+          InCache = fun _ _ -> Origin.unknown }
+
+/// The type `IMemoryCache`'s extension methods are on.
+let private cacheExtensions = "Microsoft.Extensions.Caching.Memory.CacheExtensions"
+
+/// A delegate made in this method (`new Func<..>(target, ldftn M)`, or C#'s cached `<>9__` field or the delegate just
+/// made): the method it runs.
+let rec private delegateMethod (flow: Flow) (values: Values) : MethodRef option =
+    let made (o: int) =
+        match flow.InstructionAt o with
+        | Some { Op = NewObj _ } ->
+            flow.OperandsAt o
+            |> List.tryPick (fun vs ->
+                match Set.toList vs with
+                | [ Pushed f ] ->
+                    match flow.InstructionAt f with
+                    | Some { Op = (LdFtn m | LdVirtFtn m) } -> Some m
+                    | _ -> None
+                | _ -> None)
+        | Some { Op = (CastClass _ | Box _) } ->
+            match flow.OperandsAt o with
+            | [ inner ] -> delegateMethod flow inner
+            | _ -> None
+        | _ -> None
+
+    let found =
+        values
+        |> Set.toList
+        |> List.choose (function
+            | Pushed o -> made o
+            | _ -> None)
+        |> List.distinctBy (fun m -> m.Key)
+
+    match found with
+    | [ m ] -> Some m
+    | _ -> None
+
+/// The value a key or a stored value is in another method, as seen from a reader: that method's arguments are not
+/// known there.
+let private detached (origin: Origin) : Origin =
+    origin
+    |> List.map (function
+        | FromParameter _ -> Unknown
+        | s -> s)
+
 /// The last store to a member found in a method body.
 type private Store =
     /// A setter or field store, with the value stored.
@@ -180,8 +235,10 @@ type private Store =
 /// method: what it returns), in terms of `m`'s arguments; with an empty `name`, what a method returns itself.
 /// `Producers` reads it from `m`'s body.
 /// `settings`: the application's configuration, for values read from it.
-type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: MethodRef -> string option, produced: MethodRef -> string -> Origin, ?settings: Settings) =
+/// `keeping`: values kept between methods, in a field's dictionary or a memory cache.
+type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: MethodRef -> string option, produced: MethodRef -> string -> Origin, ?settings: Settings, ?keeping: Keeping) =
     let settings = defaultArg settings Settings.none
+    let keeping = defaultArg keeping Keeping.none
 
     let operandIndex (m: MethodRef) (argument: int) =
         if m.HasThis then argument + 1 else argument
@@ -219,6 +276,24 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                 | Call m
                 | CallVirt m when (getterName m).IsSome && not operands.IsEmpty && isOptions operands.Head -> Hole
                 | NewArr _ -> arrayElements depth (Set.singleton (Pushed offset))
+                // What a dictionary held in a field holds at a constant key, whichever method stored it.
+                | Call m
+                | CallVirt m when
+                    m.Name = "get_Item" && m.HasThis && m.ParameterCount = 1 && operands.Length = 2
+                    && keptThrough Keyed m.Type.FullName
+                    && (heldField operands[0]).IsSome
+                    ->
+                    match integer (depth + 1) operands[1] with
+                    | Text k -> kept (keeping.InField settings (heldField operands[0]).Value k)
+                    | _ -> Hole
+                // What a memory cache holds at a constant key (`Get<T>`, or `GetOrCreate`, which stores its factory's
+                // value when the key is not there yet).
+                | Call m when
+                    m.Type.FullName = cacheExtensions && (m.Name = "Get" || m.Name = "GetOrCreate") && operands.Length >= 2
+                    ->
+                    match value (depth + 1) operands[1] with
+                    | Text k -> kept (keeping.InCache settings k)
+                    | _ -> Hole
                 // An element of a collection or array this method made, read at a constant key or index.
                 | Call m
                 | CallVirt m when
@@ -608,6 +683,27 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
                     |> Option.map (fun (_, v) -> value (depth + 1) v)
         | _ -> None
 
+    /// The field a value is loaded from (an instance field of any object, or a static field).
+    and heldField (values: Values) : FieldRef option =
+        match Set.toList values with
+        | [ Pushed o ] ->
+            match flow.InstructionAt o with
+            | Some { Op = (LdFld f | LdSFld f) } -> Some f
+            | _ -> None
+        | _ -> None
+
+    /// A value kept elsewhere, as found there.
+    and kept (origin: Origin) : Symbolic =
+        match origin with
+        | [ Unknown ] -> Hole
+        | segments ->
+            segments
+            |> List.map (function
+                | Literal t -> Text t
+                | _ -> Hole)
+            |> Parts
+            |> collapse
+
     /// A collection or array this method made, by the offset it is made at, and what kind of collection it is
     /// (None for an array): only one made without arguments but a capacity, so with the default key comparer.
     and madeCollection (collection: Values) : (int * Kept option) option =
@@ -786,6 +882,9 @@ type Evaluator(flow: Flow, recognizers: ICodegenRecognizer list, constant: Metho
 
     member _.Value(values: Values) = value 0 values
 
+    /// A key: as `Value`, but an integer constant is its digits.
+    member _.Key(values: Values) = integer 0 values
+
     /// The key of the configuration that operand `index` of the instruction at `offset` is at, when it is an
     /// options object or an object inside one.
     member _.OptionsPath(offset: int, index: int, owner: string) : string option =
@@ -946,8 +1045,80 @@ let operandIndex (m: MethodRef) (isNewObj: bool) (argument: int) =
 /// What methods outside the one being evaluated set on the objects they produce (`Evaluator`'s `produced`): a
 /// constructor's stores to the new object, a method's to the object it returns. Read once per (method, member)
 /// from the method's body; base-library methods are not read.
+///
+/// It also reads values kept between methods (`Keeping`): a dictionary held in a field is read in the field's own
+/// assembly, so a library's summary depends on nothing else; a memory cache in the application assemblies given.
 type Producers(set: AssemblySet, recognizers: ICodegenRecognizer list) =
     let memo = System.Collections.Generic.Dictionary<struct (string * string), Origin>()
+
+    /// Per assembly, the methods that touch a field (by "field:" and its key) or call a memory cache ("cache").
+    let touching = System.Collections.Generic.Dictionary<string, Map<string, MethodDef list>>()
+
+    /// What is kept, per evaluator's settings (by reference) and key.
+    let keptMemo =
+        System.Runtime.CompilerServices.ConditionalWeakTable<Settings, System.Collections.Generic.Dictionary<string, Origin>>()
+
+    let tokensOf (body: MethodBody) =
+        body.Instructions
+        |> Array.choose (fun i ->
+            match i.Op with
+            | LdFld f
+            | LdFldA f
+            | StFld f
+            | LdSFld f
+            | LdSFldA f
+            | StSFld f -> Some("field:" + f.Key)
+            | Call c
+            | CallVirt c when
+                c.Type.FullName = cacheExtensions
+                || c.Type.FullName = "Microsoft.Extensions.Caching.Memory.IMemoryCache"
+                ->
+                Some "cache"
+            | _ -> None)
+        |> Array.distinct
+
+    let touchedIn (assembly: string) (token: string) : MethodDef list =
+        let index =
+            match touching.TryGetValue assembly with
+            | true, index -> index
+            | _ ->
+                let index =
+                    match set.TryLoad assembly with
+                    | None -> Map.empty
+                    | Some a ->
+                        [ for t in a.Types do
+                              for m in t.Methods do
+                                  match m.Body.Value with
+                                  | None -> ()
+                                  | Some body ->
+                                      for token in tokensOf body do
+                                          yield token, m ]
+                        |> List.groupBy fst
+                        |> List.map (fun (token, ms) -> token, List.map snd ms)
+                        |> Map.ofList
+
+                touching[assembly] <- index
+                index
+
+        index |> Map.tryFind token |> Option.defaultValue []
+
+    /// The one value all stores agree on; unknown when they disagree or there are none.
+    let agreed (stores: Origin list) : Origin =
+        match List.distinct stores with
+        | [ one ] -> one
+        | _ -> Origin.unknown
+
+    let memoized (settings: Settings) (key: string) (compute: unit -> Origin) =
+        let table = keptMemo.GetValue(settings, fun _ -> System.Collections.Generic.Dictionary<string, Origin>())
+
+        match table.TryGetValue key with
+        | true, o -> o
+        | _ ->
+            // Unknown while computed, so a value kept through itself ends.
+            table[key] <- Origin.unknown
+            let origin = compute ()
+            table[key] <- origin
+            origin
 
     member this.Member(m: MethodRef, name: string) : Origin =
         let key = struct (m.Key, name)
@@ -965,7 +1136,7 @@ type Producers(set: AssemblySet, recognizers: ICodegenRecognizer list) =
                     match set.TryMethod m |> Option.bind (fun (def, _) -> DataFlow.ofMethod def) with
                     | None -> Origin.unknown
                     | Some flow ->
-                        let evaluator = Evaluator(flow, recognizers, constantReturn set, fun m n -> this.Member(m, n))
+                        let evaluator = this.EvaluatorFor(Settings.none, flow)
 
                         if m.Name = ".ctor" then
                             evaluator.MemberOf(Set.singleton (Argument 0), name, System.Int32.MaxValue)
@@ -985,6 +1156,196 @@ type Producers(set: AssemblySet, recognizers: ICodegenRecognizer list) =
 
             memo[key] <- origin
             origin
+
+    /// Values kept between methods, for an evaluator: a memory cache as the `applications` assemblies use it.
+    member this.Keeping(applications: string list) : Keeping =
+        { InField = fun settings field key -> this.InField(settings, field, key)
+          InCache = fun settings key -> this.InCache(applications, settings, key) }
+
+    member private this.EvaluatorFor(settings: Settings, flow: Flow) : Evaluator =
+        Evaluator(flow, recognizers, constantReturn set, (fun m n -> this.Member(m, n)), settings, this.Keeping [])
+
+    /// What a dictionary held in `field` holds at `key`: the value every store at that key stores (an indexer
+    /// set, `Add`, `TryAdd`), when they agree and every store is at a constant key. Unknown when the field is given
+    /// anything but a dictionary made where it is stored (with the default key comparer), or when the dictionary is
+    /// used for more than storing and reading (passed on, returned, kept elsewhere, its field's address taken).
+    /// Only the field's own assembly is read.
+    member this.InField(settings: Settings, field: FieldRef, key: string) : Origin =
+        memoized settings ("field:" + field.Key + "\u0000" + key) (fun () ->
+            match set.TryType field.Type with
+            | Some(_, a) when set.Origin a.Name <> Framework ->
+                let isField (f: FieldRef) = f.Key = field.Key
+
+                // In one method: None when something else is done with the dictionary; else its stores, by key.
+                let readMethod (def: MethodDef) : (string option * Origin) list option =
+                    match DataFlow.ofMethod def with
+                    | None -> None
+                    | Some flow ->
+                        let evaluator = this.EvaluatorFor(settings, flow)
+
+                        // The values that are the dictionary in this method: loads of the field, and dictionaries
+                        // made here and stored into it.
+                        let held =
+                            flow.Body.Instructions
+                            |> Array.map (fun i ->
+                                match i.Op with
+                                | LdFld f
+                                | LdSFld f when isField f -> Ok [ i.Offset ]
+                                | LdFldA f
+                                | LdSFldA f when isField f -> Error()
+                                | StFld f
+                                | StSFld f when isField f ->
+                                    match flow.OperandsAt i.Offset |> List.tryLast |> Option.map Set.toList with
+                                    | Some [ Pushed n ] ->
+                                        match flow.InstructionAt n with
+                                        | Some { Op = NewObj ctor } when
+                                            keptOf ctor.Type.FullName = Some Keyed
+                                            && (ctor.ParameterTypes.IsEmpty || ctor.ParameterTypes = [ "System.Int32" ])
+                                            ->
+                                            Ok [ n ]
+                                        | Some { Op = LdNull } -> Ok []
+                                        | _ -> Error()
+                                    | _ -> Error()
+                                | _ -> Ok [])
+
+                        if held |> Array.exists Result.isError then
+                            None
+                        else
+                            let held =
+                                held
+                                |> Array.collect (function
+                                    | Ok os -> List.toArray os
+                                    | Error() -> [||])
+                                |> Set.ofArray
+
+                            let isHeld (v: Values) =
+                                v
+                                |> Set.exists (function
+                                    | Pushed o -> held.Contains o
+                                    | _ -> false)
+
+                            let keyOf (v: Values) =
+                                match evaluator.Key v with
+                                | Text k -> Some k
+                                | _ -> None
+
+                            let uses =
+                                flow.Body.Instructions
+                                |> Array.choose (fun i ->
+                                    let operands = flow.OperandsAt i.Offset
+
+                                    if not (operands |> List.exists isHeld) then
+                                        None
+                                    else
+                                        match i.Op, operands with
+                                        | (StLoc _ | Dup | Pop), _ -> None
+                                        // The dictionary made here, stored into the field.
+                                        | (StFld f | StSFld f), _ when isField f -> None
+                                        | (Call m | CallVirt m), target :: rest when
+                                            isHeld target && keptThrough Keyed m.Type.FullName
+                                            && not (rest |> List.exists isHeld)
+                                            ->
+                                            match m.Name, rest with
+                                            | ("set_Item" | "Add" | "TryAdd"), [ k; v ] ->
+                                                Some(Ok(Some(keyOf k, detached (evaluator.OriginOf v))))
+                                            | ("get_Item" | "ContainsKey" | "TryGetValue" | "get_Count" | "Remove" | "get_Keys" | "get_Values" | "GetEnumerator"),
+                                              _ -> Some(Ok None)
+                                            | _ -> Some(Error())
+                                        | _ -> Some(Error()))
+
+                            if uses |> Array.exists Result.isError then
+                                None
+                            else
+                                uses
+                                |> Array.choose (function
+                                    | Ok s -> s
+                                    | Error() -> None)
+                                |> Array.toList
+                                |> Some
+
+                let found = touchedIn a.Name ("field:" + field.Key) |> List.map readMethod
+
+                if found |> List.exists Option.isNone then
+                    Origin.unknown
+                else
+                    let stores = found |> List.collect Option.get
+
+                    if stores |> List.exists (fun (k, _) -> k.IsNone) then
+                        Origin.unknown
+                    else
+                        stores |> List.filter (fun (k, _) -> k = Some key) |> List.map snd |> agreed
+            | _ -> Origin.unknown)
+
+    /// What a memory cache holds at `key`, as the `applications` assemblies use it: the value every write at that
+    /// key stores (`Set`, or the value `GetOrCreate`'s factory returns), when they agree. Unknown when there is a
+    /// write at a key that may be this one but is not known to be (a template, a key not known), or an entry made
+    /// with `CreateEntry`, or a `GetOrCreateAsync` (its value is a task's).
+    member this.InCache(applications: string list, settings: Settings, key: string) : Origin =
+        memoized settings ("cache:" + String.concat "," applications + "\u0000" + key) (fun () ->
+            let mayBe (k: Symbolic) =
+                let pattern =
+                    flatten k
+                    |> List.map (function
+                        | Text t -> System.Text.RegularExpressions.Regex.Escape t
+                        | _ -> ".*")
+                    |> String.concat ""
+
+                System.Text.RegularExpressions.Regex.IsMatch(
+                    key,
+                    "^" + pattern + "$",
+                    System.Text.RegularExpressions.RegexOptions.Singleline
+                )
+
+            // The value the factory given to a `GetOrCreate` returns.
+            let factoryValue (flow: Flow) (factory: Values) : Origin =
+                match delegateMethod flow factory |> Option.bind set.TryMethod |> Option.bind (fst >> DataFlow.ofMethod) with
+                | None -> Origin.unknown
+                | Some body ->
+                    let returns =
+                        body.Body.Instructions
+                        |> Array.filter (fun i -> i.Op = Ret)
+                        |> Array.choose (fun i ->
+                            match body.OperandsAt i.Offset with
+                            | [ v ] -> Some v
+                            | _ -> None)
+
+                    match returns with
+                    | [| v |] -> detached (this.EvaluatorFor(settings, body).OriginOf v)
+                    | _ -> Origin.unknown
+
+            // Every write that may be at the key: whether it is at the key itself, and what it stores.
+            let writes =
+                [ for assembly in applications do
+                      for def in touchedIn assembly "cache" do
+                          match DataFlow.ofMethod def with
+                          | None -> ()
+                          | Some flow ->
+                              let evaluator = this.EvaluatorFor(settings, flow)
+
+                              for i in flow.Body.Instructions do
+                                  match i.Op, flow.OperandsAt i.Offset with
+                                  | (Call m | CallVirt m), _ :: k :: rest when
+                                      m.Type.FullName = cacheExtensions
+                                      && (m.Name = "Set" || m.Name = "GetOrCreate" || m.Name = "GetOrCreateAsync")
+                                      || m.Name = "CreateEntry"
+                                         && m.Type.FullName = "Microsoft.Extensions.Caching.Memory.IMemoryCache"
+                                      ->
+                                      let written = evaluator.Value k
+
+                                      if mayBe written then
+                                          let stored =
+                                              match m.Name, rest with
+                                              | "Set", v :: _ -> detached (evaluator.OriginOf v)
+                                              | "GetOrCreate", factory :: _ -> factoryValue flow factory
+                                              | _ -> Origin.unknown
+
+                                          yield (written = Text key), stored
+                                  | _ -> () ]
+
+            if writes |> List.exists (fun (exact, _) -> not exact) then
+                Origin.unknown
+            else
+                writes |> List.map snd |> agreed)
 
 // ---- Static fields ----
 
